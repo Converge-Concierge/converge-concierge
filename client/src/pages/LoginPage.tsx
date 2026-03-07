@@ -1,30 +1,38 @@
 import { useLocation, Link } from "wouter";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Hexagon, Lock, Mail, ArrowRight, ShieldCheck } from "lucide-react";
+import { Hexagon, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [email, setEmail] = useState("admin@converge.com");
+  const [password, setPassword] = useState("password");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate API delay for UI demonstration
-    setTimeout(() => {
+    setError("");
+    try {
+      await login(email, password);
       setLocation("/admin");
-    }, 800);
+    } catch (err: any) {
+      setError(err.message ?? "Login failed. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Background aesthetics */}
       <div className="absolute inset-0 z-0 flex">
         <div className="w-1/2 h-full bg-primary relative hidden lg:block">
-          {/* subtle abstract architecture texture */}
           <img 
             src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1920&q=80" 
             alt="Modern Architecture" 
@@ -53,7 +61,6 @@ export default function LoginPage() {
           </div>
         </div>
         <div className="w-full lg:w-1/2 h-full bg-background relative flex items-center justify-center p-6 sm:p-12">
-          {/* Subtle noise/grid on light side */}
           <div className="absolute inset-0 bg-grid-pattern opacity-[0.15] pointer-events-none" />
           
           <motion.div 
@@ -74,6 +81,13 @@ export default function LoginPage() {
                 <p className="text-muted-foreground mt-2">Sign in to access the admin dashboard</p>
               </div>
 
+              {error && (
+                <div className="flex items-center gap-2 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 mb-5">
+                  <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-foreground/80 font-medium">Work Email</Label>
@@ -85,7 +99,9 @@ export default function LoginPage() {
                       placeholder="admin@converge.com" 
                       className="pl-10 h-12 rounded-xl border-border/80 focus-visible:ring-accent"
                       required
-                      defaultValue="admin@converge.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      data-testid="input-login-email"
                     />
                   </div>
                 </div>
@@ -93,9 +109,6 @@ export default function LoginPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password" className="text-foreground/80 font-medium">Password</Label>
-                    <a href="#" className="text-sm font-medium text-accent hover:underline" onClick={(e) => e.preventDefault()}>
-                      Forgot password?
-                    </a>
                   </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60" />
@@ -105,7 +118,9 @@ export default function LoginPage() {
                       placeholder="••••••••" 
                       className="pl-10 h-12 rounded-xl border-border/80 focus-visible:ring-accent"
                       required
-                      defaultValue="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      data-testid="input-login-password"
                     />
                   </div>
                 </div>
@@ -114,6 +129,7 @@ export default function LoginPage() {
                   type="submit" 
                   disabled={isLoading}
                   className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base mt-2 shadow-lg shadow-primary/25 transition-all group"
+                  data-testid="button-login-submit"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2">

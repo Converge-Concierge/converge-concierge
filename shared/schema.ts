@@ -7,15 +7,24 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  name: text("name").notNull().default(""),
+  email: text("email").notNull().default(""),
+  role: text("role", { enum: ["admin", "manager"] }).notNull().default("manager"),
+  isActive: boolean("is_active").notNull().default(true),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
+export const insertUserSchema = createInsertSchema(users)
+  .pick({ name: true, email: true, password: true, role: true, isActive: true })
+  .extend({
+    role: z.enum(["admin", "manager"]).default("manager"),
+    isActive: z.boolean().default(true),
+  });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// Safe user type — password stripped for API responses
+export type SafeUser = Omit<User, "password" | "username">;
 
 // --- Meeting Location ---
 export const meetingLocationSchema = z.object({

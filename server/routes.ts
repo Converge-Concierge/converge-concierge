@@ -2,6 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, type InsertEvent, type InsertSponsor, type InsertAttendee } from "@shared/schema";
+import { requireAuth, requireAdmin, stripPassword } from "./auth";
 
 async function seedData() {
   const events = await storage.getEvents();
@@ -118,8 +119,78 @@ async function seedData() {
   }
 }
 
+async function seedUsers() {
+  const existing = await storage.getUsers();
+  if (existing.length > 0) return;
+  await storage.createUser({ name: "Admin User", email: "admin@converge.com", password: "password", role: "admin", isActive: true });
+  await storage.createUser({ name: "Manager User", email: "manager@converge.com", password: "password", role: "manager", isActive: true });
+}
+
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   seedData().catch(console.error);
+  seedUsers().catch(console.error);
+
+  // ── Auth ─────────────────────────────────────────────────────────────────
+
+  app.post("/api/auth/login", async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: "Email and password required" });
+    const user = await storage.getUserByEmail(email);
+    if (!user || user.password !== password || !user.isActive) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+    req.session.userId = user.id;
+    req.session.role = user.role as "admin" | "manager";
+    res.json(stripPassword(user));
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy(() => res.json({ message: "Logged out" }));
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
+    const user = await storage.getUser(req.session.userId);
+    if (!user || !user.isActive) {
+      req.session.destroy(() => {});
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    res.json(stripPassword(user));
+  });
+
+  // ── User Management (admin-only) ─────────────────────────────────────────
+
+  app.get("/api/users", requireAdmin, async (_req, res) => {
+    const users = await storage.getUsers();
+    res.json(users.map(stripPassword));
+  });
+
+  app.post("/api/users", requireAdmin, async (req, res) => {
+    const { name, email, password, role, isActive } = req.body;
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ message: "name, email, password, role are required" });
+    }
+    const exists = await storage.getUserByEmail(email);
+    if (exists) return res.status(409).json({ message: "A user with this email already exists" });
+    const user = await storage.createUser({ name, email, password, role, isActive: isActive ?? true });
+    res.status(201).json(stripPassword(user));
+  });
+
+  app.patch("/api/users/:id", requireAdmin, async (req, res) => {
+    const { password, ...updates } = req.body;
+    const patch = password ? { ...updates, password } : updates;
+    const user = await storage.updateUser(req.params.id as string, patch);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(stripPassword(user));
+  });
+
+  app.delete("/api/users/:id", requireAdmin, async (req, res) => {
+    if (req.params.id === req.session.userId) {
+      return res.status(400).json({ message: "You cannot delete your own account" });
+    }
+    await storage.deleteUser(req.params.id as string);
+    res.sendStatus(204);
+  });
 
   // ── Events ──────────────────────────────────────────────────────────────
   app.get("/api/events", async (_req, res) => {

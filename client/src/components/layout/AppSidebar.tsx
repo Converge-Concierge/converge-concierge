@@ -9,7 +9,8 @@ import {
   Palette,
   Settings,
   Hexagon,
-  LogOut
+  LogOut,
+  UserCog,
 } from "lucide-react";
 import {
   Sidebar,
@@ -23,6 +24,8 @@ import {
   SidebarMenuItem,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/hooks/use-auth";
+import { useLocation as useWouterLocation } from "wouter";
 
 const mainItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
@@ -38,8 +41,19 @@ const configItems = [
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  isAdmin?: boolean;
+}
+
+export function AppSidebar({ isAdmin }: AppSidebarProps) {
   const [location] = useLocation();
+  const { logout } = useAuth();
+  const [, nav] = useWouterLocation();
+
+  async function handleLogout() {
+    await logout();
+    nav("/login");
+  }
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar">
@@ -65,8 +79,8 @@ export function AppSidebar() {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={isActive}
                       className="transition-all duration-200"
                     >
@@ -92,8 +106,8 @@ export function AppSidebar() {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={isActive}
                       className="transition-all duration-200"
                     >
@@ -105,6 +119,21 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 );
               })}
+
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/admin/users"}
+                    className="transition-all duration-200"
+                  >
+                    <Link href="/admin/users">
+                      <UserCog className="h-4 w-4" />
+                      <span>Users</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -113,11 +142,12 @@ export function AppSidebar() {
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="hover:bg-destructive/10 hover:text-destructive">
-              <Link href="/">
-                <LogOut className="h-4 w-4" />
-                <span>Sign out</span>
-              </Link>
+            <SidebarMenuButton
+              className="hover:bg-destructive/10 hover:text-destructive cursor-pointer"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Sign out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

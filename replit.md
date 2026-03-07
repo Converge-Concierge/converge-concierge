@@ -5,7 +5,7 @@
 Converge Concierge is a fintech event scheduling platform operating in **scheduling-only mode** (no matchmaking, no approval workflows, no preference matching). It has two main surfaces:
 
 - **Public site** — landing page → event page → multi-step booking wizard (sponsor → date → time → attendee details → confirmation)
-- **Admin panel** (`/admin/*`) — full management of Events, Sponsors, Attendees, Meetings, and Reports
+- **Admin panel** (`/admin/*`) — full management of Events, Sponsors, Attendees, Meetings, Reports, and Users (admin-only)
 
 Backend: Express + in-memory storage (MemStorage). Frontend: React SPA with Vite, Wouter, TanStack Query v5, shadcn/ui, Tailwind CSS, Framer Motion.
 
@@ -85,9 +85,39 @@ All at `/event/:slug` — single-page multi-step wizard:
 /admin/attendees      → AttendeesPage (CRUD, LinkedIn URL, bulk import placeholder)
 /admin/meetings       → MeetingsPage (smart scheduler, conflict enforcement, filters)
 /admin/reports        → ReportsPage (meeting stats, breakdowns, filterable table, CSV export)
+/admin/users          → UsersPage (admin-only: CRUD for internal users, role assignment)
 /admin/branding       → Placeholder shell
 /admin/settings       → Placeholder shell
 ```
+
+---
+
+## Auth & RBAC
+
+### Session auth
+- `express-session` with `SESSION_SECRET` env var; 8-hour cookie; MemStore (no DB)
+- Session stores `userId` and `role` — type-augmented via `declare module "express-session"`
+- Passwords stored as plain text in MemStorage (demo app, no bcrypt needed)
+
+### Roles
+| Role | Access |
+|------|--------|
+| `admin` | All pages including /admin/users; full CRUD on users |
+| `manager` | All pages except /admin/users (shows Access Denied) |
+
+### Default seeded users (re-created on each server restart)
+- `admin@converge.com` / `password` — role: admin
+- `manager@converge.com` / `password` — role: manager
+
+### Auth context (frontend)
+- `client/src/hooks/use-auth.tsx` — `AuthProvider` wraps app in `App.tsx`
+- `useAuth()` returns `{ user, isLoading, isAdmin, isManager, login, logout }`
+- `GET /api/auth/me` queried via TanStack Query on mount; `staleTime: 5 min`
+- `AdminLayout` guards the entire `/admin/*` tree: unauthenticated → redirect to /login
+
+### API middleware
+- `requireAuth` — checks `req.session.userId`, returns 401 if missing
+- `requireAdmin` — checks `req.session.role === "admin"`, returns 403 if not
 
 ---
 

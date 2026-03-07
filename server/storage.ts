@@ -8,10 +8,16 @@ import {
 } from "@shared/schema";
 import { randomUUID, randomBytes } from "crypto";
 
+export type UpdateUser = Partial<Omit<InsertUser, "password"> & { password?: string }>;
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, updates: UpdateUser): Promise<User | undefined>;
+  deleteUser(id: string): Promise<void>;
 
   // Events
   getEvents(): Promise<Event[]>;
@@ -76,11 +82,41 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find((u) => u.username === username);
   }
 
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (u) => u.email.toLowerCase() === email.toLowerCase()
+    );
+  }
+
+  async getUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id };
+    const user: User = {
+      id,
+      username: insertUser.email ?? "",
+      password: insertUser.password,
+      name: insertUser.name ?? "",
+      email: insertUser.email ?? "",
+      role: (insertUser.role ?? "manager") as "admin" | "manager",
+      isActive: insertUser.isActive ?? true,
+    };
     this.users.set(id, user);
     return user;
+  }
+
+  async updateUser(id: string, updates: UpdateUser): Promise<User | undefined> {
+    const existing = this.users.get(id);
+    if (!existing) return undefined;
+    const updated: User = { ...existing, ...updates };
+    this.users.set(id, updated);
+    return updated;
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    this.users.delete(id);
   }
 
   // Events

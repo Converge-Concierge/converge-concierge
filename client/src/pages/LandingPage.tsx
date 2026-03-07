@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 const EVENTS = [
   {
     id: 1,
+    slug: "CUGI2027",
     title: "The 2027 CU Growth & Innovation Summit",
     date: "March 12-14, 2027",
     location: "Miami, FL",
@@ -14,6 +15,7 @@ const EVENTS = [
   },
   {
     id: 2,
+    slug: "FRC2026",
     title: "The 2026 Fintech Risk & Compliance Forum",
     date: "October 5-7, 2026",
     location: "Chicago, IL",
@@ -22,6 +24,7 @@ const EVENTS = [
   },
   {
     id: 3,
+    slug: "TLS2026",
     title: "The 2026 Treasury Leadership Summit",
     date: "June 18-20, 2026",
     location: "New York, NY",
@@ -30,6 +33,7 @@ const EVENTS = [
   },
   {
     id: 4,
+    slug: "UBTS2026",
     title: "The 2026 U.S. BankTech Summit",
     date: "April 2-4, 2026",
     location: "Austin, TX",
@@ -106,7 +110,7 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: i * 0.1 }}
                 className="group relative bg-card rounded-2xl p-8 border border-border/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer"
-                onClick={() => setLocation("/login")}
+                onClick={() => setLocation(`/event/${event.slug}`)}
               >
                 <div className="flex justify-between items-start mb-6">
                   <div className="px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-xs font-semibold tracking-wide uppercase">

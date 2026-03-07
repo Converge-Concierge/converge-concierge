@@ -137,6 +137,7 @@ export default function SponsorsPage() {
         onSubmit={handleSubmit}
         sponsor={editingSponsor}
         events={events}
+        isPending={createMutation.isPending || updateMutation.isPending}
       />
 
       <AlertDialog open={!!deletingSponsor} onOpenChange={(open) => !open && setDeletingSponsor(null)}>

@@ -44,12 +44,12 @@ export default function AdminLayout() {
             <Switch>
               <Route path="/admin" component={() => <DashboardShell title="Dashboard" description="Overview of your event metrics and recent activities." />} />
               <Route path="/admin/events" component={EventsPage} />
-              <Route path="/admin/sponsors" component={() => <DashboardShell title="Sponsors" description="Partner directory and sponsorship tiers." />} />
-              <Route path="/admin/attendees" component={() => <DashboardShell title="Attendees" description="Registrations, VIPs, and ticketing." />} />
-              <Route path="/admin/meetings" component={() => <DashboardShell title="Meetings" description="1-on-1 strategy sessions and networking." />} />
-              <Route path="/admin/reports" component={() => <DashboardShell title="Reports" description="Analytics, revenue, and engagement data." />} />
-              <Route path="/admin/branding" component={() => <DashboardShell title="Branding" description="Themes, assets, and event whitelabeling." />} />
-              <Route path="/admin/settings" component={() => <DashboardShell title="Settings" description="System configuration and team access." />} />
+              <Route path="/admin/sponsors" component={() => <DashboardShell title="Sponsors" description="Manage your event sponsors and partnership tiers." />} />
+              <Route path="/admin/attendees" component={() => <DashboardShell title="Attendees" description="View and manage all registered event attendees." />} />
+              <Route path="/admin/meetings" component={() => <DashboardShell title="Meetings" description="Monitor and schedule 1-on-1 strategy sessions." />} />
+              <Route path="/admin/reports" component={() => <DashboardShell title="Reports" description="Analyze event performance and engagement metrics." />} />
+              <Route path="/admin/branding" component={() => <DashboardShell title="Branding" description="Customize event themes, logos, and visual assets." />} />
+              <Route path="/admin/settings" component={() => <DashboardShell title="Settings" description="Configure system preferences and administrative access." />} />
             </Switch>
           </main>
         </div>

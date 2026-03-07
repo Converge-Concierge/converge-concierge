@@ -4,7 +4,6 @@ import { useState } from "react";
   import { Label } from "@/components/ui/label";
   import { MeetingTimeBlock } from "@shared/schema";
   import { Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
-  import { format } from "date-fns";
 
   interface MeetingBlocksEditorProps {
     blocks: MeetingTimeBlock[];

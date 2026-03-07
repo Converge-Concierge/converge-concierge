@@ -31,6 +31,11 @@ import { useState } from "react";
       queryKey: ["/api/events"],
     });
 
+    // We'll also need to check for meetings when deleting
+    const { data: meetings = [] } = useQuery<any[]>({
+      queryKey: ["/api/meetings"],
+    });
+
     const createMutation = useMutation({
       mutationFn: async (data: InsertEvent) => {
         const res = await apiRequest("POST", "/api/events", data);
@@ -77,6 +82,8 @@ import { useState } from "react";
     const handleArchive = (event: Event) => {
       updateMutation.mutate({ id: event.id, data: { status: "archived" } });
     };
+
+    const hasMeetings = deletingEvent ? meetings.some(m => m.eventId === deletingEvent.id) : false;
 
     const filteredEvents = events.filter(e => 
       e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -151,8 +158,15 @@ import { useState } from "react";
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the event
-                "{deletingEvent?.name}" and all associated data.
+                {hasMeetings ? (
+                  <span className="text-destructive font-bold">
+                    WARNING: This event has scheduled meetings. Deleting it will remove all associated meeting records.
+                  </span>
+                ) : (
+                  "This action cannot be undone. This will permanently delete the event record."
+                )}
+                <br /><br />
+                Are you sure you want to delete "{deletingEvent?.name}"?
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

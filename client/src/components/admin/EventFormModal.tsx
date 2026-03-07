@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
   import { Input } from "@/components/ui/input";
   import { Label } from "@/components/ui/label";
   import { Event, InsertEvent } from "@shared/schema";
-  import { MeetingLocationEditor } from "./MeetingLocationEditor";
+  import { MeetingLocationsEditor } from "./MeetingLocationsEditor";
   import { MeetingBlocksEditor } from "./MeetingBlocksEditor";
   import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -125,7 +125,7 @@ import { useState, useEffect } from "react";
               </div>
 
               <div className="border-t pt-6">
-                <MeetingLocationEditor 
+                <MeetingLocationsEditor 
                   locations={formData.meetingLocations || []} 
                   onChange={(locations) => setFormData({ ...formData, meetingLocations: locations })} 
                 />

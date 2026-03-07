@@ -5,6 +5,9 @@ import { DashboardShell } from "./DashboardShell";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bell } from "lucide-react";
 import EventsPage from "./EventsPage";
+import SponsorsPage from "./SponsorsPage";
+import AttendeesPage from "./AttendeesPage";
+import MeetingsPage from "./MeetingsPage";
 
 export default function AdminLayout() {
   return (
@@ -16,18 +19,18 @@ export default function AdminLayout() {
             <div className="flex items-center gap-4">
               <SidebarTrigger className="-ml-2 hover:bg-muted" />
             </div>
-            
+
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 className="relative p-2 rounded-full text-muted-foreground hover:bg-muted transition-colors"
                 onClick={() => console.log("Notifications")}
               >
                 <Bell className="h-5 w-5" />
                 <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent border-2 border-white"></span>
               </button>
-              
+
               <div className="h-8 w-[1px] bg-border/60 mx-1"></div>
-              
+
               <div className="flex items-center gap-3 cursor-pointer group" onClick={() => console.log("Profile")}>
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium leading-none text-foreground group-hover:text-accent transition-colors">Admin User</p>
@@ -39,14 +42,14 @@ export default function AdminLayout() {
               </div>
             </div>
           </header>
-          
+
           <main className="flex-1 overflow-y-auto p-4 md:p-8">
             <Switch>
               <Route path="/admin" component={() => <DashboardShell title="Dashboard" description="Overview of your event metrics and recent activities." />} />
               <Route path="/admin/events" component={EventsPage} />
-              <Route path="/admin/sponsors" component={() => <DashboardShell title="Sponsors" description="Manage your event sponsors and partnership tiers." />} />
-              <Route path="/admin/attendees" component={() => <DashboardShell title="Attendees" description="View and manage all registered event attendees." />} />
-              <Route path="/admin/meetings" component={() => <DashboardShell title="Meetings" description="Monitor and schedule 1-on-1 strategy sessions." />} />
+              <Route path="/admin/sponsors" component={SponsorsPage} />
+              <Route path="/admin/attendees" component={AttendeesPage} />
+              <Route path="/admin/meetings" component={MeetingsPage} />
               <Route path="/admin/reports" component={() => <DashboardShell title="Reports" description="Analyze event performance and engagement metrics." />} />
               <Route path="/admin/branding" component={() => <DashboardShell title="Branding" description="Customize event themes, logos, and visual assets." />} />
               <Route path="/admin/settings" component={() => <DashboardShell title="Settings" description="Configure system preferences and administrative access." />} />

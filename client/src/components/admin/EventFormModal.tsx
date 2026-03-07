@@ -72,13 +72,17 @@ import { useState, useEffect } from "react";
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="slug">Slug</Label>
+                  <Label htmlFor="slug">Event Code</Label>
                   <Input 
                     id="slug" 
                     value={formData.slug} 
-                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })} 
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })} 
+                    placeholder="e.g. FRC2026"
                     required 
                   />
+                  <p className="text-[10px] text-muted-foreground">
+                    Short event code used for internal scheduling and reports (example: FRC2026).
+                  </p>
                 </div>
               </div>
 

@@ -49,7 +49,9 @@ export const events = pgTable("events", {
   meetingBlocks: jsonb("meeting_blocks").$type<MeetingTimeBlock[]>().notNull().default([]),
 });
 
-export const insertEventSchema = createInsertSchema(events);
+export const insertEventSchema = createInsertSchema(events).extend({
+  slug: z.string().min(1, "Event code is required").regex(/^[A-Z0-9]+$/, "Event code must be uppercase letters and numbers only"),
+});
 export type Event = typeof events.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 

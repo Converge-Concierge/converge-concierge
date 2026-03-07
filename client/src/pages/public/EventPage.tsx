@@ -211,7 +211,11 @@ export default function EventPage() {
 
   const bookedSlots = useMemo(() => {
     if (!event) return new Set<string>();
-    return new Set(meetings.filter((m) => m.eventId === event.id).map((m) => `${m.date}|${m.time}`));
+    return new Set(
+      meetings
+        .filter((m) => m.eventId === event.id && m.status !== "Cancelled" && m.status !== "NoShow")
+        .map((m) => `${m.date}|${m.time}`)
+    );
   }, [meetings, event]);
 
   const availableDates = useMemo(

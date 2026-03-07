@@ -1,49 +1,35 @@
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Hexagon, ArrowRight, Calendar, MapPin, Users } from "lucide-react";
+import { Hexagon, ArrowRight, Calendar, MapPin, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { Event } from "@shared/schema";
+import { format, parseISO, isAfter, isBefore, isWithinInterval } from "date-fns";
 
-const EVENTS = [
-  {
-    id: 1,
-    slug: "CUGI2027",
-    title: "The 2027 CU Growth & Innovation Summit",
-    date: "March 12-14, 2027",
-    location: "Miami, FL",
-    attendees: "500+ Leaders",
-    status: "Upcoming"
-  },
-  {
-    id: 2,
-    slug: "FRC2026",
-    title: "The 2026 Fintech Risk & Compliance Forum",
-    date: "October 5-7, 2026",
-    location: "Chicago, IL",
-    attendees: "350+ Experts",
-    status: "Registration Open"
-  },
-  {
-    id: 3,
-    slug: "TLS2026",
-    title: "The 2026 Treasury Leadership Summit",
-    date: "June 18-20, 2026",
-    location: "New York, NY",
-    attendees: "400+ Executives",
-    status: "Limited Spots"
-  },
-  {
-    id: 4,
-    slug: "UBTS2026",
-    title: "The 2026 U.S. BankTech Summit",
-    date: "April 2-4, 2026",
-    location: "Austin, TX",
-    attendees: "800+ Innovators",
-    status: "Featured"
-  }
-];
+function eventStatusLabel(event: Event): string {
+  const now = new Date();
+  const start = new Date(event.startDate);
+  const end = new Date(event.endDate);
+  if (isWithinInterval(now, { start, end })) return "In Progress";
+  if (isAfter(start, now)) return "Upcoming";
+  return "Registration Open";
+}
+
+function countSlots(blocks: Event["meetingBlocks"]): number {
+  return (blocks ?? []).reduce((sum, b) => {
+    const [sh, sm] = b.startTime.split(":").map(Number);
+    const [eh, em] = b.endTime.split(":").map(Number);
+    const startMins = sh * 60 + sm;
+    const endMins = eh * 60 + em;
+    return sum + Math.floor((endMins - startMins) / 30);
+  }, 0);
+}
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
+
+  const { data: allEvents = [], isLoading } = useQuery<Event[]>({ queryKey: ["/api/events"] });
+  const activeEvents = allEvents.filter((e) => e.status === "active");
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
@@ -66,7 +52,7 @@ export default function LandingPage() {
           <Button variant="ghost" className="hidden sm:flex font-medium" onClick={() => console.log("Help")}>
             Help Center
           </Button>
-          <Button 
+          <Button
             className="rounded-full px-6 shadow-md hover:shadow-lg transition-all"
             onClick={() => setLocation("/login")}
           >
@@ -102,48 +88,70 @@ export default function LandingPage() {
 
         {/* Events Grid */}
         <div className="w-full max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-            {EVENTS.map((event, i) => (
-              <motion.div
-                key={event.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="group relative bg-card rounded-2xl p-8 border border-border/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer"
-                onClick={() => setLocation(`/event/${event.slug}`)}
-              >
-                <div className="flex justify-between items-start mb-6">
-                  <div className="px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-xs font-semibold tracking-wide uppercase">
-                    {event.status}
-                  </div>
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-accent group-hover:text-accent-foreground transition-colors duration-300">
-                    <ArrowRight className="h-5 w-5" />
-                  </div>
-                </div>
-                
-                <h3 className="text-2xl font-display font-bold text-foreground mb-4 group-hover:text-primary transition-colors leading-tight">
-                  {event.title}
-                </h3>
-                
-                <div className="mt-auto space-y-3 pt-6 border-t border-border/50">
-                  <div className="flex items-center text-muted-foreground text-sm font-medium">
-                    <Calendar className="mr-3 h-4 w-4 text-accent" />
-                    {event.date}
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-sm font-medium">
-                    <div className="flex items-center text-muted-foreground">
-                      <MapPin className="mr-3 h-4 w-4 text-muted-foreground/70" />
-                      {event.location}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-64 rounded-2xl border border-border/60 bg-card animate-pulse" />
+              ))}
+            </div>
+          ) : activeEvents.length === 0 ? (
+            <div className="text-center py-20 text-muted-foreground">
+              <p className="text-lg font-medium">No events available yet.</p>
+              <p className="text-sm mt-2">Check back soon for upcoming events.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+              {activeEvents.map((event, i) => {
+                const slots = countSlots(event.meetingBlocks);
+                const statusLabel = eventStatusLabel(event);
+                return (
+                  <motion.div
+                    key={event.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: i * 0.1 }}
+                    className="group relative bg-card rounded-2xl p-8 border border-border/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer"
+                    onClick={() => setLocation(`/event/${event.slug}`)}
+                    data-testid={`event-card-${event.slug}`}
+                  >
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-xs font-semibold tracking-wide uppercase">
+                        {statusLabel}
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-accent group-hover:text-accent-foreground transition-colors duration-300">
+                        <ArrowRight className="h-5 w-5" />
+                      </div>
                     </div>
-                    <div className="flex items-center text-muted-foreground">
-                      <Users className="mr-3 h-4 w-4 text-muted-foreground/70" />
-                      {event.attendees}
+
+                    <h3 className="text-2xl font-display font-bold text-foreground mb-4 group-hover:text-primary transition-colors leading-tight">
+                      {event.name}
+                    </h3>
+
+                    <div className="mt-auto space-y-3 pt-6 border-t border-border/50">
+                      <div className="flex items-center text-muted-foreground text-sm font-medium">
+                        <Calendar className="mr-3 h-4 w-4 text-accent" />
+                        {format(parseISO(event.startDate as unknown as string), "MMMM d")}
+                        {" – "}
+                        {format(parseISO(event.endDate as unknown as string), "MMMM d, yyyy")}
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-sm font-medium">
+                        <div className="flex items-center text-muted-foreground">
+                          <MapPin className="mr-3 h-4 w-4 text-muted-foreground/70" />
+                          {event.location}
+                        </div>
+                        {slots > 0 && (
+                          <div className="flex items-center text-muted-foreground">
+                            <Clock className="mr-3 h-4 w-4 text-muted-foreground/70" />
+                            {slots} session{slots !== 1 ? "s" : ""} available
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </main>
 

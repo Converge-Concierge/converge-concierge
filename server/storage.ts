@@ -221,7 +221,7 @@ export class MemStorage implements IStorage {
 
   async createAttendee(insertAttendee: InsertAttendee): Promise<Attendee> {
     const id = randomUUID();
-    const attendee: Attendee = { ...insertAttendee, id } as Attendee;
+    const attendee: Attendee = { status: "active", ...insertAttendee, id } as Attendee;
     this.attendees.set(id, attendee);
     return attendee;
   }
@@ -272,7 +272,9 @@ export class MemStorage implements IStorage {
         m.eventId === eventId &&
         m.date === date &&
         m.time === time &&
-        m.id !== excludeId
+        m.id !== excludeId &&
+        m.status !== "Cancelled" &&
+        m.status !== "NoShow"
     );
   }
 

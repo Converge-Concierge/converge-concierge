@@ -1,0 +1,60 @@
+Continue building the platform in scheduling-only mode.
+
+Important rules:
+- Do not redesign the landing page
+- Do not redesign the admin shell or sidebar
+- Do not change login flow
+- Do not add matchmaking
+- Do not change existing sample data
+- Preserve all current working functionality
+- Make additive changes only
+
+Current priority:
+Finish the full public scheduling flow end-to-end.
+
+Required public flow:
+1. User clicks an event card on the homepage
+2. User is taken to that event’s public sponsor selection page
+3. Only sponsors assigned to that event are shown
+4. User selects a sponsor using button/card UI, not dropdown-heavy UI
+5. User selects an available date using buttons
+6. User selects an available time using buttons
+7. User enters attendee details:
+   - Name
+   - Company
+   - Title
+   - Email
+   - LinkedIn Profile URL (optional)
+8. Meeting is confirmed immediately if the slot is available
+
+Scheduling rules:
+- Only ONE meeting may exist for a given event, date, and time slot
+- If a meeting already exists for that event/date/time, block the save
+- Dates and times shown must come only from that event’s meeting blocks
+- Locations shown must come only from that event’s meeting locations
+- Only active meetings should block time slots
+- Archived meetings must not block new scheduling
+
+Attendee behavior:
+- Do not require preloaded attendees
+- If attendee email already exists for the selected event, reuse that attendee record
+- If attendee email does not exist for the selected event, create a new attendee record automatically
+- An archived attendee from a different event must not block scheduling for the new event
+- LinkedIn Profile URL is optional
+
+Admin consistency:
+- Do not change the Events module except where needed to support the public booking flow
+- Keep Sponsors, Attendees, and Meetings modules intact
+- Do not change archive/role rules already implemented
+
+UI requirement:
+- Use button/card-based selection for sponsors, dates, and times
+- Keep the existing visual style
+- Do not send public users to admin login when they click an event card
+
+Success criteria:
+- A real user can click an event on the homepage
+- See sponsors for that event
+- Pick a date and time
+- Enter their details
+- Create a confirmed meeting successfully

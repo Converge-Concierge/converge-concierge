@@ -263,16 +263,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(await storage.getMeetings());
   });
 
-  // Resolve attendee from body: if manualAttendee provided, find or create; else use attendeeId
+  // Resolve attendee from body: event-specific lookup by email+eventId
   async function resolveAttendeeId(body: any, eventId: string): Promise<{ attendeeId: string } | { error: string }> {
     if (body.manualAttendee) {
       const parsed = manualAttendeeSchema.safeParse(body.manualAttendee);
       if (!parsed.success) return { error: "Invalid manual attendee data" };
       const ma = parsed.data;
-      const existing = await storage.getAttendeeByEmail(ma.email);
-      if (existing) {
-        return { attendeeId: existing.id };
+
+      // 1. Active record for this specific event → reuse
+      const activeForEvent = await storage.getAttendeeByEmailAndEvent(ma.email, eventId);
+      if (activeForEvent) {
+        return { attendeeId: activeForEvent.id };
       }
+
+      // 2. Archived record for this specific event → reactivate and reuse
+      const archivedForEvent = await storage.getArchivedAttendeeByEmailAndEvent(ma.email, eventId);
+      if (archivedForEvent) {
+        await storage.updateAttendee(archivedForEvent.id, { status: "active" });
+        return { attendeeId: archivedForEvent.id };
+      }
+
+      // 3. No record for this event (may exist for other events) → create new
       const created = await storage.createAttendee({
         name: ma.name,
         company: ma.company,
@@ -280,6 +291,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         email: ma.email,
         linkedinUrl: ma.linkedinUrl || undefined,
         assignedEvent: eventId,
+        status: "active",
       });
       return { attendeeId: created.id };
     }

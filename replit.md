@@ -52,7 +52,7 @@ Key frontend directories:
 |--------|-----------|
 | `events` | id, name, slug (A-Z0-9, uppercase), location, startDate, endDate, status (active/archived), meetingLocations (JSONB), meetingBlocks (JSONB) |
 | `sponsors` | id, name, logoUrl, level (Platinum/Gold/Silver/Bronze), assignedEvents (array of event IDs), status (active/archived) |
-| `attendees` | id, name, company, title, email, linkedinUrl (optional), assignedEvent |
+| `attendees` | id, name, company, title, email, linkedinUrl (optional), assignedEvent, status (active/archived) |
 | `meetings` | id, eventId, sponsorId, attendeeId, date, time, location, status (Scheduled/Completed/Cancelled/NoShow), notes |
 
 ---
@@ -72,7 +72,7 @@ All at `/event/:slug` — single-page multi-step wizard:
 - Sponsors shown are filtered to selected event
 - Dates/times come from event.meetingBlocks
 - Locations come from event.meetingLocations
-- If attendee email matches existing record → link to existing; else → auto-create
+- Attendee lookup is event-specific: email+eventId match (active → reuse; archived same event → reactivate+reuse; no match for event → create new even if record exists for another event)
 
 ---
 
@@ -82,7 +82,7 @@ All at `/event/:slug` — single-page multi-step wizard:
 /admin                → DashboardPage (real data: stat cards, upcoming meetings, per-event chart)
 /admin/events         → EventsPage (CRUD + archive, meeting blocks/locations editor)
 /admin/sponsors       → SponsorsPage (CRUD + archive, event assignment)
-/admin/attendees      → AttendeesPage (CRUD, LinkedIn URL, bulk import placeholder)
+/admin/attendees      → AttendeesPage (CRUD + archive, Active/Archived tabs, LinkedIn URL, bulk import placeholder)
 /admin/meetings       → MeetingsPage (smart scheduler, conflict enforcement, filters)
 /admin/reports        → ReportsPage (meeting stats, breakdowns, filterable table, CSV export)
 /admin/users          → UsersPage (admin-only: CRUD for internal users, role assignment)

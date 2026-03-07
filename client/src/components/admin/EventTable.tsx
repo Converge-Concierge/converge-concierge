@@ -5,6 +5,7 @@ import { Edit, Archive, Trash2, Eye, RotateCcw } from "lucide-react";
 import { Event } from "@shared/schema";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
 
 interface EventTableProps {
   events: Event[];
@@ -18,19 +19,27 @@ interface EventTableProps {
 }
 
 export function EventTable({ events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete }: EventTableProps) {
-  const sorted = [...events].sort(
-    (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-  );
+  const { sort, toggle } = useSortState("startDate", "asc");
+
+  const getValue = (e: Event, key: string): string | number => {
+    if (key === "name") return e.name;
+    if (key === "location") return e.location;
+    if (key === "startDate") return new Date(e.startDate).getTime();
+    if (key === "status") return e.status;
+    return "";
+  };
+
+  const sorted = sortData(events, sort, getValue);
 
   return (
     <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead>Event Name</TableHead>
-            <TableHead>Location</TableHead>
-            <TableHead>Dates</TableHead>
-            <TableHead>Status</TableHead>
+            <SortHead sortKey="name" sort={sort} onSort={toggle}>Event Name</SortHead>
+            <SortHead sortKey="location" sort={sort} onSort={toggle}>Location</SortHead>
+            <SortHead sortKey="startDate" sort={sort} onSort={toggle}>Dates</SortHead>
+            <SortHead sortKey="status" sort={sort} onSort={toggle}>Status</SortHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>

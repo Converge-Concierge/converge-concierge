@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Edit, Archive, Trash2, Link2, Building2, Eye, RotateCcw } from "lucide-react";
 import { Sponsor, Event, SponsorToken } from "@shared/schema";
 import { SponsorAccessModal } from "./SponsorAccessModal";
+import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
 import { cn } from "@/lib/utils";
 
 const levelColors: Record<string, string> = {
@@ -14,6 +15,8 @@ const levelColors: Record<string, string> = {
   Silver:   "bg-gray-100 text-gray-700 border-gray-300",
   Bronze:   "bg-orange-100 text-orange-800 border-orange-300",
 };
+
+const levelOrder: Record<string, number> = { Platinum: 0, Gold: 1, Silver: 2, Bronze: 3 };
 
 interface SponsorsTableProps {
   sponsors: Sponsor[];
@@ -30,7 +33,6 @@ interface SponsorsTableProps {
 function SponsorLogo({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
   const [error, setError] = useState(false);
   const initials = name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-
   if (logoUrl && !error) {
     return (
       <div className="h-9 w-9 rounded-lg border border-border/60 bg-white flex items-center justify-center overflow-hidden shrink-0">
@@ -54,8 +56,8 @@ function getSponsorLinkStatus(sponsorId: string, tokens: SponsorToken[]): "activ
 
 export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete }: SponsorsTableProps) {
   const [accessSponsor, setAccessSponsor] = useState<Sponsor | null>(null);
-
   const { data: allTokens = [] } = useQuery<SponsorToken[]>({ queryKey: ["/api/sponsor-tokens"] });
+  const { sort, toggle } = useSortState("level", "asc");
 
   const getEventBadges = (eventIds: string[]) => {
     if (!eventIds || eventIds.length === 0) return <span className="text-muted-foreground italic text-xs">None</span>;
@@ -65,10 +67,14 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
     });
   };
 
-  const sorted = [...sponsors].sort((a, b) => {
-    const order = ["Platinum", "Gold", "Silver", "Bronze"];
-    return order.indexOf(a.level) - order.indexOf(b.level);
-  });
+  const getValue = (s: Sponsor, key: string): string | number => {
+    if (key === "name") return s.name;
+    if (key === "level") return levelOrder[s.level] ?? 99;
+    if (key === "status") return s.status;
+    return "";
+  };
+
+  const sorted = sortData(sponsors, sort, getValue);
 
   return (
     <>
@@ -77,10 +83,10 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
               <TableHead className="w-12" />
-              <TableHead>Sponsor</TableHead>
-              <TableHead>Level</TableHead>
+              <SortHead sortKey="name" sort={sort} onSort={toggle}>Sponsor</SortHead>
+              <SortHead sortKey="level" sort={sort} onSort={toggle}>Level</SortHead>
               <TableHead>Assigned Event(s)</TableHead>
-              <TableHead>Status</TableHead>
+              <SortHead sortKey="status" sort={sort} onSort={toggle}>Status</SortHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -94,9 +100,7 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
 
               return (
                 <TableRow key={sponsor.id} data-testid={`row-sponsor-${sponsor.id}`} className={cn(tab === "archived" ? "opacity-70" : "")}>
-                  <TableCell className="py-3">
-                    <SponsorLogo name={sponsor.name} logoUrl={sponsor.logoUrl} />
-                  </TableCell>
+                  <TableCell className="py-3"><SponsorLogo name={sponsor.name} logoUrl={sponsor.logoUrl} /></TableCell>
                   <TableCell className="font-semibold text-foreground py-3">{sponsor.name}</TableCell>
                   <TableCell className="py-3">
                     <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold", levelColors[sponsor.level] ?? "")}>
@@ -154,7 +158,6 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
                 </TableRow>
               );
             })}
-
             {sorted.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
@@ -168,7 +171,6 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
           </TableBody>
         </Table>
       </div>
-
       {accessSponsor && (
         <SponsorAccessModal sponsor={accessSponsor} events={events} isOpen={true} onClose={() => setAccessSponsor(null)} />
       )}

@@ -1,42 +1,56 @@
+import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Linkedin } from "lucide-react";
+import { Edit, Trash2, Linkedin, Archive, RotateCcw, Eye } from "lucide-react";
 import { Attendee, Event } from "@shared/schema";
+import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
+import { cn } from "@/lib/utils";
 
 interface AttendeesTableProps {
   attendees: Attendee[];
   events: Event[];
+  tab: "active" | "archived";
+  isAdmin: boolean;
   onEdit: (attendee: Attendee) => void;
+  onView: (attendee: Attendee) => void;
+  onArchive: (attendee: Attendee) => void;
+  onReactivate: (attendee: Attendee) => void;
   onDelete: (attendee: Attendee) => void;
 }
 
-export function AttendeesTable({ attendees, events, onEdit, onDelete }: AttendeesTableProps) {
-  const getEventCode = (eventId: string) => {
-    const ev = events.find((e) => e.id === eventId);
-    return ev ? (
-      <Badge variant="outline" className="text-xs font-mono">{ev.slug}</Badge>
-    ) : (
-      <span className="text-muted-foreground italic text-xs">Unknown</span>
-    );
+export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete }: AttendeesTableProps) {
+  const { sort, toggle } = useSortState("name");
+
+  const getEvent = (id: string) => events.find((e) => e.id === id);
+
+  const getValue = (a: Attendee, key: string): string => {
+    if (key === "name") return a.name;
+    if (key === "company") return a.company;
+    if (key === "title") return a.title;
+    if (key === "email") return a.email;
+    if (key === "event") return getEvent(a.assignedEvent)?.slug ?? "";
+    return "";
   };
 
+  const sorted = sortData(attendees, sort, getValue);
+
   return (
-    <div className="rounded-md border bg-card">
+    <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Company</TableHead>
-            <TableHead>Title</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Assigned Event</TableHead>
+          <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <SortHead sortKey="name" sort={sort} onSort={toggle}>Name</SortHead>
+            <SortHead sortKey="company" sort={sort} onSort={toggle}>Company</SortHead>
+            <SortHead sortKey="title" sort={sort} onSort={toggle}>Title</SortHead>
+            <SortHead sortKey="email" sort={sort} onSort={toggle}>Email</SortHead>
+            <SortHead sortKey="event" sort={sort} onSort={toggle}>Assigned Event</SortHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {attendees.map((attendee) => (
-            <TableRow key={attendee.id} data-testid={`row-attendee-${attendee.id}`}>
+          {sorted.map((attendee) => (
+            <TableRow key={attendee.id} data-testid={`row-attendee-${attendee.id}`} className={cn(tab === "archived" ? "opacity-70" : "")}>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{attendee.name}</span>
@@ -58,23 +72,54 @@ export function AttendeesTable({ attendees, events, onEdit, onDelete }: Attendee
               <TableCell>{attendee.company}</TableCell>
               <TableCell>{attendee.title}</TableCell>
               <TableCell className="text-muted-foreground text-sm">{attendee.email}</TableCell>
-              <TableCell>{getEventCode(attendee.assignedEvent)}</TableCell>
+              <TableCell>
+                {getEvent(attendee.assignedEvent) ? (
+                  <Badge variant="outline" className="text-xs font-mono">{getEvent(attendee.assignedEvent)!.slug}</Badge>
+                ) : (
+                  <span className="text-muted-foreground italic text-xs">Unknown</span>
+                )}
+              </TableCell>
               <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => onEdit(attendee)} data-testid={`edit-attendee-${attendee.id}`}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onDelete(attendee)} data-testid={`delete-attendee-${attendee.id}`}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="flex justify-end gap-1">
+                  {tab === "active" ? (
+                    <>
+                      <Button variant="ghost" size="icon" title="Edit attendee" onClick={() => onEdit(attendee)} data-testid={`edit-attendee-${attendee.id}`}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Archive attendee" onClick={() => onArchive(attendee)} data-testid={`archive-attendee-${attendee.id}`}>
+                        <Archive className="h-4 w-4" />
+                      </Button>
+                      {isAdmin && (
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Delete attendee" onClick={() => onDelete(attendee)} data-testid={`delete-attendee-${attendee.id}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="ghost" size="icon" title="View attendee details" onClick={() => onView(attendee)} data-testid={`view-attendee-${attendee.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {isAdmin && (
+                        <>
+                          <Button variant="ghost" size="icon" title="Re-activate attendee" onClick={() => onReactivate(attendee)} className="text-green-600 hover:text-green-700" data-testid={`reactivate-attendee-${attendee.id}`}>
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Delete attendee" onClick={() => onDelete(attendee)} data-testid={`delete-attendee-archived-${attendee.id}`}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  )}
                 </div>
               </TableCell>
             </TableRow>
           ))}
-          {attendees.length === 0 && (
+          {sorted.length === 0 && (
             <TableRow>
               <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                No attendees found.
+                {tab === "active" ? "No active attendees." : "No archived attendees."}
               </TableCell>
             </TableRow>
           )}

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2 } from "lucide-react";
 import { Meeting, Event, Sponsor, Attendee } from "@shared/schema";
+import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   Scheduled: "default",
@@ -10,6 +11,8 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
   Cancelled: "destructive",
   NoShow: "outline",
 };
+
+const statusOrder: Record<string, number> = { Scheduled: 0, Completed: 1, Cancelled: 2, NoShow: 3 };
 
 interface MeetingsTableProps {
   meetings: Meeting[];
@@ -21,6 +24,8 @@ interface MeetingsTableProps {
 }
 
 export function MeetingsTable({ meetings, events, sponsors, attendees, onEdit, onDelete }: MeetingsTableProps) {
+  const { sort, toggle } = useSortState("date", "asc");
+
   const getEvent = (id: string) => events.find((e) => e.id === id);
   const getSponsor = (id: string) => sponsors.find((s) => s.id === id);
   const getAttendee = (id: string) => attendees.find((a) => a.id === id);
@@ -33,23 +38,36 @@ export function MeetingsTable({ meetings, events, sponsors, attendees, onEdit, o
     return `${h12}:${m} ${ampm}`;
   };
 
+  const getValue = (m: Meeting, key: string): string | number => {
+    if (key === "event") return getEvent(m.eventId)?.slug ?? "";
+    if (key === "sponsor") return getSponsor(m.sponsorId)?.name ?? "";
+    if (key === "attendee") return getAttendee(m.attendeeId)?.name ?? "";
+    if (key === "date") return m.date;
+    if (key === "time") return m.time;
+    if (key === "location") return m.location;
+    if (key === "status") return statusOrder[m.status] ?? 99;
+    return "";
+  };
+
+  const sorted = sortData(meetings, sort, getValue);
+
   return (
-    <div className="rounded-md border bg-card">
+    <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Event</TableHead>
-            <TableHead>Sponsor</TableHead>
-            <TableHead>Attendee</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Time</TableHead>
-            <TableHead>Location</TableHead>
-            <TableHead>Status</TableHead>
+          <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <SortHead sortKey="event" sort={sort} onSort={toggle}>Event</SortHead>
+            <SortHead sortKey="sponsor" sort={sort} onSort={toggle}>Sponsor</SortHead>
+            <SortHead sortKey="attendee" sort={sort} onSort={toggle}>Attendee</SortHead>
+            <SortHead sortKey="date" sort={sort} onSort={toggle}>Date</SortHead>
+            <SortHead sortKey="time" sort={sort} onSort={toggle}>Time</SortHead>
+            <SortHead sortKey="location" sort={sort} onSort={toggle}>Location</SortHead>
+            <SortHead sortKey="status" sort={sort} onSort={toggle}>Status</SortHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {meetings.map((meeting) => {
+          {sorted.map((meeting) => {
             const ev = getEvent(meeting.eventId);
             const sp = getSponsor(meeting.sponsorId);
             const at = getAttendee(meeting.attendeeId);
@@ -69,9 +87,7 @@ export function MeetingsTable({ meetings, events, sponsors, attendees, onEdit, o
                 <TableCell className="text-sm">{formatTime(meeting.time)}</TableCell>
                 <TableCell className="text-sm">{meeting.location}</TableCell>
                 <TableCell>
-                  <Badge variant={statusVariant[meeting.status] ?? "outline"}>
-                    {meeting.status}
-                  </Badge>
+                  <Badge variant={statusVariant[meeting.status] ?? "outline"}>{meeting.status}</Badge>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
@@ -86,7 +102,7 @@ export function MeetingsTable({ meetings, events, sponsors, attendees, onEdit, o
               </TableRow>
             );
           })}
-          {meetings.length === 0 && (
+          {sorted.length === 0 && (
             <TableRow>
               <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                 No meetings found.

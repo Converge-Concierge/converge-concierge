@@ -87,6 +87,7 @@ export const attendees = pgTable("attendees", {
   email: text("email").notNull(),
   linkedinUrl: text("linkedin_url"),
   assignedEvent: varchar("assigned_event").notNull(), // event id
+  status: text("status", { enum: ["active", "archived"] }).notNull().default("active"),
 });
 
 export const insertAttendeeSchema = createInsertSchema(attendees);

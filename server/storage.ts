@@ -37,6 +37,8 @@ export interface IStorage {
   getAttendees(): Promise<Attendee[]>;
   getAttendee(id: string): Promise<Attendee | undefined>;
   getAttendeeByEmail(email: string): Promise<Attendee | undefined>;
+  getAttendeeByEmailAndEvent(email: string, eventId: string): Promise<Attendee | undefined>;
+  getArchivedAttendeeByEmailAndEvent(email: string, eventId: string): Promise<Attendee | undefined>;
   createAttendee(attendee: InsertAttendee): Promise<Attendee>;
   updateAttendee(id: string, updates: Partial<InsertAttendee>): Promise<Attendee | undefined>;
   deleteAttendee(id: string): Promise<void>;
@@ -196,6 +198,24 @@ export class MemStorage implements IStorage {
   async getAttendeeByEmail(email: string): Promise<Attendee | undefined> {
     return Array.from(this.attendees.values()).find(
       (a) => a.email.toLowerCase() === email.toLowerCase()
+    );
+  }
+
+  async getAttendeeByEmailAndEvent(email: string, eventId: string): Promise<Attendee | undefined> {
+    return Array.from(this.attendees.values()).find(
+      (a) =>
+        a.email.toLowerCase() === email.toLowerCase() &&
+        a.assignedEvent === eventId &&
+        (a.status ?? "active") === "active"
+    );
+  }
+
+  async getArchivedAttendeeByEmailAndEvent(email: string, eventId: string): Promise<Attendee | undefined> {
+    return Array.from(this.attendees.values()).find(
+      (a) =>
+        a.email.toLowerCase() === email.toLowerCase() &&
+        a.assignedEvent === eventId &&
+        a.status === "archived"
     );
   }
 

@@ -271,5 +271,106 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.sendStatus(204);
   });
 
+  // ── Sponsor Tokens (admin) ────────────────────────────────────────────────
+
+  // Get all tokens for a sponsor
+  app.get("/api/sponsor-tokens/sponsor/:sponsorId", async (req, res) => {
+    const tokens = await storage.getSponsorTokensBySponsor(req.params.sponsorId);
+    res.json(tokens);
+  });
+
+  // Generate a new token for sponsor+event (one active token per pair)
+  app.post("/api/sponsor-tokens", async (req, res) => {
+    const { sponsorId, eventId } = req.body;
+    if (!sponsorId || !eventId) return res.status(400).json({ message: "sponsorId and eventId are required" });
+
+    const sponsor = await storage.getSponsor(sponsorId);
+    const event = await storage.getEvent(eventId);
+    if (!sponsor || !event) return res.status(404).json({ message: "Sponsor or event not found" });
+
+    // Revoke any existing active token for this sponsor+event pair
+    const existing = await storage.getSponsorTokensBySponsor(sponsorId);
+    const activeForEvent = existing.find((t) => t.eventId === eventId && t.isActive);
+    if (activeForEvent) await storage.revokeSponsorToken(activeForEvent.token);
+
+    const token = await storage.createSponsorToken(sponsorId, eventId);
+    res.status(201).json(token);
+  });
+
+  // Revoke a token
+  app.delete("/api/sponsor-tokens/:token", async (req, res) => {
+    const token = await storage.getSponsorToken(req.params.token);
+    if (!token) return res.status(404).json({ message: "Token not found" });
+    const updated = await storage.revokeSponsorToken(req.params.token);
+    res.json(updated);
+  });
+
+  // Regenerate: revoke old token, create new one for same sponsor+event
+  app.post("/api/sponsor-tokens/:token/regenerate", async (req, res) => {
+    const existing = await storage.getSponsorToken(req.params.token);
+    if (!existing) return res.status(404).json({ message: "Token not found" });
+
+    await storage.revokeSponsorToken(existing.token);
+    const newToken = await storage.createSponsorToken(existing.sponsorId, existing.eventId);
+    res.status(201).json(newToken);
+  });
+
+  // ── Sponsor Dashboard (public, token-validated) ───────────────────────────
+
+  app.get("/api/sponsor-access/:token", async (req, res) => {
+    const tokenRecord = await storage.getSponsorToken(req.params.token);
+
+    if (!tokenRecord) return res.status(401).json({ message: "Invalid access token" });
+    if (!tokenRecord.isActive) return res.status(403).json({ message: "Access token has been revoked" });
+    if (new Date(tokenRecord.expiresAt) < new Date()) return res.status(403).json({ message: "Access token has expired" });
+
+    const sponsor = await storage.getSponsor(tokenRecord.sponsorId);
+    const event = await storage.getEvent(tokenRecord.eventId);
+    if (!sponsor || !event) return res.status(404).json({ message: "Sponsor or event not found" });
+
+    const allMeetings = await storage.getMeetings();
+    const sponsorMeetings = allMeetings.filter(
+      (m) => m.sponsorId === tokenRecord.sponsorId && m.eventId === tokenRecord.eventId
+    );
+
+    const meetingsWithAttendees = await Promise.all(
+      sponsorMeetings.map(async (m) => {
+        const attendee = await storage.getAttendee(m.attendeeId);
+        return {
+          id: m.id,
+          date: m.date,
+          time: m.time,
+          location: m.location,
+          status: m.status,
+          attendee: attendee
+            ? { name: attendee.name, company: attendee.company, title: attendee.title, email: attendee.email, linkedinUrl: attendee.linkedinUrl }
+            : { name: "Unknown", company: "—", title: "—", email: "—" },
+        };
+      })
+    );
+
+    const uniqueCompanies = new Set(meetingsWithAttendees.map((m) => m.attendee.company).filter((c) => c !== "—"));
+
+    res.json({
+      sponsor: { id: sponsor.id, name: sponsor.name, level: sponsor.level, logoUrl: sponsor.logoUrl ?? "" },
+      event: {
+        id: event.id,
+        name: event.name,
+        slug: event.slug,
+        location: event.location,
+        startDate: event.startDate,
+        endDate: event.endDate,
+      },
+      stats: {
+        total: sponsorMeetings.length,
+        scheduled: sponsorMeetings.filter((m) => m.status === "Scheduled").length,
+        completed: sponsorMeetings.filter((m) => m.status === "Completed").length,
+        cancelled: sponsorMeetings.filter((m) => m.status === "Cancelled" || m.status === "NoShow").length,
+        companies: uniqueCompanies.size,
+      },
+      meetings: meetingsWithAttendees,
+    });
+  });
+
   return httpServer;
 }

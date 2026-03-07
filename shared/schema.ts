@@ -93,6 +93,18 @@ export const manualAttendeeSchema = z.object({
   linkedinUrl: z.string().url().optional().or(z.literal("")),
 });
 
+// --- Sponsor Access Token ---
+export const sponsorTokenSchema = z.object({
+  token:     z.string(),
+  sponsorId: z.string(),
+  eventId:   z.string(),
+  isActive:  z.boolean().default(true),
+  expiresAt: z.date(),
+  createdAt: z.date(),
+});
+
+export type SponsorToken = z.infer<typeof sponsorTokenSchema>;
+
 // --- Meeting ---
 export const meetings = pgTable("meetings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

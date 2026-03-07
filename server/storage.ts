@@ -4,8 +4,9 @@ import {
   type Sponsor, type InsertSponsor,
   type Attendee, type InsertAttendee,
   type Meeting, type InsertMeeting,
+  type SponsorToken,
 } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { randomUUID, randomBytes } from "crypto";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -41,6 +42,13 @@ export interface IStorage {
   updateMeeting(id: string, updates: Partial<InsertMeeting>): Promise<Meeting | undefined>;
   deleteMeeting(id: string): Promise<void>;
   getMeetingConflict(eventId: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined>;
+
+  // Sponsor tokens
+  getSponsorToken(token: string): Promise<SponsorToken | undefined>;
+  getSponsorTokensBySponsor(sponsorId: string): Promise<SponsorToken[]>;
+  createSponsorToken(sponsorId: string, eventId: string): Promise<SponsorToken>;
+  revokeSponsorToken(token: string): Promise<SponsorToken | undefined>;
+  deleteSponsorToken(token: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -49,6 +57,7 @@ export class MemStorage implements IStorage {
   private sponsors: Map<string, Sponsor>;
   private attendees: Map<string, Attendee>;
   private meetings: Map<string, Meeting>;
+  private sponsorTokens: Map<string, SponsorToken>;
 
   constructor() {
     this.users = new Map();
@@ -56,6 +65,7 @@ export class MemStorage implements IStorage {
     this.sponsors = new Map();
     this.attendees = new Map();
     this.meetings = new Map();
+    this.sponsorTokens = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -208,6 +218,45 @@ export class MemStorage implements IStorage {
         m.time === time &&
         m.id !== excludeId
     );
+  }
+
+  // Sponsor tokens
+  async getSponsorToken(token: string): Promise<SponsorToken | undefined> {
+    return this.sponsorTokens.get(token);
+  }
+
+  async getSponsorTokensBySponsor(sponsorId: string): Promise<SponsorToken[]> {
+    return Array.from(this.sponsorTokens.values()).filter((t) => t.sponsorId === sponsorId);
+  }
+
+  async createSponsorToken(sponsorId: string, eventId: string): Promise<SponsorToken> {
+    const token = randomBytes(32).toString("hex");
+    const now = new Date();
+    const expiresAt = new Date(now);
+    expiresAt.setDate(expiresAt.getDate() + 90);
+
+    const record: SponsorToken = {
+      token,
+      sponsorId,
+      eventId,
+      isActive: true,
+      createdAt: now,
+      expiresAt,
+    };
+    this.sponsorTokens.set(token, record);
+    return record;
+  }
+
+  async revokeSponsorToken(token: string): Promise<SponsorToken | undefined> {
+    const existing = this.sponsorTokens.get(token);
+    if (!existing) return undefined;
+    const updated: SponsorToken = { ...existing, isActive: false };
+    this.sponsorTokens.set(token, updated);
+    return updated;
+  }
+
+  async deleteSponsorToken(token: string): Promise<void> {
+    this.sponsorTokens.delete(token);
   }
 }
 

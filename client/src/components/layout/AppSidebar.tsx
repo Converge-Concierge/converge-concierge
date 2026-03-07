@@ -42,10 +42,10 @@ export function AppSidebar() {
   const [location] = useLocation();
 
   return (
-    <Sidebar className="border-r border-sidebar-border bg-sidebar">
+    <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <SidebarHeader className="p-4">
         <Link href="/" className="flex items-center gap-3 px-2 py-1 transition-opacity hover:opacity-80">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-foreground shadow-sm">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
             <Hexagon className="h-5 w-5" />
           </div>
           <span className="font-display text-lg font-bold tracking-tight text-sidebar-foreground">

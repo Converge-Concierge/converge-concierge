@@ -25,7 +25,9 @@ export function SponsorAccessModal({ sponsor, events, isOpen, onClose }: Props) 
   const { toast } = useToast();
   const [copiedToken, setCopiedToken] = useState<string>("");
 
-  const assignedEvents = events.filter((e) => (sponsor.assignedEvents ?? []).includes(e.id));
+  const assignedEvents = events.filter((e) =>
+    (sponsor.assignedEvents ?? []).some((ae) => ae.eventId === e.id && (ae.archiveState ?? "active") === "active")
+  );
 
   const { data: tokens = [], isLoading } = useQuery<SponsorToken[]>({
     queryKey: ["/api/sponsor-tokens/sponsor", sponsor.id],

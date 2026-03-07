@@ -1,9 +1,10 @@
-import { useParams, useLocation } from "wouter";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Hexagon, ShieldX, Calendar, MapPin, Building2, Users,
-  CheckCircle2, Clock, Handshake, Linkedin,
+  CheckCircle2, Clock, Handshake, Linkedin, LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
@@ -26,10 +27,10 @@ interface DashboardData {
 }
 
 const statusColors: Record<string, string> = {
-  Scheduled: "bg-blue-100 text-blue-700",
-  Completed: "bg-green-100 text-green-700",
-  Cancelled: "bg-red-100 text-red-700",
-  NoShow:    "bg-yellow-100 text-yellow-700",
+  Scheduled: "bg-blue-100 text-blue-700 border-blue-200",
+  Completed: "bg-green-100 text-green-700 border-green-200",
+  Cancelled: "bg-red-100 text-red-700 border-red-200",
+  NoShow:    "bg-yellow-100 text-yellow-700 border-yellow-200",
 };
 
 function fmt12(t: string) {
@@ -39,14 +40,14 @@ function fmt12(t: string) {
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, icon: Icon, accent }: { label: string; value: number | string; icon: React.ElementType; accent?: string }) {
+function StatCard({ label, value, icon: Icon }: { label: string; value: number | string; icon: React.ElementType }) {
   return (
-    <div className={cn("rounded-2xl border border-border/60 bg-card shadow-sm p-5 flex flex-col gap-3", accent)}>
+    <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5 flex flex-col gap-3">
       <div className="h-9 w-9 rounded-xl bg-muted flex items-center justify-center">
         <Icon className="h-4 w-4 text-accent" />
       </div>
       <div>
-        <p className="text-2xl font-display font-bold text-foreground">{value}</p>
+        <p className="text-2xl font-display font-bold text-foreground" data-testid={`stat-${label.toLowerCase().replace(/\s+/g, "-")}`}>{value}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
       </div>
     </div>
@@ -56,8 +57,12 @@ function StatCard({ label, value, icon: Icon, accent }: { label: string; value: 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function SponsorDashboardPage() {
-  const { token } = useParams<{ token: string }>();
   const [, nav] = useLocation();
+  const token = localStorage.getItem("sponsor_token") ?? "";
+
+  useEffect(() => {
+    if (!token) nav("/sponsor/login");
+  }, [token]);
 
   const { data, isLoading, isError } = useQuery<DashboardData>({
     queryKey: ["/api/sponsor-access", token],
@@ -66,11 +71,17 @@ export default function SponsorDashboardPage() {
       if (!res.ok) throw new Error("Invalid or expired token");
       return res.json();
     },
+    enabled: !!token,
     retry: false,
   });
 
+  function handleSignOut() {
+    localStorage.removeItem("sponsor_token");
+    nav("/sponsor/login");
+  }
+
   // ── Loading ──
-  if (isLoading) {
+  if (!token || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-accent" />
@@ -87,9 +98,7 @@ export default function SponsorDashboardPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
               <Hexagon className="h-5 w-5" />
             </div>
-            <span className="font-display text-xl font-bold text-foreground tracking-tight hidden sm:block">
-              Converge Concierge
-            </span>
+            <span className="font-display text-xl font-bold text-foreground tracking-tight hidden sm:block">Converge Concierge</span>
           </div>
         </header>
         <main className="flex-1 flex items-center justify-center px-6">
@@ -108,7 +117,7 @@ export default function SponsorDashboardPage() {
             <p className="text-sm text-muted-foreground mb-6">
               This link is invalid, has been revoked, or has expired. Please contact your event coordinator for a new access link.
             </p>
-            <Button variant="outline" onClick={() => nav("/")}>Back to Homepage</Button>
+            <Button variant="outline" onClick={handleSignOut}>Back to Login</Button>
           </motion.div>
         </main>
       </div>
@@ -128,13 +137,23 @@ export default function SponsorDashboardPage() {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <Hexagon className="h-5 w-5" />
           </div>
-          <span className="font-display text-xl font-bold text-foreground tracking-tight hidden sm:block">
-            Converge Concierge
-          </span>
+          <span className="font-display text-xl font-bold text-foreground tracking-tight hidden sm:block">Converge Concierge</span>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-100 border border-green-300">
-          <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-          <span className="text-xs font-semibold text-green-700">Secure Access</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-100 border border-green-300">
+            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+            <span className="text-xs font-semibold text-green-700">Secure Access</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2 text-muted-foreground hover:text-foreground"
+            onClick={handleSignOut}
+            data-testid="btn-sign-out"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Sign Out</span>
+          </Button>
         </div>
       </header>
 
@@ -157,7 +176,7 @@ export default function SponsorDashboardPage() {
               </div>
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h1 className="text-2xl font-display font-bold text-foreground">{sponsor.name}</h1>
+                  <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-sponsor-name">{sponsor.name}</h1>
                   <span className="text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-300 px-2.5 py-0.5 rounded-full">
                     {sponsor.level} Sponsor
                   </span>
@@ -195,7 +214,9 @@ export default function SponsorDashboardPage() {
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Handshake className="h-4 w-4 text-accent" /> Your Meetings
               </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">{meetings.length} meeting{meetings.length !== 1 ? "s" : ""} scheduled</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {meetings.length} meeting{meetings.length !== 1 ? "s" : ""} · {event.name}
+              </p>
             </div>
 
             {meetings.length === 0 ? (
@@ -204,50 +225,74 @@ export default function SponsorDashboardPage() {
                 <p className="text-sm">No meetings scheduled yet.</p>
               </div>
             ) : (
-              <div className="divide-y divide-border/40">
-                {[...meetings]
-                  .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
-                  .map((m) => (
-                    <div
-                      key={m.id}
-                      className="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-muted/30 transition-colors"
-                      data-testid={`meeting-row-${m.id}`}
-                    >
-                      {/* Time column */}
-                      <div className="sm:w-32 shrink-0">
-                        <p className="text-sm font-semibold text-foreground">{m.date}</p>
-                        <p className="text-xs text-muted-foreground">{fmt12(m.time)}</p>
-                      </div>
-
-                      {/* Attendee info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-foreground">{m.attendee.name}</p>
-                          {m.attendee.linkedinUrl && (
-                            <a href={m.attendee.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                              className="text-[#0077B5] hover:opacity-80 transition-opacity"
-                              title="LinkedIn Profile"
-                            >
-                              <Linkedin className="h-3.5 w-3.5" />
-                            </a>
-                          )}
+              <>
+                {/* Table header */}
+                <div className="hidden sm:grid grid-cols-[120px_1fr_140px_110px_100px] gap-4 px-6 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <span>Date / Time</span>
+                  <span>Attendee</span>
+                  <span>Company</span>
+                  <span>Location</span>
+                  <span>Status</span>
+                </div>
+                <div className="divide-y divide-border/40">
+                  {[...meetings]
+                    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+                    .map((m) => (
+                      <div
+                        key={m.id}
+                        className="px-6 py-4 flex flex-col sm:grid sm:grid-cols-[120px_1fr_140px_110px_100px] sm:items-center gap-3 sm:gap-4 hover:bg-muted/30 transition-colors"
+                        data-testid={`meeting-row-${m.id}`}
+                      >
+                        {/* Date + Time */}
+                        <div className="shrink-0">
+                          <p className="text-sm font-semibold text-foreground">{m.date}</p>
+                          <p className="text-xs text-muted-foreground">{fmt12(m.time)}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">{m.attendee.title} · {m.attendee.company}</p>
-                      </div>
 
-                      {/* Location */}
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground sm:w-32 shrink-0">
-                        <MapPin className="h-3.5 w-3.5 shrink-0" />
-                        <span>{m.location}</span>
-                      </div>
+                        {/* Attendee */}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold text-foreground" data-testid={`text-attendee-name-${m.id}`}>{m.attendee.name}</p>
+                            {m.attendee.linkedinUrl && (
+                              <a
+                                href={m.attendee.linkedinUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[#0077B5] hover:opacity-80 transition-opacity"
+                                title="View LinkedIn Profile"
+                                data-testid={`link-linkedin-${m.id}`}
+                              >
+                                <Linkedin className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{m.attendee.title}</p>
+                        </div>
 
-                      {/* Status */}
-                      <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full w-fit shrink-0", statusColors[m.status] ?? "bg-muted text-muted-foreground")}>
-                        {m.status}
-                      </span>
-                    </div>
-                  ))}
-              </div>
+                        {/* Company */}
+                        <div className="min-w-0">
+                          <p className="text-sm text-foreground truncate" data-testid={`text-attendee-company-${m.id}`}>{m.attendee.company}</p>
+                        </div>
+
+                        {/* Location */}
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                          <MapPin className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{m.location}</span>
+                        </div>
+
+                        {/* Status */}
+                        <div>
+                          <span className={cn(
+                            "text-xs font-semibold px-2.5 py-1 rounded-full border w-fit block",
+                            statusColors[m.status] ?? "bg-muted text-muted-foreground border-muted"
+                          )}>
+                            {m.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </>
             )}
           </div>
         </motion.div>

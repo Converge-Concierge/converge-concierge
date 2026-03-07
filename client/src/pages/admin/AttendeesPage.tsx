@@ -81,12 +81,12 @@ export default function AttendeesPage() {
   };
 
   const handleArchive = (attendee: Attendee) => {
-    updateMutation.mutate({ id: attendee.id, data: { status: "archived" } });
+    updateMutation.mutate({ id: attendee.id, data: { status: "archived", archiveSource: "manual" } });
     toast({ title: "Attendee archived", description: `"${attendee.name}" is now archived for this event. They can still schedule in other events.` });
   };
 
   const handleReactivate = (attendee: Attendee) => {
-    updateMutation.mutate({ id: attendee.id, data: { status: "active" } });
+    updateMutation.mutate({ id: attendee.id, data: { status: "active", archiveSource: null } });
     toast({ title: "Attendee re-activated", description: `"${attendee.name}" is now active again.` });
   };
 

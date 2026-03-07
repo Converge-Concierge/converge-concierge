@@ -88,6 +88,7 @@ export const attendees = pgTable("attendees", {
   linkedinUrl: text("linkedin_url"),
   assignedEvent: varchar("assigned_event").notNull(), // event id
   status: text("status", { enum: ["active", "archived"] }).notNull().default("active"),
+  archiveSource: text("archive_source", { enum: ["event", "manual"] }), // null = not archived or active; "event" = cascaded from event archive; "manual" = admin manually archived
 });
 
 export const insertAttendeeSchema = createInsertSchema(attendees);
@@ -126,6 +127,7 @@ export const meetings = pgTable("meetings", {
   location: text("location").notNull(), // Location name or ID
   status: text("status", { enum: ["Scheduled", "Completed", "Cancelled", "NoShow"] }).notNull().default("Scheduled"),
   notes: text("notes"),
+  archiveSource: text("archive_source", { enum: ["event"] }), // null = operational; "event" = cascaded from event archive
 });
 
 export const insertMeetingSchema = createInsertSchema(meetings);

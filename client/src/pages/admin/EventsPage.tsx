@@ -54,6 +54,8 @@ export default function EventsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendees"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
       toast({ title: "Event updated successfully" });
       setIsModalOpen(false);
     },

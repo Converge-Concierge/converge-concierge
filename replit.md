@@ -52,8 +52,8 @@ Key frontend directories:
 |--------|-----------|
 | `events` | id, name, slug (A-Z0-9, uppercase), location, startDate, endDate, status (active/archived), meetingLocations (JSONB), meetingBlocks (JSONB) |
 | `sponsors` | id, name, logoUrl, level (Platinum/Gold/Silver/Bronze), assignedEvents (array of event IDs), status (active/archived) |
-| `attendees` | id, name, company, title, email, linkedinUrl (optional), assignedEvent, status (active/archived) |
-| `meetings` | id, eventId, sponsorId, attendeeId, date, time, location, status (Scheduled/Completed/Cancelled/NoShow), notes |
+| `attendees` | id, name, company, title, email, linkedinUrl (optional), assignedEvent, status (active/archived), archiveSource (event/manual/null) |
+| `meetings` | id, eventId, sponsorId, attendeeId, date, time, location, status (Scheduled/Completed/Cancelled/NoShow), notes, archiveSource (event/null) |
 
 ---
 
@@ -122,6 +122,19 @@ All at `/event/:slug` — single-page multi-step wizard:
 ---
 
 ## Key Implementation Notes
+
+### Cascade archive / unarchive (Events)
+- Archiving an event (`PATCH /api/events/:id` with `status: "archived"`) triggers `cascadeArchiveEvent`:
+  - All **active** attendees assigned to that event → `status: "archived"`, `archiveSource: "event"`
+  - All unarchived meetings for that event → `archiveSource: "event"`
+- Restoring an event (`status: "active"`) triggers `cascadeUnarchiveEvent`:
+  - Restores **only** records where `archiveSource === "event"` (manual-archived items stay archived)
+  - Attendees restored to `status: "active"`, `archiveSource: null`
+  - Meetings restored to `archiveSource: null`
+- `MeetingsPage` filters operational meetings: `!m.archiveSource` (hides cascade-archived meetings)
+- `ReportsPage` shows all meetings including cascade-archived ones (historical data)
+- `AttendeesPage` manual archive sends `archiveSource: "manual"`; manual reactivate sends `archiveSource: null`
+- `EventsPage` update mutation invalidates `/api/events`, `/api/attendees`, and `/api/meetings` caches
 
 ### Meeting conflict
 - Backend: `getMeetingConflict(eventId, date, time)` → returns 409 `{conflict:true, message}`

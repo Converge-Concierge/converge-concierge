@@ -101,7 +101,9 @@ export default function MeetingsPage() {
     }
   };
 
-  const filtered = meetings.filter((m) => {
+  const operationalMeetings = meetings.filter((m) => !m.archiveSource);
+
+  const filtered = operationalMeetings.filter((m) => {
     if (filters.eventId && m.eventId !== filters.eventId) return false;
     if (filters.sponsorId && m.sponsorId !== filters.sponsorId) return false;
     if (filters.attendeeId && m.attendeeId !== filters.attendeeId) return false;
@@ -145,7 +147,7 @@ export default function MeetingsPage() {
 
       <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
         <span>
-          Showing <strong>{filtered.length}</strong> of <strong>{meetings.length}</strong> meetings
+          Showing <strong>{filtered.length}</strong> of <strong>{operationalMeetings.length}</strong> meetings
         </span>
       </div>
 

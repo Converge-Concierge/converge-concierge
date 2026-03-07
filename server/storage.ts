@@ -50,6 +50,8 @@ export interface IStorage {
   updateMeeting(id: string, updates: Partial<InsertMeeting>): Promise<Meeting | undefined>;
   deleteMeeting(id: string): Promise<void>;
   getMeetingConflict(eventId: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined>;
+  cascadeArchiveEvent(eventId: string): Promise<void>;
+  cascadeUnarchiveEvent(eventId: string): Promise<void>;
 
   // Sponsor tokens
   getSponsorToken(token: string): Promise<SponsorToken | undefined>;
@@ -276,6 +278,37 @@ export class MemStorage implements IStorage {
         m.status !== "Cancelled" &&
         m.status !== "NoShow"
     );
+  }
+
+  // Event lifecycle cascade
+  async cascadeArchiveEvent(eventId: string): Promise<void> {
+    // Archive active attendees assigned to this event (only those not already manually archived)
+    for (const att of this.attendees.values()) {
+      if (att.assignedEvent === eventId && (att.status ?? "active") === "active") {
+        this.attendees.set(att.id, { ...att, status: "archived", archiveSource: "event" });
+      }
+    }
+    // Mark operational meetings for this event as event-archived (preserving their status)
+    for (const meeting of this.meetings.values()) {
+      if (meeting.eventId === eventId && !meeting.archiveSource) {
+        this.meetings.set(meeting.id, { ...meeting, archiveSource: "event" });
+      }
+    }
+  }
+
+  async cascadeUnarchiveEvent(eventId: string): Promise<void> {
+    // Only restore attendees that were cascade-archived by this event lifecycle
+    for (const att of this.attendees.values()) {
+      if (att.assignedEvent === eventId && att.archiveSource === "event") {
+        this.attendees.set(att.id, { ...att, status: "active", archiveSource: null });
+      }
+    }
+    // Only restore meetings that were cascade-archived by this event lifecycle
+    for (const meeting of this.meetings.values()) {
+      if (meeting.eventId === eventId && meeting.archiveSource === "event") {
+        this.meetings.set(meeting.id, { ...meeting, archiveSource: null });
+      }
+    }
   }
 
   // Sponsor tokens

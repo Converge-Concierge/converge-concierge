@@ -204,8 +204,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.patch("/api/events/:id", async (req, res) => {
+    const current = await storage.getEvent(req.params.id);
+    if (!current) return res.status(404).json({ message: "Event not found" });
+
     const event = await storage.updateEvent(req.params.id, req.body);
     if (!event) return res.status(404).json({ message: "Event not found" });
+
+    // Cascade archive/unarchive when event lifecycle status changes
+    if (req.body.status === "archived" && current.status !== "archived") {
+      await storage.cascadeArchiveEvent(req.params.id);
+    } else if (req.body.status === "active" && current.status === "archived") {
+      await storage.cascadeUnarchiveEvent(req.params.id);
+    }
+
     res.json(event);
   });
 

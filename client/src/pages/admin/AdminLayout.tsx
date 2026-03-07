@@ -4,10 +4,12 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { DashboardShell } from "./DashboardShell";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bell } from "lucide-react";
+import DashboardPage from "./DashboardPage";
 import EventsPage from "./EventsPage";
 import SponsorsPage from "./SponsorsPage";
 import AttendeesPage from "./AttendeesPage";
 import MeetingsPage from "./MeetingsPage";
+import ReportsPage from "./ReportsPage";
 
 export default function AdminLayout() {
   return (
@@ -45,12 +47,12 @@ export default function AdminLayout() {
 
           <main className="flex-1 overflow-y-auto p-4 md:p-8">
             <Switch>
-              <Route path="/admin" component={() => <DashboardShell title="Dashboard" description="Overview of your event metrics and recent activities." />} />
+              <Route path="/admin" component={DashboardPage} />
               <Route path="/admin/events" component={EventsPage} />
               <Route path="/admin/sponsors" component={SponsorsPage} />
               <Route path="/admin/attendees" component={AttendeesPage} />
               <Route path="/admin/meetings" component={MeetingsPage} />
-              <Route path="/admin/reports" component={() => <DashboardShell title="Reports" description="Analyze event performance and engagement metrics." />} />
+              <Route path="/admin/reports" component={ReportsPage} />
               <Route path="/admin/branding" component={() => <DashboardShell title="Branding" description="Customize event themes, logos, and visual assets." />} />
               <Route path="/admin/settings" component={() => <DashboardShell title="Settings" description="Configure system preferences and administrative access." />} />
             </Switch>

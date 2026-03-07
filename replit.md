@@ -1,14 +1,13 @@
-# Converge Concierge — Admin Platform
+# Converge Concierge — Event Scheduling Platform
 
 ## Overview
 
-Converge Concierge is a premium event management admin platform built for fintech and financial services conferences. It provides a centralized command center for managing events, sponsors, attendees, and 1:1 meeting scheduling between sponsors and attendees.
+Converge Concierge is a fintech event scheduling platform operating in **scheduling-only mode** (no matchmaking, no approval workflows, no preference matching). It has two main surfaces:
 
-The app has two main surfaces:
-- **Public Landing Page** — showcases upcoming events, links to login
-- **Admin Panel** (`/admin/*`) — full CRUD management of Events, Sponsors, Attendees, and Meetings
+- **Public site** — landing page → event page → multi-step booking wizard (sponsor → date → time → attendee details → confirmation)
+- **Admin panel** (`/admin/*`) — full management of Events, Sponsors, Attendees, Meetings, and Reports
 
-The backend is an Express server with in-memory storage (MemStorage) that can be swapped for PostgreSQL via Drizzle ORM. The frontend is a React SPA using Vite, Wouter for routing, TanStack Query for server state, and shadcn/ui components styled with Tailwind CSS.
+Backend: Express + in-memory storage (MemStorage). Frontend: React SPA with Vite, Wouter, TanStack Query v5, shadcn/ui, Tailwind CSS, Framer Motion.
 
 ---
 
@@ -22,105 +21,108 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend
 
-- **Framework**: React 18 with TypeScript, built with Vite
-- **Routing**: Wouter (lightweight client-side router). Admin nested routes are all handled inside `AdminLayout` via `/admin` and `/admin/:rest*` wildcard patterns. Use **absolute paths** for all Wouter links.
-- **State management**: TanStack Query v5 for server state; local React state for UI/forms
-- **UI components**: shadcn/ui ("new-york" style) on top of Radix UI primitives
-- **Styling**: Tailwind CSS with CSS variables for theming. Custom professional fintech palette (deep navy primary, teal accent). Two fonts: `Plus Jakarta Sans` (body/sans) and `Outfit` (display).
-- **Animations**: Framer Motion for entry animations and micro-interactions
-- **Forms**: Controlled React state with manual validation (not react-hook-form in admin modals)
+- **Framework**: React 18 with TypeScript, Vite
+- **Routing**: Wouter — admin nested routes handled inside `AdminLayout` via `/admin` and `/admin/:rest*`. Use **absolute paths** for all Wouter links.
+- **State management**: TanStack Query v5; local React state for UI/forms
+- **UI components**: shadcn/ui ("new-york" style) on Radix UI primitives
+- **Styling**: Tailwind CSS + CSS variables. Custom fintech palette (deep navy primary, teal accent). Fonts: `Plus Jakarta Sans` (body) and `Outfit` (display).
+- **Animations**: Framer Motion for page transitions and micro-interactions
 
 Key frontend directories:
-- `client/src/pages/` — top-level page components (LandingPage, LoginPage, admin/*)
-- `client/src/components/admin/` — admin-specific components (tables, form modals, editors)
-- `client/src/components/ui/` — shadcn/ui component library (do not redesign these)
-- `client/src/components/layout/` — AppSidebar and layout wrappers
-- `client/src/lib/` — queryClient, utils
+- `client/src/pages/` — LandingPage, LoginPage, `admin/`, `public/`
+- `client/src/pages/public/` — EventPage.tsx (full 5-step booking wizard)
+- `client/src/components/admin/` — admin tables, form modals, editors
+- `client/src/components/ui/` — shadcn/ui library (do not redesign)
+- `client/src/components/layout/` — AppSidebar
 
 ### Backend
 
-- **Runtime**: Node.js with Express 5
-- **Language**: TypeScript compiled with `tsx` in dev, esbuild for production
-- **Entry**: `server/index.ts` → registers routes via `server/routes.ts`
-- **Storage layer**: `server/storage.ts` defines `IStorage` interface. Current implementation is `MemStorage` (in-memory Maps). Drizzle ORM + PostgreSQL schema is defined and ready in `shared/schema.ts` for when a DB is provisioned.
-- **Seeding**: `seedData()` in `server/routes.ts` populates events, sponsors, and attendees on first startup if empty
-- **Static serving**: In production, serves built Vite output from `dist/public`
+- **Runtime**: Node.js + Express 5, TypeScript via `tsx`
+- **Entry**: `server/index.ts` → `server/routes.ts`
+- **Storage**: `server/storage.ts` — `IStorage` interface, `MemStorage` implementation (in-memory Maps). Drizzle ORM + PostgreSQL schema defined and ready in `shared/schema.ts`.
+- **Seeding**: `seedData()` in `server/routes.ts` populates 4 events, 2 sponsors, 6 attendees on first startup
 
 ### Shared
 
-- `shared/schema.ts` — single source of truth for all data types. Uses Drizzle ORM table definitions + `drizzle-zod` for insert schemas. Types exported for both frontend and backend.
-- `shared/routes.ts` — shared route/URL utilities (currently minimal)
+- `shared/schema.ts` — single source of truth for all types. Drizzle table definitions + `drizzle-zod` insert schemas.
 
-### Data Models (from `shared/schema.ts`)
+### Data Models
 
 | Entity | Key Fields |
 |--------|-----------|
-| `users` | id, username, password |
-| `events` | id, name, slug, location, startDate, endDate, status, logoUrl, meetingLocations (JSONB), meetingBlocks (JSONB) |
+| `events` | id, name, slug (A-Z0-9, uppercase), location, startDate, endDate, status (active/archived), meetingLocations (JSONB), meetingBlocks (JSONB) |
 | `sponsors` | id, name, logoUrl, level (Platinum/Gold/Silver/Bronze), assignedEvents (array of event IDs), status (active/archived) |
-| `attendees` | id, name, company, title, email, assignedEvent |
+| `attendees` | id, name, company, title, email, linkedinUrl (optional), assignedEvent |
 | `meetings` | id, eventId, sponsorId, attendeeId, date, time, location, status (Scheduled/Completed/Cancelled/NoShow), notes |
-
-### Admin Routing Structure
-
-```
-/admin                → Dashboard
-/admin/events         → Events CRUD
-/admin/sponsors       → Sponsors CRUD
-/admin/attendees      → Attendees CRUD
-/admin/meetings       → Meetings Scheduler
-/admin/reports        → Reports (stub)
-/admin/branding       → Branding (stub)
-/admin/settings       → Settings (stub)
-```
-
-All admin pages live under `client/src/pages/admin/`. The sidebar is defined in `AppSidebar.tsx` — **do not redesign it**.
-
-### Key Design Constraints
-
-- **Do not change the LandingPage** (`/`)
-- **Do not redesign the admin layout or sidebar**
-- **Do not change the existing Events module** except to wire up sponsor/attendee/meeting relationships
-- Preserve all existing working functionality
-- Use existing schema and current styling patterns
-- Meeting conflict detection: use `getMeetingConflict()` on the storage layer before saving
 
 ---
 
-## External Dependencies
+## Public Scheduling Flow
 
-### Infrastructure
-- **PostgreSQL** (via `DATABASE_URL` env var) — schema ready via Drizzle, currently using MemStorage fallback
-- **Drizzle ORM** (`drizzle-orm`, `drizzle-zod`) — schema definition + query builder + Zod validation
-- **Drizzle Kit** — migration management (`db:push` script, outputs to `./migrations/`)
+All at `/event/:slug` — single-page multi-step wizard:
 
-### Frontend Libraries
-- `@tanstack/react-query` v5 — data fetching and caching
-- `wouter` — client-side routing
-- `framer-motion` — animations
-- `date-fns` — date formatting
-- `lucide-react` — icon set
-- `recharts` — chart components (used in Reports)
-- `embla-carousel-react` — carousel
-- `react-day-picker` — calendar/date picker
-- `cmdk` — command palette
-- `vaul` — drawer component
-- `input-otp` — OTP input
-- `react-resizable-panels` — resizable layout panels
+1. **Sponsor selection** — cards with logo, level badge, "Meet [Sponsor]" CTA button
+2. **Date selection** — date tile buttons (from event.meetingBlocks)
+3. **Time selection** — 30-min slot grid (booked slots disabled in real-time)
+4. **Attendee details** — location buttons + Name/Company/Title/Email/LinkedIn form
+5. **Confirmation** — success card with full meeting summary
 
-### Radix UI Primitives (full suite)
-Full set installed: accordion, alert-dialog, avatar, checkbox, collapsible, context-menu, dialog, dropdown-menu, hover-card, label, menubar, navigation-menu, popover, progress, radio-group, scroll-area, select, separator, slider, slot, switch, tabs, toast, toggle, toggle-group, tooltip
+**Rules enforced:**
+- One meeting per event+date+time (409 conflict from backend, disabled button in UI)
+- Sponsors shown are filtered to selected event
+- Dates/times come from event.meetingBlocks
+- Locations come from event.meetingLocations
+- If attendee email matches existing record → link to existing; else → auto-create
 
-### Dev / Build
-- `vite` + `@vitejs/plugin-react` — frontend build
-- `tsx` — TypeScript execution for server dev
-- `esbuild` — server production bundle
-- `@replit/vite-plugin-runtime-error-modal` — dev error overlay
-- `@replit/vite-plugin-cartographer` — Replit dev tooling
-- `connect-pg-simple` — PostgreSQL session store (for future auth)
-- `nanoid` — ID generation
+---
 
-### Google Fonts (loaded via CDN)
-- Plus Jakarta Sans (body)
-- Outfit (display/headings)
-- DM Sans, Fira Code, Geist Mono, Architects Daughter (supplementary)
+## Admin Routing Structure
+
+```
+/admin                → DashboardPage (real data: stat cards, upcoming meetings, per-event chart)
+/admin/events         → EventsPage (CRUD + archive, meeting blocks/locations editor)
+/admin/sponsors       → SponsorsPage (CRUD + archive, event assignment)
+/admin/attendees      → AttendeesPage (CRUD, LinkedIn URL, bulk import placeholder)
+/admin/meetings       → MeetingsPage (smart scheduler, conflict enforcement, filters)
+/admin/reports        → ReportsPage (meeting stats, breakdowns, filterable table, CSV export)
+/admin/branding       → Placeholder shell
+/admin/settings       → Placeholder shell
+```
+
+---
+
+## Key Implementation Notes
+
+### Meeting conflict
+- Backend: `getMeetingConflict(eventId, date, time)` → returns 409 `{conflict:true, message}`
+- Public booking: `fetch()` (not `apiRequest`) so 409 doesn't throw — shown inline
+- Admin modal: same raw fetch pattern
+- Public UI: booked slots have `disabled` attribute + CSS line-through
+
+### Manual attendee (public booking)
+- `manualAttendee` object in POST body → `resolveAttendeeId()` finds or creates by email
+- Backend strips `manualAttendee` before DB write
+
+### Event code (slug)
+- Stored as `slug`, validated `^[A-Z0-9]+$`
+- Input auto-uppercases and strips non-alphanum
+
+### MeetingFormPayload
+- Type exported from `MeetingFormModal.tsx` — used instead of `InsertMeeting` in admin mutations
+
+### CSS variable
+- Sidebar background uses `--sidebar` (not `--sidebar-background`) in `index.css`
+
+### Cache invalidation
+- After public booking success: `queryClient.invalidateQueries({ queryKey: ["/api/meetings"] })`
+- This immediately disables the booked time slot in the UI
+
+---
+
+## Design Constraints
+
+- **Do NOT change** the LandingPage (`/`) layout or styling
+- **Do NOT redesign** the admin sidebar or admin layout shell
+- **Do NOT add** matchmaking, sponsor targeting, preference matching, or approval workflows
+- **MemStorage only** — no database until explicitly requested
+- Preserve all scheduling rules and conflict detection

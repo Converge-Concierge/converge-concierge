@@ -1,0 +1,231 @@
+Implement the next major phase of the Converge Concierge admin platform.
+
+Important rules:
+- Do not change the landing page
+- Do not redesign the admin layout or sidebar
+- Do not change the existing Events module except where needed to connect Sponsors, Attendees, and Meetings
+- Use the existing schema and current styling
+- Preserve all current working functionality
+
+Build these three modules together:
+1. Sponsors
+2. Attendees
+3. Meetings Scheduler
+
+========================================
+1. SPONSORS MODULE
+========================================
+
+Create a full Sponsors management page at /admin/sponsors.
+
+Requirements:
+- View all sponsors in a table
+- Create sponsor
+- Edit sponsor
+- Archive sponsor
+- Delete sponsor with confirmation
+
+Sponsor fields:
+- Sponsor Name
+- Logo (upload OR image URL)
+- Sponsorship Level
+  - Platinum
+  - Gold
+  - Silver
+  - Bronze
+- Assigned Event(s)
+- Status (Active / Archived)
+- Optional short description
+
+Seed sample sponsors:
+- Winnow
+- eGain
+
+Sponsors table columns:
+- Sponsor Name
+- Level
+- Assigned Event(s)
+- Status
+- Actions (Edit / Archive / Delete)
+
+Important:
+- Sponsors can be assigned to one or more events
+- Archived sponsors should remain in the database but not appear in public scheduling
+
+========================================
+2. ATTENDEES MODULE
+========================================
+
+Create a full Attendees management page at /admin/attendees.
+
+Requirements:
+- View attendees in a table
+- Create attendee
+- Edit attendee
+- Delete attendee with confirmation
+
+Attendee fields:
+- Name
+- Company
+- Title
+- Email
+- Assigned Event(s)
+
+Attendees table columns:
+- Name
+- Company
+- Title
+- Email
+- Assigned Event(s)
+- Actions
+
+Add bulk import placeholder button for future CSV upload, but do not implement CSV parsing yet.
+
+========================================
+3. MEETINGS SCHEDULER MODULE
+========================================
+
+Create a full Meetings page at /admin/meetings.
+
+Requirements:
+- View meetings in a table
+- Create meeting
+- Edit meeting
+- Delete meeting with confirmation
+- Filter meetings by:
+  - Event
+  - Sponsor
+  - Attendee
+  - Date range
+
+Meeting fields:
+- Event
+- Sponsor
+- Attendee
+- Date
+- Time
+- Location
+- Status
+- Notes
+
+Meeting status options:
+- Scheduled
+- Completed
+- Cancelled
+- NoShow
+
+Meetings table columns:
+- Event
+- Sponsor
+- Attendee
+- Date
+- Time
+- Location
+- Status
+- Actions
+
+========================================
+SCHEDULING RULES
+========================================
+
+This is critical:
+
+Only ONE meeting may exist for a given event, date, and time slot.
+
+That means:
+- if a meeting is booked for FRC2026 at 10:00 AM in Booth
+- then 10:00 AM is unavailable for all other locations in that event
+
+Locations are defined by the Event record.
+Meeting time blocks are defined by the Event record.
+
+When creating a meeting:
+- Admin must choose an event first
+- Then only show sponsors assigned to that event
+- Then only show attendees assigned to that event
+- Then only allow date/time choices that fit that event’s meeting blocks
+- Then only allow locations defined for that event
+
+If a conflicting meeting exists at the same event/date/time:
+- prevent save
+- show clear validation error
+
+========================================
+EVENT CODE USAGE
+========================================
+
+Continue using the existing slug field as Event Code.
+
+Examples:
+- FRC2026
+- TLS2026
+- UBTS2026
+- CUGI2027
+
+Display this as "Event Code" where helpful in admin tables and forms.
+
+========================================
+REPORT READINESS
+========================================
+
+Prepare the data so these reports can be built next:
+- Meetings by Attendee
+- Meetings by Sponsor
+- All Meetings by Event
+
+Do not build the reports yet in this step, but ensure the data relationships support them cleanly.
+
+========================================
+UI REQUIREMENTS
+========================================
+
+Use the existing UI components already in the project.
+Do not introduce a new design system.
+
+Keep all modules visually consistent with the existing:
+- Events page
+- table layout
+- buttons
+- modal patterns
+- filters
+
+========================================
+FILES / COMPONENTS
+========================================
+
+Create or update modular components as needed, for example:
+- components/admin/SponsorsTable.tsx
+- components/admin/SponsorFormModal.tsx
+- components/admin/AttendeesTable.tsx
+- components/admin/AttendeeFormModal.tsx
+- components/admin/MeetingsTable.tsx
+- components/admin/MeetingFormModal.tsx
+- components/admin/MeetingFilters.tsx
+
+========================================
+SEED DATA
+========================================
+
+In addition to the existing events, add:
+Sponsors:
+- Winnow
+- eGain
+
+Attach them to at least one event so the Meetings workflow can be tested.
+
+Also add a few sample attendees assigned to events so meeting creation can be tested immediately.
+
+========================================
+DO NOT
+========================================
+
+Do not:
+- redesign the sidebar
+- change the landing page
+- change login flow
+- remove existing Events functionality
+- break routing
+- break the Event Code behavior
+- implement public booking yet
+
+Only implement Sponsors, Attendees, and Meetings admin modules with the scheduling rule enforced.

@@ -57,8 +57,8 @@ export default function DashboardPage() {
   const { data: attendees = [] } = useQuery<Attendee[]>({ queryKey: ["/api/attendees"] });
   const { data: meetings = [] } = useQuery<Meeting[]>({ queryKey: ["/api/meetings"] });
 
-  const activeEvents   = events.filter((e) => e.status === "active");
-  const activeSponsors = sponsors.filter((s) => s.status === "active");
+  const activeEvents   = events.filter((e) => (e.archiveState ?? "active") === "active");
+  const activeSponsors = sponsors.filter((s) => (s.archiveState ?? "active") === "active");
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { Scheduled: 0, Completed: 0, Cancelled: 0, NoShow: 0 };

@@ -22,6 +22,7 @@ export interface IStorage {
   // Events
   getEvents(): Promise<Event[]>;
   getEvent(id: string): Promise<Event | undefined>;
+  getEventBySlug(slug: string): Promise<Event | undefined>;
   createEvent(event: InsertEvent): Promise<Event>;
   updateEvent(id: string, updates: Partial<InsertEvent>): Promise<Event | undefined>;
   deleteEvent(id: string): Promise<void>;
@@ -132,11 +133,17 @@ export class MemStorage implements IStorage {
     return this.events.get(id);
   }
 
+  async getEventBySlug(slug: string): Promise<Event | undefined> {
+    return Array.from(this.events.values()).find((e) => e.slug === slug);
+  }
+
   async createEvent(insertEvent: InsertEvent): Promise<Event> {
     const id = randomUUID();
     const event: Event = {
       ...insertEvent,
       id,
+      archiveState: insertEvent.archiveState ?? "active",
+      archiveSource: insertEvent.archiveSource ?? null,
       meetingLocations: insertEvent.meetingLocations || [],
       meetingBlocks: insertEvent.meetingBlocks || [],
     } as Event;
@@ -170,6 +177,8 @@ export class MemStorage implements IStorage {
     const sponsor: Sponsor = {
       ...insertSponsor,
       id,
+      archiveState: insertSponsor.archiveState ?? "active",
+      archiveSource: insertSponsor.archiveSource ?? null,
       assignedEvents: insertSponsor.assignedEvents || [],
     } as Sponsor;
     this.sponsors.set(id, sponsor);
@@ -208,7 +217,7 @@ export class MemStorage implements IStorage {
       (a) =>
         a.email.toLowerCase() === email.toLowerCase() &&
         a.assignedEvent === eventId &&
-        (a.status ?? "active") === "active"
+        (a.archiveState ?? "active") === "active"
     );
   }
 
@@ -217,13 +226,18 @@ export class MemStorage implements IStorage {
       (a) =>
         a.email.toLowerCase() === email.toLowerCase() &&
         a.assignedEvent === eventId &&
-        a.status === "archived"
+        a.archiveState === "archived"
     );
   }
 
   async createAttendee(insertAttendee: InsertAttendee): Promise<Attendee> {
     const id = randomUUID();
-    const attendee: Attendee = { status: "active", ...insertAttendee, id } as Attendee;
+    const attendee: Attendee = {
+      archiveState: "active",
+      archiveSource: null,
+      ...insertAttendee,
+      id,
+    } as Attendee;
     this.attendees.set(id, attendee);
     return attendee;
   }
@@ -251,7 +265,12 @@ export class MemStorage implements IStorage {
 
   async createMeeting(insertMeeting: InsertMeeting): Promise<Meeting> {
     const id = randomUUID();
-    const meeting: Meeting = { ...insertMeeting, id } as Meeting;
+    const meeting: Meeting = {
+      archiveState: "active",
+      archiveSource: null,
+      ...insertMeeting,
+      id,
+    } as Meeting;
     this.meetings.set(id, meeting);
     return meeting;
   }
@@ -276,37 +295,68 @@ export class MemStorage implements IStorage {
         m.time === time &&
         m.id !== excludeId &&
         m.status !== "Cancelled" &&
-        m.status !== "NoShow"
+        m.status !== "NoShow" &&
+        (m.archiveState ?? "active") !== "archived"
     );
   }
 
   // Event lifecycle cascade
   async cascadeArchiveEvent(eventId: string): Promise<void> {
-    // Archive active attendees assigned to this event (only those not already manually archived)
+    // Archive active EventAttendee relationships for this event
     for (const att of this.attendees.values()) {
-      if (att.assignedEvent === eventId && (att.status ?? "active") === "active") {
-        this.attendees.set(att.id, { ...att, status: "archived", archiveSource: "event" });
+      if (att.assignedEvent === eventId && (att.archiveState ?? "active") === "active") {
+        this.attendees.set(att.id, { ...att, archiveState: "archived", archiveSource: "event" });
       }
     }
-    // Mark operational meetings for this event as event-archived (preserving their status)
+
+    // Archive operational meetings for this event (preserve workflow status)
     for (const meeting of this.meetings.values()) {
-      if (meeting.eventId === eventId && !meeting.archiveSource) {
-        this.meetings.set(meeting.id, { ...meeting, archiveSource: "event" });
+      if (meeting.eventId === eventId && (meeting.archiveState ?? "active") !== "archived") {
+        this.meetings.set(meeting.id, { ...meeting, archiveState: "archived", archiveSource: "event" });
+      }
+    }
+
+    // Archive active EventSponsor relationship links for this event
+    for (const sponsor of this.sponsors.values()) {
+      const links = sponsor.assignedEvents ?? [];
+      const hasActiveLink = links.some((ae) => ae.eventId === eventId && (ae.archiveState ?? "active") === "active");
+      if (hasActiveLink) {
+        const updatedLinks = links.map((ae) =>
+          ae.eventId === eventId && (ae.archiveState ?? "active") === "active"
+            ? { ...ae, archiveState: "archived" as const, archiveSource: "event" as const }
+            : ae
+        );
+        this.sponsors.set(sponsor.id, { ...sponsor, assignedEvents: updatedLinks });
       }
     }
   }
 
   async cascadeUnarchiveEvent(eventId: string): Promise<void> {
-    // Only restore attendees that were cascade-archived by this event lifecycle
+    // Only restore EventAttendee relationships cascade-archived by this event
     for (const att of this.attendees.values()) {
       if (att.assignedEvent === eventId && att.archiveSource === "event") {
-        this.attendees.set(att.id, { ...att, status: "active", archiveSource: null });
+        this.attendees.set(att.id, { ...att, archiveState: "active", archiveSource: null });
       }
     }
-    // Only restore meetings that were cascade-archived by this event lifecycle
+
+    // Only restore meetings cascade-archived by this event
     for (const meeting of this.meetings.values()) {
       if (meeting.eventId === eventId && meeting.archiveSource === "event") {
-        this.meetings.set(meeting.id, { ...meeting, archiveSource: null });
+        this.meetings.set(meeting.id, { ...meeting, archiveState: "active", archiveSource: null });
+      }
+    }
+
+    // Only restore EventSponsor relationship links cascade-archived by this event
+    for (const sponsor of this.sponsors.values()) {
+      const links = sponsor.assignedEvents ?? [];
+      const hasEventLink = links.some((ae) => ae.eventId === eventId && ae.archiveSource === "event");
+      if (hasEventLink) {
+        const updatedLinks = links.map((ae) =>
+          ae.eventId === eventId && ae.archiveSource === "event"
+            ? { ...ae, archiveState: "active" as const, archiveSource: null }
+            : ae
+        );
+        this.sponsors.set(sponsor.id, { ...sponsor, assignedEvents: updatedLinks });
       }
     }
   }

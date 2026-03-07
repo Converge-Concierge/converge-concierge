@@ -39,7 +39,7 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
     onSubmit(data as InsertAttendee);
   };
 
-  const activeEvents = events.filter((e) => e.status === "active");
+  const activeEvents = events.filter((e) => (e.archiveState ?? "active") === "active");
 
   const assignedEvent = events.find((e) => e.id === formData.assignedEvent);
 

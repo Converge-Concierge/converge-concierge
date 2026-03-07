@@ -101,7 +101,7 @@ export default function MeetingsPage() {
     }
   };
 
-  const operationalMeetings = meetings.filter((m) => !m.archiveSource);
+  const operationalMeetings = meetings.filter((m) => (m.archiveState ?? "active") !== "archived");
 
   const filtered = operationalMeetings.filter((m) => {
     if (filters.eventId && m.eventId !== filters.eventId) return false;

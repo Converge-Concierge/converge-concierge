@@ -29,7 +29,7 @@ export default function LandingPage() {
   const [, setLocation] = useLocation();
 
   const { data: allEvents = [], isLoading } = useQuery<Event[]>({ queryKey: ["/api/events"] });
-  const activeEvents = allEvents.filter((e) => e.status === "active");
+  const activeEvents = allEvents.filter((e) => e.archiveState === "active");
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">

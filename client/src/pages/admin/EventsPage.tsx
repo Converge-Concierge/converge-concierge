@@ -56,6 +56,7 @@ export default function EventsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       queryClient.invalidateQueries({ queryKey: ["/api/attendees"] });
       queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sponsors"] });
       toast({ title: "Event updated successfully" });
       setIsModalOpen(false);
     },
@@ -81,23 +82,23 @@ export default function EventsPage() {
   };
 
   const handleArchive = (event: Event) => {
-    updateMutation.mutate({ id: event.id, data: { status: "archived" } });
+    updateMutation.mutate({ id: event.id, data: { archiveState: "archived", archiveSource: "manual" } });
     toast({ title: "Event archived", description: `"${event.name}" is now archived and read-only.` });
   };
 
   const handleReactivate = (event: Event) => {
-    updateMutation.mutate({ id: event.id, data: { status: "active" } });
+    updateMutation.mutate({ id: event.id, data: { archiveState: "active", archiveSource: null } });
     toast({ title: "Event re-activated", description: `"${event.name}" is now active.` });
   };
 
   const hasMeetings = deletingEvent ? meetings.some((m) => m.eventId === deletingEvent.id) : false;
 
   const activeEvents = events
-    .filter((e) => e.status === "active" && (e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.location.toLowerCase().includes(searchQuery.toLowerCase())))
+    .filter((e) => (e.archiveState ?? "active") === "active" && (e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.location.toLowerCase().includes(searchQuery.toLowerCase())))
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   const archivedEvents = events
-    .filter((e) => e.status === "archived" && (e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.location.toLowerCase().includes(searchQuery.toLowerCase())))
+    .filter((e) => e.archiveState === "archived" && (e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.location.toLowerCase().includes(searchQuery.toLowerCase())))
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   const displayedEvents = tab === "active" ? activeEvents : archivedEvents;
@@ -135,10 +136,10 @@ export default function EventsPage() {
         <Tabs value={tab} onValueChange={(v) => setTab(v as "active" | "archived")} className="w-full sm:w-auto">
           <TabsList className="w-full sm:w-auto">
             <TabsTrigger value="active" className="flex-1 sm:flex-none" data-testid="tab-events-active">
-              Active <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{events.filter((e) => e.status === "active").length}</span>
+              Active <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{events.filter((e) => (e.archiveState ?? "active") === "active").length}</span>
             </TabsTrigger>
             <TabsTrigger value="archived" className="flex-1 sm:flex-none" data-testid="tab-events-archived">
-              Archived <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{events.filter((e) => e.status === "archived").length}</span>
+              Archived <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{events.filter((e) => e.archiveState === "archived").length}</span>
             </TabsTrigger>
           </TabsList>
         </Tabs>

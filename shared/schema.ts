@@ -44,6 +44,14 @@ export const meetingTimeBlockSchema = z.object({
 
 export type MeetingTimeBlock = z.infer<typeof meetingTimeBlockSchema>;
 
+// --- EventSponsor Relationship Link ---
+export const eventSponsorLinkSchema = z.object({
+  eventId: z.string(),
+  archiveState: z.enum(["active", "archived"]).default("active"),
+  archiveSource: z.enum(["manual", "event"]).nullable().default(null),
+});
+export type EventSponsorLink = z.infer<typeof eventSponsorLinkSchema>;
+
 // --- Event ---
 export const events = pgTable("events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -52,7 +60,8 @@ export const events = pgTable("events", {
   location: text("location").notNull(),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
-  status: text("status", { enum: ["active", "archived"] }).notNull().default("active"),
+  archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
+  archiveSource: text("archive_source", { enum: ["manual", "event"] }),
   logoUrl: text("logo_url"),
   meetingLocations: jsonb("meeting_locations").$type<MeetingLocation[]>().notNull().default([]),
   meetingBlocks: jsonb("meeting_blocks").$type<MeetingTimeBlock[]>().notNull().default([]),
@@ -60,6 +69,7 @@ export const events = pgTable("events", {
 
 export const insertEventSchema = createInsertSchema(events).extend({
   slug: z.string().min(1, "Event code is required").regex(/^[A-Z0-9]+$/, "Event code must be uppercase letters and numbers only"),
+  archiveSource: z.enum(["manual", "event"]).nullable().optional(),
 });
 export type Event = typeof events.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;
@@ -70,11 +80,15 @@ export const sponsors = pgTable("sponsors", {
   name: text("name").notNull(),
   logoUrl: text("logo_url"),
   level: text("level", { enum: ["Platinum", "Gold", "Silver", "Bronze"] }).notNull(),
-  assignedEvents: jsonb("assigned_events").$type<string[]>().notNull().default([]), // array of event ids
-  status: text("status", { enum: ["active", "archived"] }).notNull().default("active"),
+  assignedEvents: jsonb("assigned_events").$type<EventSponsorLink[]>().notNull().default([]),
+  archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
+  archiveSource: text("archive_source", { enum: ["manual", "event"] }),
 });
 
-export const insertSponsorSchema = createInsertSchema(sponsors);
+export const insertSponsorSchema = createInsertSchema(sponsors).extend({
+  assignedEvents: z.array(eventSponsorLinkSchema).default([]),
+  archiveSource: z.enum(["manual", "event"]).nullable().optional(),
+});
 export type Sponsor = typeof sponsors.$inferSelect;
 export type InsertSponsor = z.infer<typeof insertSponsorSchema>;
 
@@ -87,11 +101,13 @@ export const attendees = pgTable("attendees", {
   email: text("email").notNull(),
   linkedinUrl: text("linkedin_url"),
   assignedEvent: varchar("assigned_event").notNull(), // event id
-  status: text("status", { enum: ["active", "archived"] }).notNull().default("active"),
-  archiveSource: text("archive_source", { enum: ["event", "manual"] }), // null = not archived or active; "event" = cascaded from event archive; "manual" = admin manually archived
+  archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
+  archiveSource: text("archive_source", { enum: ["event", "manual"] }),
 });
 
-export const insertAttendeeSchema = createInsertSchema(attendees);
+export const insertAttendeeSchema = createInsertSchema(attendees).extend({
+  archiveSource: z.enum(["event", "manual"]).nullable().optional(),
+});
 export type Attendee = typeof attendees.$inferSelect;
 export type InsertAttendee = z.infer<typeof insertAttendeeSchema>;
 
@@ -127,9 +143,12 @@ export const meetings = pgTable("meetings", {
   location: text("location").notNull(), // Location name or ID
   status: text("status", { enum: ["Scheduled", "Completed", "Cancelled", "NoShow"] }).notNull().default("Scheduled"),
   notes: text("notes"),
-  archiveSource: text("archive_source", { enum: ["event"] }), // null = operational; "event" = cascaded from event archive
+  archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
+  archiveSource: text("archive_source", { enum: ["event", "manual"] }),
 });
 
-export const insertMeetingSchema = createInsertSchema(meetings);
+export const insertMeetingSchema = createInsertSchema(meetings).extend({
+  archiveSource: z.enum(["event", "manual"]).nullable().optional(),
+});
 export type Meeting = typeof meetings.$inferSelect;
 export type InsertMeeting = z.infer<typeof insertMeetingSchema>;

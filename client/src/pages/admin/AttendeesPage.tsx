@@ -81,12 +81,12 @@ export default function AttendeesPage() {
   };
 
   const handleArchive = (attendee: Attendee) => {
-    updateMutation.mutate({ id: attendee.id, data: { status: "archived", archiveSource: "manual" } });
+    updateMutation.mutate({ id: attendee.id, data: { archiveState: "archived", archiveSource: "manual" } });
     toast({ title: "Attendee archived", description: `"${attendee.name}" is now archived for this event. They can still schedule in other events.` });
   };
 
   const handleReactivate = (attendee: Attendee) => {
-    updateMutation.mutate({ id: attendee.id, data: { status: "active", archiveSource: null } });
+    updateMutation.mutate({ id: attendee.id, data: { archiveState: "active", archiveSource: null } });
     toast({ title: "Attendee re-activated", description: `"${attendee.name}" is now active again.` });
   };
 
@@ -95,8 +95,8 @@ export default function AttendeesPage() {
     a.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
     a.email.toLowerCase().includes(searchQuery.toLowerCase());
 
-  const activeAttendees = attendees.filter((a) => (a.status ?? "active") === "active" && match(a));
-  const archivedAttendees = attendees.filter((a) => a.status === "archived" && match(a));
+  const activeAttendees = attendees.filter((a) => (a.archiveState ?? "active") === "active" && match(a));
+  const archivedAttendees = attendees.filter((a) => a.archiveState === "archived" && match(a));
   const displayedAttendees = tab === "active" ? activeAttendees : archivedAttendees;
 
   return (
@@ -144,10 +144,10 @@ export default function AttendeesPage() {
         <Tabs value={tab} onValueChange={(v) => setTab(v as "active" | "archived")} className="w-full sm:w-auto">
           <TabsList className="w-full sm:w-auto">
             <TabsTrigger value="active" className="flex-1 sm:flex-none" data-testid="tab-attendees-active">
-              Active <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{attendees.filter((a) => (a.status ?? "active") === "active").length}</span>
+              Active <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{attendees.filter((a) => (a.archiveState ?? "active") === "active").length}</span>
             </TabsTrigger>
             <TabsTrigger value="archived" className="flex-1 sm:flex-none" data-testid="tab-attendees-archived">
-              Archived <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{attendees.filter((a) => a.status === "archived").length}</span>
+              Archived <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{attendees.filter((a) => a.archiveState === "archived").length}</span>
             </TabsTrigger>
           </TabsList>
         </Tabs>

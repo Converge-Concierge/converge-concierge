@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sponsor, InsertSponsor, Event } from "@shared/schema";
+import { Sponsor, InsertSponsor, Event, EventSponsorLink } from "@shared/schema";
 import { Building2, Upload, X, ImagePlus, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +32,7 @@ const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, isPending, readOnly }: SponsorFormModalProps) {
-  const [formData, setFormData] = useState<Partial<InsertSponsor>>({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], status: "active" });
+  const [formData, setFormData] = useState<Partial<InsertSponsor>>({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active" });
   const [dragOver, setDragOver] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,7 +43,7 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
       if (sponsor) {
         setFormData({ ...sponsor });
       } else {
-        setFormData({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], status: "active" });
+        setFormData({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active" });
       }
     }
   }, [sponsor, isOpen]);
@@ -82,8 +82,18 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
   function toggleEvent(eventId: string) {
     if (readOnly) return;
     const current = formData.assignedEvents || [];
-    const updated = current.includes(eventId) ? current.filter((id) => id !== eventId) : [...current, eventId];
-    setFormData((prev) => ({ ...prev, assignedEvents: updated }));
+    const existingIdx = current.findIndex((ae) => ae.eventId === eventId);
+    if (existingIdx >= 0) {
+      const existing = current[existingIdx];
+      if ((existing.archiveState ?? "active") === "active") {
+        setFormData((prev) => ({ ...prev, assignedEvents: current.filter((_, i) => i !== existingIdx) }));
+      } else {
+        setFormData((prev) => ({ ...prev, assignedEvents: current.map((ae, i) => i === existingIdx ? { ...ae, archiveState: "active" as const, archiveSource: null } : ae) }));
+      }
+    } else {
+      const newLink: EventSponsorLink = { eventId, archiveState: "active", archiveSource: null };
+      setFormData((prev) => ({ ...prev, assignedEvents: [...current, newLink] }));
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -183,7 +193,7 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sp-status">Status</Label>
-                  <select id="sp-status" className={selectClass} value={formData.status} onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value as "active" | "archived" }))} data-testid="select-sponsor-status">
+                  <select id="sp-status" className={selectClass} value={formData.archiveState ?? "active"} onChange={(e) => setFormData((prev) => ({ ...prev, archiveState: e.target.value as "active" | "archived" }))} data-testid="select-sponsor-status">
                     <option value="active">Active</option>
                     <option value="archived">Archived</option>
                   </select>
@@ -198,8 +208,8 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                 <p className="text-sm text-muted-foreground italic py-2">No events assigned.</p>
               ) : (
                 <div className="rounded-xl border border-border/60 divide-y divide-border/40 overflow-hidden">
-                  {events.filter((ev) => readOnly ? (formData.assignedEvents || []).includes(ev.id) : ev.status === "active").map((ev) => {
-                    const checked = (formData.assignedEvents || []).includes(ev.id);
+                  {events.filter((ev) => readOnly ? (formData.assignedEvents || []).some((ae) => ae.eventId === ev.id) : (ev.archiveState ?? "active") === "active").map((ev) => {
+                    const checked = (formData.assignedEvents || []).some((ae) => ae.eventId === ev.id && (ae.archiveState ?? "active") === "active");
                     return (
                       <label key={ev.id} htmlFor={`ev-${ev.id}`} className={cn("flex items-center gap-3 px-4 py-3 transition-colors", readOnly ? "cursor-default" : "cursor-pointer hover:bg-muted/40", checked ? "bg-accent/5" : "")}>
                         <Checkbox id={`ev-${ev.id}`} checked={checked} onCheckedChange={() => toggleEvent(ev.id)} disabled={readOnly} data-testid={`checkbox-event-${ev.id}`} />

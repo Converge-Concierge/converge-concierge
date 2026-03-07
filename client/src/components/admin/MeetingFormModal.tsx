@@ -60,7 +60,7 @@ export function MeetingFormModal({ isOpen, onClose, onSubmit, meeting, events, s
 
   const selectedEvent = events.find((e) => e.id === formData.eventId);
   const availableSponsors = formData.eventId
-    ? sponsors.filter((s) => s.status === "active" && (s.assignedEvents || []).includes(formData.eventId!))
+    ? sponsors.filter((s) => (s.archiveState ?? "active") === "active" && (s.assignedEvents || []).some((ae) => ae.eventId === formData.eventId && (ae.archiveState ?? "active") === "active"))
     : [];
   const availableAttendees = formData.eventId
     ? attendees.filter((a) => a.assignedEvent === formData.eventId)
@@ -165,7 +165,7 @@ export function MeetingFormModal({ isOpen, onClose, onSubmit, meeting, events, s
             <select id="mt-event" className={selectClass} value={formData.eventId}
               onChange={(e) => handleEventChange(e.target.value)} required data-testid="select-meeting-event">
               <option value="">Select an event...</option>
-              {events.filter((e) => e.status === "active").map((ev) => (
+              {events.filter((e) => (e.archiveState ?? "active") === "active").map((ev) => (
                 <option key={ev.id} value={ev.id}>[{ev.slug}] {ev.name}</option>
               ))}
             </select>

@@ -24,7 +24,7 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
     location: "",
     startDate: new Date(),
     endDate: new Date(),
-    status: "active",
+    archiveState: "active",
     meetingLocations: [],
     meetingBlocks: [],
   });
@@ -33,7 +33,7 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
     if (event) {
       setFormData({ ...event, startDate: new Date(event.startDate), endDate: new Date(event.endDate) });
     } else {
-      setFormData({ name: "", slug: "", location: "", startDate: new Date(), endDate: new Date(), status: "active", meetingLocations: [], meetingBlocks: [] });
+      setFormData({ name: "", slug: "", location: "", startDate: new Date(), endDate: new Date(), archiveState: "active", meetingLocations: [], meetingBlocks: [] });
     }
   }, [event, isOpen]);
 
@@ -82,8 +82,8 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
                   <select
                     id="status"
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "archived" })}
+                    value={formData.archiveState ?? "active"}
+                    onChange={(e) => setFormData({ ...formData, archiveState: e.target.value as "active" | "archived" })}
                   >
                     <option value="active">Active</option>
                     <option value="archived">Archived</option>

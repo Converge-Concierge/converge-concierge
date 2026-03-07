@@ -25,7 +25,7 @@ export function EventTable({ events, tab, isAdmin, onEdit, onView, onArchive, on
     if (key === "name") return e.name;
     if (key === "location") return e.location;
     if (key === "startDate") return new Date(e.startDate).getTime();
-    if (key === "status") return e.status;
+    if (key === "archiveState") return e.archiveState;
     return "";
   };
 
@@ -39,7 +39,7 @@ export function EventTable({ events, tab, isAdmin, onEdit, onView, onArchive, on
             <SortHead sortKey="name" sort={sort} onSort={toggle}>Event Name</SortHead>
             <SortHead sortKey="location" sort={sort} onSort={toggle}>Location</SortHead>
             <SortHead sortKey="startDate" sort={sort} onSort={toggle}>Dates</SortHead>
-            <SortHead sortKey="status" sort={sort} onSort={toggle}>Status</SortHead>
+            <SortHead sortKey="archiveState" sort={sort} onSort={toggle}>Status</SortHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, type InsertEvent, type InsertSponsor, type InsertAttendee } from "@shared/schema";
+import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink } from "@shared/schema";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 
 async function seedData() {
@@ -22,7 +22,7 @@ async function seedData() {
       location: "Miami, FL",
       startDate: new Date("2027-03-12T09:00:00"),
       endDate: new Date("2027-03-14T17:00:00"),
-      status: "active",
+      archiveState: "active",
       meetingLocations: defaultLocations.map((l) => ({ ...l, id: crypto.randomUUID() })),
       meetingBlocks: [
         { id: crypto.randomUUID(), date: "2027-03-12", startTime: "09:00", endTime: "12:00" },
@@ -36,7 +36,7 @@ async function seedData() {
       location: "Chicago, IL",
       startDate: new Date("2026-10-05T09:00:00"),
       endDate: new Date("2026-10-07T17:00:00"),
-      status: "active",
+      archiveState: "active",
       meetingLocations: defaultLocations.map((l) => ({ ...l, id: crypto.randomUUID() })),
       meetingBlocks: [
         { id: crypto.randomUUID(), date: "2026-10-05", startTime: "09:00", endTime: "12:00" },
@@ -50,7 +50,7 @@ async function seedData() {
       location: "New York, NY",
       startDate: new Date("2026-06-18T09:00:00"),
       endDate: new Date("2026-06-20T17:00:00"),
-      status: "active",
+      archiveState: "active",
       meetingLocations: defaultLocations.map((l) => ({ ...l, id: crypto.randomUUID() })),
       meetingBlocks: [
         { id: crypto.randomUUID(), date: "2026-06-18", startTime: "09:00", endTime: "12:00" },
@@ -64,7 +64,7 @@ async function seedData() {
       location: "Austin, TX",
       startDate: new Date("2026-04-02T09:00:00"),
       endDate: new Date("2026-04-04T17:00:00"),
-      status: "active",
+      archiveState: "active",
       meetingLocations: defaultLocations.map((l) => ({ ...l, id: crypto.randomUUID() })),
       meetingBlocks: [
         { id: crypto.randomUUID(), date: "2026-04-02", startTime: "09:00", endTime: "12:00" },
@@ -81,20 +81,22 @@ async function seedData() {
   }
 
   // Seed sponsors — assigned to FRC2026 and UBTS2026
+  const toLink = (eventId: string): EventSponsorLink => ({ eventId, archiveState: "active", archiveSource: null });
+
   const sponsorSeeds: InsertSponsor[] = [
     {
       name: "Winnow",
       logoUrl: "",
       level: "Gold",
-      assignedEvents: [createdEvents["FRC2026"], createdEvents["UBTS2026"]].filter(Boolean),
-      status: "active",
+      assignedEvents: [createdEvents["FRC2026"], createdEvents["UBTS2026"]].filter(Boolean).map(toLink),
+      archiveState: "active",
     },
     {
       name: "eGain",
       logoUrl: "",
       level: "Silver",
-      assignedEvents: [createdEvents["FRC2026"], createdEvents["TLS2026"]].filter(Boolean),
-      status: "active",
+      assignedEvents: [createdEvents["FRC2026"], createdEvents["TLS2026"]].filter(Boolean).map(toLink),
+      archiveState: "active",
     },
   ];
 
@@ -210,10 +212,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const event = await storage.updateEvent(req.params.id, req.body);
     if (!event) return res.status(404).json({ message: "Event not found" });
 
-    // Cascade archive/unarchive when event lifecycle status changes
-    if (req.body.status === "archived" && current.status !== "archived") {
+    // Cascade archive/unarchive when event archiveState changes
+    if (req.body.archiveState === "archived" && current.archiveState !== "archived") {
       await storage.cascadeArchiveEvent(req.params.id);
-    } else if (req.body.status === "active" && current.status === "archived") {
+    } else if (req.body.archiveState === "active" && current.archiveState === "archived") {
       await storage.cascadeUnarchiveEvent(req.params.id);
     }
 
@@ -290,7 +292,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // 2. Archived record for this specific event → reactivate and reuse
       const archivedForEvent = await storage.getArchivedAttendeeByEmailAndEvent(ma.email, eventId);
       if (archivedForEvent) {
-        await storage.updateAttendee(archivedForEvent.id, { status: "active" });
+        await storage.updateAttendee(archivedForEvent.id, { archiveState: "active", archiveSource: null });
         return { attendeeId: archivedForEvent.id };
       }
 
@@ -302,7 +304,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         email: ma.email,
         linkedinUrl: ma.linkedinUrl || undefined,
         assignedEvent: eventId,
-        status: "active",
+        archiveState: "active",
       });
       return { attendeeId: created.id };
     }

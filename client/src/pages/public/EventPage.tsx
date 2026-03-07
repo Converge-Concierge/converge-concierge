@@ -206,14 +206,14 @@ export default function EventPage() {
 
   const event = events.find((e) => e.slug === slug);
   const eventSponsors = event
-    ? sponsors.filter((s) => s.status === "active" && (s.assignedEvents ?? []).includes(event.id))
+    ? sponsors.filter((s) => (s.archiveState ?? "active") === "active" && (s.assignedEvents ?? []).some((ae) => ae.eventId === event.id && (ae.archiveState ?? "active") === "active"))
     : [];
 
   const bookedSlots = useMemo(() => {
     if (!event) return new Set<string>();
     return new Set(
       meetings
-        .filter((m) => m.eventId === event.id && m.status !== "Cancelled" && m.status !== "NoShow")
+        .filter((m) => m.eventId === event.id && m.status !== "Cancelled" && m.status !== "NoShow" && (m.archiveState ?? "active") !== "archived")
         .map((m) => `${m.date}|${m.time}`)
     );
   }, [meetings, event]);

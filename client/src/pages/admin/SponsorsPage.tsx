@@ -81,19 +81,19 @@ export default function SponsorsPage() {
   };
 
   const handleArchive = (sponsor: Sponsor) => {
-    updateMutation.mutate({ id: sponsor.id, data: { status: "archived" } });
+    updateMutation.mutate({ id: sponsor.id, data: { archiveState: "archived", archiveSource: "manual" } });
     toast({ title: "Sponsor archived", description: `"${sponsor.name}" is now archived and read-only.` });
   };
 
   const handleReactivate = (sponsor: Sponsor) => {
-    updateMutation.mutate({ id: sponsor.id, data: { status: "active" } });
+    updateMutation.mutate({ id: sponsor.id, data: { archiveState: "active", archiveSource: null } });
     toast({ title: "Sponsor re-activated", description: `"${sponsor.name}" is now active.` });
   };
 
   const match = (s: Sponsor) => s.name.toLowerCase().includes(searchQuery.toLowerCase());
 
-  const activeSponsors = sponsors.filter((s) => s.status === "active" && match(s));
-  const archivedSponsors = sponsors.filter((s) => s.status === "archived" && match(s));
+  const activeSponsors = sponsors.filter((s) => (s.archiveState ?? "active") === "active" && match(s));
+  const archivedSponsors = sponsors.filter((s) => s.archiveState === "archived" && match(s));
   const displayedSponsors = tab === "active" ? activeSponsors : archivedSponsors;
 
   return (
@@ -131,10 +131,10 @@ export default function SponsorsPage() {
         <Tabs value={tab} onValueChange={(v) => setTab(v as "active" | "archived")} className="w-full sm:w-auto">
           <TabsList className="w-full sm:w-auto">
             <TabsTrigger value="active" className="flex-1 sm:flex-none" data-testid="tab-sponsors-active">
-              Active <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{sponsors.filter((s) => s.status === "active").length}</span>
+              Active <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{sponsors.filter((s) => (s.archiveState ?? "active") === "active").length}</span>
             </TabsTrigger>
             <TabsTrigger value="archived" className="flex-1 sm:flex-none" data-testid="tab-sponsors-archived">
-              Archived <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{sponsors.filter((s) => s.status === "archived").length}</span>
+              Archived <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{sponsors.filter((s) => s.archiveState === "archived").length}</span>
             </TabsTrigger>
           </TabsList>
         </Tabs>

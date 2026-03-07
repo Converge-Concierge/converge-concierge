@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Archive, Trash2, Link2, Building2, Eye, RotateCcw } from "lucide-react";
-import { Sponsor, Event, SponsorToken } from "@shared/schema";
+import { Sponsor, Event, SponsorToken, EventSponsorLink } from "@shared/schema";
 import { SponsorAccessModal } from "./SponsorAccessModal";
 import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
 import { cn } from "@/lib/utils";
@@ -59,18 +59,28 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
   const { data: allTokens = [] } = useQuery<SponsorToken[]>({ queryKey: ["/api/sponsor-tokens"] });
   const { sort, toggle } = useSortState("level", "asc");
 
-  const getEventBadges = (eventIds: string[]) => {
-    if (!eventIds || eventIds.length === 0) return <span className="text-muted-foreground italic text-xs">None</span>;
-    return eventIds.map((id) => {
-      const ev = events.find((e) => e.id === id);
-      return ev ? <Badge key={id} variant="outline" className="mr-1 text-xs font-mono">{ev.slug}</Badge> : null;
-    });
+  const getEventBadges = (links: EventSponsorLink[]) => {
+    if (!links || links.length === 0) return <span className="text-muted-foreground italic text-xs">None</span>;
+    const activeLinks = links.filter((ae) => (ae.archiveState ?? "active") === "active");
+    const archivedCount = links.length - activeLinks.length;
+    return (
+      <>
+        {activeLinks.map((ae) => {
+          const ev = events.find((e) => e.id === ae.eventId);
+          return ev ? <Badge key={ae.eventId} variant="outline" className="mr-1 text-xs font-mono">{ev.slug}</Badge> : null;
+        })}
+        {archivedCount > 0 && (
+          <span className="text-muted-foreground italic text-xs ml-1">+{archivedCount} archived</span>
+        )}
+        {activeLinks.length === 0 && archivedCount > 0 && null}
+      </>
+    );
   };
 
   const getValue = (s: Sponsor, key: string): string | number => {
     if (key === "name") return s.name;
     if (key === "level") return levelOrder[s.level] ?? 99;
-    if (key === "status") return s.status;
+    if (key === "archiveState") return s.archiveState;
     return "";
   };
 
@@ -86,7 +96,7 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
               <SortHead sortKey="name" sort={sort} onSort={toggle}>Sponsor</SortHead>
               <SortHead sortKey="level" sort={sort} onSort={toggle}>Level</SortHead>
               <TableHead>Assigned Event(s)</TableHead>
-              <SortHead sortKey="status" sort={sort} onSort={toggle}>Status</SortHead>
+              <SortHead sortKey="archiveState" sort={sort} onSort={toggle}>Status</SortHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>

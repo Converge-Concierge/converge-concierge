@@ -3,10 +3,10 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Meeting, InsertMeeting, Event, Sponsor, Attendee } from "@shared/schema";
+import { Meeting, Event, Sponsor, Attendee } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { MeetingsTable } from "@/components/admin/MeetingsTable";
-import { MeetingFormModal } from "@/components/admin/MeetingFormModal";
+import { MeetingFormModal, MeetingFormPayload } from "@/components/admin/MeetingFormModal";
 import { MeetingFilters, MeetingFilterState } from "@/components/admin/MeetingFilters";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -35,7 +35,7 @@ export default function MeetingsPage() {
   const { data: attendees = [] } = useQuery<Attendee[]>({ queryKey: ["/api/attendees"] });
 
   const createMutation = useMutation({
-    mutationFn: async (data: InsertMeeting) => {
+    mutationFn: async (data: MeetingFormPayload) => {
       const res = await fetch("/api/meetings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,7 +58,7 @@ export default function MeetingsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertMeeting> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<MeetingFormPayload> }) => {
       const res = await fetch(`/api/meetings/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -91,7 +91,7 @@ export default function MeetingsPage() {
     },
   });
 
-  const handleSubmit = async (data: InsertMeeting): Promise<{ conflict?: boolean; message?: string } | void> => {
+  const handleSubmit = async (data: MeetingFormPayload): Promise<{ conflict?: boolean; message?: string } | void> => {
     if (editingMeeting) {
       const result = await updateMutation.mutateAsync({ id: editingMeeting.id, data });
       return result;

@@ -29,6 +29,7 @@ export interface IStorage {
   // Attendees
   getAttendees(): Promise<Attendee[]>;
   getAttendee(id: string): Promise<Attendee | undefined>;
+  getAttendeeByEmail(email: string): Promise<Attendee | undefined>;
   createAttendee(attendee: InsertAttendee): Promise<Attendee>;
   updateAttendee(id: string, updates: Partial<InsertAttendee>): Promise<Attendee | undefined>;
   deleteAttendee(id: string): Promise<void>;
@@ -144,6 +145,12 @@ export class MemStorage implements IStorage {
 
   async getAttendee(id: string): Promise<Attendee | undefined> {
     return this.attendees.get(id);
+  }
+
+  async getAttendeeByEmail(email: string): Promise<Attendee | undefined> {
+    return Array.from(this.attendees.values()).find(
+      (a) => a.email.toLowerCase() === email.toLowerCase()
+    );
   }
 
   async createAttendee(insertAttendee: InsertAttendee): Promise<Attendee> {

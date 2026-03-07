@@ -1,7 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, Linkedin } from "lucide-react";
 import { Attendee, Event } from "@shared/schema";
 
 interface AttendeesTableProps {
@@ -37,7 +37,24 @@ export function AttendeesTable({ attendees, events, onEdit, onDelete }: Attendee
         <TableBody>
           {attendees.map((attendee) => (
             <TableRow key={attendee.id} data-testid={`row-attendee-${attendee.id}`}>
-              <TableCell className="font-medium">{attendee.name}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{attendee.name}</span>
+                  {attendee.linkedinUrl && (
+                    <a
+                      href={attendee.linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-blue-500 hover:text-blue-700 transition-colors"
+                      title="LinkedIn Profile"
+                      data-testid={`link-linkedin-${attendee.id}`}
+                    >
+                      <Linkedin className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
+              </TableCell>
               <TableCell>{attendee.company}</TableCell>
               <TableCell>{attendee.title}</TableCell>
               <TableCell className="text-muted-foreground text-sm">{attendee.email}</TableCell>

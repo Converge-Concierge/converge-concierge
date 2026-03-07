@@ -19,20 +19,23 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events 
     company: "",
     title: "",
     email: "",
+    linkedinUrl: "",
     assignedEvent: "",
   });
 
   useEffect(() => {
     if (attendee) {
-      setFormData({ ...attendee });
+      setFormData({ ...attendee, linkedinUrl: attendee.linkedinUrl || "" });
     } else {
-      setFormData({ name: "", company: "", title: "", email: "", assignedEvent: "" });
+      setFormData({ name: "", company: "", title: "", email: "", linkedinUrl: "", assignedEvent: "" });
     }
   }, [attendee, isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData as InsertAttendee);
+    const data = { ...formData };
+    if (!data.linkedinUrl) delete data.linkedinUrl;
+    onSubmit(data as InsertAttendee);
   };
 
   const activeEvents = events.filter((e) => e.status === "active");
@@ -89,6 +92,18 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events 
                 data-testid="input-attendee-email"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="at-linkedin">LinkedIn URL <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input
+              id="at-linkedin"
+              type="url"
+              value={formData.linkedinUrl || ""}
+              onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
+              placeholder="https://linkedin.com/in/..."
+              data-testid="input-attendee-linkedin"
+            />
           </div>
 
           <div className="space-y-2">

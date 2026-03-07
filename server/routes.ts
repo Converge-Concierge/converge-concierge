@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, type InsertEvent, type InsertSponsor, type InsertAttendee } from "@shared/schema";
+import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, type InsertEvent, type InsertSponsor, type InsertAttendee } from "@shared/schema";
 
 async function seedData() {
   const events = await storage.getEvents();
@@ -192,8 +192,38 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(await storage.getMeetings());
   });
 
+  // Resolve attendee from body: if manualAttendee provided, find or create; else use attendeeId
+  async function resolveAttendeeId(body: any, eventId: string): Promise<{ attendeeId: string } | { error: string }> {
+    if (body.manualAttendee) {
+      const parsed = manualAttendeeSchema.safeParse(body.manualAttendee);
+      if (!parsed.success) return { error: "Invalid manual attendee data" };
+      const ma = parsed.data;
+      const existing = await storage.getAttendeeByEmail(ma.email);
+      if (existing) {
+        return { attendeeId: existing.id };
+      }
+      const created = await storage.createAttendee({
+        name: ma.name,
+        company: ma.company,
+        title: ma.title,
+        email: ma.email,
+        linkedinUrl: ma.linkedinUrl || undefined,
+        assignedEvent: eventId,
+      });
+      return { attendeeId: created.id };
+    }
+    if (body.attendeeId) return { attendeeId: body.attendeeId };
+    return { error: "attendeeId or manualAttendee is required" };
+  }
+
   app.post("/api/meetings", async (req, res) => {
-    const parsed = insertMeetingSchema.safeParse(req.body);
+    const attendeeResult = await resolveAttendeeId(req.body, req.body.eventId);
+    if ("error" in attendeeResult) return res.status(400).json({ message: attendeeResult.error });
+
+    const body = { ...req.body, attendeeId: attendeeResult.attendeeId };
+    delete body.manualAttendee;
+
+    const parsed = insertMeetingSchema.safeParse(body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error });
 
     const { eventId, date, time } = parsed.data;
@@ -212,8 +242,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const existing = await storage.getMeeting(req.params.id);
     if (!existing) return res.status(404).json({ message: "Meeting not found" });
 
-    const merged = { ...existing, ...req.body };
-    const { eventId, date, time } = merged;
+    const eventId = req.body.eventId || existing.eventId;
+    let body = { ...req.body };
+
+    if (req.body.manualAttendee) {
+      const attendeeResult = await resolveAttendeeId(req.body, eventId);
+      if ("error" in attendeeResult) return res.status(400).json({ message: attendeeResult.error });
+      body.attendeeId = attendeeResult.attendeeId;
+      delete body.manualAttendee;
+    }
+
+    const merged = { ...existing, ...body };
+    const { date, time } = merged;
     const conflict = await storage.getMeetingConflict(eventId, date, time, req.params.id);
     if (conflict) {
       return res.status(409).json({
@@ -222,7 +262,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     }
 
-    const meeting = await storage.updateMeeting(req.params.id, req.body);
+    const meeting = await storage.updateMeeting(req.params.id, body);
     res.json(meeting);
   });
 

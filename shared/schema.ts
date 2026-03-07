@@ -76,12 +76,22 @@ export const attendees = pgTable("attendees", {
   company: text("company").notNull(),
   title: text("title").notNull(),
   email: text("email").notNull(),
+  linkedinUrl: text("linkedin_url"),
   assignedEvent: varchar("assigned_event").notNull(), // event id
 });
 
 export const insertAttendeeSchema = createInsertSchema(attendees);
 export type Attendee = typeof attendees.$inferSelect;
 export type InsertAttendee = z.infer<typeof insertAttendeeSchema>;
+
+// Manual attendee entry used when scheduling a meeting without a pre-existing record
+export const manualAttendeeSchema = z.object({
+  name: z.string().min(1),
+  company: z.string().min(1),
+  title: z.string().min(1),
+  email: z.string().email(),
+  linkedinUrl: z.string().url().optional().or(z.literal("")),
+});
 
 // --- Meeting ---
 export const meetings = pgTable("meetings", {

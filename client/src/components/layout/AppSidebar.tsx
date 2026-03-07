@@ -42,7 +42,7 @@ export function AppSidebar() {
   const [location] = useLocation();
 
   return (
-    <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <Sidebar className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="p-4">
         <Link href="/" className="flex items-center gap-3 px-2 py-1 transition-opacity hover:opacity-80">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
@@ -56,7 +56,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs font-semibold uppercase tracking-wider">
+          <SidebarGroupLabel className="text-sidebar-foreground/70 text-xs font-semibold uppercase tracking-wider">
             Management
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -68,12 +68,7 @@ export function AppSidebar() {
                     <SidebarMenuButton 
                       asChild 
                       isActive={isActive}
-                      className={`
-                        transition-all duration-200
-                        ${isActive 
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
-                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"}
-                      `}
+                      className="transition-all duration-200"
                     >
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />
@@ -88,7 +83,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup className="mt-4">
-          <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs font-semibold uppercase tracking-wider">
+          <SidebarGroupLabel className="text-sidebar-foreground/70 text-xs font-semibold uppercase tracking-wider">
             Configuration
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -100,12 +95,7 @@ export function AppSidebar() {
                     <SidebarMenuButton 
                       asChild 
                       isActive={isActive}
-                      className={`
-                        transition-all duration-200
-                        ${isActive 
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
-                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"}
-                      `}
+                      className="transition-all duration-200"
                     >
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />
@@ -123,7 +113,7 @@ export function AppSidebar() {
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="text-sidebar-foreground/80 hover:bg-destructive/10 hover:text-destructive">
+            <SidebarMenuButton asChild className="hover:bg-destructive/10 hover:text-destructive">
               <Link href="/">
                 <LogOut className="h-4 w-4" />
                 <span>Sign out</span>

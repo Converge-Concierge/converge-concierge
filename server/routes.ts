@@ -273,6 +273,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ── Sponsor Tokens (admin) ────────────────────────────────────────────────
 
+  // Get all tokens (admin overview)
+  app.get("/api/sponsor-tokens", async (_req, res) => {
+    const sponsors = await storage.getSponsors();
+    const all: import("@shared/schema").SponsorToken[] = [];
+    for (const s of sponsors) {
+      const t = await storage.getSponsorTokensBySponsor(s.id);
+      all.push(...t);
+    }
+    res.json(all);
+  });
+
   // Get all tokens for a sponsor
   app.get("/api/sponsor-tokens/sponsor/:sponsorId", async (req, res) => {
     const tokens = await storage.getSponsorTokensBySponsor(req.params.sponsorId);

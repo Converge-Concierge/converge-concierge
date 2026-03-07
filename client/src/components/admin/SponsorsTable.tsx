@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Archive, Trash2, Link2, Building2 } from "lucide-react";
-import { Sponsor, Event } from "@shared/schema";
+import { Sponsor, Event, SponsorToken } from "@shared/schema";
 import { SponsorAccessModal } from "./SponsorAccessModal";
 import { cn } from "@/lib/utils";
 
@@ -55,8 +56,19 @@ function SponsorLogo({ name, logoUrl }: { name: string; logoUrl?: string | null 
   );
 }
 
+function getSponsorLinkStatus(sponsorId: string, tokens: SponsorToken[]): "active" | "revoked" | "none" {
+  const sponsorTokens = tokens.filter((t) => t.sponsorId === sponsorId);
+  if (sponsorTokens.length === 0) return "none";
+  const hasActive = sponsorTokens.some((t) => t.isActive && new Date(t.expiresAt) > new Date());
+  return hasActive ? "active" : "revoked";
+}
+
 export function SponsorsTable({ sponsors, events, onEdit, onArchive, onDelete }: SponsorsTableProps) {
   const [accessSponsor, setAccessSponsor] = useState<Sponsor | null>(null);
+
+  const { data: allTokens = [] } = useQuery<SponsorToken[]>({
+    queryKey: ["/api/sponsor-tokens"],
+  });
 
   const getEventBadges = (eventIds: string[]) => {
     if (!eventIds || eventIds.length === 0)
@@ -93,90 +105,62 @@ export function SponsorsTable({ sponsors, events, onEdit, onArchive, onDelete }:
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sorted.map((sponsor) => (
-              <TableRow
-                key={sponsor.id}
-                data-testid={`row-sponsor-${sponsor.id}`}
-                className={cn(sponsor.status === "archived" ? "opacity-60" : "")}
-              >
-                {/* Logo */}
-                <TableCell className="py-3">
-                  <SponsorLogo name={sponsor.name} logoUrl={sponsor.logoUrl} />
-                </TableCell>
+            {sorted.map((sponsor) => {
+              const linkStatus = getSponsorLinkStatus(sponsor.id, allTokens);
+              const linkIconColor =
+                linkStatus === "active"  ? "text-green-600 hover:text-green-700" :
+                linkStatus === "revoked" ? "text-red-500 hover:text-red-600"     :
+                                           "text-muted-foreground";
 
-                {/* Name */}
-                <TableCell className="font-semibold text-foreground py-3">
-                  {sponsor.name}
-                </TableCell>
-
-                {/* Level */}
-                <TableCell className="py-3">
-                  <span className={cn(
-                    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
-                    levelColors[sponsor.level] ?? "",
-                  )}>
-                    {sponsor.level}
-                  </span>
-                </TableCell>
-
-                {/* Events */}
-                <TableCell className="py-3">
-                  {getEventBadges(sponsor.assignedEvents || [])}
-                </TableCell>
-
-                {/* Status */}
-                <TableCell className="py-3">
-                  <Badge variant={sponsor.status === "active" ? "default" : "secondary"}>
-                    {sponsor.status === "active" ? "Active" : "Archived"}
-                  </Badge>
-                </TableCell>
-
-                {/* Actions */}
-                <TableCell className="text-right py-3">
-                  <div className="flex justify-end items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="Manage access links"
-                      onClick={() => setAccessSponsor(sponsor)}
-                      data-testid={`access-links-${sponsor.id}`}
-                    >
-                      <Link2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="Edit sponsor"
-                      onClick={() => onEdit(sponsor)}
-                      data-testid={`edit-sponsor-${sponsor.id}`}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    {sponsor.status === "active" && (
+              return (
+                <TableRow
+                  key={sponsor.id}
+                  data-testid={`row-sponsor-${sponsor.id}`}
+                  className={cn(sponsor.status === "archived" ? "opacity-60" : "")}
+                >
+                  <TableCell className="py-3">
+                    <SponsorLogo name={sponsor.name} logoUrl={sponsor.logoUrl} />
+                  </TableCell>
+                  <TableCell className="font-semibold text-foreground py-3">{sponsor.name}</TableCell>
+                  <TableCell className="py-3">
+                    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold", levelColors[sponsor.level] ?? "")}>
+                      {sponsor.level}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-3">{getEventBadges(sponsor.assignedEvents || [])}</TableCell>
+                  <TableCell className="py-3">
+                    <Badge variant={sponsor.status === "active" ? "default" : "secondary"}>
+                      {sponsor.status === "active" ? "Active" : "Archived"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right py-3">
+                    <div className="flex justify-end items-center gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
-                        title="Archive sponsor"
-                        onClick={() => onArchive(sponsor)}
-                        data-testid={`archive-sponsor-${sponsor.id}`}
+                        title="Manage access links"
+                        onClick={() => setAccessSponsor(sponsor)}
+                        data-testid={`access-links-${sponsor.id}`}
+                        className={linkIconColor}
                       >
-                        <Archive className="h-4 w-4" />
+                        <Link2 className="h-4 w-4" />
                       </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      title="Delete sponsor"
-                      onClick={() => onDelete(sponsor)}
-                      data-testid={`delete-sponsor-${sponsor.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                      <Button variant="ghost" size="icon" title="Edit sponsor" onClick={() => onEdit(sponsor)} data-testid={`edit-sponsor-${sponsor.id}`}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      {sponsor.status === "active" && (
+                        <Button variant="ghost" size="icon" title="Archive sponsor" onClick={() => onArchive(sponsor)} data-testid={`archive-sponsor-${sponsor.id}`}>
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Delete sponsor" onClick={() => onDelete(sponsor)} data-testid={`delete-sponsor-${sponsor.id}`}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
 
             {sorted.length === 0 && (
               <TableRow>

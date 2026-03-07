@@ -322,12 +322,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const parsed = insertMeetingSchema.safeParse(body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error });
 
-    const { eventId, date, time } = parsed.data;
-    const conflict = await storage.getMeetingConflict(eventId, date, time);
+    const { eventId, sponsorId, date, time } = parsed.data;
+    const conflict = await storage.getMeetingConflict(eventId, sponsorId, date, time);
     if (conflict) {
       return res.status(409).json({
         conflict: true,
-        message: `A meeting is already scheduled for this event on ${date} at ${time}. Only one meeting is allowed per time slot.`,
+        message: "This time slot is no longer available.",
       });
     }
 
@@ -349,12 +349,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
 
     const merged = { ...existing, ...body };
-    const { date, time } = merged;
-    const conflict = await storage.getMeetingConflict(eventId, date, time, req.params.id);
+    const { sponsorId, date, time } = merged;
+    const conflict = await storage.getMeetingConflict(eventId, sponsorId, date, time, req.params.id);
     if (conflict) {
       return res.status(409).json({
         conflict: true,
-        message: `A meeting is already scheduled for this event on ${date} at ${time}. Only one meeting is allowed per time slot.`,
+        message: "This time slot is no longer available.",
       });
     }
 

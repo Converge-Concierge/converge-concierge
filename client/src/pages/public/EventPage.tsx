@@ -214,7 +214,7 @@ export default function EventPage() {
     return new Set(
       meetings
         .filter((m) => m.eventId === event.id && m.status !== "Cancelled" && m.status !== "NoShow" && (m.archiveState ?? "active") !== "archived")
-        .map((m) => `${m.date}|${m.time}`)
+        .map((m) => `${m.sponsorId}|${m.date}|${m.time}`)
     );
   }, [meetings, event]);
 
@@ -495,7 +495,7 @@ export default function EventPage() {
   // ── STEP 2: TIME SELECTION ────────────────────────────────────────────────
   if (step === 2) {
     const slots = generateSlots(event.meetingBlocks ?? [], selectedDate);
-    const allBooked = slots.length > 0 && slots.every((t) => bookedSlots.has(`${selectedDate}|${t}`));
+    const allBooked = slots.length > 0 && slots.every((t) => bookedSlots.has(`${selectedSponsor?.id}|${selectedDate}|${t}`));
 
     return (
       <Shell onBack={() => go(1)} backLabel="Date">
@@ -523,7 +523,7 @@ export default function EventPage() {
               ) : (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
                   {slots.map((t) => {
-                    const booked = bookedSlots.has(`${selectedDate}|${t}`);
+                    const booked = bookedSlots.has(`${selectedSponsor?.id}|${selectedDate}|${t}`);
                     const active = selectedTime === t;
                     return (
                       <button

@@ -50,7 +50,7 @@ export interface IStorage {
   createMeeting(meeting: InsertMeeting): Promise<Meeting>;
   updateMeeting(id: string, updates: Partial<InsertMeeting>): Promise<Meeting | undefined>;
   deleteMeeting(id: string): Promise<void>;
-  getMeetingConflict(eventId: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined>;
+  getMeetingConflict(eventId: string, sponsorId: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined>;
   cascadeArchiveEvent(eventId: string): Promise<void>;
   cascadeUnarchiveEvent(eventId: string): Promise<void>;
 
@@ -287,10 +287,11 @@ export class MemStorage implements IStorage {
     this.meetings.delete(id);
   }
 
-  async getMeetingConflict(eventId: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined> {
+  async getMeetingConflict(eventId: string, sponsorId: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined> {
     return Array.from(this.meetings.values()).find(
       (m) =>
         m.eventId === eventId &&
+        m.sponsorId === sponsorId &&
         m.date === date &&
         m.time === time &&
         m.id !== excludeId &&

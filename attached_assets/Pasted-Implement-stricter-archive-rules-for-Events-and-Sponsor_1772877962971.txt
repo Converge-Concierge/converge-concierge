@@ -1,0 +1,161 @@
+Implement stricter archive rules for Events and Sponsors.
+
+Important:
+- Do not redesign the app
+- Do not change the landing page
+- Do not change the public scheduling flow
+- Preserve all current working functionality
+- Only make the scoped changes below
+
+========================================
+1. ARCHIVED RECORD RULE
+========================================
+
+When an Event or Sponsor is archived:
+- it must remain fully visible in the admin system
+- all historical data must remain accessible
+- it must be read-only
+- it must NOT be editable while archived
+
+Archived records can be viewed, but not changed.
+
+This applies to:
+- archived events
+- archived sponsors
+
+========================================
+2. ACTIVE / ARCHIVED TABS
+========================================
+
+For both Events and Sponsors, create two tabs:
+- Active
+- Archived
+
+Behavior:
+- Active tab shows only active records
+- Archived tab shows only archived records
+
+Archived records must not disappear permanently.
+They must remain accessible in the Archived tab.
+
+========================================
+3. ARCHIVED RECORD BEHAVIOR
+========================================
+
+For archived Events and Sponsors:
+- show all stored data
+- disable edit inputs and save/update actions
+- do not allow archive state records to be modified
+- display a clear "Archived / Read Only" indicator
+
+Allowed on archived records:
+- view details
+- export/report against historical data
+- admin re-activate action
+
+Not allowed on archived records:
+- edit fields
+- save changes
+- change meeting locations/blocks
+- change sponsor assignments
+- delete by managers
+
+========================================
+4. RE-ACTIVATION PERMISSIONS
+========================================
+
+Only Admin users can re-activate archived records.
+
+Admin:
+- can archive
+- can re-activate
+- can delete (if delete permissions already exist)
+- can view archived records
+
+Manager:
+- can archive active records
+- can view archived records
+- cannot re-activate archived records
+- cannot delete events or sponsors
+
+If a Manager tries to access a re-activate action by URL or direct action, block it and show Access Denied.
+
+========================================
+5. EVENTS SPECIFIC RULES
+========================================
+
+For archived events:
+- keep all event data visible
+- keep all related meeting history accessible
+- do not show archived events on public homepage
+- do not show archived events in public scheduling flow
+- do not allow edits while archived
+- only Admin can re-activate
+
+Sort:
+- Active tab: by start date
+- Archived tab: by start date
+
+========================================
+6. SPONSORS SPECIFIC RULES
+========================================
+
+For archived sponsors:
+- keep all sponsor data visible
+- keep all related meeting history accessible
+- do not show archived sponsors in public scheduling flow
+- do not allow edits while archived
+- only Admin can re-activate
+
+========================================
+7. UI REQUIREMENTS
+========================================
+
+For both Events and Sponsors:
+- keep current layout and styling
+- add Active / Archived tabs if not already present
+- in Archived tab show records in read-only mode
+- show a clear status badge:
+  - Active
+  - Archived / Read Only
+
+Actions in Active tab:
+- Edit
+- Archive
+- Delete (Admin only)
+
+Actions in Archived tab:
+- View
+- Re-activate (Admin only)
+- Delete (Admin only, if existing delete rules remain)
+
+Managers in Archived tab:
+- View only
+
+========================================
+8. DATA INTEGRITY
+========================================
+
+Do not remove archived records from the database.
+Do not wipe related meetings or reporting data.
+Archived data must remain available for:
+- reporting
+- sponsor ROI review
+- historical reference
+
+========================================
+9. DO NOT
+========================================
+
+Do not:
+- redesign the admin pages
+- change landing page
+- change public routing
+- remove current create/edit functionality for active records
+- allow archived records to be edited
+
+Only implement:
+- read-only archived state
+- admin-only re-activation
+- manager view-only access for archived records
+- preserved historical data access

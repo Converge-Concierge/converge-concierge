@@ -1,75 +1,102 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-  import { Button } from "@/components/ui/button";
-  import { Badge } from "@/components/ui/badge";
-  import { Edit, Archive, Trash2 } from "lucide-react";
-  import { Event } from "@shared/schema";
-  import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Edit, Archive, Trash2, Eye, RotateCcw } from "lucide-react";
+import { Event } from "@shared/schema";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
-  interface EventTableProps {
-    events: Event[];
-    onEdit: (event: Event) => void;
-    onArchive: (event: Event) => void;
-    onDelete: (event: Event) => void;
-  }
+interface EventTableProps {
+  events: Event[];
+  tab: "active" | "archived";
+  isAdmin: boolean;
+  onEdit: (event: Event) => void;
+  onView: (event: Event) => void;
+  onArchive: (event: Event) => void;
+  onReactivate: (event: Event) => void;
+  onDelete: (event: Event) => void;
+}
 
-  export function EventTable({ events, onEdit, onArchive, onDelete }: EventTableProps) {
-    const sortedEvents = [...events].sort((a, b) => {
-      if (a.status === "active" && b.status === "archived") return -1;
-      if (a.status === "archived" && b.status === "active") return 1;
-      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-    });
+export function EventTable({ events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete }: EventTableProps) {
+  const sorted = [...events].sort(
+    (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+  );
 
-    return (
-      <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Event Name</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Dates</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedEvents.map((event) => (
-              <TableRow key={event.id}>
-                <TableCell className="font-medium">{event.name}</TableCell>
-                <TableCell>{event.location}</TableCell>
-                <TableCell>
-                  {format(new Date(event.startDate), "MMM d")} - {format(new Date(event.endDate), "MMM d, yyyy")}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={event.status === "active" ? "default" : "secondary"}>
-                    {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+  return (
+    <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <TableHead>Event Name</TableHead>
+            <TableHead>Location</TableHead>
+            <TableHead>Dates</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sorted.map((event) => (
+            <TableRow key={event.id} className={cn(tab === "archived" ? "opacity-70" : "")}>
+              <TableCell className="font-medium py-3">{event.name}</TableCell>
+              <TableCell className="text-muted-foreground py-3">{event.location}</TableCell>
+              <TableCell className="py-3">
+                {format(new Date(event.startDate), "MMM d")} – {format(new Date(event.endDate), "MMM d, yyyy")}
+              </TableCell>
+              <TableCell className="py-3">
+                {tab === "archived" ? (
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300">
+                    Archived / Read Only
                   </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => onEdit(event)} data-testid={`edit-event-${event.id}`}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    {event.status === "active" && (
-                      <Button variant="ghost" size="icon" onClick={() => onArchive(event)} data-testid={`archive-event-${event.id}`}>
+                ) : (
+                  <Badge variant="default">Active</Badge>
+                )}
+              </TableCell>
+              <TableCell className="text-right py-3">
+                <div className="flex justify-end items-center gap-1">
+                  {tab === "active" ? (
+                    <>
+                      <Button variant="ghost" size="icon" title="Edit event" onClick={() => onEdit(event)} data-testid={`edit-event-${event.id}`}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Archive event" onClick={() => onArchive(event)} data-testid={`archive-event-${event.id}`}>
                         <Archive className="h-4 w-4" />
                       </Button>
-                    )}
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onDelete(event)} data-testid={`delete-event-${event.id}`}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {sortedEvents.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  No events found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  }
+                      {isAdmin && (
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Delete event" onClick={() => onDelete(event)} data-testid={`delete-event-${event.id}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="ghost" size="icon" title="View event details" onClick={() => onView(event)} data-testid={`view-event-${event.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {isAdmin && (
+                        <>
+                          <Button variant="ghost" size="icon" title="Re-activate event" onClick={() => onReactivate(event)} className="text-green-600 hover:text-green-700" data-testid={`reactivate-event-${event.id}`}>
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Delete event" onClick={() => onDelete(event)} data-testid={`delete-event-archived-${event.id}`}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+          {sorted.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={5} className="h-28 text-center text-muted-foreground">
+                <p className="text-sm">{tab === "active" ? "No active events." : "No archived events."}</p>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}

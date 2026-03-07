@@ -20,7 +20,7 @@ export type User = typeof users.$inferSelect;
 // --- Meeting Location ---
 export const meetingLocationSchema = z.object({
   id: z.string().uuid().default(() => crypto.randomUUID()),
-  name: z.enum(["Booth", "Work Lounge", "VIP Room", "Networking Lounge"]),
+  name: z.string(),
 });
 
 export type MeetingLocation = z.infer<typeof meetingLocationSchema>;

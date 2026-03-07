@@ -82,14 +82,28 @@ import { useState, useEffect } from "react";
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Input 
-                  id="location" 
-                  value={formData.location} 
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })} 
-                  required 
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="location">Event Location</Label>
+                  <Input 
+                    id="location" 
+                    value={formData.location} 
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })} 
+                    required 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <select
+                    id="status"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "archived" })}
+                  >
+                    <option value="active">Active</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -116,15 +130,17 @@ import { useState, useEffect } from "react";
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="logoUrl">Logo URL</Label>
+                <Label htmlFor="logoUrl">Event Logo (URL or Upload)</Label>
                 <Input 
                   id="logoUrl" 
                   value={formData.logoUrl || ""} 
                   onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })} 
+                  placeholder="Enter image URL"
                 />
               </div>
 
-              <div className="border-t pt-6">
+              <div className="space-y-4 border-t pt-6">
+                <h3 className="text-lg font-medium">Meeting Configuration</h3>
                 <MeetingLocationsEditor 
                   locations={formData.meetingLocations || []} 
                   onChange={(locations) => setFormData({ ...formData, meetingLocations: locations })} 

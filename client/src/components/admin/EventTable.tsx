@@ -26,8 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
             <TableRow>
               <TableHead>Event Name</TableHead>
               <TableHead>Location</TableHead>
-              <TableHead>Start Date</TableHead>
-              <TableHead>End Date</TableHead>
+              <TableHead>Dates</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -37,8 +36,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
               <TableRow key={event.id}>
                 <TableCell className="font-medium">{event.name}</TableCell>
                 <TableCell>{event.location}</TableCell>
-                <TableCell>{format(new Date(event.startDate), "MMM d, yyyy")}</TableCell>
-                <TableCell>{format(new Date(event.endDate), "MMM d, yyyy")}</TableCell>
+                <TableCell>
+                  {format(new Date(event.startDate), "MMM d")} - {format(new Date(event.endDate), "MMM d, yyyy")}
+                </TableCell>
                 <TableCell>
                   <Badge variant={event.status === "active" ? "default" : "secondary"}>
                     {event.status.charAt(0).toUpperCase() + event.status.slice(1)}

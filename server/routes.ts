@@ -90,6 +90,7 @@ async function seedData() {
       level: "Gold",
       assignedEvents: [createdEvents["FRC2026"], createdEvents["UBTS2026"]].filter(Boolean).map(toLink),
       archiveState: "active",
+      allowOnlineMeetings: true,
     },
     {
       name: "eGain",
@@ -319,16 +320,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const body = { ...req.body, attendeeId: attendeeResult.attendeeId };
     delete body.manualAttendee;
 
+    // Online requests default to Pending status and Online location
+    if (body.meetingType === "online_request") {
+      body.status = "Pending";
+      if (!body.location) body.location = "Online";
+    }
+
     const parsed = insertMeetingSchema.safeParse(body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error });
 
-    const { eventId, sponsorId, date, time } = parsed.data;
-    const conflict = await storage.getMeetingConflict(eventId, sponsorId, date, time);
-    if (conflict) {
-      return res.status(409).json({
-        conflict: true,
-        message: "This time slot is no longer available.",
-      });
+    // Only check for slot conflicts on onsite meetings
+    if (parsed.data.meetingType !== "online_request") {
+      const { eventId, sponsorId, date, time } = parsed.data;
+      const conflict = await storage.getMeetingConflict(eventId, sponsorId, date, time);
+      if (conflict) {
+        return res.status(409).json({
+          conflict: true,
+          message: "This time slot is no longer available.",
+        });
+      }
     }
 
     res.status(201).json(await storage.createMeeting(parsed.data));
@@ -348,14 +358,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       delete body.manualAttendee;
     }
 
-    const merged = { ...existing, ...body };
-    const { sponsorId, date, time } = merged;
-    const conflict = await storage.getMeetingConflict(eventId, sponsorId, date, time, req.params.id);
-    if (conflict) {
-      return res.status(409).json({
-        conflict: true,
-        message: "This time slot is no longer available.",
-      });
+    // Only enforce slot conflicts for onsite meetings
+    const effectiveType = body.meetingType ?? existing.meetingType ?? "onsite";
+    if (effectiveType !== "online_request") {
+      const merged = { ...existing, ...body };
+      const { sponsorId, date, time } = merged;
+      const conflict = await storage.getMeetingConflict(eventId, sponsorId, date, time, req.params.id);
+      if (conflict) {
+        return res.status(409).json({
+          conflict: true,
+          message: "This time slot is no longer available.",
+        });
+      }
     }
 
     const meeting = await storage.updateMeeting(req.params.id, body);

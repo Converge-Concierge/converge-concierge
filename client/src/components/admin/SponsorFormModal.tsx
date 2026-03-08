@@ -32,7 +32,7 @@ const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, isPending, readOnly }: SponsorFormModalProps) {
-  const [formData, setFormData] = useState<Partial<InsertSponsor>>({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active" });
+  const [formData, setFormData] = useState<Partial<InsertSponsor>>({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false });
   const [dragOver, setDragOver] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,9 +41,9 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
     if (isOpen) {
       setLogoError(false);
       if (sponsor) {
-        setFormData({ ...sponsor });
+        setFormData({ ...sponsor, allowOnlineMeetings: sponsor.allowOnlineMeetings ?? false });
       } else {
-        setFormData({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active" });
+        setFormData({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false });
       }
     }
   }, [sponsor, isOpen]);
@@ -198,6 +198,40 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                     <option value="archived">Archived</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Allow Online Meetings toggle */}
+              <div className="space-y-2">
+                <Label>Allow Online Meetings</Label>
+                <div className="flex rounded-lg border border-input overflow-hidden w-fit text-sm">
+                  <button
+                    type="button"
+                    onClick={() => !readOnly && setFormData((prev) => ({ ...prev, allowOnlineMeetings: true }))}
+                    className={cn(
+                      "px-5 py-2 font-medium transition-colors",
+                      formData.allowOnlineMeetings ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted",
+                    )}
+                    data-testid="toggle-online-yes"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => !readOnly && setFormData((prev) => ({ ...prev, allowOnlineMeetings: false }))}
+                    className={cn(
+                      "px-5 py-2 font-medium transition-colors border-l border-input",
+                      !formData.allowOnlineMeetings ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted",
+                    )}
+                    data-testid="toggle-online-no"
+                  >
+                    No
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formData.allowOnlineMeetings
+                    ? "Attendees may submit an online meeting request for this sponsor."
+                    : "Only onsite meeting scheduling is available for this sponsor."}
+                </p>
               </div>
             </fieldset>
 

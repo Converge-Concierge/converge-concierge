@@ -1,19 +1,21 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Globe, ShieldCheck } from "lucide-react";
+import { Edit, Trash2, Globe, ShieldCheck, MapPin, Video } from "lucide-react";
 import { Meeting, Event, Sponsor, Attendee } from "@shared/schema";
 import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
 import { cn } from "@/lib/utils";
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   Scheduled: "default",
-  Completed: "secondary",
-  Cancelled: "destructive",
-  NoShow: "outline",
+  Completed:  "secondary",
+  Cancelled:  "destructive",
+  NoShow:     "outline",
+  Pending:    "outline",
+  Confirmed:  "default",
 };
 
-const statusOrder: Record<string, number> = { Scheduled: 0, Completed: 1, Cancelled: 2, NoShow: 3 };
+const statusOrder: Record<string, number> = { Pending: 0, Scheduled: 1, Confirmed: 2, Completed: 3, Cancelled: 4, NoShow: 5 };
 
 interface MeetingsTableProps {
   meetings: Meeting[];
@@ -27,8 +29,8 @@ interface MeetingsTableProps {
 export function MeetingsTable({ meetings, events, sponsors, attendees, onEdit, onDelete }: MeetingsTableProps) {
   const { sort, toggle } = useSortState("date", "asc");
 
-  const getEvent = (id: string) => events.find((e) => e.id === id);
-  const getSponsor = (id: string) => sponsors.find((s) => s.id === id);
+  const getEvent    = (id: string) => events.find((e) => e.id === id);
+  const getSponsor  = (id: string) => sponsors.find((s) => s.id === id);
   const getAttendee = (id: string) => attendees.find((a) => a.id === id);
 
   const formatTime = (t: string) => {
@@ -40,14 +42,15 @@ export function MeetingsTable({ meetings, events, sponsors, attendees, onEdit, o
   };
 
   const getValue = (m: Meeting, key: string): string | number => {
-    if (key === "event")   return getEvent(m.eventId)?.slug ?? "";
-    if (key === "sponsor") return getSponsor(m.sponsorId)?.name ?? "";
+    if (key === "event")    return getEvent(m.eventId)?.slug ?? "";
+    if (key === "sponsor")  return getSponsor(m.sponsorId)?.name ?? "";
     if (key === "attendee") return getAttendee(m.attendeeId)?.name ?? "";
-    if (key === "date")    return m.date;
-    if (key === "time")    return m.time;
+    if (key === "date")     return m.date;
+    if (key === "time")     return m.time;
     if (key === "location") return m.location;
-    if (key === "status")  return statusOrder[m.status] ?? 99;
-    if (key === "source")  return m.source ?? "admin";
+    if (key === "status")   return statusOrder[m.status] ?? 99;
+    if (key === "source")   return m.source ?? "admin";
+    if (key === "type")     return m.meetingType ?? "onsite";
     return "";
   };
 
@@ -61,9 +64,10 @@ export function MeetingsTable({ meetings, events, sponsors, attendees, onEdit, o
             <SortHead sortKey="event"    sort={sort} onSort={toggle}>Event</SortHead>
             <SortHead sortKey="sponsor"  sort={sort} onSort={toggle}>Sponsor</SortHead>
             <SortHead sortKey="attendee" sort={sort} onSort={toggle}>Attendee</SortHead>
+            <SortHead sortKey="type"     sort={sort} onSort={toggle}>Type</SortHead>
             <SortHead sortKey="date"     sort={sort} onSort={toggle}>Date</SortHead>
             <SortHead sortKey="time"     sort={sort} onSort={toggle}>Time</SortHead>
-            <SortHead sortKey="location" sort={sort} onSort={toggle}>Location</SortHead>
+            <SortHead sortKey="location" sort={sort} onSort={toggle}>Location / Platform</SortHead>
             <SortHead sortKey="status"   sort={sort} onSort={toggle}>Status</SortHead>
             <SortHead sortKey="source"   sort={sort} onSort={toggle}>Source</SortHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -75,6 +79,7 @@ export function MeetingsTable({ meetings, events, sponsors, attendees, onEdit, o
             const sp = getSponsor(meeting.sponsorId);
             const at = getAttendee(meeting.attendeeId);
             const isPublic = meeting.source === "public";
+            const isOnline = meeting.meetingType === "online_request";
             return (
               <TableRow key={meeting.id} data-testid={`row-meeting-${meeting.id}`}>
                 <TableCell>
@@ -87,9 +92,31 @@ export function MeetingsTable({ meetings, events, sponsors, attendees, onEdit, o
                     <p className="text-xs text-muted-foreground">{at?.company ?? ""}</p>
                   </div>
                 </TableCell>
+                <TableCell>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border",
+                      isOnline
+                        ? "bg-violet-50 text-violet-700 border-violet-200"
+                        : "bg-sky-50 text-sky-700 border-sky-200",
+                    )}
+                    data-testid={`type-badge-${meeting.id}`}
+                  >
+                    {isOnline ? <><Video className="h-3 w-3" /> Online</> : <><MapPin className="h-3 w-3" /> Onsite</>}
+                  </span>
+                </TableCell>
                 <TableCell className="text-sm">{meeting.date}</TableCell>
-                <TableCell className="text-sm">{formatTime(meeting.time)}</TableCell>
-                <TableCell className="text-sm">{meeting.location}</TableCell>
+                <TableCell className="text-sm">
+                  {formatTime(meeting.time)}
+                  {isOnline && meeting.preferredTimezone && (
+                    <p className="text-xs text-muted-foreground">{meeting.preferredTimezone}</p>
+                  )}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {isOnline ? (
+                    <span className="text-muted-foreground italic text-xs">{meeting.platform || "No preference"}</span>
+                  ) : meeting.location}
+                </TableCell>
                 <TableCell>
                   <Badge variant={statusVariant[meeting.status] ?? "outline"}>{meeting.status}</Badge>
                 </TableCell>
@@ -124,7 +151,7 @@ export function MeetingsTable({ meetings, events, sponsors, attendees, onEdit, o
           })}
           {sorted.length === 0 && (
             <TableRow>
-              <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                 No meetings found.
               </TableCell>
             </TableRow>

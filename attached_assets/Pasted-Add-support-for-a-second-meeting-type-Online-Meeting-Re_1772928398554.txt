@@ -1,0 +1,212 @@
+Add support for a second meeting type: Online Meeting Request.
+
+Important rules:
+- Do not redesign the landing page
+- Do not redesign the admin shell or sidebar
+- Do not change the existing onsite scheduling flow
+- Preserve all current working functionality
+- Make additive changes only
+
+Goal:
+In addition to onsite meetings, sponsors may optionally allow attendees to request a pre-conference online meeting.
+
+Terminology:
+Use "Online Meeting" everywhere in the UI.
+Do not use "Zoom Meeting".
+
+========================================
+1. MEETING TYPES
+========================================
+
+Add meetingType with these values:
+- onsite
+- online_request
+
+Current onsite logic should remain unchanged.
+
+Onsite meeting:
+- uses predefined event meeting blocks
+- uses predefined event meeting locations
+- confirms immediately if slot is available
+
+Online meeting request:
+- does not use predefined onsite slots
+- does not require a physical location
+- is a request submitted to the sponsor
+- should default to status = Pending
+
+========================================
+2. SPONSOR SETTING
+========================================
+
+In Sponsor settings, add a toggle:
+
+Allow Online Meetings
+- Yes / No
+
+Behavior:
+- If Allow Online Meetings = Yes, attendees can submit an Online Meeting Request for that sponsor
+- If Allow Online Meetings = No, only onsite booking is allowed
+
+This setting must be editable in:
+- Create Sponsor
+- Edit Sponsor
+
+Store it on the sponsor record.
+
+========================================
+3. ONLINE MEETING REQUEST FLOW
+========================================
+
+On the public sponsor selection / booking flow:
+
+If a sponsor allows online meetings, show an additional option:
+- Request an Online Meeting
+
+This option should be visible even if onsite slots are full.
+This ensures sponsors always have meeting availability through online requests.
+
+Do not remove the onsite meeting option.
+This is an additive option.
+
+========================================
+4. ONLINE MEETING REQUEST FORM
+========================================
+
+When the user selects "Request an Online Meeting", show a form with:
+
+Meeting request details:
+- Preferred Date
+- Preferred Time
+- Time Zone (default Central)
+- Online Meeting Platform (optional)
+
+Allowed meeting window:
+- 10:00 AM to 4:00 PM Central
+- 30 minute meeting request window
+
+Online Meeting Platform options:
+- No Preference
+- Microsoft Teams
+- Google Meet
+- Zoom
+- Webex
+- Phone
+
+Attendee details:
+- Name
+- Company
+- Title
+- Email
+- LinkedIn Profile URL (optional)
+
+Behavior:
+- If attendee email already exists for the selected event, reuse that attendee
+- If attendee email does not exist for the selected event, create a new attendee automatically
+
+========================================
+5. CONFIRMATION UX
+========================================
+
+After submission, show a confirmation screen:
+
+Title:
+Online Meeting Request Sent
+
+Message:
+Your online meeting request has been submitted.
+The sponsor will contact you to confirm the meeting time and send the meeting link.
+
+Include summary:
+- Sponsor name
+- Preferred date
+- Preferred time
+- Platform preference
+- Attendee name
+
+========================================
+6. ADMIN MEETINGS MODULE
+========================================
+
+In Admin -> Meetings:
+- show both onsite meetings and online meeting requests
+
+Add/display:
+- Meeting Type
+- Platform preference for online requests
+- Status
+
+For online requests:
+- default status = Pending
+
+Keep existing statuses for onsite meetings:
+- Scheduled
+- Completed
+- Cancelled
+- NoShow
+
+For online requests, support statuses:
+- Pending
+- Confirmed
+- Completed
+- Cancelled
+
+Do not break existing meeting filters.
+If helpful, add filter by Meeting Type.
+
+========================================
+7. SCHEDULING RULES
+========================================
+
+Onsite meetings:
+- continue enforcing existing slot conflict rules
+- only one active onsite meeting may exist for a given event/date/time slot
+
+Online meeting requests:
+- do not consume onsite time slots
+- do not block onsite meeting availability
+- are separate from onsite slot locking
+
+========================================
+8. SPONSOR EXPERIENCE
+========================================
+
+Prepare the data so sponsors/admin can see:
+- attendee name
+- company
+- title
+- email
+- LinkedIn URL if provided
+- preferred date/time
+- platform preference
+
+Do not build a full sponsor dashboard in this step.
+Just ensure online requests appear correctly in admin meetings.
+
+========================================
+9. UI REQUIREMENTS
+========================================
+
+- Keep the existing visual style
+- Use the current button/card-based public booking UX
+- Do not redesign the admin layout
+- Do not redesign the sponsor cards
+- Add the online meeting option cleanly within the existing flow
+
+========================================
+10. DO NOT
+========================================
+
+Do not:
+- remove onsite scheduling
+- replace onsite scheduling with online requests
+- add matchmaking
+- change login flow
+- redesign the landing page
+- redesign the admin shell
+
+Only add:
+- online meeting request capability
+- sponsor toggle for allowing online meetings
+- online meeting platform option
+- admin visibility for online requests

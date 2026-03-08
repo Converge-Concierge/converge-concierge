@@ -25,7 +25,7 @@ export default function MeetingsPage() {
   const [editingMeeting, setEditingMeeting] = useState<Meeting | undefined>();
   const [deletingMeeting, setDeletingMeeting] = useState<Meeting | null>(null);
   const [filters, setFilters] = useState<MeetingFilterState>({
-    eventId: "", sponsorId: "", attendeeId: "", dateFrom: "", dateTo: "",
+    eventId: "", sponsorId: "", attendeeId: "", dateFrom: "", dateTo: "", meetingType: "",
   });
   const { toast } = useToast();
 
@@ -109,6 +109,7 @@ export default function MeetingsPage() {
     if (filters.attendeeId && m.attendeeId !== filters.attendeeId) return false;
     if (filters.dateFrom && m.date < filters.dateFrom) return false;
     if (filters.dateTo && m.date > filters.dateTo) return false;
+    if (filters.meetingType && (m.meetingType ?? "onsite") !== filters.meetingType) return false;
     return true;
   });
 

@@ -6,8 +6,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Event, Sponsor, Meeting } from "@shared/schema";
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
-  AlertCircle, ChevronLeft, Clock, User,
+  AlertCircle, ChevronLeft, Clock, User, Video,
 } from "lucide-react";
+import { ONLINE_PLATFORMS } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -183,6 +184,20 @@ const slide = {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type AttendeeForm = { name: string; company: string; title: string; email: string; linkedinUrl: string };
+type OnlineForm = { date: string; time: string; timezone: string; platform: string };
+
+const TIMEZONES = ["Central (CT)", "Eastern (ET)", "Mountain (MT)", "Pacific (PT)"];
+
+function onlineSlots(): string[] {
+  const slots: string[] = [];
+  let cur = 10 * 60;
+  while (cur < 16 * 60) {
+    slots.push(`${String(Math.floor(cur / 60)).padStart(2, "0")}:${String(cur % 60).padStart(2, "0")}`);
+    cur += 30;
+  }
+  return slots;
+}
+const ONLINE_SLOTS = onlineSlots();
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -204,6 +219,10 @@ export default function EventPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  // ── Online meeting state ──────────────────────────────────────────────────
+  const [meetingMode, setMeetingMode] = useState<"onsite" | "online">("onsite");
+  const [onlineForm, setOnlineForm] = useState<OnlineForm>({ date: "", time: "", timezone: "Central (CT)", platform: "" });
+
   const event = events.find((e) => e.slug === slug);
   const eventSponsors = event
     ? sponsors.filter((s) => (s.archiveState ?? "active") === "active" && (s.assignedEvents ?? []).some((ae) => ae.eventId === event.id && (ae.archiveState ?? "active") === "active"))
@@ -213,7 +232,12 @@ export default function EventPage() {
     if (!event) return new Set<string>();
     return new Set(
       meetings
-        .filter((m) => m.eventId === event.id && m.status !== "Cancelled" && m.status !== "NoShow" && (m.archiveState ?? "active") !== "archived")
+        .filter((m) =>
+          m.eventId === event.id &&
+          (m.meetingType ?? "onsite") !== "online_request" &&
+          m.status !== "Cancelled" && m.status !== "NoShow" &&
+          (m.archiveState ?? "active") !== "archived"
+        )
         .map((m) => `${m.sponsorId}|${m.date}|${m.time}`)
     );
   }, [meetings, event]);
@@ -227,14 +251,64 @@ export default function EventPage() {
 
   function pickSponsor(s: Sponsor) {
     setSelectedSponsor(s);
+    setMeetingMode("onsite");
     setSelectedDate(""); setSelectedTime(""); setSelectedLoc(""); setError("");
     go(1);
   }
+
+  function pickOnlineMeeting(s: Sponsor) {
+    setSelectedSponsor(s);
+    setMeetingMode("online");
+    setOnlineForm({ date: "", time: "", timezone: "Central (CT)", platform: "" });
+    setAttendee({ name: "", company: "", title: "", email: "", linkedinUrl: "" });
+    setError("");
+    go(3);
+  }
+
   function pickDate(d: string) {
     setSelectedDate(d); setSelectedTime(""); setError(""); go(2);
   }
   function pickTime(t: string) {
     setSelectedTime(t); setError(""); go(3);
+  }
+
+  async function handleOnlineSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!event || !selectedSponsor) return;
+    setError(""); setSubmitting(true);
+    try {
+      const res = await fetch("/api/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId:           event.id,
+          sponsorId:         selectedSponsor.id,
+          meetingType:       "online_request",
+          date:              onlineForm.date,
+          time:              onlineForm.time,
+          location:          "Online",
+          platform:          onlineForm.platform || null,
+          preferredTimezone: onlineForm.timezone,
+          status:            "Pending",
+          source:            "public",
+          manualAttendee: {
+            name:        attendee.name,
+            company:     attendee.company,
+            title:       attendee.title,
+            email:       attendee.email,
+            linkedinUrl: attendee.linkedinUrl || undefined,
+          },
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) { setError(body.message || "Something went wrong. Please try again."); return; }
+      await queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
+      go(4);
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -298,6 +372,7 @@ export default function EventPage() {
 
   // ── STEP 4: SUCCESS ───────────────────────────────────────────────────────
   if (step === 4) {
+    const isOnlineSuccess = meetingMode === "online";
     return (
       <Shell>
         <div className="flex items-center justify-center min-h-[75vh] px-6">
@@ -306,41 +381,82 @@ export default function EventPage() {
             className="bg-card rounded-2xl border border-border/60 shadow-xl p-10 max-w-md w-full text-center"
           >
             <div className="flex justify-center mb-5">
-              <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle className="h-9 w-9 text-green-600" />
+              <div className={cn("h-16 w-16 rounded-full flex items-center justify-center", isOnlineSuccess ? "bg-violet-100" : "bg-green-100")}>
+                {isOnlineSuccess
+                  ? <Video className="h-9 w-9 text-violet-600" />
+                  : <CheckCircle className="h-9 w-9 text-green-600" />
+                }
               </div>
             </div>
-            <h2 className="text-2xl font-display font-bold text-foreground mb-2">Meeting Confirmed!</h2>
-            <p className="text-muted-foreground text-sm mb-6">
-              Your 1-on-1 with <strong>{selectedSponsor?.name}</strong> is all set.
-            </p>
-            <div className="rounded-xl bg-muted/50 border border-border/50 p-4 text-left space-y-3 text-sm mb-6">
-              <div className="flex items-center gap-2.5">
-                <Building2 className="h-4 w-4 text-accent shrink-0" />
-                <span className="font-semibold text-foreground">{selectedSponsor?.name}</span>
-                <span className={cn("text-xs px-2 py-0.5 rounded-full ml-auto", levelBadge[selectedSponsor?.level ?? ""] || "")}>
-                  {selectedSponsor?.level}
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5 text-muted-foreground">
-                <Calendar className="h-4 w-4 text-accent shrink-0" />
-                <span>{format(parseISO(selectedDate), "EEEE, MMMM d, yyyy")}</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-muted-foreground">
-                <Clock className="h-4 w-4 text-accent shrink-0" />
-                <span>{fmt12(selectedTime)}</span>
-              </div>
-              {selectedLoc && (
-                <div className="flex items-center gap-2.5 text-muted-foreground">
-                  <MapPin className="h-4 w-4 shrink-0" />
-                  <span>{selectedLoc}</span>
+
+            {isOnlineSuccess ? (
+              <>
+                <h2 className="text-2xl font-display font-bold text-foreground mb-2">Online Meeting Request Sent</h2>
+                <p className="text-muted-foreground text-sm mb-6">
+                  Your online meeting request has been submitted. The sponsor will contact you to confirm the meeting time and send the meeting link.
+                </p>
+                <div className="rounded-xl bg-muted/50 border border-border/50 p-4 text-left space-y-3 text-sm mb-6">
+                  <div className="flex items-center gap-2.5">
+                    <Building2 className="h-4 w-4 text-accent shrink-0" />
+                    <span className="font-semibold text-foreground">{selectedSponsor?.name}</span>
+                    <span className={cn("text-xs px-2 py-0.5 rounded-full ml-auto", levelBadge[selectedSponsor?.level ?? ""] || "")}>
+                      {selectedSponsor?.level}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <Calendar className="h-4 w-4 text-accent shrink-0" />
+                    <span>Preferred: {format(parseISO(onlineForm.date), "EEEE, MMMM d, yyyy")}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <Clock className="h-4 w-4 text-accent shrink-0" />
+                    <span>{fmt12(onlineForm.time)} {onlineForm.timezone}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <Video className="h-4 w-4 shrink-0" />
+                    <span>{onlineForm.platform || "No platform preference"}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-muted-foreground border-t border-border/50 pt-3">
+                    <User className="h-4 w-4 shrink-0" />
+                    <span>{attendee.name} · {attendee.company}</span>
+                  </div>
                 </div>
-              )}
-              <div className="flex items-center gap-2.5 text-muted-foreground border-t border-border/50 pt-3">
-                <User className="h-4 w-4 shrink-0" />
-                <span>{attendee.name} · {attendee.company}</span>
-              </div>
-            </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-display font-bold text-foreground mb-2">Meeting Confirmed!</h2>
+                <p className="text-muted-foreground text-sm mb-6">
+                  Your 1-on-1 with <strong>{selectedSponsor?.name}</strong> is all set.
+                </p>
+                <div className="rounded-xl bg-muted/50 border border-border/50 p-4 text-left space-y-3 text-sm mb-6">
+                  <div className="flex items-center gap-2.5">
+                    <Building2 className="h-4 w-4 text-accent shrink-0" />
+                    <span className="font-semibold text-foreground">{selectedSponsor?.name}</span>
+                    <span className={cn("text-xs px-2 py-0.5 rounded-full ml-auto", levelBadge[selectedSponsor?.level ?? ""] || "")}>
+                      {selectedSponsor?.level}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <Calendar className="h-4 w-4 text-accent shrink-0" />
+                    <span>{format(parseISO(selectedDate), "EEEE, MMMM d, yyyy")}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <Clock className="h-4 w-4 text-accent shrink-0" />
+                    <span>{fmt12(selectedTime)}</span>
+                  </div>
+                  {selectedLoc && (
+                    <div className="flex items-center gap-2.5 text-muted-foreground">
+                      <MapPin className="h-4 w-4 shrink-0" />
+                      <span>{selectedLoc}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2.5 text-muted-foreground border-t border-border/50 pt-3">
+                    <User className="h-4 w-4 shrink-0" />
+                    <span>{attendee.name} · {attendee.company}</span>
+                  </div>
+                </div>
+              </>
+            )}
+
             <Button onClick={() => nav("/")} className="w-full" data-testid="button-success-home">
               Back to Events
             </Button>
@@ -431,8 +547,8 @@ export default function EventPage() {
                     <p className="text-xs text-muted-foreground mt-1">30-minute 1-on-1 session available</p>
                   </div>
 
-                  {/* CTA button pinned to bottom */}
-                  <div className="px-6 pb-6">
+                  {/* CTA buttons pinned to bottom */}
+                  <div className="px-6 pb-6 space-y-2">
                     <button
                       onClick={() => pickSponsor(sponsor)}
                       data-testid={`btn-meet-${sponsor.id}`}
@@ -441,8 +557,17 @@ export default function EventPage() {
                         levelAccent[sponsor.level] || "bg-primary hover:bg-primary/90",
                       )}
                     >
-                      Meet {sponsor.name}
+                      Schedule Onsite Meeting
                     </button>
+                    {sponsor.allowOnlineMeetings && (
+                      <button
+                        onClick={() => pickOnlineMeeting(sponsor)}
+                        data-testid={`btn-online-${sponsor.id}`}
+                        className="w-full py-2.5 rounded-xl text-sm font-semibold border-2 border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        <Video className="h-4 w-4" /> Request Online Meeting
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ))}
@@ -555,8 +680,140 @@ export default function EventPage() {
     );
   }
 
-  // ── STEP 3: ATTENDEE DETAILS ──────────────────────────────────────────────
+  // ── STEP 3: ATTENDEE DETAILS (Onsite) / ONLINE MEETING FORM ─────────────
   const locations = event.meetingLocations ?? [];
+
+  // Online meeting request form
+  if (meetingMode === "online") {
+    const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+    return (
+      <Shell onBack={() => { setMeetingMode("onsite"); go(0); }} backLabel="Sponsors">
+        <AnimatePresence mode="wait">
+          <motion.div key="online-form" {...slide} className="w-full max-w-2xl mx-auto px-6 pt-8 pb-16 space-y-6">
+
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-2">
+              <div className="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
+                <Video className="h-5 w-5 text-violet-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-display font-semibold text-foreground">Request an Online Meeting</h2>
+                <p className="text-sm text-muted-foreground">with <strong>{selectedSponsor?.name}</strong></p>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground rounded-xl bg-violet-50 border border-violet-200 px-4 py-3">
+              Submit your preferred time and the sponsor will reach out to confirm the meeting and send a link.
+            </p>
+
+            <form onSubmit={handleOnlineSubmit} className="space-y-5">
+              {error && (
+                <div className="flex items-start gap-2 rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" /><span>{error}</span>
+                </div>
+              )}
+
+              {/* Meeting request details */}
+              <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5 space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">Meeting Request Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="on-date" className="text-xs font-medium">Preferred Date</Label>
+                    <Input id="on-date" type="date" value={onlineForm.date}
+                      onChange={(e) => setOnlineForm({ ...onlineForm, date: e.target.value })}
+                      required className="h-9 text-sm" data-testid="input-online-date" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="on-time" className="text-xs font-medium">Preferred Time</Label>
+                    <select id="on-time" className={selectCls} value={onlineForm.time}
+                      onChange={(e) => setOnlineForm({ ...onlineForm, time: e.target.value })}
+                      required data-testid="select-online-time">
+                      <option value="">Select time...</option>
+                      {ONLINE_SLOTS.map((t) => <option key={t} value={t}>{fmt12(t)}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="on-tz" className="text-xs font-medium">Time Zone</Label>
+                    <select id="on-tz" className={selectCls} value={onlineForm.timezone}
+                      onChange={(e) => setOnlineForm({ ...onlineForm, timezone: e.target.value })}
+                      data-testid="select-online-timezone">
+                      {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="on-platform" className="text-xs font-medium">
+                      Platform <span className="text-muted-foreground font-normal">(optional)</span>
+                    </Label>
+                    <select id="on-platform" className={selectCls} value={onlineForm.platform}
+                      onChange={(e) => setOnlineForm({ ...onlineForm, platform: e.target.value })}
+                      data-testid="select-online-platform">
+                      {ONLINE_PLATFORMS.map((p) => (
+                        <option key={p} value={p === "No Preference" ? "" : p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attendee details */}
+              <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5 space-y-4">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <User className="h-4 w-4 text-accent" /> Your Details
+                </h3>
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Already registered for this event? Enter your email and we'll link the request to your record.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="on-name" className="text-xs font-medium">Full Name</Label>
+                    <Input id="on-name" value={attendee.name}
+                      onChange={(e) => setAttendee({ ...attendee, name: e.target.value })}
+                      required placeholder="Jane Smith" className="h-9 text-sm" data-testid="input-online-name" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="on-company" className="text-xs font-medium">Company</Label>
+                    <Input id="on-company" value={attendee.company}
+                      onChange={(e) => setAttendee({ ...attendee, company: e.target.value })}
+                      required placeholder="Acme Financial" className="h-9 text-sm" data-testid="input-online-company" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="on-title" className="text-xs font-medium">Title</Label>
+                    <Input id="on-title" value={attendee.title}
+                      onChange={(e) => setAttendee({ ...attendee, title: e.target.value })}
+                      required placeholder="VP of Finance" className="h-9 text-sm" data-testid="input-online-title" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="on-email" className="text-xs font-medium">Email</Label>
+                    <Input id="on-email" type="email" value={attendee.email}
+                      onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
+                      required placeholder="jane@company.com" className="h-9 text-sm" data-testid="input-online-email" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="on-linkedin" className="text-xs font-medium">
+                    LinkedIn Profile <span className="text-muted-foreground font-normal">(optional)</span>
+                  </Label>
+                  <Input id="on-linkedin" type="url" value={attendee.linkedinUrl}
+                    onChange={(e) => setAttendee({ ...attendee, linkedinUrl: e.target.value })}
+                    placeholder="https://linkedin.com/in/..." className="h-9 text-sm" data-testid="input-online-linkedin" />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                size="lg"
+                disabled={submitting}
+                className="w-full bg-violet-600 text-white hover:bg-violet-700 shadow-md shadow-violet-200"
+                data-testid="button-online-submit"
+              >
+                {submitting ? "Submitting…" : "Submit Online Meeting Request"}
+              </Button>
+            </form>
+          </motion.div>
+        </AnimatePresence>
+      </Shell>
+    );
+  }
 
   return (
     <Shell onBack={() => go(2)} backLabel="Time">

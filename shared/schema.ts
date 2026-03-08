@@ -83,11 +83,13 @@ export const sponsors = pgTable("sponsors", {
   assignedEvents: jsonb("assigned_events").$type<EventSponsorLink[]>().notNull().default([]),
   archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
   archiveSource: text("archive_source", { enum: ["manual", "event"] }),
+  allowOnlineMeetings: boolean("allow_online_meetings").notNull().default(false),
 });
 
 export const insertSponsorSchema = createInsertSchema(sponsors).extend({
   assignedEvents: z.array(eventSponsorLinkSchema).default([]),
   archiveSource: z.enum(["manual", "event"]).nullable().optional(),
+  allowOnlineMeetings: z.boolean().default(false).optional(),
 });
 export type Sponsor = typeof sponsors.$inferSelect;
 export type InsertSponsor = z.infer<typeof insertSponsorSchema>;
@@ -133,15 +135,21 @@ export const sponsorTokenSchema = z.object({
 export type SponsorToken = z.infer<typeof sponsorTokenSchema>;
 
 // --- Meeting ---
+export const ONLINE_PLATFORMS = ["No Preference", "Microsoft Teams", "Google Meet", "Zoom", "Webex", "Phone"] as const;
+export type OnlinePlatform = typeof ONLINE_PLATFORMS[number];
+
 export const meetings = pgTable("meetings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   eventId: varchar("event_id").notNull(),
   sponsorId: varchar("sponsor_id").notNull(),
   attendeeId: varchar("attendee_id").notNull(),
+  meetingType: text("meeting_type", { enum: ["onsite", "online_request"] }).notNull().default("onsite"),
   date: text("date").notNull(), // ISO date string
   time: text("time").notNull(), // HH:mm
-  location: text("location").notNull(), // Location name or ID
-  status: text("status", { enum: ["Scheduled", "Completed", "Cancelled", "NoShow"] }).notNull().default("Scheduled"),
+  location: text("location").notNull(), // Location name for onsite; "Online" for online requests
+  platform: text("platform"),       // Online meeting platform preference
+  preferredTimezone: text("preferred_timezone"), // Timezone for online requests
+  status: text("status", { enum: ["Scheduled", "Completed", "Cancelled", "NoShow", "Pending", "Confirmed"] }).notNull().default("Scheduled"),
   source: text("source", { enum: ["admin", "public"] }).notNull().default("admin"),
   notes: text("notes"),
   archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
@@ -151,6 +159,10 @@ export const meetings = pgTable("meetings", {
 export const insertMeetingSchema = createInsertSchema(meetings).extend({
   archiveSource: z.enum(["event", "manual"]).nullable().optional(),
   source: z.enum(["admin", "public"]).optional().default("admin"),
+  meetingType: z.enum(["onsite", "online_request"]).optional().default("onsite"),
+  status: z.enum(["Scheduled", "Completed", "Cancelled", "NoShow", "Pending", "Confirmed"]).optional().default("Scheduled"),
+  platform: z.string().nullable().optional(),
+  preferredTimezone: z.string().nullable().optional(),
 });
 export type Meeting = typeof meetings.$inferSelect;
 export type InsertMeeting = z.infer<typeof insertMeetingSchema>;

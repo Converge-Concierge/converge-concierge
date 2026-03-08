@@ -221,7 +221,7 @@ export default function SponsorProfilePage() {
       </main>
 
       <footer className="relative z-10 border-t border-border/50 bg-white/50 py-5 text-center">
-        <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} Converge Concierge</p>
+        <p className="text-xs text-muted-foreground">&copy; 2026 Converge Events. All rights reserved.</p>
       </footer>
     </div>
   );

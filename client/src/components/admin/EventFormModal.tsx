@@ -7,7 +7,8 @@ import { Event, InsertEvent } from "@shared/schema";
 import { MeetingLocationsEditor } from "./MeetingLocationsEditor";
 import { MeetingBlocksEditor } from "./MeetingBlocksEditor";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Lock, ImagePlus, X } from "lucide-react";
+import { Lock, ImagePlus, X, ChevronDown, ChevronUp, Palette } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface EventFormModalProps {
   isOpen: boolean;
@@ -16,6 +17,14 @@ interface EventFormModalProps {
   event?: Event;
   readOnly?: boolean;
 }
+
+const COLOR_FIELDS = [
+  { key: "primaryColor",   label: "Primary Color",         hint: "Main dark brand color" },
+  { key: "secondaryColor", label: "Secondary Color",        hint: "Background/light surface" },
+  { key: "accentColor",    label: "Accent Color",           hint: "Highlights, links, icons" },
+  { key: "buttonColor",    label: "Button Color",           hint: "CTA button background" },
+  { key: "bgAccentColor",  label: "Background Accent",      hint: "Gradient start or tint" },
+] as const;
 
 export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: EventFormModalProps) {
   const [formData, setFormData] = useState<Partial<InsertEvent>>({
@@ -29,6 +38,7 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
     meetingBlocks: [],
   });
   const [logoUploading, setLogoUploading] = useState(false);
+  const [colorOpen, setColorOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleLogoFile(file: File) {
@@ -51,8 +61,11 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
   useEffect(() => {
     if (event) {
       setFormData({ ...event, startDate: new Date(event.startDate), endDate: new Date(event.endDate) });
+      const hasColors = event.primaryColor || event.secondaryColor || event.accentColor || event.buttonColor || event.bgAccentColor;
+      setColorOpen(!!hasColors);
     } else {
       setFormData({ name: "", slug: "", location: "", startDate: new Date(), endDate: new Date(), archiveState: "active", meetingLocations: [], meetingBlocks: [] });
+      setColorOpen(false);
     }
   }, [event, isOpen]);
 
@@ -61,6 +74,10 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
     if (readOnly) return;
     onSubmit(formData as InsertEvent);
   };
+
+  const setColor = (key: string, value: string) => setFormData((prev) => ({ ...prev, [key]: value || null }));
+
+  const hasCustomColors = COLOR_FIELDS.some(({ key }) => !!(formData as any)[key]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -167,6 +184,78 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
               </div>
             </fieldset>
 
+            {/* Color Scheme */}
+            <div className="border rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setColorOpen((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/60 transition-colors text-left"
+                data-testid="btn-color-scheme-toggle"
+              >
+                <div className="flex items-center gap-2">
+                  <Palette className="h-4 w-4 text-accent" />
+                  <span className="text-sm font-semibold">Event Color Scheme</span>
+                  <span className="text-xs text-muted-foreground">(optional)</span>
+                  {hasCustomColors && (
+                    <div className="flex gap-1 ml-2">
+                      {COLOR_FIELDS.map(({ key }) => {
+                        const val = (formData as any)[key];
+                        return val ? <div key={key} className="h-3 w-3 rounded-full border border-border/50" style={{ background: val }} /> : null;
+                      })}
+                    </div>
+                  )}
+                </div>
+                {colorOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </button>
+
+              {colorOpen && (
+                <div className="p-4 space-y-3 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    These colors will theme the public event page for this event. Leave blank to use global branding.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {COLOR_FIELDS.map(({ key, label, hint }) => {
+                      const val = (formData as any)[key] || "";
+                      return (
+                        <div key={key} className="space-y-1">
+                          <Label className="text-xs font-medium">{label}</Label>
+                          <p className="text-[10px] text-muted-foreground">{hint}</p>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="color"
+                              value={val || "#000000"}
+                              onChange={(e) => setColor(key, e.target.value)}
+                              disabled={readOnly}
+                              className="h-8 w-10 rounded border border-input cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 p-0.5"
+                              data-testid={`color-${key}`}
+                            />
+                            <Input
+                              value={val}
+                              onChange={(e) => setColor(key, e.target.value)}
+                              placeholder="#000000"
+                              disabled={readOnly}
+                              className="h-8 text-xs font-mono flex-1"
+                              data-testid={`input-color-${key}`}
+                            />
+                            {val && !readOnly && (
+                              <button
+                                type="button"
+                                onClick={() => setColor(key, "")}
+                                className="text-muted-foreground hover:text-destructive transition-colors"
+                                title="Clear"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-4 border-t pt-6">
               <h3 className="text-lg font-medium">Meeting Configuration</h3>
               <MeetingLocationsEditor
@@ -179,6 +268,7 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
             <div className="border-t pt-6 pb-4">
               <MeetingBlocksEditor
                 blocks={formData.meetingBlocks || []}
+                locations={formData.meetingLocations || []}
                 onChange={(blocks) => !readOnly && setFormData({ ...formData, meetingBlocks: blocks })}
                 readOnly={readOnly}
               />

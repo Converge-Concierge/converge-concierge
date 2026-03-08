@@ -1,0 +1,248 @@
+Implement the following UX, configuration, and workflow improvements in Converge Concierge.
+
+Important rules:
+- Do not redesign the admin shell/sidebar
+- Do not break existing onsite scheduling
+- Do not break existing online meeting requests
+- Do not break sponsor access links, sponsor dashboards, notifications, calendar actions, or reports
+- Preserve all current working functionality
+- Make additive/fix-only changes where possible
+
+Current goals:
+1. Fix Event meeting configuration editing
+2. Add event-level color scheme controls
+3. Improve sponsor page scalability for 25–50 sponsors
+4. Add sponsor attribute filters
+5. Optimize homepage hero layout
+6. Standardize footer copyright
+7. Fix post-booking navigation
+
+==================================================
+1. EVENTS — FIX MEETING CONFIGURATION + LOCATIONS
+==================================================
+
+Problem:
+In Edit Event, Meeting Configuration and Meeting Locations are not working properly.
+
+Required fixes:
+- Make Meeting Configuration fully editable in Create/Edit Event
+- Make Meeting Locations fully editable
+- Persist changes correctly
+- Display existing values correctly when editing an event
+
+Each event must support:
+- event-level meeting locations
+- event-level meeting time blocks
+
+NEW REQUIREMENT:
+Not every location is available for every time block.
+
+So each meeting time block must support selecting which locations are available for that block.
+
+Implement this structure for each time block:
+- Date
+- Start Time
+- End Time
+- Available Locations (multi-select from the event’s defined meeting locations)
+
+Behavior:
+- Admin defines the master location list for the event
+- For each time block, admin selects which of those locations are active in that block
+- Public scheduling should only offer locations that are valid for the selected time block
+- Admin scheduling should follow the same rule
+
+Do not redesign the event modal.
+Keep the current modal structure, but make these controls fully functional.
+
+==================================================
+2. EVENTS — EVENT-LEVEL COLOR SCHEME
+==================================================
+
+Each event should have its own color scheme.
+
+Add event-level color settings to Create/Edit Event:
+- Primary Color
+- Secondary Color
+- Accent Color
+- Optional Button Color
+- Optional Background Accent / Gradient Start
+
+Behavior:
+- These colors should theme the public event page for that event
+- Sponsor selection page should inherit the event theme
+- Booking flow for that event should inherit the event theme
+- If event colors are not set, fall back to global branding
+
+Do not redesign the entire app.
+Just apply event-specific theme tokens/styles where the public event flow already exists.
+
+==================================================
+3. PUBLIC EVENT PAGE — OPTIMIZE FOR 25 TO 50 SPONSORS
+==================================================
+
+Problem:
+Too much vertical space is currently dedicated to hero text, and sponsor cards will not scale well when there are 25–50 sponsors.
+
+Required improvements:
+- Reduce vertical space in the top hero section on the event page
+- Keep event name, date, and location visible, but compress the layout
+- Make sponsor grid more efficient and scalable
+
+Layout goals:
+- Keep the event title prominent
+- Reduce excess whitespace above the sponsor grid
+- Allow more sponsor cards to appear higher on the page
+- Maintain a premium, clean visual style
+
+Do not remove the event identity.
+Just tighten spacing and optimize for density.
+
+==================================================
+4. SPONSOR CARDS — PRIORITIZE ONSITE MEETINGS
+==================================================
+
+Problem:
+"Request Online Meeting" currently appears more visually prominent than "Schedule Onsite Meeting", but onsite meetings should be encouraged first.
+
+Required changes:
+- Make "Schedule Onsite Meeting" the primary CTA
+- Make "Request Online Meeting" the secondary CTA
+- Ensure the onsite button is visually more prominent and clearly preferred
+- Keep online meetings available, but visually subordinate to onsite meetings
+
+This should apply to:
+- sponsor cards
+- sponsor profile page booking actions
+
+Do not remove online meeting requests.
+Only rebalance visual hierarchy.
+
+==================================================
+5. SPONSOR ATTRIBUTES + FILTERING
+==================================================
+
+Add sponsor attributes so users can filter sponsors on the public event page.
+
+Each sponsor should support up to 3 selectable attributes.
+
+Examples:
+- Compliance
+- Onboarding
+- Payments
+- Fraud
+- Lending
+- Core Processing
+- Treasury
+- Member Experience
+- AI
+- Automation
+
+Admin requirements:
+In Create/Edit Sponsor:
+- add sponsor attributes field
+- allow selecting up to 3 attributes
+- use a controlled multi-select or tag picker
+- make values reusable and consistent
+
+Public event page requirements:
+- add sponsor filtering UI above the sponsor grid
+- allow filtering by one or more attributes
+- update sponsor grid dynamically based on selected filters
+- include a clear reset option
+
+Keep the filter UI compact and scalable.
+Do not add excessive top-of-page clutter.
+
+==================================================
+6. HOMEPAGE — HERO OPTIMIZATION
+==================================================
+
+Problem:
+The homepage dedicates too much space to text at the top.
+You want to keep "Schedule Your Strategy Meetings", but optimize the layout and supporting copy.
+
+Required improvements:
+- Reduce the vertical height of the hero section
+- Keep the blue pill/button element
+- Keep "Schedule Your Strategy Meetings" unless a better event-practitioner-focused variation is clearly stronger
+- Shorten the subtext significantly
+- Bring the event cards higher up on the page
+
+Suggested copy direction:
+Headline:
+- Schedule Your Strategy Meetings
+
+Shorter subtext examples:
+- Book targeted meetings with solution partners before and during the event.
+or
+- Connect with solution partners through curated 1-on-1 meetings.
+
+Choose the version that fits the layout best and uses less vertical space.
+
+Do not add more text.
+The goal is a tighter, cleaner homepage that surfaces the four events faster.
+
+==================================================
+7. FOOTER / COPYRIGHT
+==================================================
+
+Standardize footer copy across all public pages and relevant sponsor pages:
+
+@2026 Converge Events
+
+Apply consistently everywhere a footer exists.
+
+==================================================
+8. POST-BOOKING NAVIGATION
+==================================================
+
+Problem:
+After scheduling a meeting, the "Back to Events" button sends users to the full homepage/all events.
+Most users are likely only interested in the specific event they were scheduling within.
+
+Required fix:
+After scheduling a meeting, the button should return the user to the specific event page they came from.
+
+Examples:
+- after booking in FRC2026, return to /event/FRC2026
+- after booking in TLS2026, return to /event/TLS2026
+
+Apply this to:
+- onsite meeting confirmation
+- online meeting request confirmation
+
+The button label can remain:
+- Back to Event
+or
+- Back to Sponsors
+
+Choose the clearest label based on the final route.
+
+==================================================
+9. KEEP WORKING BEHAVIOR
+==================================================
+
+Do not break:
+- sponsor profile pages
+- sponsor notifications
+- sponsor dashboard KPIs
+- lead export
+- ICS / Google Calendar actions
+- reports
+- role permissions
+- archive behavior
+
+==================================================
+10. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Event meeting configuration is editable and saved correctly
+- Each time block can specify which locations are available
+- Event-level color themes work on public event pages
+- Public event page is tighter and works for 25–50 sponsors
+- Onsite CTA is visually primary
+- Sponsor attributes can be assigned and used for filtering
+- Homepage hero is tighter and event cards appear higher
+- Footer reads @2026 Converge Events
+- Post-booking button returns user to the specific event page

@@ -2,21 +2,23 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MeetingTimeBlock } from "@shared/schema";
-import { Plus, Trash2, Calendar as CalendarIcon } from "lucide-react";
+import { MeetingTimeBlock, MeetingLocation } from "@shared/schema";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface MeetingBlocksEditorProps {
   blocks: MeetingTimeBlock[];
   onChange: (blocks: MeetingTimeBlock[]) => void;
+  locations?: MeetingLocation[];
   readOnly?: boolean;
 }
 
-export function MeetingBlocksEditor({ blocks, onChange, readOnly }: MeetingBlocksEditorProps) {
+export function MeetingBlocksEditor({ blocks, onChange, locations = [], readOnly }: MeetingBlocksEditorProps) {
   const [newBlock, setNewBlock] = useState({ date: "", startTime: "09:00", endTime: "12:00" });
 
   const addBlock = () => {
     if (!newBlock.date || !newBlock.startTime || !newBlock.endTime || readOnly) return;
-    const block: MeetingTimeBlock = { id: crypto.randomUUID(), ...newBlock };
+    const block: MeetingTimeBlock = { id: crypto.randomUUID(), ...newBlock, locationIds: [] };
     onChange(
       [...blocks, block].sort((a, b) => {
         const d = a.date.localeCompare(b.date);
@@ -29,6 +31,16 @@ export function MeetingBlocksEditor({ blocks, onChange, readOnly }: MeetingBlock
   const removeBlock = (id: string) => {
     if (readOnly) return;
     onChange(blocks.filter((b) => b.id !== id));
+  };
+
+  const toggleLocation = (blockId: string, locationId: string) => {
+    if (readOnly) return;
+    onChange(blocks.map((b) => {
+      if (b.id !== blockId) return b;
+      const ids = b.locationIds ?? [];
+      const has = ids.includes(locationId);
+      return { ...b, locationIds: has ? ids.filter((id) => id !== locationId) : [...ids, locationId] };
+    }));
   };
 
   return (
@@ -59,25 +71,71 @@ export function MeetingBlocksEditor({ blocks, onChange, readOnly }: MeetingBlock
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {blocks.map((block) => (
-          <div key={block.id} className="flex items-center justify-between p-2 rounded-md border bg-card text-sm">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-              <div className="flex flex-col">
-                <span className="font-medium">{block.date}</span>
-                <span className="text-[10px] text-muted-foreground">{block.startTime} - {block.endTime}</span>
+      <div className="space-y-2">
+        {blocks.map((block) => {
+          const blockLocIds = block.locationIds ?? [];
+          const allSelected = locations.length > 0 && blockLocIds.length === 0;
+          return (
+            <div key={block.id} className="rounded-lg border bg-card p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="font-medium">{block.date}</span>
+                  <span className="text-muted-foreground text-xs">{block.startTime} – {block.endTime}</span>
+                </div>
+                {!readOnly && (
+                  <Button type="button" onClick={() => removeBlock(block.id)} size="icon" variant="ghost" className="h-7 w-7 text-destructive shrink-0">
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
+
+              {locations.length > 0 && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground">
+                    <MapPin className="h-2.5 w-2.5" />
+                    Available locations
+                    {allSelected && <span className="ml-1 text-accent font-medium">(all — no restriction)</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {locations.map((loc) => {
+                      const active = blockLocIds.includes(loc.id);
+                      return (
+                        <button
+                          key={loc.id}
+                          type="button"
+                          disabled={readOnly}
+                          onClick={() => toggleLocation(block.id, loc.id)}
+                          className={cn(
+                            "px-2 py-0.5 rounded text-[11px] font-medium border transition-all",
+                            active
+                              ? "bg-accent text-accent-foreground border-accent"
+                              : "bg-muted text-muted-foreground border-border/60 hover:border-accent/50",
+                            readOnly && "cursor-default opacity-70"
+                          )}
+                        >
+                          {loc.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {blockLocIds.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground italic">No locations selected — all event locations will be shown.</p>
+                  )}
+                </div>
+              )}
+
+              {locations.length === 0 && (
+                <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
+                  <MapPin className="h-2.5 w-2.5" />
+                  Define meeting locations above to restrict which locations are available in this block.
+                </p>
+              )}
             </div>
-            {!readOnly && (
-              <Button type="button" onClick={() => removeBlock(block.id)} size="icon" variant="ghost" className="h-7 w-7 text-destructive">
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-        ))}
+          );
+        })}
         {blocks.length === 0 && (
-          <p className="text-sm text-muted-foreground italic col-span-full">No scheduling blocks defined.</p>
+          <p className="text-sm text-muted-foreground italic">No scheduling blocks defined.</p>
         )}
       </div>
     </div>

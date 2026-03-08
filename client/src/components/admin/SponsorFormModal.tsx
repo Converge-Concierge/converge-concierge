@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sponsor, InsertSponsor, Event, EventSponsorLink } from "@shared/schema";
+import { Sponsor, InsertSponsor, Event, EventSponsorLink, SPONSOR_ATTRIBUTES } from "@shared/schema";
 import { Building2, X, ImagePlus, Lock, ChevronDown, ChevronUp, Globe, Linkedin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,10 +42,10 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
     if (isOpen) {
       setLogoError(false);
       if (sponsor) {
-        setFormData({ ...sponsor, allowOnlineMeetings: sponsor.allowOnlineMeetings ?? false });
+        setFormData({ ...sponsor, allowOnlineMeetings: sponsor.allowOnlineMeetings ?? false, attributes: sponsor.attributes ?? [] });
         setProfileOpen(!!(sponsor.shortDescription || sponsor.websiteUrl || sponsor.linkedinUrl || sponsor.solutionsSummary));
       } else {
-        setFormData({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false });
+        setFormData({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false, attributes: [] });
         setProfileOpen(false);
       }
     }
@@ -237,6 +237,48 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                 </p>
               </div>
             </fieldset>
+
+            {/* Attributes */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Attributes <span className="text-muted-foreground font-normal text-xs">(up to 3)</span></Label>
+                {(formData.attributes?.length ?? 0) > 0 && (
+                  <span className="text-xs text-accent font-medium">{formData.attributes?.length} selected</span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {SPONSOR_ATTRIBUTES.map((attr) => {
+                  const selected = (formData.attributes ?? []).includes(attr);
+                  const maxReached = (formData.attributes ?? []).length >= 3 && !selected;
+                  return (
+                    <button
+                      key={attr}
+                      type="button"
+                      disabled={readOnly || maxReached}
+                      onClick={() => {
+                        if (readOnly) return;
+                        const current = formData.attributes ?? [];
+                        const next = selected ? current.filter((a) => a !== attr) : [...current, attr];
+                        setFormData((p) => ({ ...p, attributes: next }));
+                      }}
+                      className={cn(
+                        "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                        selected
+                          ? "bg-accent text-accent-foreground border-accent"
+                          : maxReached
+                            ? "bg-muted/40 text-muted-foreground/50 border-border/40 cursor-not-allowed"
+                            : "bg-muted text-muted-foreground border-border/60 hover:border-accent/50 hover:text-foreground",
+                        readOnly && "cursor-default"
+                      )}
+                      data-testid={`attr-${attr.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
+                      {attr}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Used to filter sponsors on the public event page.</p>
+            </div>
 
             {/* Sponsor Profile (collapsible) */}
             <div className="space-y-2">

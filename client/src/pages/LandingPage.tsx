@@ -62,26 +62,26 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 relative z-10 flex flex-col pb-24">
-        <div className="w-full max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
+      <main className="flex-1 relative z-10 flex flex-col pb-16">
+        <div className="w-full max-w-4xl mx-auto px-6 pt-10 pb-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent font-medium text-sm mb-6 border border-accent/20">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 text-accent font-medium text-xs mb-4 border border-accent/20">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
               </span>
               Premium Matchmaking Network
             </div>
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-display font-bold text-foreground tracking-tight text-balance leading-[1.1]">
-              Schedule Your <br className="hidden md:block" />
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground tracking-tight text-balance leading-[1.1]">
+              Schedule Your{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Strategy Meetings</span>
             </h1>
-            <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto text-balance leading-relaxed">
-              Select an event to connect with fintech leaders, solution partners, and peers in an exclusive 1-on-1 environment.
+            <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
+              Connect with solution partners through curated 1-on-1 meetings.
             </p>
           </motion.div>
         </div>
@@ -155,9 +155,9 @@ export default function LandingPage() {
         </div>
       </main>
 
-      <footer className="w-full border-t border-border/50 bg-white/50 py-8 relative z-10 text-center">
+      <footer className="w-full border-t border-border/50 bg-white/50 py-6 relative z-10 text-center">
         <p className="text-muted-foreground text-sm">
-          &copy; {new Date().getFullYear()} Converge Concierge. All rights reserved.
+          &copy; 2026 Converge Events. All rights reserved.
         </p>
       </footer>
     </div>

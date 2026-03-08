@@ -374,7 +374,7 @@ export default function BookingPage() {
 
       <footer className="w-full border-t border-border/50 bg-white/50 py-6 relative z-10 text-center">
         <p className="text-muted-foreground text-sm">
-          &copy; {new Date().getFullYear()} Converge Concierge. All rights reserved.
+          &copy; 2026 Converge Events. All rights reserved.
         </p>
       </footer>
     </div>

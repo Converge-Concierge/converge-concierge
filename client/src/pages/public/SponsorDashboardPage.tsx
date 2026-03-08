@@ -698,7 +698,7 @@ export default function SponsorDashboardPage() {
 
       <footer className="w-full border-t border-border/50 bg-white/50 py-5 relative z-10 text-center shrink-0">
         <p className="text-muted-foreground text-xs">
-          &copy; {new Date().getFullYear()} Converge Concierge. This is a private, secure page.
+          &copy; 2026 Converge Events. All rights reserved.
         </p>
       </footer>
     </div>

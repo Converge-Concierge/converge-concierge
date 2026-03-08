@@ -40,6 +40,7 @@ export const meetingTimeBlockSchema = z.object({
   date: z.string(), // ISO date string
   startTime: z.string(), // HH:mm
   endTime: z.string(), // HH:mm
+  locationIds: z.array(z.string()).default([]), // which location IDs are available in this block
 });
 
 export type MeetingTimeBlock = z.infer<typeof meetingTimeBlockSchema>;
@@ -65,16 +66,32 @@ export const events = pgTable("events", {
   logoUrl: text("logo_url"),
   meetingLocations: jsonb("meeting_locations").$type<MeetingLocation[]>().notNull().default([]),
   meetingBlocks: jsonb("meeting_blocks").$type<MeetingTimeBlock[]>().notNull().default([]),
+  primaryColor: text("primary_color"),
+  secondaryColor: text("secondary_color"),
+  accentColor: text("accent_color"),
+  buttonColor: text("button_color"),
+  bgAccentColor: text("bg_accent_color"),
 });
 
 export const insertEventSchema = createInsertSchema(events).extend({
   slug: z.string().min(1, "Event code is required").regex(/^[A-Z0-9]+$/, "Event code must be uppercase letters and numbers only"),
   archiveSource: z.enum(["manual", "event"]).nullable().optional(),
+  primaryColor: z.string().nullable().optional(),
+  secondaryColor: z.string().nullable().optional(),
+  accentColor: z.string().nullable().optional(),
+  buttonColor: z.string().nullable().optional(),
+  bgAccentColor: z.string().nullable().optional(),
 });
 export type Event = typeof events.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 
 // --- Sponsor ---
+export const SPONSOR_ATTRIBUTES = [
+  "Compliance", "Onboarding", "Payments", "Fraud", "Lending",
+  "Core Processing", "Treasury", "Member Experience", "AI", "Automation",
+] as const;
+export type SponsorAttribute = typeof SPONSOR_ATTRIBUTES[number];
+
 export const sponsors = pgTable("sponsors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -88,6 +105,7 @@ export const sponsors = pgTable("sponsors", {
   websiteUrl: text("website_url"),
   linkedinUrl: text("linkedin_url"),
   solutionsSummary: text("solutions_summary"),
+  attributes: jsonb("attributes").$type<string[]>().default([]),
 });
 
 export const insertSponsorSchema = createInsertSchema(sponsors).extend({
@@ -98,6 +116,7 @@ export const insertSponsorSchema = createInsertSchema(sponsors).extend({
   websiteUrl: z.string().nullable().optional(),
   linkedinUrl: z.string().nullable().optional(),
   solutionsSummary: z.string().nullable().optional(),
+  attributes: z.array(z.string()).default([]).optional(),
 });
 export type Sponsor = typeof sponsors.$inferSelect;
 export type InsertSponsor = z.infer<typeof insertSponsorSchema>;

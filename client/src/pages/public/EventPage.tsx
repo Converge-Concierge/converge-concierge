@@ -3,10 +3,11 @@ import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { AnimatePresence, motion } from "framer-motion";
-import { Event, Sponsor, Meeting } from "@shared/schema";
+import { Event, Sponsor, Meeting, SPONSOR_ATTRIBUTES } from "@shared/schema";
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
   AlertCircle, ChevronLeft, Clock, User, Video, Download, ExternalLink,
+  Filter, X,
 } from "lucide-react";
 import { ONLINE_PLATFORMS } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -59,11 +60,11 @@ function generateSlots(blocks: Event["meetingBlocks"], date: string): string[] {
 // ── Shell ────────────────────────────────────────────────────────────────────
 
 function Shell({
-  children, onBack, backLabel,
-}: { children: React.ReactNode; onBack?: () => void; backLabel?: string }) {
+  children, onBack, backLabel, style,
+}: { children: React.ReactNode; onBack?: () => void; backLabel?: string; style?: React.CSSProperties }) {
   const [, nav] = useLocation();
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-background relative overflow-hidden flex flex-col" style={style}>
       <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-accent/10 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
       <header className="relative z-10 w-full max-w-7xl mx-auto px-6 h-20 flex items-center justify-between shrink-0">
@@ -88,7 +89,7 @@ function Shell({
       <main className="flex-1 relative z-10 pb-20">{children}</main>
       <footer className="w-full border-t border-border/50 bg-white/50 py-5 relative z-10 text-center shrink-0">
         <p className="text-muted-foreground text-xs">
-          &copy; {new Date().getFullYear()} Converge Concierge. All rights reserved.
+          &copy; 2026 Converge Events. All rights reserved.
         </p>
       </footer>
     </div>
@@ -212,6 +213,7 @@ export default function EventPage() {
 
   // step 0=sponsor 1=date 2=time 3=form 4=success
   const [step, setStep] = useState(0);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [selectedSponsor, setSelectedSponsor] = useState<Sponsor | null>(null);
   const [selectedDate,    setSelectedDate]    = useState("");
   const [selectedTime,    setSelectedTime]    = useState("");
@@ -229,6 +231,27 @@ export default function EventPage() {
   const eventSponsors = event
     ? sponsors.filter((s) => (s.archiveState ?? "active") === "active" && (s.assignedEvents ?? []).some((ae) => ae.eventId === event.id && (ae.archiveState ?? "active") === "active"))
     : [];
+
+  const attributesInUse = useMemo(
+    () => SPONSOR_ATTRIBUTES.filter((a) => eventSponsors.some((s) => (s.attributes ?? []).includes(a))),
+    [eventSponsors],
+  );
+
+  const filteredSponsors = useMemo(() => {
+    if (activeFilters.length === 0) return eventSponsors;
+    return eventSponsors.filter((s) => activeFilters.some((f) => (s.attributes ?? []).includes(f)));
+  }, [eventSponsors, activeFilters]);
+
+  const eventColorStyle = useMemo((): React.CSSProperties => {
+    if (!event) return {};
+    const vars: Record<string, string> = {};
+    if (event.primaryColor)   vars["--event-primary"]    = event.primaryColor;
+    if (event.secondaryColor) vars["--event-secondary"]  = event.secondaryColor;
+    if (event.accentColor)    vars["--event-accent"]     = event.accentColor;
+    if (event.buttonColor)    vars["--event-button"]     = event.buttonColor;
+    if (event.bgAccentColor)  vars["--event-bg-accent"]  = event.bgAccentColor;
+    return vars as React.CSSProperties;
+  }, [event]);
 
   const bookedSlots = useMemo(() => {
     if (!event) return new Set<string>();
@@ -382,7 +405,7 @@ export default function EventPage() {
   if (step === 4) {
     const isOnlineSuccess = meetingMode === "online";
     return (
-      <Shell>
+      <Shell style={eventColorStyle}>
         <div className="flex items-center justify-center min-h-[75vh] px-6">
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.35 }}
@@ -509,8 +532,8 @@ export default function EventPage() {
                 </a>
               </div>
             )}
-            <Button onClick={() => nav("/")} className="w-full" data-testid="button-success-home">
-              Back to Events
+            <Button onClick={() => nav(`/event/${event.slug}`)} className="w-full" data-testid="button-success-home">
+              Back to Event
             </Button>
           </motion.div>
         </div>
@@ -521,7 +544,7 @@ export default function EventPage() {
   // ── STEP 0: SPONSOR SELECTION ─────────────────────────────────────────────
   if (step === 0) {
     return (
-      <Shell>
+      <Shell style={eventColorStyle}>
         <motion.div {...slide} className="w-full max-w-5xl mx-auto px-6 pt-10 pb-12">
           {/* Event header */}
           <div className="text-center mb-12">
@@ -545,21 +568,70 @@ export default function EventPage() {
             </div>
           </div>
 
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-display font-semibold text-foreground mb-2">Select a Sponsor</h2>
-            <p className="text-muted-foreground text-sm max-w-md mx-auto">
-              Choose who you'd like to meet with. Each 1-on-1 is a private 30-minute strategy session.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+            <div>
+              <h2 className="text-2xl font-display font-semibold text-foreground mb-1">Select a Sponsor</h2>
+              <p className="text-muted-foreground text-sm">
+                Choose who you'd like to meet with. Each 1-on-1 is a private 30-minute strategy session.
+              </p>
+            </div>
+            {eventSponsors.length > 0 && (
+              <span className="text-xs text-muted-foreground shrink-0">
+                {filteredSponsors.length} of {eventSponsors.length} sponsor{eventSponsors.length !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
+
+          {/* Attribute filter bar */}
+          {attributesInUse.length > 0 && (
+            <div className="flex items-center gap-2 mb-5 flex-wrap">
+              <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {attributesInUse.map((attr) => {
+                  const active = activeFilters.includes(attr);
+                  return (
+                    <button
+                      key={attr}
+                      onClick={() => setActiveFilters((prev) => active ? prev.filter((f) => f !== attr) : [...prev, attr])}
+                      data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
+                      className={cn(
+                        "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                        active
+                          ? "bg-accent text-accent-foreground border-accent"
+                          : "bg-card text-muted-foreground border-border hover:border-accent/50 hover:text-foreground",
+                      )}
+                    >
+                      {attr}
+                    </button>
+                  );
+                })}
+                {activeFilters.length > 0 && (
+                  <button
+                    onClick={() => setActiveFilters([])}
+                    className="flex items-center gap-1 px-2 py-1 rounded-full text-xs text-muted-foreground hover:text-destructive transition-colors"
+                    data-testid="filter-clear"
+                  >
+                    <X className="h-3 w-3" /> Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {eventSponsors.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-muted-foreground gap-3">
               <Building2 className="h-12 w-12 opacity-20" />
               <p className="text-sm">No sponsors are available for this event yet.</p>
             </div>
+          ) : filteredSponsors.length === 0 ? (
+            <div className="flex flex-col items-center py-12 text-muted-foreground gap-3">
+              <Filter className="h-10 w-10 opacity-20" />
+              <p className="text-sm">No sponsors match the selected filters.</p>
+              <button onClick={() => setActiveFilters([])} className="text-xs text-accent underline underline-offset-2">Clear filters</button>
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {eventSponsors.map((sponsor, i) => (
+              {filteredSponsors.map((sponsor, i) => (
                 <motion.div
                   key={sponsor.id}
                   initial={{ opacity: 0, y: 18 }}
@@ -743,7 +815,12 @@ export default function EventPage() {
   }
 
   // ── STEP 3: ATTENDEE DETAILS (Onsite) / ONLINE MEETING FORM ─────────────
-  const locations = event.meetingLocations ?? [];
+  const allLocations = event.meetingLocations ?? [];
+  const selectedBlock = (event.meetingBlocks ?? []).find((b) => b.date === selectedDate && toMins(b.startTime) <= toMins(selectedTime) && toMins(selectedTime) < toMins(b.endTime));
+  const blockLocationIds = selectedBlock?.locationIds ?? [];
+  const locations = blockLocationIds.length > 0
+    ? allLocations.filter((loc) => blockLocationIds.includes(loc.id))
+    : allLocations;
 
   // Online meeting request form
   if (meetingMode === "online") {

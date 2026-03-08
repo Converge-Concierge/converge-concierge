@@ -271,6 +271,8 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
                 locations={formData.meetingLocations || []}
                 onChange={(blocks) => !readOnly && setFormData({ ...formData, meetingBlocks: blocks })}
                 readOnly={readOnly}
+                eventStartDate={formData.startDate instanceof Date && !isNaN(formData.startDate.getTime()) ? formData.startDate : undefined}
+                eventEndDate={formData.endDate instanceof Date && !isNaN(formData.endDate.getTime()) ? formData.endDate : undefined}
               />
             </div>
           </form>

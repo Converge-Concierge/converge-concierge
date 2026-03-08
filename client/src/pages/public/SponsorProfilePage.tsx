@@ -76,7 +76,7 @@ export default function SponsorProfilePage() {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <Hexagon className="h-5 w-5" />
           </div>
-          <span className="font-display text-lg font-bold text-foreground tracking-tight hidden sm:block">Converge Concierge</span>
+          <span className="font-display text-lg font-bold text-foreground tracking-tight">Converge Concierge</span>
         </div>
         <Button
           variant="ghost"

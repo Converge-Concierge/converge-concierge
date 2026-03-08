@@ -1,0 +1,127 @@
+Implement the following production polish and logic fixes in Converge Concierge.
+
+Important rules:
+- Do not redesign the app
+- Do not break scheduling, sponsor dashboards, reports, legal pages, or access links
+- Preserve all current working functionality
+- Make additive/fix-only changes only
+
+Current issues to fix:
+1. Public header brand text is missing next to the logo
+2. Admin login still requires a double login in production
+3. Events should not allow scheduling outside the actual event date range
+4. Homepage sponsor count should be correct and polished
+5. Homepage/event ordering and display should remain production-ready
+
+==================================================
+1. PUBLIC HEADER BRANDING
+==================================================
+
+Problem:
+On public pages, the logo is showing but the app name text is missing next to it.
+
+Required fix:
+- In the public site header, show the text:
+  Converge Concierge
+- Place it immediately to the right of the logo
+- Vertically align the text with the logo
+- Preserve the current clean header layout
+- Use the current brand typography and color styling
+- If logo fails to load, still show the app name text
+
+Apply to:
+- homepage
+- public event page
+- sponsor profile page
+- booking flow pages
+- confirmation pages
+- help center
+- terms/privacy pages where public header appears
+
+==================================================
+2. ADMIN DOUBLE LOGIN — PRODUCTION FIX
+==================================================
+
+Problem:
+In production, admins still have to enter email/password twice before getting into the dashboard.
+
+Required behavior:
+- One login submission only
+- After entering valid credentials once, create session and redirect directly to admin dashboard
+
+Investigate and fix:
+- duplicate form submission
+- redirect loop back to login
+- session/cookie not being persisted on first request
+- auth guard firing before session is established
+- mismatch between login API success and client-side auth state
+
+Success criteria:
+- login page
+- enter email/password once
+- click Sign In
+- immediate redirect to dashboard
+- no second login prompt
+
+==================================================
+3. EVENT SCHEDULING DATE LOGIC
+==================================================
+
+Problem:
+Meetings should not be schedulable after the event has ended.
+
+Required rules:
+- public users cannot schedule onsite meetings outside the event date range
+- public users cannot schedule meetings after the event end date
+- admin cannot configure meeting time blocks outside the event date range
+- booking UI must only show valid dates/time blocks within the event window
+
+Implementation:
+- validate time blocks when creating/updating events
+- prevent saving a time block whose date is before event start date or after event end date
+- in public booking, only render dates that fall within event start/end dates
+- if an event is past, show a clear message like:
+  "Meeting scheduling is no longer available for this event."
+
+Optional:
+- online meeting requests may still be allowed only if you explicitly want post-event requests
+- otherwise block those too once the event has ended
+
+Default:
+- block all new meeting scheduling after the event end date unless explicitly configured otherwise
+
+==================================================
+4. HOMEPAGE CARD COUNTS
+==================================================
+
+Problem:
+Homepage cards should show the number of sponsors/solution providers available, not sessions.
+
+Required fix:
+- replace any remaining hardcoded counts with dynamic counts
+- wording should be:
+  "1 sponsor"
+  "2 sponsors"
+  etc.
+- count only active sponsors assigned to that event
+- keep dates and location display clean and readable
+
+==================================================
+5. HOMEPAGE EVENT ORDER
+==================================================
+
+Keep events ordered from soonest to latest by start date, left to right.
+
+Verify this works in production and is not being overridden by any fallback sort.
+
+==================================================
+6. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- public header shows logo + "Converge Concierge"
+- admin login only happens once in production
+- meetings cannot be scheduled after an event has ended
+- invalid event time blocks cannot be saved outside event dates
+- homepage cards show dynamic sponsor counts
+- homepage stays sorted chronologically

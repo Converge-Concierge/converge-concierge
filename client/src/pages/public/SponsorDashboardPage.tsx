@@ -150,7 +150,7 @@ export default function SponsorDashboardPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
               <Hexagon className="h-5 w-5" />
             </div>
-            <span className="font-display text-xl font-bold text-foreground tracking-tight hidden sm:block">Converge Concierge</span>
+            <span className="font-display text-xl font-bold text-foreground tracking-tight">Converge Concierge</span>
           </div>
         </header>
         <main className="flex-1 flex items-center justify-center px-6">
@@ -217,7 +217,7 @@ export default function SponsorDashboardPage() {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <Hexagon className="h-5 w-5" />
           </div>
-          <span className="font-display text-xl font-bold text-foreground tracking-tight hidden sm:block">Converge Concierge</span>
+          <span className="font-display text-xl font-bold text-foreground tracking-tight">Converge Concierge</span>
         </div>
         <div className="flex items-center gap-3">
           {unreadCount > 0 && (

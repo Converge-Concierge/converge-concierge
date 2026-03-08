@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MeetingTimeBlock, MeetingLocation } from "@shared/schema";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MeetingBlocksEditorProps {
@@ -11,13 +11,30 @@ interface MeetingBlocksEditorProps {
   onChange: (blocks: MeetingTimeBlock[]) => void;
   locations?: MeetingLocation[];
   readOnly?: boolean;
+  eventStartDate?: Date;
+  eventEndDate?: Date;
 }
 
-export function MeetingBlocksEditor({ blocks, onChange, locations = [], readOnly }: MeetingBlocksEditorProps) {
+export function MeetingBlocksEditor({ blocks, onChange, locations = [], readOnly, eventStartDate, eventEndDate }: MeetingBlocksEditorProps) {
   const [newBlock, setNewBlock] = useState({ date: "", startTime: "09:00", endTime: "12:00" });
+  const [dateError, setDateError] = useState("");
 
   const addBlock = () => {
     if (!newBlock.date || !newBlock.startTime || !newBlock.endTime || readOnly) return;
+    setDateError("");
+
+    if (eventStartDate && eventEndDate) {
+      const blockDate = new Date(newBlock.date + "T00:00:00");
+      const start = new Date(eventStartDate);
+      const end = new Date(eventEndDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      if (blockDate < start || blockDate > end) {
+        setDateError(`Date must be within the event dates (${start.toLocaleDateString()} – ${end.toLocaleDateString()}).`);
+        return;
+      }
+    }
+
     const block: MeetingTimeBlock = { id: crypto.randomUUID(), ...newBlock, locationIds: [] };
     onChange(
       [...blocks, block].sort((a, b) => {
@@ -50,24 +67,32 @@ export function MeetingBlocksEditor({ blocks, onChange, locations = [], readOnly
       </div>
 
       {!readOnly && (
-        <div className="grid grid-cols-3 gap-2 items-end bg-muted/30 p-3 rounded-lg border">
-          <div className="space-y-1">
-            <Label htmlFor="block-date" className="text-[10px] uppercase text-muted-foreground">Date</Label>
-            <Input id="block-date" type="date" value={newBlock.date} onChange={(e) => setNewBlock({ ...newBlock, date: e.target.value })} className="h-8 text-xs" />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="block-start" className="text-[10px] uppercase text-muted-foreground">Start Time</Label>
-            <Input id="block-start" type="time" value={newBlock.startTime} onChange={(e) => setNewBlock({ ...newBlock, startTime: e.target.value })} className="h-8 text-xs" />
-          </div>
-          <div className="space-y-1 flex gap-2">
-            <div className="flex-1 space-y-1">
-              <Label htmlFor="block-end" className="text-[10px] uppercase text-muted-foreground">End Time</Label>
-              <Input id="block-end" type="time" value={newBlock.endTime} onChange={(e) => setNewBlock({ ...newBlock, endTime: e.target.value })} className="h-8 text-xs" />
+        <div className="space-y-2">
+          <div className="grid grid-cols-3 gap-2 items-end bg-muted/30 p-3 rounded-lg border">
+            <div className="space-y-1">
+              <Label htmlFor="block-date" className="text-[10px] uppercase text-muted-foreground">Date</Label>
+              <Input id="block-date" type="date" value={newBlock.date} onChange={(e) => { setDateError(""); setNewBlock({ ...newBlock, date: e.target.value }); }} className="h-8 text-xs" />
             </div>
-            <Button type="button" onClick={addBlock} size="icon" className="h-8 w-8 shrink-0 self-end">
-              <Plus className="h-4 w-4" />
-            </Button>
+            <div className="space-y-1">
+              <Label htmlFor="block-start" className="text-[10px] uppercase text-muted-foreground">Start Time</Label>
+              <Input id="block-start" type="time" value={newBlock.startTime} onChange={(e) => setNewBlock({ ...newBlock, startTime: e.target.value })} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1 flex gap-2">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor="block-end" className="text-[10px] uppercase text-muted-foreground">End Time</Label>
+                <Input id="block-end" type="time" value={newBlock.endTime} onChange={(e) => setNewBlock({ ...newBlock, endTime: e.target.value })} className="h-8 text-xs" />
+              </div>
+              <Button type="button" onClick={addBlock} size="icon" className="h-8 w-8 shrink-0 self-end">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
+          {dateError && (
+            <div className="flex items-center gap-2 text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              {dateError}
+            </div>
+          )}
         </div>
       )}
 

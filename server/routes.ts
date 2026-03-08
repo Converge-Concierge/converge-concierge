@@ -212,7 +212,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
     req.session.userId = user.id;
     req.session.role = user.role as "admin" | "manager";
-    res.json(stripPassword(user));
+    req.session.save((err) => {
+      if (err) return res.status(500).json({ message: "Session save failed" });
+      res.json(stripPassword(user));
+    });
   });
 
   app.post("/api/auth/logout", (req, res) => {

@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { AnimatePresence, motion } from "framer-motion";
-import { Event, Sponsor, Meeting } from "@shared/schema";
+import { Event, Sponsor, Meeting, AppBranding } from "@shared/schema";
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
   AlertCircle, ChevronLeft, Clock, User, Video, Download, ExternalLink,
@@ -71,17 +71,27 @@ function Shell({
   children, onBack, backLabel, style,
 }: { children: React.ReactNode; onBack?: () => void; backLabel?: string; style?: React.CSSProperties }) {
   const [, nav] = useLocation();
+  const { data: branding } = useQuery<AppBranding>({ queryKey: ["/api/branding-public"] });
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex flex-col" style={style}>
       <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-accent/10 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
       <header className="relative z-10 w-full max-w-7xl mx-auto px-6 h-20 flex items-center justify-between shrink-0">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            <Hexagon className="h-5 w-5" />
-          </div>
-          <span className="font-display text-xl font-bold text-foreground tracking-tight hidden sm:block">
-            Converge Concierge
+          {branding?.appLogoUrl ? (
+            <img
+              src={branding.appLogoUrl}
+              alt={branding.appName || "Converge Concierge"}
+              className="h-8 max-w-[140px] object-contain"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+              <Hexagon className="h-5 w-5" />
+            </div>
+          )}
+          <span className="font-display text-xl font-bold text-foreground tracking-tight">
+            {branding?.appName || "Converge Concierge"}
           </span>
         </Link>
         {onBack ? (
@@ -300,10 +310,32 @@ export default function EventPage() {
     );
   }, [meetings, event]);
 
-  const availableDates = useMemo(
-    () => [...new Set((event?.meetingBlocks ?? []).map((b) => b.date))].sort(),
-    [event],
-  );
+  const eventEnded = useMemo(() => {
+    if (!event?.endDate) return false;
+    const endStr = event.endDate as unknown as string;
+    const endDate = parseISO(endStr);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    return endDate < startOfToday;
+  }, [event?.endDate]);
+
+  const availableDates = useMemo(() => {
+    if (!event) return [];
+    const startStr = event.startDate as unknown as string;
+    const endStr = event.endDate as unknown as string;
+    const evStart = parseISO(startStr);
+    const evEnd = parseISO(endStr);
+    evStart.setHours(0, 0, 0, 0);
+    evEnd.setHours(23, 59, 59, 999);
+    return [...new Set(
+      (event.meetingBlocks ?? [])
+        .filter((b) => {
+          const blockDate = new Date(b.date + "T00:00:00");
+          return blockDate >= evStart && blockDate <= evEnd;
+        })
+        .map((b) => b.date)
+    )].sort();
+  }, [event]);
 
   function go(s: number) { setError(""); setStep(s); }
 
@@ -630,11 +662,22 @@ export default function EventPage() {
             </div>
           </div>
 
+          {eventEnded && (
+            <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 mb-5 text-amber-800" data-testid="banner-scheduling-closed">
+              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+              <p className="text-sm font-medium">Meeting scheduling is no longer available for this event.</p>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
             <div>
-              <h2 className="text-2xl font-display font-semibold text-foreground mb-1">Select a Sponsor</h2>
+              <h2 className="text-2xl font-display font-semibold text-foreground mb-1">
+                {eventEnded ? "Event Sponsors" : "Select a Sponsor"}
+              </h2>
               <p className="text-muted-foreground text-sm">
-                Choose who you'd like to meet with. Each 1-on-1 is a private 30-minute strategy session.
+                {eventEnded
+                  ? "This event has concluded. Browse the sponsors who participated."
+                  : "Choose who you'd like to meet with. Each 1-on-1 is a private 30-minute strategy session."}
               </p>
             </div>
             {eventSponsors.length > 0 && (
@@ -764,27 +807,35 @@ export default function EventPage() {
 
                   {/* CTA buttons pinned to bottom */}
                   <div className="px-4 pb-4 space-y-1.5">
-                    <button
-                      onClick={() => pickSponsor(sponsor)}
-                      data-testid={`btn-meet-${sponsor.id}`}
-                      className={cn(
-                        "w-full py-2 rounded-lg text-white text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
-                        levelAccent[sponsor.level] || "bg-primary hover:bg-primary/90",
-                      )}
-                    >
-                      Schedule Onsite Meeting
-                    </button>
-                    {sponsor.allowOnlineMeetings && (
-                      <button
-                        onClick={() => pickOnlineMeeting(sponsor)}
-                        data-testid={`btn-online-${sponsor.id}`}
-                        className={cn(
-                          "w-full py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5",
-                          levelAccentSecondary[sponsor.level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
+                    {eventEnded ? (
+                      <div className="w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs font-medium text-center border border-border/60" data-testid={`text-scheduling-closed-${sponsor.id}`}>
+                        Scheduling Closed
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => pickSponsor(sponsor)}
+                          data-testid={`btn-meet-${sponsor.id}`}
+                          className={cn(
+                            "w-full py-2 rounded-lg text-white text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
+                            levelAccent[sponsor.level] || "bg-primary hover:bg-primary/90",
+                          )}
+                        >
+                          Schedule Onsite Meeting
+                        </button>
+                        {sponsor.allowOnlineMeetings && (
+                          <button
+                            onClick={() => pickOnlineMeeting(sponsor)}
+                            data-testid={`btn-online-${sponsor.id}`}
+                            className={cn(
+                              "w-full py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5",
+                              levelAccentSecondary[sponsor.level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
+                            )}
+                          >
+                            <Video className="h-3 w-3" /> Online Meeting
+                          </button>
                         )}
-                      >
-                        <Video className="h-3 w-3" /> Online Meeting
-                      </button>
+                      </>
                     )}
                   </div>
                 </motion.div>

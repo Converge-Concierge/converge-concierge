@@ -971,7 +971,7 @@ export default function EventPage() {
                 {availableDates.map((d) => (
                   <button
                     key={d}
-                    onClick={() => { setSelectedDate(d); setSelectedTime(""); setSelectedLoc(""); setError(""); }}
+                    onClick={() => { setSelectedDate(d); setSelectedTime(""); setSelectedLoc(""); setError(""); go(2); }}
                     data-testid={`date-btn-${d}`}
                     className={cn(
                       "px-5 py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-150 active:scale-[0.97]",
@@ -994,16 +994,6 @@ export default function EventPage() {
                 className="shrink-0" data-testid="button-date-back"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
-              </Button>
-              <Button
-                type="button"
-                className="flex-1 shadow-md"
-                style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
-                disabled={!selectedDate}
-                onClick={() => { setError(""); go(2); }}
-                data-testid="button-date-continue"
-              >
-                Continue
               </Button>
             </div>
           </motion.div>
@@ -1065,7 +1055,7 @@ export default function EventPage() {
                       <button
                         key={t}
                         disabled={booked}
-                        onClick={() => { setSelectedTime(t); setSelectedLoc(""); setError(""); }}
+                        onClick={() => { setSelectedTime(t); setSelectedLoc(""); setError(""); go(3); }}
                         data-testid={`time-btn-${t}`}
                         title={booked ? "Already booked" : fmt12(t)}
                         className={cn(
@@ -1092,16 +1082,6 @@ export default function EventPage() {
                 className="shrink-0" data-testid="button-time-back"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
-              </Button>
-              <Button
-                type="button"
-                className="flex-1 shadow-md"
-                style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
-                disabled={!selectedTime}
-                onClick={() => { setError(""); go(3); }}
-                data-testid="button-time-continue"
-              >
-                Continue
               </Button>
             </div>
           </motion.div>

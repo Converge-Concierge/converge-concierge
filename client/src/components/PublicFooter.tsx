@@ -22,6 +22,15 @@ export default function PublicFooter({ className = "" }: { className?: string })
           >
             Contact
           </a>
+          <a
+            href="https://ConvergeEvents.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground transition-colors"
+            data-testid="link-converge-website"
+          >
+            ConvergeEvents.com
+          </a>
         </div>
       </div>
     </footer>

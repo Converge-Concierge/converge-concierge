@@ -630,22 +630,16 @@ export default function EventPage() {
           {/* Event header */}
           <div className="text-center mb-5">
             {event.logoUrl && (
-              <div className="flex justify-center mb-4">
+              <div className="flex justify-center mb-5">
                 <img
                   src={event.logoUrl}
                   alt={event.name}
-                  className="h-12 max-w-[220px] object-contain"
+                  className="h-20 sm:h-24 max-w-[280px] sm:max-w-[340px] object-contain"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   data-testid="img-event-logo"
                 />
               </div>
             )}
-            <div
-              className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-accent/10 text-accent font-mono text-xs font-semibold mb-3 border border-accent/20"
-              style={evAccent ? { backgroundColor: evAccent + "1A", color: evAccent, borderColor: evAccent + "33" } : undefined}
-            >
-              {event.slug}
-            </div>
             <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight leading-tight mb-2">
               {event.name}
             </h1>

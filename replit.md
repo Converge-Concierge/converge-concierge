@@ -98,7 +98,7 @@ All at `/event/:slug` — single-page multi-step wizard:
 ## Auth & RBAC
 
 ### Session auth
-- `express-session` with `SESSION_SECRET` env var; 8-hour cookie; MemStore (session in-process only — sessions reset on restart, data persists in PostgreSQL)
+- `express-session` with `SESSION_SECRET` env var; 8-hour cookie; **PostgreSQL-backed session store** via `connect-pg-simple` (`user_sessions` table, auto-created). Sessions survive server restarts and autoscale instance changes.
 - Session stores `userId` and `role` — type-augmented via `declare module "express-session"`
 - Passwords stored as plain text in PostgreSQL (demo app, no bcrypt)
 

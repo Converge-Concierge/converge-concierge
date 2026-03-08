@@ -1,0 +1,128 @@
+Critical production bug: publishing is overwriting live production data.
+
+Problem:
+I am making edits directly in production, including:
+- event dates
+- event logos
+- event color schemes
+- branding
+- sponsor/profile data
+
+After I republish, those production changes are lost and old test/default data comes back.
+
+This means the app is still overwriting or ignoring production data on deploy.
+
+Fix this immediately.
+
+==================================================
+1. STOP ALL DESTRUCTIVE SEEDING IN PRODUCTION
+==================================================
+
+Investigate all startup, seed, bootstrap, and initialization logic.
+
+Required fix:
+- In production, do NOT reseed or overwrite existing records on app start or deploy
+- Seed logic may only run if the relevant table is completely empty
+- Never overwrite existing production records for:
+  - events
+  - branding
+  - settings
+  - sponsors
+  - users
+  - sponsor profile content
+  - event color schemes
+  - logos
+  - meeting configuration
+
+Look specifically for:
+- seed scripts
+- init scripts
+- default inserts
+- upserts that overwrite existing records
+- code paths that recreate sample data on boot
+
+==================================================
+2. VERIFY THE APP IS READING THE SAME PRODUCTION DATA IT SAVES
+==================================================
+
+Required fix:
+- Confirm the production app is saving and reading from the same production database
+- Confirm event updates in admin are updating the same records rendered on the public pages
+- Confirm no fallback mock/test dataset is being used in production rendering
+
+Check for:
+- hardcoded sample data
+- fallback arrays
+- dev-only loaders leaking into production
+- mismatched table names / schemas / field mappings
+
+==================================================
+3. MAKE EVENT/BRANDING/SPONSOR RECORDS PERSIST ACROSS REPUBLISH
+==================================================
+
+Required fix:
+Production-edited records must survive code deploys and republishes.
+
+This includes:
+- event dates
+- event locations
+- event logos
+- event color scheme
+- branding logo
+- branding colors
+- sponsor descriptions
+- sponsor contact info
+- sponsor solution types
+
+Publishing new code must NOT restore old sample values.
+
+==================================================
+4. FIX FILE / IMAGE PERSISTENCE
+==================================================
+
+Problem:
+Logos are also not persisting correctly.
+
+Required fix:
+- Do not store uploaded logos in temporary local filesystem paths
+- Store uploaded images in durable storage
+- Save only persistent file URLs/paths in the database
+- Verify event logos and branding logos still exist after republish
+
+==================================================
+5. ADD PRODUCTION-SAFE GUARDRAILS
+==================================================
+
+Implement these protections:
+
+- Production seed scripts must be disabled after first initialization
+- Sample/test data must never overwrite production data
+- If tables already contain records, production startup must not modify them
+- Add clear environment checks so dev-only seed behavior cannot run in production
+
+==================================================
+6. DIAGNOSE AND REPORT THE ROOT CAUSE
+==================================================
+
+Do not just patch blindly.
+
+I need you to identify which of these is happening:
+- destructive seed on startup
+- wrong database/source being read
+- uploaded files stored in temporary paths
+- schema mismatch / field mismatch
+- fallback test data rendering in production
+
+Then fix it.
+
+==================================================
+7. SUCCESS CRITERIA
+==================================================
+
+After the fix:
+- I update event dates in production
+- I update event logo and color scheme in production
+- I republish
+- the production edits remain intact
+- no sample/test data comes back
+- logos and branding persist

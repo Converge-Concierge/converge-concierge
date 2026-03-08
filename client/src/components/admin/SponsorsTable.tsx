@@ -122,14 +122,42 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
                   <TableCell className="font-semibold text-foreground py-3">{sponsor.name}</TableCell>
                   <TableCell className="py-3">
                     {(() => {
-                      const best = getBestLevel(sponsor);
-                      return best ? (
-                        <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold", levelColors[best] ?? "")}>
-                          {best === "Platinum" && <Gem className="h-3 w-3" />}
-                          {best}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground italic text-xs">None</span>
+                      const activeLinks = (sponsor.assignedEvents ?? []).filter((ae) => (ae.archiveState ?? "active") === "active");
+                      const uniqueLevels = new Set(activeLinks.map((ae) => ae.sponsorshipLevel).filter(Boolean));
+                      if (activeLinks.length === 0) {
+                        return <span className="text-muted-foreground italic text-xs">None</span>;
+                      }
+                      // Single event or all same level → show single badge
+                      if (uniqueLevels.size <= 1) {
+                        const best = getBestLevel(sponsor);
+                        return best ? (
+                          <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold", levelColors[best] ?? "")}>
+                            {best === "Platinum" && <Gem className="h-3 w-3" />}
+                            {best}
+                          </span>
+                        ) : <span className="text-muted-foreground italic text-xs">None</span>;
+                      }
+                      // Multiple events with different levels → show per-event breakdown
+                      return (
+                        <div className="flex flex-col gap-1">
+                          {activeLinks.map((ae) => {
+                            const ev = events.find((e) => e.id === ae.eventId);
+                            const lvl = ae.sponsorshipLevel ?? "";
+                            return ev ? (
+                              <div key={ae.eventId} className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-mono text-muted-foreground w-20 shrink-0">{ev.slug}</span>
+                                {lvl ? (
+                                  <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2 py-0 text-[10px] font-semibold", levelColors[lvl] ?? "")}>
+                                    {lvl === "Platinum" && <Gem className="h-2.5 w-2.5" />}
+                                    {lvl}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground text-[10px] italic">—</span>
+                                )}
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
                       );
                     })()}
                   </TableCell>

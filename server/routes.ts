@@ -231,12 +231,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!user) return res.status(404).json({ message: "No account found with that email address" });
     if (!user.isActive) return res.status(403).json({ message: "This account is inactive" });
     const tokenRecord = await storage.createPasswordResetToken(user.id);
-    // In production, send via email. For now, return the token for dev use.
+    console.log(`[PASSWORD RESET] Token generated for ${email} — token: ${tokenRecord.token} — expires: ${new Date(tokenRecord.expiresAt).toISOString()}`);
     res.json({
       message: "Reset token generated. Use it to set a new password.",
       token: tokenRecord.token,
       expiresAt: new Date(tokenRecord.expiresAt).toISOString(),
-      _dev: "Token returned directly — wire up email in production.",
     });
   });
 

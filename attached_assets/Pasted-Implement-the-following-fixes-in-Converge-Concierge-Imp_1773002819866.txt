@@ -1,0 +1,141 @@
+Implement the following fixes in Converge Concierge.
+
+Important rules:
+- Do not redesign the app
+- Do not break scheduling, sponsor dashboards, reports, or legal pages
+- Preserve all current working functionality
+- Make additive/fix-only changes only
+
+Current issues to fix:
+1. Edit Event is missing an Event Website URL field
+2. Events list should preview the event logo
+3. Sponsor list shows only one sponsorship level even when levels differ by event
+4. Admin login/password reset is not working in production
+
+==================================================
+1. ADD EVENT WEBSITE URL FIELD TO CREATE/EDIT EVENT
+==================================================
+
+Problem:
+The Edit Event modal does not include an Event Website URL field.
+
+Required fix:
+- Add a field to Create Event and Edit Event:
+  Event Website URL
+- Store it on the event record
+- Preload existing value when editing
+- Save correctly when updating
+- Optional field, but must validate as a URL if entered
+
+Important:
+Even if domain mapping by code exists, keep this field available in admin so it can be explicitly managed.
+
+Public event page behavior:
+- If Event Website URL exists, display it in the event header sub-row
+- Open in a new tab
+- Use rel="noopener noreferrer"
+
+==================================================
+2. SHOW EVENT LOGO PREVIEW IN EVENTS TABLE
+==================================================
+
+Problem:
+If an event logo is uploaded, it is visible in the edit modal but not shown in the Events list.
+
+Required fix:
+- In Admin -> Events table, add a small preview of the event logo in the Event Name column
+- Place it to the left of the event name, similar to how sponsor logos appear in the Sponsors table
+- If no logo exists, show a clean fallback placeholder
+- Keep row height and table styling professional and compact
+
+Success criteria:
+- uploaded event logos are visible in the Events list
+- no broken layout
+
+==================================================
+3. FIX SPONSOR PAGE LEVEL DISPLAY FOR MULTI-EVENT SPONSORS
+==================================================
+
+Problem:
+Winnow was updated to:
+- FRC2026 → Platinum
+- USBT2026 → Gold
+
+But the Sponsors page still shows only Platinum, which is misleading.
+
+Required fix:
+The Sponsors admin list must not show a single sponsor-level value when sponsorship level is event-specific.
+
+Use one of these acceptable solutions:
+
+Preferred:
+- In the Sponsors table, replace the single “Level” badge with:
+  “Multi-Event”
+  or
+  “Varies by Event”
+when the sponsor has different levels across assigned events.
+
+Better display:
+- Show per-event badges inline if compact enough, for example:
+  FRC2026: Platinum
+  USBT2026: Gold
+
+Rules:
+- If a sponsor has one assigned event only, show that single level normally
+- If a sponsor has multiple assigned events with different levels, do NOT show only one level
+- The display must reflect the per-event sponsorship model accurately
+
+Do not revert to the old single-level sponsor model.
+
+==================================================
+4. RESTORE ADMIN LOGIN ACCESS / PASSWORD RESET
+==================================================
+
+Problem:
+Admin login is no longer working reliably, and password reset says “check your email” but no email is delivered to:
+dan.carmody@convergeevents.com
+
+Required fix:
+Investigate and resolve both authentication and reset flow.
+
+A. Admin login
+- Ensure valid admin credentials can successfully log in
+- Remove any remaining production double-login behavior
+- Verify the session/cookie is set correctly on first login
+- Verify redirect to dashboard works after successful auth
+
+B. Password reset delivery
+- Determine whether email sending is actually configured in production
+- If email sending is NOT configured:
+  - do not silently pretend email has been sent as the only path
+  - provide a secure admin/dev fallback path for production recovery
+- If email sending IS configured:
+  - verify SMTP/provider settings
+  - verify sender domain/from address
+  - verify reset email is actually being sent
+  - verify deliverability/logging
+
+C. Logging / visibility
+- Add server-side logging for reset request attempts and delivery success/failure
+- Do not expose reset tokens in production UI
+- But do make it possible for us to diagnose delivery failures
+
+D. Recovery requirement
+We must not be locked out of the admin portal.
+Provide a working recovery path for production.
+
+Acceptable temporary fallback if email is not configured:
+- secure admin-only reset flow
+- or a one-time console/admin recovery utility
+But it must be production-safe and not visible publicly.
+
+==================================================
+5. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Edit Event includes Event Website URL
+- Events list shows event logo preview
+- Sponsors page no longer incorrectly shows only one level for multi-event sponsors
+- Admin login works in production
+- Password reset either sends email correctly or has a secure working fallback for production recovery

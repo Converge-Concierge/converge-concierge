@@ -42,6 +42,10 @@ The platform uses a modern web stack with a clear separation between frontend an
 - **Sponsorship Level**: Per-event. Stored in `sponsors.assignedEvents` JSONB as `EventSponsorLink.sponsorshipLevel`. The global `sponsors.level` column is nullable (kept for fallback only). Admin form shows per-event level dropdowns replacing the old global dropdown.
 - **Event Scheduling Logic**: Includes conflict detection for meeting slots, cascade archiving/unarchiving of related records (attendees, meetings) based on event status, and attendee resolution logic (lookup, reactivation, creation).
 - **Per-Event Scheduling Shutoff**: `schedulingEnabled` (bool), `schedulingShutoffAt` (timestamp), `externalSchedulingLabel/Url/Message` fields on events. EventPage shows blue external-handoff banner + CTA button when disabled+URL set. LandingPage shows "Coming Soon" badge on cards with no active sponsors (non-clickable).
+- **Event Website URL**: `events.websiteUrl` column. Editable in admin EventFormModal. Public EventPage header shows "Event Website" link using this value (falls back to hardcoded domain map by slug prefix if field is empty).
+- **Event Logo in Admin Table**: EventTable shows small logo thumbnail (32px) to left of event name — image if uploaded, or initials/icon placeholder.
+- **Multi-Level Sponsor Display**: SponsorsTable Level column shows per-event breakdown (slug + badge per row) when a sponsor has different sponsorship levels across events. Single badge shown when all levels are the same.
+- **Password Reset Recovery**: Forgot-password flow always advances to the token entry step (never a misleading "check your email" dead-end, since no SMTP is configured). Token is shown directly in the UI. Server logs every reset token generation to console for deployment log visibility.
 - **Event Cloning**: `POST /api/events/:id/copy` with `{ copySponsors }` body. Copies name, location, branding, meeting config, scheduling settings. Admin Events table has Copy icon button → AlertDialog with "Copy with sponsors" / "Copy without sponsors" → opens new event in edit modal.
 
 ### Feature Specifications

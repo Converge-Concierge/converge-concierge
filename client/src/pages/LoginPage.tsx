@@ -63,12 +63,8 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Request failed");
-      if (import.meta.env.DEV) {
-        setResetToken(data.token);
-        setStep("forgot-reset");
-      } else {
-        setForgotSent(true);
-      }
+      setResetToken(data.token);
+      setStep("forgot-reset");
     } catch (err: any) {
       setForgotError(err.message ?? "Something went wrong");
     } finally {
@@ -418,9 +414,9 @@ export default function LoginPage() {
                           <p className="text-muted-foreground mt-1 text-sm">Your reset token has been generated. Use it below to set a new password.</p>
                         </div>
 
-                        {/* Dev token display */}
+                        {/* Reset token display */}
                         <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
-                          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Reset Token (Dev Preview)</p>
+                          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Your Reset Token</p>
                           <div className="flex items-center gap-2">
                             <code className="text-xs text-amber-900 bg-amber-100 rounded px-2 py-1 flex-1 break-all" data-testid="text-reset-token">{resetToken}</code>
                             <button
@@ -432,7 +428,7 @@ export default function LoginPage() {
                               {copied ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                             </button>
                           </div>
-                          <p className="text-[10px] text-amber-600">In production, this would be sent via email. Token expires in 1 hour.</p>
+                          <p className="text-[10px] text-amber-600">Copy this token, then paste it below. It expires in 1 hour.</p>
                         </div>
 
                         {resetError && (

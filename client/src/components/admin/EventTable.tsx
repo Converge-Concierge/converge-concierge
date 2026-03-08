@@ -1,11 +1,33 @@
+import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Archive, Trash2, Eye, RotateCcw, Copy } from "lucide-react";
+import { Edit, Archive, Trash2, Eye, RotateCcw, Copy, CalendarDays } from "lucide-react";
 import { Event } from "@shared/schema";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
+
+function EventLogo({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
+  const [error, setError] = useState(false);
+  const initials = name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  if (logoUrl && !error) {
+    return (
+      <div className="h-8 w-8 rounded-md border border-border/60 bg-white flex items-center justify-center overflow-hidden shrink-0">
+        <img src={logoUrl} alt={name} className="h-full w-full object-contain p-0.5" onError={() => setError(true)} />
+      </div>
+    );
+  }
+  return (
+    <div className="h-8 w-8 rounded-md border border-border/60 bg-muted flex items-center justify-center shrink-0">
+      {initials ? (
+        <span className="text-[10px] font-bold text-muted-foreground">{initials}</span>
+      ) : (
+        <CalendarDays className="h-3.5 w-3.5 text-muted-foreground/50" />
+      )}
+    </div>
+  );
+}
 
 interface EventTableProps {
   events: Event[];
@@ -45,6 +67,7 @@ export function EventTable({ events, tab, isAdmin, onEdit, onView, onArchive, on
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <TableHead className="w-12" />
             <SortHead sortKey="name" sort={sort} onSort={toggle}>Event Name</SortHead>
             <SortHead sortKey="location" sort={sort} onSort={toggle}>Location</SortHead>
             <SortHead sortKey="startDate" sort={sort} onSort={toggle}>Dates</SortHead>
@@ -55,6 +78,7 @@ export function EventTable({ events, tab, isAdmin, onEdit, onView, onArchive, on
         <TableBody>
           {sorted.map((event) => (
             <TableRow key={event.id} className={cn(tab === "archived" ? "opacity-70" : "")}>
+              <TableCell className="py-3"><EventLogo name={event.name} logoUrl={event.logoUrl} /></TableCell>
               <TableCell className="font-medium py-3">{event.name}</TableCell>
               <TableCell className="text-muted-foreground py-3">{event.location}</TableCell>
               <TableCell className="py-3">
@@ -120,7 +144,7 @@ export function EventTable({ events, tab, isAdmin, onEdit, onView, onArchive, on
           ))}
           {sorted.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="h-28 text-center text-muted-foreground">
+              <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
                 <p className="text-sm">{tab === "active" ? "No active events." : "No archived events."}</p>
               </TableCell>
             </TableRow>

@@ -29,7 +29,8 @@ const eventDomainMap: Record<string, string> = {
   USBT:  "https://USBankTechSummit.com",
 };
 
-function getEventWebsite(slug: string): string | null {
+function getEventWebsite(slug: string, storedUrl?: string | null): string | null {
+  if (storedUrl) return storedUrl;
   const prefix = slug.replace(/\d+$/, "").toUpperCase();
   return eventDomainMap[prefix] ?? null;
 }
@@ -701,9 +702,9 @@ export default function EventPage() {
                 <MapPin className="h-3.5 w-3.5 text-muted-foreground/70" />
                 {event.location}
               </span>
-              {getEventWebsite(event.slug) && (
+              {getEventWebsite(event.slug, event.websiteUrl) && (
                 <a
-                  href={getEventWebsite(event.slug)!}
+                  href={getEventWebsite(event.slug, event.websiteUrl)!}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 text-accent hover:opacity-80 transition-opacity font-medium"

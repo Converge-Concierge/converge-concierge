@@ -85,6 +85,7 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
         archiveState: "active", meetingLocations: [], meetingBlocks: [],
         schedulingEnabled: true, schedulingShutoffAt: null,
         externalSchedulingLabel: "", externalSchedulingUrl: "", externalSchedulingMessage: "",
+        websiteUrl: null,
       });
       setColorOpen(false);
       setSchedulingOpen(false);
@@ -207,6 +208,19 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
                     )}
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="websiteUrl">Event Website URL</Label>
+                <Input
+                  id="websiteUrl"
+                  type="url"
+                  value={formData.websiteUrl || ""}
+                  onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value || null })}
+                  placeholder="https://example.com"
+                  data-testid="input-event-website-url"
+                />
+                <p className="text-[10px] text-muted-foreground">Optional. If set, displays an "Event Website" link on the public event page.</p>
               </div>
             </fieldset>
 

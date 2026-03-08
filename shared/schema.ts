@@ -80,6 +80,7 @@ export const events = pgTable("events", {
   externalSchedulingLabel: text("external_scheduling_label"),
   externalSchedulingUrl: text("external_scheduling_url"),
   externalSchedulingMessage: text("external_scheduling_message"),
+  websiteUrl: text("website_url"),
 });
 
 export const insertEventSchema = createInsertSchema(events).extend({
@@ -97,6 +98,7 @@ export const insertEventSchema = createInsertSchema(events).extend({
   externalSchedulingLabel: z.string().nullable().optional(),
   externalSchedulingUrl: z.string().nullable().optional(),
   externalSchedulingMessage: z.string().nullable().optional(),
+  websiteUrl: z.string().url("Must be a valid URL").nullable().optional().or(z.literal("")),
 });
 export type Event = typeof events.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;

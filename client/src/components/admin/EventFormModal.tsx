@@ -7,7 +7,7 @@ import { Event, InsertEvent } from "@shared/schema";
 import { MeetingLocationsEditor } from "./MeetingLocationsEditor";
 import { MeetingBlocksEditor } from "./MeetingBlocksEditor";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Lock, ImagePlus, X, ChevronDown, ChevronUp, Palette } from "lucide-react";
+import { Lock, ImagePlus, X, ChevronDown, ChevronUp, Palette, CalendarOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface EventFormModalProps {
@@ -26,6 +26,14 @@ const COLOR_FIELDS = [
   { key: "bgAccentColor",  label: "Background Accent",      hint: "Gradient start or tint" },
 ] as const;
 
+function toDatetimeLocal(val: Date | string | null | undefined): string {
+  if (!val) return "";
+  const d = val instanceof Date ? val : new Date(val as string);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: EventFormModalProps) {
   const [formData, setFormData] = useState<Partial<InsertEvent>>({
     name: "",
@@ -36,9 +44,15 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
     archiveState: "active",
     meetingLocations: [],
     meetingBlocks: [],
+    schedulingEnabled: true,
+    schedulingShutoffAt: null,
+    externalSchedulingLabel: "",
+    externalSchedulingUrl: "",
+    externalSchedulingMessage: "",
   });
   const [logoUploading, setLogoUploading] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
+  const [schedulingOpen, setSchedulingOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleLogoFile(file: File) {
@@ -63,9 +77,17 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
       setFormData({ ...event, startDate: new Date(event.startDate), endDate: new Date(event.endDate) });
       const hasColors = event.primaryColor || event.secondaryColor || event.accentColor || event.buttonColor || event.bgAccentColor;
       setColorOpen(!!hasColors);
+      const hasSchedulingSettings = event.schedulingEnabled === false || event.schedulingShutoffAt || event.externalSchedulingUrl;
+      setSchedulingOpen(!!hasSchedulingSettings);
     } else {
-      setFormData({ name: "", slug: "", location: "", startDate: new Date(), endDate: new Date(), archiveState: "active", meetingLocations: [], meetingBlocks: [] });
+      setFormData({
+        name: "", slug: "", location: "", startDate: new Date(), endDate: new Date(),
+        archiveState: "active", meetingLocations: [], meetingBlocks: [],
+        schedulingEnabled: true, schedulingShutoffAt: null,
+        externalSchedulingLabel: "", externalSchedulingUrl: "", externalSchedulingMessage: "",
+      });
       setColorOpen(false);
+      setSchedulingOpen(false);
     }
   }, [event, isOpen]);
 
@@ -78,6 +100,10 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
   const setColor = (key: string, value: string) => setFormData((prev) => ({ ...prev, [key]: value || null }));
 
   const hasCustomColors = COLOR_FIELDS.some(({ key }) => !!(formData as any)[key]);
+
+  const schedulingDisabledForUI =
+    formData.schedulingEnabled === false ||
+    (formData.schedulingShutoffAt && new Date() > new Date(formData.schedulingShutoffAt as any));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -253,6 +279,140 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
                     })}
                   </div>
                 </div>
+              )}
+            </div>
+
+            {/* Scheduling Settings */}
+            <div className="border rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setSchedulingOpen((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/60 transition-colors text-left"
+                data-testid="btn-scheduling-settings-toggle"
+              >
+                <div className="flex items-center gap-2">
+                  <CalendarOff className="h-4 w-4 text-accent" />
+                  <span className="text-sm font-semibold">Scheduling Settings</span>
+                  {schedulingDisabledForUI && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                      Scheduling Off
+                    </span>
+                  )}
+                </div>
+                {schedulingOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </button>
+
+              {schedulingOpen && (
+                <fieldset disabled={readOnly} className="p-4 space-y-4 border-t border-none m-0">
+                  <p className="text-xs text-muted-foreground">
+                    Control whether Converge Concierge booking is available for this event, or redirect users to an external event app.
+                  </p>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">Concierge Scheduling</Label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => setFormData((p) => ({ ...p, schedulingEnabled: true }))}
+                        data-testid="btn-scheduling-enabled"
+                        className={cn(
+                          "flex-1 py-2 rounded-lg text-xs font-semibold border transition-all",
+                          formData.schedulingEnabled !== false
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card text-muted-foreground border-border hover:bg-muted/60"
+                        )}
+                      >
+                        Enabled
+                      </button>
+                      <button
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => setFormData((p) => ({ ...p, schedulingEnabled: false }))}
+                        data-testid="btn-scheduling-disabled"
+                        className={cn(
+                          "flex-1 py-2 rounded-lg text-xs font-semibold border transition-all",
+                          formData.schedulingEnabled === false
+                            ? "bg-destructive text-destructive-foreground border-destructive"
+                            : "bg-card text-muted-foreground border-border hover:bg-muted/60"
+                        )}
+                      >
+                        Disabled
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      When disabled, users cannot book meetings through Converge Concierge for this event.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="schedulingShutoffAt" className="text-xs font-medium">
+                      Automatic Shutoff Date &amp; Time <span className="text-muted-foreground font-normal">(optional)</span>
+                    </Label>
+                    <Input
+                      id="schedulingShutoffAt"
+                      type="datetime-local"
+                      value={toDatetimeLocal(formData.schedulingShutoffAt as any)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData((p) => ({ ...p, schedulingShutoffAt: val ? new Date(val) : null }));
+                      }}
+                      data-testid="input-scheduling-shutoff"
+                      className="text-sm"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Concierge booking automatically closes after this date/time, even if Scheduling is set to Enabled above.
+                    </p>
+                  </div>
+
+                  <div className="border-t pt-4 space-y-3">
+                    <p className="text-xs font-semibold text-foreground">External App Handoff</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      When scheduling is off, show users a link to book meetings in your external event app (e.g. Nunify).
+                    </p>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="externalSchedulingUrl" className="text-xs font-medium">External Scheduling URL</Label>
+                      <Input
+                        id="externalSchedulingUrl"
+                        type="url"
+                        placeholder="https://app.nunify.com/event/..."
+                        value={formData.externalSchedulingUrl || ""}
+                        onChange={(e) => setFormData((p) => ({ ...p, externalSchedulingUrl: e.target.value || null }))}
+                        data-testid="input-external-scheduling-url"
+                        className="text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="externalSchedulingLabel" className="text-xs font-medium">Button Label</Label>
+                      <Input
+                        id="externalSchedulingLabel"
+                        placeholder="Open Event App"
+                        value={formData.externalSchedulingLabel || ""}
+                        onChange={(e) => setFormData((p) => ({ ...p, externalSchedulingLabel: e.target.value || null }))}
+                        data-testid="input-external-scheduling-label"
+                        className="text-sm"
+                      />
+                      <p className="text-[10px] text-muted-foreground">Text shown on the CTA button. Defaults to "Open Event App".</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="externalSchedulingMessage" className="text-xs font-medium">Message to Users</Label>
+                      <textarea
+                        id="externalSchedulingMessage"
+                        rows={2}
+                        placeholder="Meeting scheduling for this event has moved to the event app."
+                        value={formData.externalSchedulingMessage || ""}
+                        onChange={(e) => setFormData((p) => ({ ...p, externalSchedulingMessage: e.target.value || null }))}
+                        disabled={readOnly}
+                        data-testid="input-external-scheduling-message"
+                        className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                      />
+                      <p className="text-[10px] text-muted-foreground">Shown to users on the event page when scheduling is off.</p>
+                    </div>
+                  </div>
+                </fieldset>
               )}
             </div>
 

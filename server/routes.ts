@@ -334,6 +334,66 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.sendStatus(204);
   });
 
+  app.post("/api/events/:id/copy", requireAuth, async (req, res) => {
+    const source = await storage.getEvent(req.params.id);
+    if (!source) return res.status(404).json({ message: "Event not found" });
+
+    const { copySponsors = false } = req.body;
+
+    const baseSlug = source.slug + "COPY";
+    let slug = baseSlug;
+    let counter = 2;
+    while (await storage.getEventBySlug(slug)) {
+      slug = baseSlug + counter;
+      counter++;
+    }
+
+    const newEvent = await storage.createEvent({
+      name: source.name + " (Copy)",
+      slug,
+      location: source.location,
+      startDate: new Date(source.startDate),
+      endDate: new Date(source.endDate),
+      archiveState: "active",
+      logoUrl: source.logoUrl ?? undefined,
+      meetingLocations: source.meetingLocations,
+      meetingBlocks: source.meetingBlocks,
+      primaryColor: source.primaryColor ?? undefined,
+      secondaryColor: source.secondaryColor ?? undefined,
+      accentColor: source.accentColor ?? undefined,
+      buttonColor: source.buttonColor ?? undefined,
+      bgAccentColor: source.bgAccentColor ?? undefined,
+      schedulingEnabled: source.schedulingEnabled,
+      schedulingShutoffAt: source.schedulingShutoffAt ? new Date(source.schedulingShutoffAt) : undefined,
+      externalSchedulingLabel: source.externalSchedulingLabel ?? undefined,
+      externalSchedulingUrl: source.externalSchedulingUrl ?? undefined,
+      externalSchedulingMessage: source.externalSchedulingMessage ?? undefined,
+    });
+
+    if (copySponsors) {
+      const allSponsors = await storage.getSponsors();
+      const sponsorsForEvent = allSponsors.filter((s) =>
+        (s.assignedEvents ?? []).some(
+          (ae) => ae.eventId === source.id && (ae.archiveState ?? "active") === "active"
+        )
+      );
+      for (const sponsor of sponsorsForEvent) {
+        const sourceLink = sponsor.assignedEvents.find((ae) => ae.eventId === source.id);
+        const newLink: EventSponsorLink = {
+          eventId: newEvent.id,
+          sponsorshipLevel: sourceLink?.sponsorshipLevel ?? null,
+          archiveState: "active",
+          archiveSource: null,
+        };
+        await storage.updateSponsor(sponsor.id, {
+          assignedEvents: [...(sponsor.assignedEvents ?? []), newLink],
+        });
+      }
+    }
+
+    res.status(201).json(newEvent);
+  });
+
   // ── Sponsors ─────────────────────────────────────────────────────────────
   app.get("/api/sponsors", async (_req, res) => {
     res.json(await storage.getSponsors());

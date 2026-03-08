@@ -1,0 +1,113 @@
+Add support for an Event Website URL and display it on the event scheduling page header.
+
+Important rules:
+- Do not redesign the event page layout
+- Preserve existing event header styling
+- Ensure the link is optional (some events may not have a public site yet)
+
+==================================================
+1. EVENT MODEL UPDATE
+==================================================
+
+Add a new field to the Event model:
+
+eventWebsiteUrl
+
+Type:
+string (nullable)
+
+This will store the public website URL for the event.
+
+Example:
+https://fintechriskforum.com
+
+==================================================
+2. ADMIN EVENT FORM UPDATE
+==================================================
+
+In the Admin "Create Event" and "Edit Event" forms, add a new field:
+
+Label:
+Event Website URL
+
+Placement:
+Directly below the Event Location field or within the top event details section.
+
+Field type:
+URL input
+
+Placeholder example:
+https://exampleevent.com
+
+Validation:
+- Optional field
+- Must be valid URL format if entered
+
+==================================================
+3. EVENT PAGE HEADER UPDATE
+==================================================
+
+On the public event scheduling page header (where the event logo, name, date, and location appear):
+
+Current layout:
+
+[Event Logo]
+
+Event Title
+
+Date • Location
+
+Update the sub-header line to include the website link.
+
+New layout:
+
+Date • Location • Event Website
+
+Example display:
+
+May 18 – May 20, 2026  •  Oak Brook, IL  •  Event Website
+
+The "Event Website" text should be a clickable link that opens in a new tab.
+
+==================================================
+4. LINK STYLING
+==================================================
+
+Style the link consistently with the existing icon row.
+
+Recommended format:
+
+[calendar icon] Date
+[location icon] Location
+[external link icon] Event Website
+
+Requirements:
+- Open in new tab
+- Include rel="noopener noreferrer"
+- Maintain current typography styling
+
+==================================================
+5. CONDITIONAL DISPLAY
+==================================================
+
+If eventWebsiteUrl is empty:
+- Do NOT display the website link
+- The header should remain:
+Date • Location
+
+If eventWebsiteUrl exists:
+- Display the link as the third element
+
+==================================================
+SUCCESS CRITERIA
+==================================================
+
+After implementation:
+
+Admin
+- Event edit form includes an optional Event Website URL field
+
+Public event page
+- Event header displays Date • Location • Event Website
+- Event Website opens the event site in a new tab
+- If no URL is provided, the layout remains unchanged

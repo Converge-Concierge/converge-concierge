@@ -1,0 +1,138 @@
+Implement the following UX improvements on the public-facing site.
+
+Important rules:
+- Do not redesign the entire page
+- Preserve the current design language
+- Do not break existing routing or booking logic
+- Make layout and spacing improvements only
+
+Goal:
+Improve visual balance on the homepage and improve meeting booking visibility on sponsor profile pages.
+
+==================================================
+1. HOMEPAGE — INCREASE EVENT LOGO SIZE
+==================================================
+
+On the homepage event cards:
+
+Increase the event logo size by approximately 100%.
+
+Current issue:
+Logos appear small relative to the card size.
+
+Requirements:
+- Logo should remain centered above the event title
+- Maintain consistent padding around the logo
+- Ensure larger logos do not push text too far down
+- Maintain responsive behavior on mobile
+
+If logos have different aspect ratios, constrain them with:
+max-height and object-fit: contain.
+
+==================================================
+2. HOMEPAGE — BETTER VERTICAL BALANCE
+==================================================
+
+The homepage currently has too much whitespace below the event cards.
+
+Adjust vertical spacing so the hero section and event cards are more evenly distributed.
+
+Goals:
+- Reduce excessive whitespace below event cards
+- Slightly reduce space between hero headline and event cards
+- Ensure the hero section and cards feel centered within the viewport
+
+Suggested approach:
+- Reduce bottom padding of the hero container
+- Slightly increase top margin of the event card row
+- Ensure the cards sit closer to vertical center of the page
+
+Do not reduce spacing so much that the layout feels cramped.
+
+==================================================
+3. SPONSOR PROFILE PAGE — MOVE MEETING SECTION
+==================================================
+
+On the sponsor profile page, move the meeting scheduling section.
+
+Current layout order:
+
+1. Sponsor Name Card
+2. Solution Types
+3. Solutions & Services
+4. Meeting Section
+
+New layout order:
+
+1. Sponsor Name Card
+2. Meeting Section
+3. Solution Types
+4. Solutions & Services
+
+Reason:
+Users visiting the sponsor page primarily want to schedule a meeting.
+The meeting CTA should appear immediately after the sponsor introduction.
+
+==================================================
+4. MEETING SECTION TITLE UPDATE
+==================================================
+
+Update the meeting section title.
+
+Current title:
+"Meet with eGain"
+
+New title format:
+
+"Meeting with [Sponsor Name] at [Event Title]"
+
+Example:
+
+Meeting with eGain at The 2026 Treasury Leadership Summit
+
+Requirements:
+- Dynamically populate sponsor name
+- Dynamically populate event title
+- Maintain current CTA buttons:
+  - Schedule Onsite Meeting
+  - Request Online Meeting
+
+==================================================
+5. MEETING CTA VISIBILITY
+==================================================
+
+Ensure the meeting section remains visually strong.
+
+Requirements:
+- Maintain button size and prominence
+- Preserve spacing so the meeting card feels important
+- Ensure it displays clearly above the fold on desktop if possible
+
+==================================================
+6. RESPONSIVE DESIGN
+==================================================
+
+Verify that the new layout works well on mobile:
+
+Homepage:
+- Logos remain large but not overflowing cards
+
+Sponsor page:
+- Meeting section stacks correctly under the sponsor name card
+
+==================================================
+SUCCESS CRITERIA
+==================================================
+
+After implementation:
+
+Homepage
+- Event logos are significantly larger and clearer
+- Hero and event cards feel vertically balanced
+- Excess whitespace below events is reduced
+
+Sponsor profile page
+- Meeting booking section appears immediately below sponsor intro
+- Title reads:
+  "Meeting with [Sponsor] at [Event]"
+- Buttons remain prominent and functional

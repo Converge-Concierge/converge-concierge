@@ -75,6 +75,11 @@ export const events = pgTable("events", {
   accentColor: text("accent_color"),
   buttonColor: text("button_color"),
   bgAccentColor: text("bg_accent_color"),
+  schedulingEnabled: boolean("scheduling_enabled").notNull().default(true),
+  schedulingShutoffAt: timestamp("scheduling_shutoff_at"),
+  externalSchedulingLabel: text("external_scheduling_label"),
+  externalSchedulingUrl: text("external_scheduling_url"),
+  externalSchedulingMessage: text("external_scheduling_message"),
 });
 
 export const insertEventSchema = createInsertSchema(events).extend({
@@ -87,6 +92,11 @@ export const insertEventSchema = createInsertSchema(events).extend({
   accentColor: z.string().nullable().optional(),
   buttonColor: z.string().nullable().optional(),
   bgAccentColor: z.string().nullable().optional(),
+  schedulingEnabled: z.boolean().default(true).optional(),
+  schedulingShutoffAt: z.coerce.date().nullable().optional(),
+  externalSchedulingLabel: z.string().nullable().optional(),
+  externalSchedulingUrl: z.string().nullable().optional(),
+  externalSchedulingMessage: z.string().nullable().optional(),
 });
 export type Event = typeof events.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;

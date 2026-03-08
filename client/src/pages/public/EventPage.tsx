@@ -334,6 +334,19 @@ export default function EventPage() {
     return endDate < startOfToday;
   }, [event?.endDate]);
 
+  const schedulingDisabled = useMemo(() => {
+    if (!event) return false;
+    if (event.schedulingEnabled === false) return true;
+    if (event.schedulingShutoffAt) {
+      return new Date() > new Date(event.schedulingShutoffAt as unknown as string);
+    }
+    return false;
+  }, [event?.schedulingEnabled, event?.schedulingShutoffAt]);
+
+  const hasExternalLink = !!event?.externalSchedulingUrl;
+  const showExternalHandoff = schedulingDisabled && hasExternalLink;
+  const showSchedulingClosed = (eventEnded || schedulingDisabled) && !hasExternalLink;
+
   const availableDates = useMemo(() => {
     if (!event) return [];
     const startStr = event.startDate as unknown as string;
@@ -677,7 +690,28 @@ export default function EventPage() {
             </div>
           </div>
 
-          {eventEnded && (
+          {showExternalHandoff && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 mb-5" data-testid="banner-external-scheduling">
+              <div className="flex items-start gap-3 mb-3">
+                <AlertCircle className="h-4 w-4 shrink-0 text-blue-600 mt-0.5" />
+                <p className="text-sm font-medium text-blue-800">
+                  {event?.externalSchedulingMessage || "Meeting scheduling for this event has moved to the event app."}
+                </p>
+              </div>
+              <a
+                href={event?.externalSchedulingUrl ?? "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="btn-open-event-app"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                {event?.externalSchedulingLabel || "Open Event App"}
+              </a>
+            </div>
+          )}
+
+          {showSchedulingClosed && !showExternalHandoff && (
             <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 mb-5 text-amber-800" data-testid="banner-scheduling-closed">
               <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
               <p className="text-sm font-medium">Meeting scheduling is no longer available for this event.</p>
@@ -687,12 +721,16 @@ export default function EventPage() {
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
             <div>
               <h2 className="text-2xl font-display font-semibold text-foreground mb-1">
-                {eventEnded ? "Event Sponsors" : "Select a Sponsor"}
+                {(eventEnded || schedulingDisabled) ? "Event Sponsors" : "Select a Sponsor"}
               </h2>
               <p className="text-muted-foreground text-sm">
                 {eventEnded
                   ? "This event has concluded. Browse the sponsors who participated."
-                  : "Choose who you'd like to meet with. Each 1-on-1 is a private 30-minute strategy session."}
+                  : showExternalHandoff
+                    ? "Browse the sponsors participating in this event."
+                    : schedulingDisabled
+                      ? "Concierge scheduling is currently unavailable for this event."
+                      : "Choose who you'd like to meet with. Each 1-on-1 is a private 30-minute strategy session."}
               </p>
             </div>
             {eventSponsors.length > 0 && (
@@ -825,7 +863,7 @@ export default function EventPage() {
 
                   {/* CTA buttons pinned to bottom */}
                   <div className="px-4 pb-4 space-y-1.5">
-                    {eventEnded ? (
+                    {(eventEnded || schedulingDisabled) ? (
                       <div className="w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs font-medium text-center border border-border/60" data-testid={`text-scheduling-closed-${sponsor.id}`}>
                         Scheduling Closed
                       </div>

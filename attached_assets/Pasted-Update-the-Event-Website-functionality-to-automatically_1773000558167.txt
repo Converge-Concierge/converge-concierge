@@ -1,0 +1,93 @@
+Update the Event Website functionality to automatically assign the correct event domain based on the Event Code.
+
+Important rules:
+- Do not require admins to manually enter the event website
+- The system should automatically assign the correct domain
+- Preserve existing event header layout
+- Links must open in a new tab
+
+==================================================
+1. EVENT DOMAIN MAPPING
+==================================================
+
+Add the following mapping based on the event code prefix:
+
+CUGI → https://CUGrowthSummit.com
+FRC → https://FintechRiskandCompliance.com
+TLS → https://TreasuryLeadership.com
+USBT → https://USBankTechSummit.com
+
+Example:
+
+Event Code: CUGI2027
+Website: https://CUGrowthSummit.com
+
+Event Code: FRC2026
+Website: https://FintechRiskandCompliance.com
+
+==================================================
+2. EVENT PAGE HEADER UPDATE
+==================================================
+
+On the event scheduling page header (where the event logo, name, date, and location appear):
+
+Display the event website link in the sub-header line.
+
+Example layout:
+
+[calendar icon] May 18 – May 20, 2026  
+[location icon] Oak Brook, IL  
+[external link icon] Event Website
+
+The "Event Website" text should link to the mapped domain.
+
+Requirements:
+- Open link in new tab
+- rel="noopener noreferrer"
+- Maintain current styling
+
+==================================================
+3. FALLBACK BEHAVIOR
+==================================================
+
+If an event code does not match one of the defined mappings:
+
+- Do not show an Event Website link
+- Leave the header as Date • Location only
+
+==================================================
+4. FUTURE EXTENSIBILITY
+==================================================
+
+Structure the mapping so new event brands can easily be added.
+
+Example structure:
+
+eventDomainMap = {
+  CUGI: "https://CUGrowthSummit.com",
+  FRC: "https://FintechRiskandCompliance.com",
+  TLS: "https://TreasuryLeadership.com",
+  USBT: "https://USBankTechSummit.com"
+}
+
+The system should extract the prefix from the event code and look up the corresponding domain.
+
+==================================================
+SUCCESS CRITERIA
+==================================================
+
+After implementation:
+
+FRC events show:
+FintechRiskandCompliance.com
+
+TLS events show:
+TreasuryLeadership.com
+
+USBT events show:
+USBankTechSummit.com
+
+CUGI events show:
+CUGrowthSummit.com
+
+The link appears in the event header and opens the event website in a new tab.

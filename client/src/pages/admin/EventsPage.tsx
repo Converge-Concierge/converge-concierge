@@ -29,6 +29,7 @@ export default function EventsPage() {
   const [editingEvent, setEditingEvent] = useState<Event | undefined>();
   const [viewingEvent, setViewingEvent] = useState<Event | undefined>();
   const [deletingEvent, setDeletingEvent] = useState<Event | null>(null);
+  const [copyingEvent, setCopyingEvent] = useState<Event | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
@@ -70,6 +71,25 @@ export default function EventsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       toast({ title: "Event deleted" });
       setDeletingEvent(null);
+    },
+  });
+
+  const copyMutation = useMutation({
+    mutationFn: async ({ id, copySponsors }: { id: string; copySponsors: boolean }) => {
+      const res = await apiRequest("POST", `/api/events/${id}/copy`, { copySponsors });
+      return res.json() as Promise<Event>;
+    },
+    onSuccess: (newEvent) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sponsors"] });
+      toast({ title: "Event copied", description: `"${newEvent.name}" created. Update the details below.` });
+      setCopyingEvent(null);
+      setEditingEvent(newEvent);
+      setIsModalOpen(true);
+    },
+    onError: () => {
+      toast({ title: "Copy failed", description: "Could not copy event. Please try again.", variant: "destructive" });
+      setCopyingEvent(null);
     },
   });
 
@@ -159,6 +179,7 @@ export default function EventsPage() {
           onArchive={handleArchive}
           onReactivate={handleReactivate}
           onDelete={setDeletingEvent}
+          onCopy={(e) => setCopyingEvent(e)}
         />
       )}
 
@@ -179,6 +200,7 @@ export default function EventsPage() {
         readOnly
       />
 
+      {/* Delete confirmation */}
       <AlertDialog open={!!deletingEvent} onOpenChange={(open) => !open && setDeletingEvent(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -200,6 +222,39 @@ export default function EventsPage() {
             >
               Delete
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Copy event confirmation */}
+      <AlertDialog open={!!copyingEvent} onOpenChange={(open) => !open && setCopyingEvent(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Copy "{copyingEvent?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create a new event with the same name, location, branding, meeting locations, time blocks, and scheduling settings.
+              Meetings and attendee bookings will not be copied.
+              <br /><br />
+              Would you like to also copy the sponsor assignments to the new event?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel disabled={copyMutation.isPending}>Cancel</AlertDialogCancel>
+            <Button
+              variant="outline"
+              disabled={copyMutation.isPending}
+              onClick={() => copyingEvent && copyMutation.mutate({ id: copyingEvent.id, copySponsors: false })}
+              data-testid="btn-copy-without-sponsors"
+            >
+              Copy without sponsors
+            </Button>
+            <Button
+              disabled={copyMutation.isPending}
+              onClick={() => copyingEvent && copyMutation.mutate({ id: copyingEvent.id, copySponsors: true })}
+              data-testid="btn-copy-with-sponsors"
+            >
+              {copyMutation.isPending ? "Copying…" : "Copy with sponsors"}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1,11 +1,12 @@
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Hexagon, Calendar, MapPin, Users, Building2 } from "lucide-react";
+import { Hexagon, Calendar, MapPin, Users, Building2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { Event, Sponsor, AppBranding } from "@shared/schema";
 import { format, parseISO, isWithinInterval } from "date-fns";
 import PublicFooter from "@/components/PublicFooter";
+import { cn } from "@/lib/utils";
 
 function eventStatusLabel(event: Event): string {
   const now = new Date();
@@ -25,6 +26,14 @@ function countActiveSponsors(event: Event, sponsors: Sponsor[]): number {
           (ae.archiveState ?? "active") === "active"
       )
   ).length;
+}
+
+function isSchedulingOff(event: Event): boolean {
+  if (event.schedulingEnabled === false) return true;
+  if (event.schedulingShutoffAt) {
+    return new Date() > new Date(event.schedulingShutoffAt as unknown as string);
+  }
+  return false;
 }
 
 export default function LandingPage() {
@@ -120,16 +129,34 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {activeEvents.map((event, i) => {
                 const sponsorCount = countActiveSponsors(event, sponsors);
+                const hasSponsors = sponsorCount > 0;
+                const schedulingOff = isSchedulingOff(event);
+                const isComingSoon = !hasSponsors;
+                const isClickable = hasSponsors || schedulingOff;
+
                 return (
                   <motion.div
                     key={event.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: i * 0.1 }}
-                    className="group relative bg-card rounded-2xl p-6 border border-border/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer"
-                    onClick={() => setLocation(`/event/${event.slug}`)}
+                    className={cn(
+                      "group relative bg-card rounded-2xl p-6 border border-border/60 shadow-sm transition-all duration-300 flex flex-col",
+                      isClickable
+                        ? "hover:shadow-xl hover:-translate-y-1 cursor-pointer"
+                        : "cursor-not-allowed opacity-70"
+                    )}
+                    onClick={() => isClickable && setLocation(`/event/${event.slug}`)}
                     data-testid={`event-card-${event.slug}`}
                   >
+                    {/* Coming Soon badge */}
+                    {isComingSoon && (
+                      <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-muted border border-border text-[10px] font-semibold text-muted-foreground" data-testid={`badge-coming-soon-${event.slug}`}>
+                        <Clock className="h-3 w-3" />
+                        Coming Soon
+                      </div>
+                    )}
+
                     {/* Event logo */}
                     <div className="flex justify-center mb-4">
                       {event.logoUrl ? (
@@ -146,7 +173,10 @@ export default function LandingPage() {
                       )}
                     </div>
 
-                    <h3 className="text-xl font-display font-bold text-foreground mb-4 group-hover:text-primary transition-colors leading-tight text-center">
+                    <h3 className={cn(
+                      "text-xl font-display font-bold text-foreground mb-4 transition-colors leading-tight text-center",
+                      isClickable && "group-hover:text-primary"
+                    )}>
                       {event.name}
                     </h3>
 

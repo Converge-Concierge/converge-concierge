@@ -1,7 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Archive, Trash2, Eye, RotateCcw } from "lucide-react";
+import { Edit, Archive, Trash2, Eye, RotateCcw, Copy } from "lucide-react";
 import { Event } from "@shared/schema";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -16,9 +16,18 @@ interface EventTableProps {
   onArchive: (event: Event) => void;
   onReactivate: (event: Event) => void;
   onDelete: (event: Event) => void;
+  onCopy?: (event: Event) => void;
 }
 
-export function EventTable({ events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete }: EventTableProps) {
+function isSchedulingOff(event: Event): boolean {
+  if (event.schedulingEnabled === false) return true;
+  if (event.schedulingShutoffAt) {
+    return new Date() > new Date(event.schedulingShutoffAt as unknown as string);
+  }
+  return false;
+}
+
+export function EventTable({ events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete, onCopy }: EventTableProps) {
   const { sort, toggle } = useSortState("startDate", "asc");
 
   const getValue = (e: Event, key: string): string | number => {
@@ -57,7 +66,14 @@ export function EventTable({ events, tab, isAdmin, onEdit, onView, onArchive, on
                     Archived / Read Only
                   </Badge>
                 ) : (
-                  <Badge variant="default">Active</Badge>
+                  <div className="flex flex-col gap-1">
+                    <Badge variant="default">Active</Badge>
+                    {isSchedulingOff(event) && (
+                      <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full w-fit">
+                        Scheduling Off
+                      </span>
+                    )}
+                  </div>
                 )}
               </TableCell>
               <TableCell className="text-right py-3">
@@ -67,6 +83,11 @@ export function EventTable({ events, tab, isAdmin, onEdit, onView, onArchive, on
                       <Button variant="ghost" size="icon" title="Edit event" onClick={() => onEdit(event)} data-testid={`edit-event-${event.id}`}>
                         <Edit className="h-4 w-4" />
                       </Button>
+                      {onCopy && (
+                        <Button variant="ghost" size="icon" title="Copy event" onClick={() => onCopy(event)} data-testid={`copy-event-${event.id}`}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" title="Archive event" onClick={() => onArchive(event)} data-testid={`archive-event-${event.id}`}>
                         <Archive className="h-4 w-4" />
                       </Button>

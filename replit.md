@@ -41,6 +41,8 @@ The platform uses a modern web stack with a clear separation between frontend an
 - **Key Entities**: `events`, `sponsors`, `attendees`, `meetings`, `PasswordResetToken`, `SponsorNotification`.
 - **Sponsorship Level**: Per-event. Stored in `sponsors.assignedEvents` JSONB as `EventSponsorLink.sponsorshipLevel`. The global `sponsors.level` column is nullable (kept for fallback only). Admin form shows per-event level dropdowns replacing the old global dropdown.
 - **Event Scheduling Logic**: Includes conflict detection for meeting slots, cascade archiving/unarchiving of related records (attendees, meetings) based on event status, and attendee resolution logic (lookup, reactivation, creation).
+- **Per-Event Scheduling Shutoff**: `schedulingEnabled` (bool), `schedulingShutoffAt` (timestamp), `externalSchedulingLabel/Url/Message` fields on events. EventPage shows blue external-handoff banner + CTA button when disabled+URL set. LandingPage shows "Coming Soon" badge on cards with no active sponsors (non-clickable).
+- **Event Cloning**: `POST /api/events/:id/copy` with `{ copySponsors }` body. Copies name, location, branding, meeting config, scheduling settings. Admin Events table has Copy icon button → AlertDialog with "Copy with sponsors" / "Copy without sponsors" → opens new event in edit modal.
 
 ### Feature Specifications
 

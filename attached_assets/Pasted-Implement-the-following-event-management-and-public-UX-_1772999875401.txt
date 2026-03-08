@@ -1,0 +1,128 @@
+Implement the following event-management and public UX changes before we build Nunify API sync.
+
+Important rules:
+- Do not redesign the app
+- Do not break existing scheduling, sponsor dashboards, reports, or legal pages
+- Preserve all current working functionality
+- Make additive/fix-only changes only
+
+Goal:
+Prepare Converge Concierge for a clean handoff to an external event app (Nunify for now, possibly another app later), improve repeat-event setup, and prevent users from entering empty event flows.
+
+==================================================
+1. PER-EVENT SCHEDULING SHUTOFF
+==================================================
+
+Add event-level controls for Converge Concierge scheduling.
+
+Each event should support:
+- Scheduling Enabled (true/false)
+- Scheduled Shutoff Date/Time
+- External Scheduling Label
+- External Scheduling URL
+- External Scheduling Message
+
+Behavior:
+- If Scheduling Enabled = false, public users cannot book meetings in Converge Concierge for that event
+- If current date/time is after Scheduled Shutoff Date/Time, Converge Concierge booking is automatically disabled for that event
+- When disabled, the event page should clearly state that scheduling has moved to the event app
+- Show a button linking to the configured external scheduling URL
+- This must be configurable per event, because the future app might not always be Nunify
+
+Suggested public message:
+“Meeting scheduling for this event has moved to the event app.”
+
+Suggested CTA:
+“Open Event App”
+
+Do not remove the event page entirely.
+Just disable Concierge booking and redirect users appropriately.
+
+==================================================
+2. EVENT CLONING / COPY EVENT
+==================================================
+
+Add a “Copy Event” action in Admin -> Events.
+
+Goal:
+Allow us to duplicate an existing event for the following year and then customize it.
+
+When copying an event:
+Copy:
+- event name (editable after copy)
+- event code (must be editable and unique)
+- location
+- branding / color scheme
+- meeting locations
+- meeting time blocks
+- scheduling settings
+- shutoff settings
+- event logo reference if desired
+
+Optional copy behavior for sponsors:
+- allow admin to choose whether to copy sponsor assignments
+- if copied, sponsor assignments should come over but remain editable
+
+Do NOT copy:
+- actual meetings
+- attendee bookings
+- archived data
+- reports
+
+After copying:
+- open the new event in edit mode so dates, code, and details can be customized for the new year
+
+==================================================
+3. HOMEPAGE “COMING SOON” LOGIC
+==================================================
+
+If an event has no active sponsors available for booking:
+- show “Coming Soon” on the homepage card
+- make the card non-clickable
+- do not route the user into an event page with no usable booking options
+
+Requirements:
+- determine this dynamically from active sponsor availability for that event
+- if sponsor count = 0, show Coming Soon
+- if sponsor count > 0 and scheduling is enabled, card remains clickable
+- if scheduling is disabled due to shutoff and external app handoff, the homepage may still link to the event page if that page contains the external scheduling CTA
+
+Keep the current card design and simply adjust behavior/message.
+
+==================================================
+4. EVENT PAGE HANDOFF BEHAVIOR
+==================================================
+
+When an event is shut off for Concierge scheduling:
+- hide or disable sponsor booking CTAs in Converge Concierge
+- show the external scheduling message
+- show the external scheduling button
+- preserve event branding and event information
+- do not show a broken or empty booking flow
+
+==================================================
+5. ADMIN UI
+==================================================
+
+In Create/Edit Event add:
+- Scheduling Enabled toggle
+- Scheduled Shutoff Date/Time
+- External Scheduling Label
+- External Scheduling URL
+- External Scheduling Message
+
+In Events list:
+- optionally show whether Concierge scheduling is active or shut off
+
+==================================================
+6. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- each event can be turned off for Concierge scheduling
+- each event can have a scheduled shutoff date/time
+- each event can point users to an external app URL
+- admin can copy an event for next year
+- homepage shows Coming Soon for events with no active sponsors
+- events with no sponsors are not clickable
+- events handed off to an external app show the proper external CTA instead of broken booking options

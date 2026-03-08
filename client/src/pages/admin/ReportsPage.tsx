@@ -202,6 +202,7 @@ export default function ReportsPage() {
   const [filterMeetingType, setFilterMeetingType] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("total");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [pdfDownloading, setPdfDownloading] = useState(false);
 
   const { data: events    = [] } = useQuery<Event[]>   ({ queryKey: ["/api/events"]    });
   const { data: sponsors  = [] } = useQuery<Sponsor[]> ({ queryKey: ["/api/sponsors"]  });
@@ -376,6 +377,33 @@ export default function ReportsPage() {
     a.download = `${filename}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function downloadAdminPDF() {
+    if (!reportEventId || !reportSponsorId || pdfDownloading) return;
+    setPdfDownloading(true);
+    try {
+      const res = await fetch(
+        `/api/admin/reports/sponsor-pdf?eventId=${reportEventId}&sponsorId=${reportSponsorId}`,
+        { credentials: "include" }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "PDF generation failed" }));
+        alert(err.message ?? "PDF generation failed");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const sponsorName = sponsors.find((s) => s.id === reportSponsorId)?.name ?? "Sponsor";
+      const eventSlug   = events.find((e) => e.id === reportEventId)?.slug ?? "Event";
+      a.href = url;
+      a.download = `${sponsorName.replace(/\s+/g, "_")}_${eventSlug}_Report.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setPdfDownloading(false);
+    }
   }
 
   // ── Meeting log filter ─────────────────────────────────────────────────────
@@ -621,22 +649,20 @@ export default function ReportsPage() {
                 .map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
-          <a
-            href={reportEventId && reportSponsorId
-              ? `/api/sponsor-report/admin-pdf?eventId=${reportEventId}&sponsorId=${reportSponsorId}`
-              : undefined}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={downloadAdminPDF}
+            disabled={!reportEventId || !reportSponsorId || pdfDownloading}
             data-testid="btn-download-sponsor-pdf"
             className={cn(
               "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
-              reportEventId && reportSponsorId
+              reportEventId && reportSponsorId && !pdfDownloading
                 ? "bg-accent text-accent-foreground border-accent hover:bg-accent/90 shadow-sm"
-                : "bg-muted text-muted-foreground border-muted cursor-not-allowed opacity-50 pointer-events-none"
+                : "bg-muted text-muted-foreground border-muted cursor-not-allowed opacity-50"
             )}
           >
-            <FileDown className="h-4 w-4" /> Download PDF Report
-          </a>
+            <FileDown className="h-4 w-4" />
+            {pdfDownloading ? "Generating…" : "Download PDF Report"}
+          </button>
         </div>
         {reportEventId && reportSponsorId && (
           <p className="text-xs text-muted-foreground mt-3">

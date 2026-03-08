@@ -664,7 +664,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // Admin: download sponsor report by eventId + sponsorId
-  app.get("/api/sponsor-report/admin-pdf", requireAuth, async (req, res) => {
+  app.get("/api/admin/reports/sponsor-pdf", requireAdmin, async (req, res) => {
     const { eventId, sponsorId } = req.query as { eventId?: string; sponsorId?: string };
     if (!eventId || !sponsorId) return res.status(400).json({ message: "eventId and sponsorId required" });
 

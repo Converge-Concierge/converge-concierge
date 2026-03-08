@@ -3,17 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Archive, Trash2, Link2, Building2, Eye, RotateCcw } from "lucide-react";
+import { Edit, Archive, Trash2, Link2, Building2, Eye, RotateCcw, Gem } from "lucide-react";
 import { Sponsor, Event, SponsorToken, EventSponsorLink } from "@shared/schema";
 import { SponsorAccessModal } from "./SponsorAccessModal";
 import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
 import { cn } from "@/lib/utils";
 
 const levelColors: Record<string, string> = {
-  Platinum: "bg-slate-200 text-slate-800 border-slate-300",
-  Gold:     "bg-yellow-100 text-yellow-800 border-yellow-300",
-  Silver:   "bg-gray-100 text-gray-700 border-gray-300",
-  Bronze:   "bg-orange-100 text-orange-800 border-orange-300",
+  Platinum: "bg-slate-800 text-white border-slate-700",
+  Gold:     "bg-amber-100 text-amber-900 border-amber-300",
+  Silver:   "bg-gray-100 text-gray-600 border-gray-300",
+  Bronze:   "bg-orange-100 text-orange-700 border-orange-300",
 };
 
 const levelOrder: Record<string, number> = { Platinum: 0, Gold: 1, Silver: 2, Bronze: 3 };
@@ -113,7 +113,8 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
                   <TableCell className="py-3"><SponsorLogo name={sponsor.name} logoUrl={sponsor.logoUrl} /></TableCell>
                   <TableCell className="font-semibold text-foreground py-3">{sponsor.name}</TableCell>
                   <TableCell className="py-3">
-                    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold", levelColors[sponsor.level] ?? "")}>
+                    <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold", levelColors[sponsor.level] ?? "")}>
+                      {sponsor.level === "Platinum" && <Gem className="h-3 w-3" />}
                       {sponsor.level}
                     </span>
                   </TableCell>

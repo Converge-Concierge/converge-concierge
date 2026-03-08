@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sponsor, InsertSponsor, Event, EventSponsorLink } from "@shared/schema";
-import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User } from "lucide-react";
+import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SponsorFormModalProps {
@@ -21,10 +21,10 @@ interface SponsorFormModalProps {
 const LEVELS = ["Platinum", "Gold", "Silver", "Bronze"] as const;
 
 const levelColors: Record<string, string> = {
-  Platinum: "border-slate-400 bg-slate-100 text-slate-800",
-  Gold:     "border-yellow-400 bg-yellow-50 text-yellow-800",
-  Silver:   "border-gray-400 bg-gray-100 text-gray-700",
-  Bronze:   "border-orange-400 bg-orange-50 text-orange-800",
+  Platinum: "border-slate-700 bg-slate-800 text-white",
+  Gold:     "border-amber-400 bg-amber-50 text-amber-900",
+  Silver:   "border-gray-400 bg-gray-100 text-gray-600",
+  Bronze:   "border-orange-400 bg-orange-50 text-orange-700",
 };
 
 const selectClass =
@@ -186,7 +186,8 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                   <select id="sp-level" className={selectClass} value={formData.level} onChange={(e) => setFormData((prev) => ({ ...prev, level: e.target.value as InsertSponsor["level"] }))} data-testid="select-sponsor-level">
                     {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
                   </select>
-                  <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold w-fit", levelColors[formData.level ?? "Gold"])}>
+                  <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold w-fit", levelColors[formData.level ?? "Gold"])}>
+                    {formData.level === "Platinum" && <Gem className="h-3 w-3" />}
                     {formData.level}
                   </span>
                 </div>

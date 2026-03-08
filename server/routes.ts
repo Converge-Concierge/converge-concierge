@@ -312,7 +312,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const current = await storage.getEvent(req.params.id);
     if (!current) return res.status(404).json({ message: "Event not found" });
 
-    const event = await storage.updateEvent(req.params.id, req.body);
+    const body = { ...req.body };
+    if (body.startDate) body.startDate = new Date(body.startDate);
+    if (body.endDate) body.endDate = new Date(body.endDate);
+
+    const event = await storage.updateEvent(req.params.id, body);
     if (!event) return res.status(404).json({ message: "Event not found" });
 
     // Cascade archive/unarchive when event archiveState changes

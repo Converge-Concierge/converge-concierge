@@ -7,7 +7,7 @@ import { Event, Sponsor, Meeting, AppBranding } from "@shared/schema";
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
   AlertCircle, ChevronLeft, Clock, User, Video, Download, ExternalLink,
-  Filter, X,
+  Filter, X, Gem,
 } from "lucide-react";
 import { ONLINE_PLATFORMS } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -23,26 +23,26 @@ import LegalAcknowledgment from "@/components/LegalAcknowledgment";
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 const levelBorder: Record<string, string> = {
-  Platinum: "border-slate-300 bg-slate-50",
-  Gold:     "border-yellow-300 bg-yellow-50",
+  Platinum: "border-slate-500 bg-slate-50",
+  Gold:     "border-amber-300 bg-amber-50/40",
   Silver:   "border-gray-300 bg-gray-50",
   Bronze:   "border-orange-300 bg-orange-50",
 };
 const levelBadge: Record<string, string> = {
-  Platinum: "bg-slate-200 text-slate-700",
-  Gold:     "bg-yellow-100 text-yellow-800",
-  Silver:   "bg-gray-100 text-gray-700",
-  Bronze:   "bg-orange-100 text-orange-800",
+  Platinum: "bg-slate-800 text-white",
+  Gold:     "bg-amber-100 text-amber-900",
+  Silver:   "bg-gray-100 text-gray-600",
+  Bronze:   "bg-orange-100 text-orange-700",
 };
 const levelAccent: Record<string, string> = {
-  Platinum: "bg-slate-600 hover:bg-slate-700",
-  Gold:     "bg-yellow-600 hover:bg-yellow-700",
+  Platinum: "bg-slate-800 hover:bg-slate-900",
+  Gold:     "bg-amber-600 hover:bg-amber-700",
   Silver:   "bg-gray-500 hover:bg-gray-600",
   Bronze:   "bg-orange-600 hover:bg-orange-700",
 };
 const levelAccentSecondary: Record<string, string> = {
-  Platinum: "border-slate-300 text-slate-700 bg-slate-50/60 hover:bg-slate-100",
-  Gold:     "border-yellow-300 text-yellow-700 bg-yellow-50/60 hover:bg-yellow-100",
+  Platinum: "border-slate-400 text-slate-700 bg-slate-50/60 hover:bg-slate-100",
+  Gold:     "border-amber-300 text-amber-800 bg-amber-50/60 hover:bg-amber-100",
   Silver:   "border-gray-300 text-gray-600 bg-gray-50/60 hover:bg-gray-100",
   Bronze:   "border-orange-300 text-orange-700 bg-orange-50/60 hover:bg-orange-100",
 };
@@ -255,7 +255,9 @@ export default function EventPage() {
 
   const event = events.find((e) => e.slug === slug);
   const eventSponsors = event
-    ? sponsors.filter((s) => (s.archiveState ?? "active") === "active" && (s.assignedEvents ?? []).some((ae) => ae.eventId === event.id && (ae.archiveState ?? "active") === "active"))
+    ? sponsors
+        .filter((s) => (s.archiveState ?? "active") === "active" && (s.assignedEvents ?? []).some((ae) => ae.eventId === event.id && (ae.archiveState ?? "active") === "active"))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
     : [];
 
   const attributesInUse = useMemo(() => {
@@ -495,7 +497,8 @@ export default function EventPage() {
                   <div className="flex items-center gap-2.5">
                     <Building2 className="h-4 w-4 text-accent shrink-0" />
                     <span className="font-semibold text-foreground">{selectedSponsor?.name}</span>
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full ml-auto", levelBadge[selectedSponsor?.level ?? ""] || "")}>
+                    <span className={cn("text-xs px-2 py-0.5 rounded-full ml-auto inline-flex items-center gap-0.5", levelBadge[selectedSponsor?.level ?? ""] || "")}>
+                      {selectedSponsor?.level === "Platinum" && <Gem className="h-2.5 w-2.5" />}
                       {selectedSponsor?.level}
                     </span>
                   </div>
@@ -527,7 +530,8 @@ export default function EventPage() {
                   <div className="flex items-center gap-2.5">
                     <Building2 className="h-4 w-4 text-accent shrink-0" />
                     <span className="font-semibold text-foreground">{selectedSponsor?.name}</span>
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full ml-auto", levelBadge[selectedSponsor?.level ?? ""] || "")}>
+                    <span className={cn("text-xs px-2 py-0.5 rounded-full ml-auto inline-flex items-center gap-0.5", levelBadge[selectedSponsor?.level ?? ""] || "")}>
+                      {selectedSponsor?.level === "Platinum" && <Gem className="h-2.5 w-2.5" />}
                       {selectedSponsor?.level}
                     </span>
                   </div>
@@ -781,7 +785,8 @@ export default function EventPage() {
                           </div>
                         )}
                       </div>
-                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0", levelBadge[sponsor.level] || "bg-muted text-muted-foreground")}>
+                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 inline-flex items-center gap-0.5", levelBadge[sponsor.level] || "bg-muted text-muted-foreground")}>
+                        {sponsor.level === "Platinum" && <Gem className="h-2.5 w-2.5" />}
                         {sponsor.level}
                       </span>
                     </div>

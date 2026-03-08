@@ -1,0 +1,107 @@
+Implement the following production fixes in Converge Concierge.
+
+Important rules:
+- Do not redesign the admin shell/sidebar
+- Do not break scheduling, online requests, sponsor dashboards, reports, legal pages, or access links
+- Preserve all current working functionality
+- Make additive/fix-only changes only
+
+Current issues to fix:
+1. Update Event button does not work in production
+2. Sponsors on the event page should be listed alphabetically
+3. Sponsorship level visual hierarchy is too subtle, especially Platinum vs Silver
+
+==================================================
+1. FIX "UPDATE EVENT" IN PRODUCTION
+==================================================
+
+Problem:
+In production, clicking "Update Event" in the Edit Event modal does not successfully save the event.
+
+Required fix:
+- Diagnose why the update action fails in production
+- Ensure the Edit Event form submits successfully
+- Ensure the existing event record is updated, not ignored
+- Ensure validation errors are surfaced clearly in the UI
+- Show success toast/message on successful save
+- Keep the modal open if validation fails, and show the specific reason
+
+Check specifically:
+- form submit handler is firing
+- API request is being sent
+- production endpoint is returning success
+- auth/session is valid for the update request
+- no silent validation failure on meeting blocks, date range, color scheme, or logo fields
+- no frontend state issue preventing submit
+- no production-only server error being swallowed
+
+Success criteria:
+- edit an event in production
+- click Update Event
+- changes save successfully
+- event list refreshes with updated values
+- no silent failure
+
+==================================================
+2. EVENT PAGE — SORT SPONSORS ALPHABETICALLY
+==================================================
+
+Required behavior:
+- On the public event page, sort sponsors alphabetically by Sponsor Name
+- Apply this consistently before rendering sponsor cards
+- Ignore sponsorship level for ordering unless explicitly filtered otherwise
+- If names differ only by case, sort case-insensitively
+
+Example:
+eGain
+Winnow
+Zeta
+not by sponsorship tier or insertion order
+
+Success criteria:
+- sponsor cards render in alphabetical order on each event page
+
+==================================================
+3. MAKE SPONSORSHIP LEVELS MORE VISUALLY DISTINCT
+==================================================
+
+Problem:
+Platinum does not stand out enough from Silver, even though Platinum is a much more expensive tier.
+
+Required fix:
+Improve the visual hierarchy of sponsorship level badges/cards while preserving the clean premium design.
+
+Requirements by level:
+- Platinum should feel clearly premium
+- Gold should feel elevated
+- Silver should feel standard
+- Bronze should feel more subdued if present
+
+Suggested implementation:
+A. Badge styling
+- Platinum: stronger premium styling, include a diamond or star icon
+- Gold: gold accent styling
+- Silver: soft silver/gray styling
+- Bronze: muted bronze styling
+
+B. Card accent treatment
+Use subtle but noticeable tier differentiation, such as:
+- Platinum: stronger border/accent, premium icon, slightly richer badge treatment
+- Gold: gold-accent border or badge
+- Silver: neutral gray/silver treatment
+- Bronze: subdued warm neutral
+
+C. Keep it tasteful
+- Do not make the page look flashy
+- Keep the premium fintech event aesthetic
+- Maintain readability and consistency
+
+D. Apply to:
+- sponsor cards on the public event page
+- sponsor profile page badge if applicable
+- any sponsor tier badge components reused elsewhere
+
+Success criteria:
+- Platinum is immediately more noticeable than Silver
+- sponsorship levels are distinguishable at a glance
+- the page still looks polished and professional

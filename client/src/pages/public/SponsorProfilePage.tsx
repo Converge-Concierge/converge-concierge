@@ -4,17 +4,17 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Hexagon, Building2, ArrowLeft, Globe, Linkedin, Calendar, Video,
-  FileText, ChevronRight, Tag,
+  FileText, ChevronRight, Tag, Gem,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Event, Sponsor } from "@shared/schema";
 import { cn } from "@/lib/utils";
 
 const levelBadge: Record<string, string> = {
-  Platinum: "bg-slate-200 text-slate-700 border-slate-300",
-  Gold:     "bg-yellow-100 text-yellow-800 border-yellow-300",
-  Silver:   "bg-gray-100 text-gray-700 border-gray-300",
-  Bronze:   "bg-orange-100 text-orange-800 border-orange-300",
+  Platinum: "bg-slate-800 text-white border-slate-700",
+  Gold:     "bg-amber-100 text-amber-900 border-amber-300",
+  Silver:   "bg-gray-100 text-gray-600 border-gray-300",
+  Bronze:   "bg-orange-100 text-orange-700 border-orange-300",
 };
 
 export default function SponsorProfilePage() {
@@ -126,7 +126,8 @@ export default function SponsorProfilePage() {
                   >
                     {sponsor.name}
                   </h1>
-                  <span className={cn("text-xs font-semibold px-2.5 py-0.5 rounded-full border", levelBadge[sponsor.level] || "bg-muted text-muted-foreground border-border")}>
+                  <span className={cn("text-xs font-semibold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1", levelBadge[sponsor.level] || "bg-muted text-muted-foreground border-border")}>
+                    {sponsor.level === "Platinum" && <Gem className="h-3 w-3" />}
                     {sponsor.level} Sponsor
                   </span>
                 </div>

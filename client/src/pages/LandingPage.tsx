@@ -18,6 +18,8 @@ function eventStatusLabel(event: Event): string {
   return "Upcoming";
 }
 
+const VALID_SPONSOR_LEVELS = new Set(["Platinum", "Gold", "Silver", "Bronze"]);
+
 function countActiveSponsors(event: Event, sponsors: Sponsor[]): number {
   return sponsors.filter(
     (s) =>
@@ -25,7 +27,8 @@ function countActiveSponsors(event: Event, sponsors: Sponsor[]): number {
       (s.assignedEvents ?? []).some(
         (ae) =>
           ae.eventId === event.id &&
-          (ae.archiveState ?? "active") === "active"
+          (ae.archiveState ?? "active") === "active" &&
+          VALID_SPONSOR_LEVELS.has(ae.sponsorshipLevel ?? "")
       )
   ).length;
 }

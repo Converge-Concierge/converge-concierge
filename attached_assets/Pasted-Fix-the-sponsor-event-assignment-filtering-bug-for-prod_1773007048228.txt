@@ -1,0 +1,123 @@
+Fix the sponsor-event assignment filtering bug for production.
+
+Problem:
+For eGain, the current Event Sponsorship Assignments show:
+- FRC2026 -> Silver
+- TLS2026 -> None
+
+But eGain still appears:
+1. in the Sponsors admin row as assigned to TLS2026
+2. on the TLS public event page as a selectable sponsor
+
+This means the app is not correctly treating "None" as unassigned.
+
+Required fix:
+Treat sponsorship level = "None" as NOT assigned to that event everywhere in the app.
+
+==================================================
+1. SOURCE OF TRUTH
+==================================================
+
+The sponsor-event relationship is the source of truth.
+
+Rule:
+- If SponsorEvent.sponsorshipLevel is None, null, or empty for an event,
+  that sponsor must be considered NOT assigned to that event.
+
+Only sponsors with a real level should count as assigned:
+- Platinum
+- Gold
+- Silver
+- Bronze
+(or any valid active tier you currently support)
+
+==================================================
+2. ADMIN -> SPONSORS TABLE
+==================================================
+
+Problem:
+The Assigned Event(s) column is still showing TLS2026 for eGain.
+
+Required fix:
+- In the Sponsors admin table, only show event badges for events where the sponsor has a real sponsorship level
+- Do NOT show events where the level is None
+
+Example:
+If eGain is:
+- FRC2026 -> Silver
+- TLS2026 -> None
+
+Then Assigned Event(s) should show only:
+- FRC2026
+
+==================================================
+3. PUBLIC EVENT PAGE
+==================================================
+
+Problem:
+eGain is still showing on the TLS event page.
+
+Required fix:
+- When loading sponsors for a public event page, only query/include sponsors whose SponsorEvent record for that event has a real sponsorship level
+- Exclude sponsors where the level is None
+
+Example:
+TLS page should not show eGain if TLS2026 = None
+
+==================================================
+4. HOMEPAGE COUNTS
+==================================================
+
+Required fix:
+- Homepage sponsor counts must also follow the same rule
+- Count only sponsors with a real sponsorship level for that event
+- Do not count sponsors whose assignment level is None
+
+==================================================
+5. SPONSOR PROFILE / ACCESS / REPORTING SAFETY
+==================================================
+
+Also verify:
+- sponsor profile pages for an event should not resolve if the sponsor is not assigned to that event
+- sponsor access/reporting should use only valid event assignments
+- no stale cached event assignment should keep appearing after update
+
+==================================================
+6. DATA UPDATE / SAVE LOGIC
+==================================================
+
+Check the sponsor update logic carefully.
+
+Possible issue:
+The UI may be saving "None" visually, but the relationship record is still being treated as active.
+
+Required fix:
+- When admin changes an event assignment dropdown to None:
+  either
+  A. remove that SponsorEvent record entirely
+  or
+  B. persist it clearly as unassigned and exclude it everywhere
+
+Either approach is fine, but the app must behave consistently.
+
+==================================================
+7. CACHE / REFRESH
+==================================================
+
+After updating sponsor-event assignments:
+- invalidate relevant caches/queries
+- refresh Sponsors table
+- refresh public event sponsor lists
+- refresh homepage counts
+
+We should not need a deploy or manual refresh trick for this to reflect correctly.
+
+==================================================
+8. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- eGain no longer shows TLS2026 in the Sponsors admin row
+- eGain no longer appears on the TLS public event page
+- homepage sponsor counts reflect only real assignments
+- changing an event assignment to None fully removes that sponsor from that event everywhere

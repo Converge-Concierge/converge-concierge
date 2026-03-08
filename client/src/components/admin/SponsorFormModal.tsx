@@ -39,7 +39,14 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
     if (isOpen) {
       setLogoError(false);
       if (sponsor) {
-        setFormData({ ...sponsor, allowOnlineMeetings: sponsor.allowOnlineMeetings ?? false, attributes: sponsor.attributes ?? [] });
+        setFormData({
+          ...sponsor,
+          allowOnlineMeetings: sponsor.allowOnlineMeetings ?? false,
+          attributes: sponsor.attributes ?? [],
+          assignedEvents: (sponsor.assignedEvents ?? []).filter(
+            (ae) => !!ae.sponsorshipLevel && ae.sponsorshipLevel !== "None"
+          ),
+        });
       } else {
         setFormData({ name: "", logoUrl: "", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false, attributes: [] });
       }

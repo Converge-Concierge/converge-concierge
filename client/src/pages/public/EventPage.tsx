@@ -275,7 +275,7 @@ export default function EventPage() {
   const event = events.find((e) => e.slug === slug);
   const eventSponsors = event
     ? sponsors
-        .filter((s) => (s.archiveState ?? "active") === "active" && (s.assignedEvents ?? []).some((ae) => ae.eventId === event.id && (ae.archiveState ?? "active") === "active"))
+        .filter((s) => (s.archiveState ?? "active") === "active" && (s.assignedEvents ?? []).some((ae) => ae.eventId === event.id && (ae.archiveState ?? "active") === "active" && !!ae.sponsorshipLevel && ae.sponsorshipLevel !== "None"))
         .sort((a, b) => {
           const la = LEVEL_ORDER[getSponsorEventLevel(a, event.id)] ?? 99;
           const lb = LEVEL_ORDER[getSponsorEventLevel(b, event.id)] ?? 99;

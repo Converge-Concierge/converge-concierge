@@ -71,7 +71,7 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
 
   const getEventBadges = (links: EventSponsorLink[]) => {
     if (!links || links.length === 0) return <span className="text-muted-foreground italic text-xs">None</span>;
-    const activeLinks = links.filter((ae) => (ae.archiveState ?? "active") === "active");
+    const activeLinks = links.filter((ae) => (ae.archiveState ?? "active") === "active" && !!ae.sponsorshipLevel && ae.sponsorshipLevel !== "None");
     const archivedCount = links.length - activeLinks.length;
     return (
       <>
@@ -124,7 +124,7 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
                   <TableCell className="font-semibold text-foreground py-3">{sponsor.name}</TableCell>
                   <TableCell className="py-3">
                     {(() => {
-                      const activeLinks = (sponsor.assignedEvents ?? []).filter((ae) => (ae.archiveState ?? "active") === "active");
+                      const activeLinks = (sponsor.assignedEvents ?? []).filter((ae) => (ae.archiveState ?? "active") === "active" && !!ae.sponsorshipLevel && ae.sponsorshipLevel !== "None");
                       const uniqueLevels = new Set(activeLinks.map((ae) => ae.sponsorshipLevel).filter(Boolean));
                       if (activeLinks.length === 0) {
                         return <span className="text-muted-foreground italic text-xs">None</span>;

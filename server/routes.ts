@@ -415,7 +415,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.patch("/api/sponsors/:id", async (req, res) => {
-    const sponsor = await storage.updateSponsor(req.params.id, req.body);
+    const updates = { ...req.body };
+    if (Array.isArray(updates.assignedEvents)) {
+      updates.assignedEvents = updates.assignedEvents.filter(
+        (ae: any) => !!ae.sponsorshipLevel && ae.sponsorshipLevel !== "None"
+      );
+    }
+    const sponsor = await storage.updateSponsor(req.params.id, updates);
     if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
     res.json(sponsor);
   });

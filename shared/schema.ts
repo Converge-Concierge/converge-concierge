@@ -26,10 +26,16 @@ export type User = typeof users.$inferSelect;
 // Safe user type — password stripped for API responses
 export type SafeUser = Omit<User, "password" | "username">;
 
+// --- Sponsorship Levels (defined early, used by location + sponsor schemas) ---
+export const SPONSORSHIP_LEVELS = ["Platinum", "Gold", "Silver", "Bronze"] as const;
+export type SponsorshipLevel = typeof SPONSORSHIP_LEVELS[number];
+
 // --- Meeting Location ---
 export const meetingLocationSchema = z.object({
   id: z.string().uuid().default(() => crypto.randomUUID()),
   name: z.string(),
+  // Empty array = no restriction (all sponsor levels may use this location)
+  allowedSponsorLevels: z.array(z.enum(SPONSORSHIP_LEVELS)).default([]),
 });
 
 export type MeetingLocation = z.infer<typeof meetingLocationSchema>;
@@ -46,8 +52,6 @@ export const meetingTimeBlockSchema = z.object({
 export type MeetingTimeBlock = z.infer<typeof meetingTimeBlockSchema>;
 
 // --- EventSponsor Relationship Link ---
-export const SPONSORSHIP_LEVELS = ["Platinum", "Gold", "Silver", "Bronze"] as const;
-export type SponsorshipLevel = typeof SPONSORSHIP_LEVELS[number];
 
 export const eventSponsorLinkSchema = z.object({
   eventId: z.string(),

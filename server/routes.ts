@@ -574,6 +574,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const parsed = insertMeetingSchema.safeParse(body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error });
 
+    // Validate location tier eligibility for onsite meetings
+    if (parsed.data.meetingType !== "online_request" && parsed.data.location) {
+      const [eligEvent, eligSponsor] = await Promise.all([
+        storage.getEvent(parsed.data.eventId),
+        storage.getSponsor(parsed.data.sponsorId),
+      ]);
+      if (eligEvent && eligSponsor) {
+        const locationDef = eligEvent.meetingLocations.find(
+          (l) => l.name === parsed.data.location
+        );
+        const allowedLevels = locationDef?.allowedSponsorLevels ?? [];
+        if (allowedLevels.length > 0) {
+          const sponsorLevel = (eligSponsor.assignedEvents ?? []).find(
+            (ae) => ae.eventId === parsed.data.eventId
+          )?.sponsorshipLevel;
+          if (!sponsorLevel || !allowedLevels.includes(sponsorLevel as any)) {
+            return res.status(403).json({
+              message: "This sponsor's sponsorship tier is not eligible for the selected meeting location.",
+            });
+          }
+        }
+      }
+    }
+
     // Only check for slot conflicts on onsite meetings
     if (parsed.data.meetingType !== "online_request") {
       const { eventId, sponsorId, date, time } = parsed.data;

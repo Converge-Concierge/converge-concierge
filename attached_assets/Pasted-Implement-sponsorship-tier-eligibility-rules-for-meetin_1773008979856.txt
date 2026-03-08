@@ -1,0 +1,184 @@
+Implement sponsorship-tier eligibility rules for meeting locations in Converge Concierge.
+
+Important rules:
+- Do not redesign the app
+- Do not break existing scheduling, sponsor dashboards, reports, or admin workflows
+- Preserve all current working functionality
+- Make additive/fix-only changes only
+
+Goal:
+Allow each meeting location to specify which sponsorship levels are allowed to use it.
+
+Example:
+- VIP Lounge -> Gold and Platinum only
+- Work Lounge -> all sponsor levels
+- Booth -> all sponsor levels
+- Hotel Bar -> all sponsor levels
+
+This must work with the current event-specific sponsorship level model.
+
+==================================================
+1. DATA MODEL CHANGE — LOCATION ELIGIBILITY
+==================================================
+
+Extend event meeting locations so each location can store allowed sponsorship tiers.
+
+For each meeting location, add:
+- allowedSponsorLevels: array/list of tiers
+
+Supported tiers:
+- Platinum
+- Gold
+- Silver
+- Bronze
+
+Behavior:
+- If no restrictions are selected, treat the location as available to all sponsor levels
+- If restrictions are selected, only sponsors with those event-specific levels may use that location
+
+==================================================
+2. ADMIN -> EDIT EVENT -> MEETING LOCATIONS
+==================================================
+
+Problem:
+Meeting locations currently only store the location name.
+
+Required fix:
+In the Event setup screen, for each meeting location allow admin to define which sponsor levels can use that location.
+
+UI behavior:
+For each location row show:
+- Location Name
+- Allowed Sponsor Levels
+
+Suggested UI:
+Location: VIP Lounge
+Allowed Levels:
+[Platinum] [Gold]
+
+Location: Work Lounge
+Allowed Levels:
+[All Levels]
+or
+[Platinum] [Gold] [Silver] [Bronze]
+
+Requirements:
+- editable after creation
+- save correctly with the event
+- reload correctly when editing the event again
+
+Also:
+- existing locations must be editable, not just deletable
+- add an Edit option or make the location rows inline-editable
+- current problem is that locations/time blocks are not really editable after creation; fix that here too
+
+==================================================
+3. EDITABLE MEETING LOCATIONS
+==================================================
+
+Problem:
+Once meeting locations are created, they are not editable.
+
+Required fix:
+Allow admins to edit existing meeting locations.
+
+Minimum required actions per location:
+- Edit location name
+- Edit allowed sponsor levels
+- Delete location
+
+Preferred:
+- inline edit
+or
+- small edit modal
+
+Important:
+Changes should save without forcing the admin to recreate all locations.
+
+==================================================
+4. MEETING TIME BLOCK LOCATION FILTERING
+==================================================
+
+When assigning available locations to a meeting time block:
+- only show locations that exist for the event
+- keep current ability to pick which locations are available in that block
+
+But during booking:
+- if a sponsor is not eligible for a selected location based on their event sponsorship tier,
+  that location must not appear as available to that sponsor
+
+Example:
+If VIP Lounge is allowed only for Gold and Platinum:
+- Platinum sponsor sees VIP Lounge as a booking location
+- Gold sponsor sees VIP Lounge as a booking location
+- Silver sponsor does NOT see VIP Lounge
+- Bronze sponsor does NOT see VIP Lounge
+
+==================================================
+5. SOURCE OF TRUTH — EVENT-SPECIFIC SPONSORSHIP LEVEL
+==================================================
+
+Critical:
+Use the sponsor’s event-specific sponsorship level from the sponsor-event relationship.
+
+Do NOT use any old sponsor-wide sponsorship level field.
+
+Example:
+Winnow
+- FRC2026 -> Platinum
+- USBT2026 -> Gold
+
+If VIP Lounge is allowed for Gold and Platinum:
+- Winnow can use VIP Lounge in both FRC and USBT
+only because the event-specific level qualifies in each event
+
+==================================================
+6. PUBLIC BOOKING LOGIC
+==================================================
+
+When an attendee books with a sponsor:
+- available meeting locations shown must be filtered by:
+  1. locations allowed in that time block
+  2. locations allowed for that sponsor’s event-specific level
+
+This applies to:
+- onsite meeting scheduling flow
+- any confirmation/summary screens where location is chosen
+
+Do not show ineligible locations and then reject later if it can be filtered earlier.
+
+==================================================
+7. ADMIN VALIDATION / SAFETY
+==================================================
+
+Add server-side validation:
+- prevent a meeting from being saved into a location the sponsor is not eligible to use
+- prevent stale or manipulated client-side requests from bypassing the location restrictions
+
+Even if the UI filters correctly, enforce this on the server too.
+
+==================================================
+8. OPTIONAL DEFAULTS
+==================================================
+
+If practical, allow these useful defaults:
+- VIP Lounge -> Platinum, Gold
+- Work Lounge -> all
+- Networking Lounge -> all
+- Booth -> all
+- Hotel Bar -> all
+
+But do not hardcode them permanently.
+Admin must be able to override per event.
+
+==================================================
+9. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- meeting locations are editable after creation
+- each location can define allowed sponsor levels
+- sponsor eligibility is based on event-specific sponsorship level
+- ineligible locations do not appear in booking for that sponsor
+- server-side validation prevents invalid location assignments
+- VIP Lounge can be restricted to Gold and Platinum only

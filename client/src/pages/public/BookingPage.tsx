@@ -46,8 +46,38 @@ export default function BookingPage() {
   const isLoading = eventsLoading || sponsorsLoading;
 
   const blocks = event?.meetingBlocks || [];
-  const locations = event?.meetingLocations || [];
+  const allLocations = event?.meetingLocations || [];
   const availableDates = [...new Set(blocks.map((b) => b.date))].sort();
+
+  // Sponsor's event-specific sponsorship level (source of truth for eligibility)
+  const sponsorLevel = sponsor?.assignedEvents
+    ?.find((ae) => ae.eventId === event?.id)?.sponsorshipLevel ?? null;
+
+  // Find the time block that covers the selected date+time
+  const activeBlock =
+    selectedDate && selectedTime
+      ? blocks.find(
+          (b) =>
+            b.date === selectedDate &&
+            b.startTime <= selectedTime &&
+            selectedTime < b.endTime
+        ) ?? null
+      : null;
+
+  // 1. Filter by block's locationIds (empty = all locations in event)
+  const blockLocationIds = activeBlock?.locationIds ?? [];
+  const blockFilteredLocations =
+    blockLocationIds.length > 0
+      ? allLocations.filter((loc) => blockLocationIds.includes(loc.id))
+      : allLocations;
+
+  // 2. Filter by sponsor's event-specific tier vs location's allowedSponsorLevels
+  const availableLocations = blockFilteredLocations.filter((loc) => {
+    const allowed = loc.allowedSponsorLevels ?? [];
+    if (allowed.length === 0) return true; // no restriction
+    if (!sponsorLevel) return false; // no tier = cannot access restricted locations
+    return (allowed as string[]).includes(sponsorLevel);
+  });
 
   const timeSlotsForDate = (date: string) => {
     const dayBlocks = blocks.filter((b) => b.date === date);
@@ -80,6 +110,13 @@ export default function BookingPage() {
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
     setSelectedTime("");
+    setSelectedLocation("");
+    setError("");
+  };
+
+  const handleTimeChange = (time: string) => {
+    setSelectedTime(time);
+    setSelectedLocation("");
     setError("");
   };
 
@@ -288,7 +325,7 @@ export default function BookingPage() {
                 <div className="space-y-2">
                   <Label htmlFor="pub-time">Time</Label>
                   <select id="pub-time" className={selectClass} value={selectedTime}
-                    onChange={(e) => { setSelectedTime(e.target.value); setError(""); }}
+                    onChange={(e) => handleTimeChange(e.target.value)}
                     required disabled={!selectedDate}
                     data-testid="select-pub-time">
                     <option value="">Select time...</option>
@@ -301,14 +338,22 @@ export default function BookingPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="pub-location">Meeting Location</Label>
-                <select id="pub-location" className={selectClass} value={selectedLocation}
-                  onChange={(e) => setSelectedLocation(e.target.value)} required
-                  data-testid="select-pub-location">
-                  <option value="">Select location...</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.name}>{loc.name}</option>
-                  ))}
-                </select>
+                {selectedTime && availableLocations.length === 0 ? (
+                  <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>No eligible meeting locations are available for your sponsorship tier in this time slot.</span>
+                  </div>
+                ) : (
+                  <select id="pub-location" className={selectClass} value={selectedLocation}
+                    onChange={(e) => setSelectedLocation(e.target.value)} required
+                    disabled={!selectedTime}
+                    data-testid="select-pub-location">
+                    <option value="">Select location...</option>
+                    {availableLocations.map((loc) => (
+                      <option key={loc.id} value={loc.name}>{loc.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 

@@ -685,6 +685,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ── App Branding ──────────────────────────────────────────────────────────
 
+  app.get("/api/branding-public", async (_req, res) => {
+    res.json(await storage.getBranding());
+  });
+
   app.get("/api/branding", requireAuth, async (_req, res) => {
     res.json(await storage.getBranding());
   });

@@ -196,8 +196,23 @@ All at `/event/:slug` — single-page multi-step wizard:
 - `PasswordResetToken` in schema; `createPasswordResetToken`, `getPasswordResetToken`, `markResetTokenUsed`, `updateUserPassword` in IStorage + MemStorage
 - `POST /api/auth/forgot-password` → `{ token }` (dev mode, no email)
 - `POST /api/auth/reset-password` → validates token, updates password
-- LoginPage has inline 3-step flow: login → forgot (enter email + get token) → reset (enter token + new password)
+- LoginPage has inline 3-step flow: login → forgot (enter email) → reset (enter token + new password)
+- **Production-safe**: In dev (`import.meta.env.DEV`), forgot step shows the raw token for testing. In production, shows "Check your email" success screen only — no token exposed in UI.
 - Standalone `/reset-password?token=...` page at `ResetPasswordPage.tsx`
+
+### Public Branding Endpoint (added)
+- `GET /api/branding-public` — no auth required; returns full AppBranding record
+- Used by LandingPage header to show `appLogoUrl` if set; falls back to Hexagon icon + app name
+
+### Homepage Enhancements
+- Events sorted by `startDate` ascending (earliest first)
+- Event cards show active sponsor count per event (using `/api/sponsors` data) instead of session slots
+- Header shows app logo from branding if set; falls back to icon + "Converge Concierge"
+
+### Event Page Color Theming (added)
+- Event-specific colors (`accentColor`, `buttonColor`) applied via inline styles to: slug badge, step progress indicators, filter chips (active state), Confirm Meeting button, Submit Online Meeting Request button
+- Event logo (`logoUrl`) shown above the slug badge in step-0 header
+- StepBar accepts optional `accentColor` prop to tint done-step circles and the slug chip
 
 ### Reports CSV Exports (added)
 - By Sponsor tab: "Export Sponsor Summary" button → sponsor-level aggregate CSV (total, scheduled, completed, cancelled, no-show, onsite, online)

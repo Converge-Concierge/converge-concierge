@@ -104,11 +104,14 @@ function Shell({
 
 const STEP_LABELS = ["Sponsor", "Date", "Time", "Your Details"];
 
-function StepBar({ current, slug, name }: { current: number; slug: string; name: string }) {
+function StepBar({ current, slug, name, accentColor }: { current: number; slug: string; name: string; accentColor?: string | null }) {
   return (
     <div className="w-full max-w-2xl mx-auto px-6 pt-6 pb-8">
       <div className="flex items-center gap-2 mb-5">
-        <span className="font-mono text-xs font-semibold text-accent border border-accent/30 bg-accent/10 px-2 py-0.5 rounded-full">
+        <span
+          className="font-mono text-xs font-semibold text-accent border border-accent/30 bg-accent/10 px-2 py-0.5 rounded-full"
+          style={accentColor ? { color: accentColor, borderColor: accentColor + "33", backgroundColor: accentColor + "1A" } : undefined}
+        >
           {slug}
         </span>
         <span className="text-sm text-muted-foreground truncate">{name}</span>
@@ -120,12 +123,19 @@ function StepBar({ current, slug, name }: { current: number; slug: string; name:
           return (
             <div key={i} className={cn("flex items-center", i < STEP_LABELS.length - 1 ? "flex-1" : "")}>
               <div className="flex flex-col items-center gap-1 shrink-0">
-                <div className={cn(
-                  "h-6 w-6 rounded-full text-[10px] font-bold flex items-center justify-center transition-all duration-200",
-                  done   ? "bg-accent text-accent-foreground scale-90"
-                  : active ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
-                  :          "bg-muted text-muted-foreground",
-                )}>
+                <div
+                  className={cn(
+                    "h-6 w-6 rounded-full text-[10px] font-bold flex items-center justify-center transition-all duration-200",
+                    done   ? "bg-accent text-accent-foreground scale-90"
+                    : active ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+                    :          "bg-muted text-muted-foreground",
+                  )}
+                  style={
+                    accentColor && done
+                      ? { backgroundColor: accentColor, color: "#fff" }
+                      : undefined
+                  }
+                >
                   {done ? "✓" : i + 1}
                 </div>
                 <span className={cn(
@@ -272,6 +282,9 @@ export default function EventPage() {
     if (event.bgAccentColor)  vars["--event-bg-accent"]  = event.bgAccentColor;
     return vars as React.CSSProperties;
   }, [event]);
+
+  const evAccent = event?.accentColor ?? null;
+  const evButton = event?.buttonColor ?? evAccent;
 
   const bookedSlots = useMemo(() => {
     if (!event) return new Set<string>();
@@ -580,7 +593,21 @@ export default function EventPage() {
         <motion.div {...slide} className="w-full max-w-5xl mx-auto px-6 pt-5 pb-8">
           {/* Event header */}
           <div className="text-center mb-5">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-accent/10 text-accent font-mono text-xs font-semibold mb-3 border border-accent/20">
+            {event.logoUrl && (
+              <div className="flex justify-center mb-4">
+                <img
+                  src={event.logoUrl}
+                  alt={event.name}
+                  className="h-12 max-w-[220px] object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  data-testid="img-event-logo"
+                />
+              </div>
+            )}
+            <div
+              className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-accent/10 text-accent font-mono text-xs font-semibold mb-3 border border-accent/20"
+              style={evAccent ? { backgroundColor: evAccent + "1A", color: evAccent, borderColor: evAccent + "33" } : undefined}
+            >
               {event.slug}
             </div>
             <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight leading-tight mb-2">
@@ -588,7 +615,10 @@ export default function EventPage() {
             </h1>
             <div className="flex flex-wrap items-center justify-center gap-4 text-muted-foreground text-sm">
               <span className="flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-accent" />
+                <Calendar
+                  className="h-3.5 w-3.5 text-accent"
+                  style={evAccent ? { color: evAccent } : undefined}
+                />
                 {format(parseISO(event.startDate as unknown as string), "MMMM d")}
                 {" – "}
                 {format(parseISO(event.endDate as unknown as string), "MMMM d, yyyy")}
@@ -649,6 +679,7 @@ export default function EventPage() {
                             ? "bg-accent text-accent-foreground border-accent"
                             : "bg-card text-muted-foreground border-border hover:border-accent/50 hover:text-foreground",
                         )}
+                        style={(active && evAccent) ? { backgroundColor: evAccent, color: "#fff", borderColor: evAccent } : undefined}
                       >
                         {attr}
                       </button>
@@ -769,7 +800,7 @@ export default function EventPage() {
   if (step === 1) {
     return (
       <Shell onBack={() => go(0)} backLabel="Sponsors">
-        <StepBar current={1} slug={event.slug} name={event.name} />
+        <StepBar current={1} slug={event.slug} name={event.name} accentColor={evAccent} />
         <AnimatePresence mode="wait">
           <motion.div key="step-date" {...slide} className="w-full max-w-2xl mx-auto px-6 space-y-7">
             <RecapChip sponsor={selectedSponsor} onChangeSponsor={() => go(0)} />
@@ -812,7 +843,7 @@ export default function EventPage() {
 
     return (
       <Shell onBack={() => go(1)} backLabel="Date">
-        <StepBar current={2} slug={event.slug} name={event.name} />
+        <StepBar current={2} slug={event.slug} name={event.name} accentColor={evAccent} />
         <AnimatePresence mode="wait">
           <motion.div key="step-time" {...slide} className="w-full max-w-2xl mx-auto px-6 space-y-7">
             <RecapChip sponsor={selectedSponsor} date={selectedDate} onChangeSponsor={() => go(0)} onChangeDate={() => go(1)} />
@@ -1004,6 +1035,7 @@ export default function EventPage() {
                 size="lg"
                 disabled={submitting || !agreeToTerms}
                 className="w-full bg-violet-600 text-white hover:bg-violet-700 shadow-md shadow-violet-200"
+                style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
                 data-testid="button-online-submit"
               >
                 {submitting ? "Submitting…" : "Submit Online Meeting Request"}
@@ -1017,7 +1049,7 @@ export default function EventPage() {
 
   return (
     <Shell onBack={() => go(2)} backLabel="Time">
-      <StepBar current={3} slug={event.slug} name={event.name} />
+      <StepBar current={3} slug={event.slug} name={event.name} accentColor={evAccent} />
       <AnimatePresence mode="wait">
         <motion.div key="step-form" {...slide} className="w-full max-w-2xl mx-auto px-6 space-y-6">
           <RecapChip sponsor={selectedSponsor} date={selectedDate} time={selectedTime}
@@ -1117,6 +1149,7 @@ export default function EventPage() {
               size="lg"
               disabled={submitting || (locations.length > 0 && !selectedLoc) || !agreeToTerms}
               className="w-full bg-accent text-accent-foreground hover:bg-accent/90 shadow-md shadow-accent/20"
+              style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
               data-testid="button-pub-submit"
             >
               {submitting ? "Confirming…" : "Confirm Meeting"}

@@ -46,6 +46,8 @@ export default function LoginPage() {
     }
   };
 
+  const [forgotSent, setForgotSent] = useState(false);
+
   const handleForgotEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotError("");
@@ -58,8 +60,12 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Request failed");
-      setResetToken(data.token);
-      setStep("forgot-reset");
+      if (import.meta.env.DEV) {
+        setResetToken(data.token);
+        setStep("forgot-reset");
+      } else {
+        setForgotSent(true);
+      }
     } catch (err: any) {
       setForgotError(err.message ?? "Something went wrong");
     } finally {
@@ -98,6 +104,7 @@ export default function LoginPage() {
     setStep("login");
     setForgotEmail("");
     setForgotError("");
+    setForgotSent(false);
     setResetError("");
     setResetToken("");
     setTokenInput("");
@@ -272,61 +279,78 @@ export default function LoginPage() {
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <button
-                      type="button"
-                      onClick={backToLogin}
-                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-                      data-testid="btn-back-to-login"
-                    >
-                      <ChevronLeft className="h-4 w-4" /> Back to sign in
-                    </button>
-
-                    <div className="mb-6">
-                      <div className="h-12 w-12 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
-                        <KeyRound className="h-6 w-6 text-accent" />
-                      </div>
-                      <h2 className="text-2xl font-display font-bold text-foreground">Password Recovery</h2>
-                      <p className="text-muted-foreground mt-1.5 text-sm">Enter the email address associated with your admin account.</p>
-                    </div>
-
-                    {forgotError && (
-                      <div className="flex items-center gap-2 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 mb-5">
-                        <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                        <p className="text-sm text-destructive">{forgotError}</p>
-                      </div>
-                    )}
-
-                    <form onSubmit={handleForgotEmail} className="space-y-5">
-                      <div className="space-y-2">
-                        <Label htmlFor="forgot-email">Admin Email</Label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60" />
-                          <Input
-                            id="forgot-email"
-                            type="email"
-                            placeholder="admin@converge.com"
-                            className="pl-10 h-12 rounded-xl border-border/80 focus-visible:ring-accent"
-                            required
-                            value={forgotEmail}
-                            onChange={(e) => setForgotEmail(e.target.value)}
-                            data-testid="input-forgot-email"
-                          />
+                    {forgotSent ? (
+                      <div className="text-center py-4">
+                        <div className="h-14 w-14 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                          <CheckCircle2 className="h-7 w-7 text-accent" />
                         </div>
+                        <h2 className="text-xl font-display font-bold text-foreground mb-2">Check your email</h2>
+                        <p className="text-muted-foreground text-sm mb-6">
+                          If an account exists for that email address, password reset instructions have been sent.
+                        </p>
+                        <Button onClick={backToLogin} className="w-full" data-testid="btn-back-after-forgot">
+                          Back to Sign In
+                        </Button>
                       </div>
-                      <Button
-                        type="submit"
-                        disabled={forgotLoading}
-                        className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-                        data-testid="btn-send-reset"
-                      >
-                        {forgotLoading ? (
-                          <span className="flex items-center gap-2">
-                            <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                            Generating token…
-                          </span>
-                        ) : "Generate Reset Token"}
-                      </Button>
-                    </form>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={backToLogin}
+                          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+                          data-testid="btn-back-to-login"
+                        >
+                          <ChevronLeft className="h-4 w-4" /> Back to sign in
+                        </button>
+
+                        <div className="mb-6">
+                          <div className="h-12 w-12 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
+                            <KeyRound className="h-6 w-6 text-accent" />
+                          </div>
+                          <h2 className="text-2xl font-display font-bold text-foreground">Password Recovery</h2>
+                          <p className="text-muted-foreground mt-1.5 text-sm">Enter the email address associated with your admin account.</p>
+                        </div>
+
+                        {forgotError && (
+                          <div className="flex items-center gap-2 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 mb-5">
+                            <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                            <p className="text-sm text-destructive">{forgotError}</p>
+                          </div>
+                        )}
+
+                        <form onSubmit={handleForgotEmail} className="space-y-5">
+                          <div className="space-y-2">
+                            <Label htmlFor="forgot-email">Admin Email</Label>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60" />
+                              <Input
+                                id="forgot-email"
+                                type="email"
+                                placeholder="admin@converge.com"
+                                className="pl-10 h-12 rounded-xl border-border/80 focus-visible:ring-accent"
+                                required
+                                value={forgotEmail}
+                                onChange={(e) => setForgotEmail(e.target.value)}
+                                data-testid="input-forgot-email"
+                              />
+                            </div>
+                          </div>
+                          <Button
+                            type="submit"
+                            disabled={forgotLoading}
+                            className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                            data-testid="btn-send-reset"
+                          >
+                            {forgotLoading ? (
+                              <span className="flex items-center gap-2">
+                                <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                                Sending…
+                              </span>
+                            ) : "Send Reset Instructions"}
+                          </Button>
+                        </form>
+                      </>
+                    )}
                   </motion.div>
                 )}
 

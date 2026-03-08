@@ -1,0 +1,133 @@
+Implement the following production and public-page fixes in Converge Concierge.
+
+Important rules:
+- Do not redesign the admin shell/sidebar
+- Do not break existing scheduling, online requests, sponsor dashboards, reports, legal pages, or access links
+- Preserve all current working functionality
+- Make additive/fix-only changes where possible
+
+Current fixes required:
+1. Forgot password flow in production
+2. Homepage logo + sponsor counts + event sort order
+3. Event page logo + event color theme application
+
+==================================================
+1. FORGOT PASSWORD — PRODUCTION FIX
+==================================================
+
+Problem:
+In production, the admin forgot-password flow is still showing the dev-style reset token experience instead of a proper production flow.
+
+Required fix:
+- In production, do NOT show "Reset Token (Dev Preview)" or expose the raw reset token on screen.
+- Use production-safe behavior:
+  - user enters email
+  - system shows a generic success message such as:
+    "If an account exists for that email, password reset instructions have been sent."
+- If email delivery is configured, send the reset link/token by email only.
+- If email delivery is not yet configured in production, do not expose the token publicly on the page.
+  Instead:
+  - log it securely server-side for admin/dev only
+  - or gate the dev preview behind a development-only environment check
+
+Requirements:
+- dev preview token view must only appear in development
+- production must never reveal reset tokens in the browser UI
+- keep existing reset-password form working once user reaches the valid reset link
+
+==================================================
+2. HOMEPAGE — GLOBAL LOGO, DYNAMIC SPONSOR COUNTS, SORT ORDER
+==================================================
+
+A. Global logo in header
+Problem:
+The uploaded Converge Events / Converge Concierge logo is not appearing in the top-left header area.
+
+Required fix:
+- make homepage header use the saved global branding logo if one exists
+- if no uploaded global logo exists, use the current fallback icon
+- keep the current clean header layout
+- logo should render reliably across homepage and other public pages where global branding applies
+
+B. Replace “sessions available”
+Problem:
+Homepage cards still show a static sessions count.
+
+Required fix:
+Replace this with:
+- number of solution providers (sponsors) available to book meetings with for that event
+
+Example wording:
+- 18 solution providers
+or
+- 18 sponsors available
+
+Requirements:
+- count only sponsors assigned to that event
+- if you already distinguish active vs archived, count only active sponsors
+- make this dynamic, not hardcoded
+
+C. Sort events from soonest to latest
+Problem:
+Homepage event order should be chronological.
+
+Required fix:
+- sort homepage events left to right by upcoming start date
+- soonest event first
+- latest event last
+
+If events are rendered in a grid, use chronological ordering consistently.
+
+==================================================
+3. EVENT PAGE — EVENT LOGO + EVENT-SPECIFIC COLOR SCHEME
+==================================================
+
+A. Show event logo on event page
+Problem:
+The event page does not visibly show the event logo.
+
+Required fix:
+- add the event logo to the public event page
+- place it in a clean, premium location near the event identity/header
+- keep it visually balanced with:
+  - event code badge
+  - event title
+  - date/location
+- if no event logo exists, use a clean fallback or omit gracefully
+
+Do not clutter the page.
+Just make the event identity feel specific to that event.
+
+B. Apply event-specific color scheme
+Problem:
+Event-specific colors were updated in admin but are not reflected on the event page.
+
+Required fix:
+Apply the saved event-level color scheme to the public event experience.
+
+At minimum, apply event colors to:
+- event code badge
+- accent elements in the header
+- primary CTA styling where appropriate
+- selected/active chips or filter accents if present
+- booking flow accent styling for that event
+
+If event-level colors are not set:
+- fall back to global branding colors
+
+Requirements:
+- use the saved event colors from the event record
+- do not break readability or contrast
+- preserve current layout, only apply correct theming
+
+==================================================
+4. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- production forgot-password flow no longer exposes reset tokens in the UI
+- homepage header shows the saved global logo
+- homepage event cards show dynamic sponsor counts instead of static sessions
+- homepage events are ordered soonest to latest
+- event page visibly includes the event logo
+- event-specific colors appear on the public event page and related booking accents

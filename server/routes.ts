@@ -425,6 +425,35 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.sendStatus(204);
   });
 
+  app.post("/api/sponsors/:id/copy", requireAuth, async (req, res) => {
+    const source = await storage.getSponsor(req.params.id);
+    if (!source) return res.status(404).json({ message: "Sponsor not found" });
+
+    const newSponsor = await storage.createSponsor({
+      name: source.name + " (Copy)",
+      logoUrl: source.logoUrl ?? undefined,
+      level: source.level ?? undefined,
+      archiveState: "active",
+      allowOnlineMeetings: source.allowOnlineMeetings ?? false,
+      shortDescription: source.shortDescription ?? undefined,
+      websiteUrl: source.websiteUrl ?? undefined,
+      linkedinUrl: source.linkedinUrl ?? undefined,
+      solutionsSummary: source.solutionsSummary ?? undefined,
+      contactName: source.contactName ?? undefined,
+      contactEmail: source.contactEmail ?? undefined,
+      contactPhone: source.contactPhone ?? undefined,
+      attributes: source.attributes ?? [],
+      assignedEvents: (source.assignedEvents ?? []).map((ae) => ({
+        eventId: ae.eventId,
+        sponsorshipLevel: ae.sponsorshipLevel,
+        archiveState: "active" as const,
+        archiveSource: null,
+      })),
+    });
+
+    res.status(201).json(newSponsor);
+  });
+
   // ── Attendees ────────────────────────────────────────────────────────────
   app.get("/api/attendees", async (_req, res) => {
     res.json(await storage.getAttendees());

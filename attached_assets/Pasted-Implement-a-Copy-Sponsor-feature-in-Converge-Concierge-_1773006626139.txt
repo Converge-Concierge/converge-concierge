@@ -1,0 +1,147 @@
+Implement a "Copy Sponsor" feature in Converge Concierge.
+
+Important rules:
+- Do not redesign the app
+- Do not break existing sponsor dashboards, sponsor access links, reports, meeting flows, or admin workflows
+- Preserve all current working functionality
+- Make additive changes only
+
+Goal:
+Allow admins to duplicate an existing sponsor record so we can reuse sponsor setup across events and years, then customize the new copy.
+
+==================================================
+1. ADD "COPY SPONSOR" ACTION
+==================================================
+
+In Admin -> Sponsors table, add a Copy Sponsor action similar to Copy Event.
+
+Placement:
+- add a copy icon/button in the Actions column
+- keep existing actions intact:
+  - access links
+  - edit
+  - archive
+  - delete
+
+When clicked:
+- create a duplicate sponsor record
+- open the copied sponsor in edit mode immediately
+
+==================================================
+2. WHAT SHOULD BE COPIED
+==================================================
+
+Copy these sponsor fields:
+- sponsor name
+- sponsor logo / logo URL
+- short description
+- website URL
+- LinkedIn URL
+- solutions summary
+- main contact name
+- main contact email
+- main contact phone
+- allow online meetings setting
+- solution types
+- status (default this carefully, see below)
+
+Copy sponsor-event assignment structure too, including:
+- assigned events
+- per-event sponsorship levels
+- any event-specific sponsor relationship data that already exists in the join model
+
+Do NOT copy:
+- sponsor access links / tokens
+- notifications
+- meetings
+- leads
+- reports
+- archived historical activity
+- status logs
+- generated exports
+
+==================================================
+3. DEFAULT COPY BEHAVIOR
+==================================================
+
+When a sponsor is copied:
+- append "(Copy)" to the sponsor name initially
+- open the copied sponsor in edit mode so admin can immediately update:
+  - sponsor name
+  - event assignments
+  - per-event levels
+  - contact info if needed
+
+Status for copied sponsor:
+Preferred:
+- default copied sponsor to Active in test/dev
+- default copied sponsor to Draft or Inactive if such a status exists
+- if no draft status exists, keep Active but do not generate access links automatically
+
+Most important:
+- copied sponsor must not automatically inherit live sponsor access links or meeting data
+
+==================================================
+4. PRESERVE PER-EVENT LEVEL MODEL
+==================================================
+
+Critical:
+Because sponsors can have different sponsorship levels by event, the copy feature must preserve the sponsor-event relationship model.
+
+Example:
+Original sponsor:
+- FRC2026 -> Platinum
+- USBT2026 -> Gold
+
+Copied sponsor should preserve those assignments and levels in the editable copy,
+unless admin changes them after the copy is created.
+
+Do NOT collapse this back into one sponsor-wide level.
+
+==================================================
+5. OPTIONAL COPY MODAL (PREFERRED IF EASY)
+==================================================
+
+If practical, show a small Copy Sponsor modal before creating the copy.
+
+Suggested options:
+- Copy sponsor profile fields: Yes/No
+- Copy event assignments: Yes/No
+- Copy per-event sponsorship levels: Yes/No
+
+Default all to Yes.
+
+If this modal is too much work, skip it and use the default copy behavior above.
+
+==================================================
+6. ADMIN UX REQUIREMENTS
+==================================================
+
+After copying:
+- open the new sponsor in edit mode
+- make it obvious this is a copied record
+- keep the sponsor modal fully scrollable
+- do not break the current sponsor edit UX
+
+==================================================
+7. TEST / DEMO ENVIRONMENT SAFETY
+==================================================
+
+If copied sponsors should not appear publicly in test until reviewed, use the same kind of hidden/non-public logic you are using for copied events, if available.
+
+At minimum:
+- copied sponsors must not automatically create public access links
+- copied sponsors must not create public meeting availability until saved/confirmed properly
+
+==================================================
+8. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- admin can click Copy Sponsor from the Sponsors table
+- a new sponsor record is created
+- the copied sponsor opens in edit mode
+- sponsor profile fields are copied
+- event assignments and per-event sponsorship levels are copied
+- sponsor meetings, access links, and reports are NOT copied
+- copied sponsor can be edited and customized safely

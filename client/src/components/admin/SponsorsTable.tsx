@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Archive, Trash2, Link2, Building2, Eye, RotateCcw, Gem } from "lucide-react";
+import { Edit, Archive, Trash2, Link2, Building2, Eye, RotateCcw, Gem, Copy } from "lucide-react";
 import { Sponsor, Event, SponsorToken, EventSponsorLink } from "@shared/schema";
 import { SponsorAccessModal } from "./SponsorAccessModal";
 import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
@@ -36,6 +36,8 @@ interface SponsorsTableProps {
   onArchive: (sponsor: Sponsor) => void;
   onReactivate: (sponsor: Sponsor) => void;
   onDelete: (sponsor: Sponsor) => void;
+  onCopy?: (sponsor: Sponsor) => void;
+  copyingId?: string | null;
 }
 
 function SponsorLogo({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
@@ -62,7 +64,7 @@ function getSponsorLinkStatus(sponsorId: string, tokens: SponsorToken[]): "activ
   return hasActive ? "active" : "revoked";
 }
 
-export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete }: SponsorsTableProps) {
+export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete, onCopy, copyingId }: SponsorsTableProps) {
   const [accessSponsor, setAccessSponsor] = useState<Sponsor | null>(null);
   const { data: allTokens = [] } = useQuery<SponsorToken[]>({ queryKey: ["/api/sponsor-tokens"] });
   const { sort, toggle } = useSortState("level", "asc");
@@ -181,6 +183,22 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
                           <Button variant="ghost" size="icon" title="Edit sponsor" onClick={() => onEdit(sponsor)} data-testid={`edit-sponsor-${sponsor.id}`}>
                             <Edit className="h-4 w-4" />
                           </Button>
+                          {onCopy && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Copy sponsor"
+                              onClick={() => onCopy(sponsor)}
+                              disabled={copyingId === sponsor.id}
+                              data-testid={`copy-sponsor-${sponsor.id}`}
+                            >
+                              {copyingId === sponsor.id ? (
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" title="Archive sponsor" onClick={() => onArchive(sponsor)} data-testid={`archive-sponsor-${sponsor.id}`}>
                             <Archive className="h-4 w-4" />
                           </Button>

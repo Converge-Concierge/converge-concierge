@@ -30,6 +30,7 @@ export default function SponsorsPage() {
   const [viewingSponsor, setViewingSponsor] = useState<Sponsor | undefined>();
   const [deletingSponsor, setDeletingSponsor] = useState<Sponsor | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [copyingId, setCopyingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: sponsors = [], isLoading } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
@@ -71,6 +72,29 @@ export default function SponsorsPage() {
       setDeletingSponsor(null);
     },
   });
+
+  const copyMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/sponsors/${id}/copy`);
+      return res.json() as Promise<Sponsor>;
+    },
+    onSuccess: (newSponsor) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sponsors"] });
+      setCopyingId(null);
+      toast({ title: "Sponsor copied", description: `"${newSponsor.name}" created — now open in edit mode.` });
+      setEditingSponsor(newSponsor);
+      setIsModalOpen(true);
+    },
+    onError: () => {
+      setCopyingId(null);
+      toast({ title: "Error", description: "Failed to copy sponsor", variant: "destructive" });
+    },
+  });
+
+  const handleCopy = (sponsor: Sponsor) => {
+    setCopyingId(sponsor.id);
+    copyMutation.mutate(sponsor.id);
+  };
 
   const handleSubmit = (data: InsertSponsor) => {
     if (editingSponsor) {
@@ -155,6 +179,8 @@ export default function SponsorsPage() {
           onArchive={handleArchive}
           onReactivate={handleReactivate}
           onDelete={setDeletingSponsor}
+          onCopy={handleCopy}
+          copyingId={copyingId}
         />
       )}
 

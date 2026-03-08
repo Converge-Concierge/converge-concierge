@@ -1,0 +1,530 @@
+import { eq, and, ne, sql, desc } from "drizzle-orm";
+import { randomBytes } from "crypto";
+import { db } from "./db";
+import {
+  users, events, sponsors, attendees, meetings,
+  sponsorTokens, sponsorNotifications, passwordResetTokens, appConfig,
+  type User, type InsertUser,
+  type Event, type InsertEvent,
+  type Sponsor, type InsertSponsor,
+  type Attendee, type InsertAttendee,
+  type Meeting, type InsertMeeting,
+  type SponsorToken, type SponsorNotification, type SponsorNotificationType,
+  type AppSettings, type AppBranding, type PasswordResetToken,
+  DEFAULT_SETTINGS, DEFAULT_BRANDING,
+} from "@shared/schema";
+import type { IStorage, UpdateUser } from "./storage";
+
+function buildFullName(firstName?: string, lastName?: string, fallback?: string): string {
+  const first = (firstName ?? "").trim();
+  const last = (lastName ?? "").trim();
+  if (first || last) return [first, last].filter(Boolean).join(" ");
+  return fallback ?? "";
+}
+
+function splitName(fullName: string): { firstName: string; lastName: string } {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
+export class DatabaseStorage implements IStorage {
+  // ── Users ─────────────────────────────────────────────────────────────────
+
+  async getUser(id: string): Promise<User | undefined> {
+    const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return row;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [row] = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    return row;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [row] = await db
+      .select()
+      .from(users)
+      .where(sql`lower(${users.email}) = lower(${email})`)
+      .limit(1);
+    return row;
+  }
+
+  async getUsers(): Promise<User[]> {
+    return db.select().from(users);
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const email = insertUser.email ?? "";
+    const [created] = await db
+      .insert(users)
+      .values({
+        username: email,
+        password: insertUser.password,
+        name: insertUser.name ?? "",
+        email,
+        role: (insertUser.role ?? "manager") as "admin" | "manager",
+        isActive: insertUser.isActive ?? true,
+      })
+      .returning();
+    return created;
+  }
+
+  async updateUser(id: string, updates: UpdateUser): Promise<User | undefined> {
+    const setData: Partial<typeof users.$inferInsert> = { ...updates };
+    if (updates.email !== undefined) {
+      setData.username = updates.email;
+    }
+    const [updated] = await db
+      .update(users)
+      .set(setData)
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+
+  // ── Events ────────────────────────────────────────────────────────────────
+
+  async getEvents(): Promise<Event[]> {
+    return db.select().from(events);
+  }
+
+  async getEvent(id: string): Promise<Event | undefined> {
+    const [row] = await db.select().from(events).where(eq(events.id, id)).limit(1);
+    return row;
+  }
+
+  async getEventBySlug(slug: string): Promise<Event | undefined> {
+    const [row] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
+    return row;
+  }
+
+  async createEvent(insertEvent: InsertEvent): Promise<Event> {
+    const [created] = await db
+      .insert(events)
+      .values({
+        ...insertEvent,
+        archiveState: insertEvent.archiveState ?? "active",
+        archiveSource: insertEvent.archiveSource ?? null,
+        meetingLocations: insertEvent.meetingLocations ?? [],
+        meetingBlocks: insertEvent.meetingBlocks ?? [],
+      })
+      .returning();
+    return created;
+  }
+
+  async updateEvent(id: string, updates: Partial<InsertEvent>): Promise<Event | undefined> {
+    const [updated] = await db
+      .update(events)
+      .set(updates)
+      .where(eq(events.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteEvent(id: string): Promise<void> {
+    await db.delete(events).where(eq(events.id, id));
+  }
+
+  // ── Sponsors ──────────────────────────────────────────────────────────────
+
+  async getSponsors(): Promise<Sponsor[]> {
+    return db.select().from(sponsors);
+  }
+
+  async getSponsor(id: string): Promise<Sponsor | undefined> {
+    const [row] = await db.select().from(sponsors).where(eq(sponsors.id, id)).limit(1);
+    return row;
+  }
+
+  async createSponsor(insertSponsor: InsertSponsor): Promise<Sponsor> {
+    const [created] = await db
+      .insert(sponsors)
+      .values({
+        ...insertSponsor,
+        archiveState: insertSponsor.archiveState ?? "active",
+        archiveSource: insertSponsor.archiveSource ?? null,
+        assignedEvents: insertSponsor.assignedEvents ?? [],
+      })
+      .returning();
+    return created;
+  }
+
+  async updateSponsor(id: string, updates: Partial<InsertSponsor>): Promise<Sponsor | undefined> {
+    const [updated] = await db
+      .update(sponsors)
+      .set(updates)
+      .where(eq(sponsors.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSponsor(id: string): Promise<void> {
+    await db.delete(sponsors).where(eq(sponsors.id, id));
+  }
+
+  // ── Attendees ─────────────────────────────────────────────────────────────
+
+  async getAttendees(): Promise<Attendee[]> {
+    return db.select().from(attendees);
+  }
+
+  async getAttendee(id: string): Promise<Attendee | undefined> {
+    const [row] = await db.select().from(attendees).where(eq(attendees.id, id)).limit(1);
+    return row;
+  }
+
+  async getAttendeeByEmail(email: string): Promise<Attendee | undefined> {
+    const [row] = await db
+      .select()
+      .from(attendees)
+      .where(sql`lower(${attendees.email}) = lower(${email})`)
+      .limit(1);
+    return row;
+  }
+
+  async getAttendeeByEmailAndEvent(email: string, eventId: string): Promise<Attendee | undefined> {
+    const [row] = await db
+      .select()
+      .from(attendees)
+      .where(
+        and(
+          sql`lower(${attendees.email}) = lower(${email})`,
+          eq(attendees.assignedEvent, eventId),
+          eq(attendees.archiveState, "active")
+        )
+      )
+      .limit(1);
+    return row;
+  }
+
+  async getArchivedAttendeeByEmailAndEvent(email: string, eventId: string): Promise<Attendee | undefined> {
+    const [row] = await db
+      .select()
+      .from(attendees)
+      .where(
+        and(
+          sql`lower(${attendees.email}) = lower(${email})`,
+          eq(attendees.assignedEvent, eventId),
+          eq(attendees.archiveState, "archived")
+        )
+      )
+      .limit(1);
+    return row;
+  }
+
+  async createAttendee(insertAttendee: InsertAttendee): Promise<Attendee> {
+    let { firstName, lastName, name } = insertAttendee as any;
+    if (!firstName && !lastName && name) {
+      const split = splitName(name);
+      firstName = split.firstName;
+      lastName = split.lastName;
+    }
+    const computedName = buildFullName(firstName, lastName, name);
+    const [created] = await db
+      .insert(attendees)
+      .values({
+        archiveState: "active",
+        archiveSource: null,
+        ...insertAttendee,
+        firstName: firstName ?? "",
+        lastName: lastName ?? "",
+        name: computedName,
+      })
+      .returning();
+    return created;
+  }
+
+  async updateAttendee(id: string, updates: Partial<InsertAttendee>): Promise<Attendee | undefined> {
+    const existing = await this.getAttendee(id);
+    if (!existing) return undefined;
+
+    const merged = { ...existing, ...updates } as any;
+    if (updates.firstName !== undefined || updates.lastName !== undefined) {
+      merged.name = buildFullName(merged.firstName, merged.lastName, merged.name);
+      updates = { ...updates, name: merged.name };
+    }
+
+    const [updated] = await db
+      .update(attendees)
+      .set(updates)
+      .where(eq(attendees.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteAttendee(id: string): Promise<void> {
+    await db.delete(attendees).where(eq(attendees.id, id));
+  }
+
+  // ── Meetings ──────────────────────────────────────────────────────────────
+
+  async getMeetings(): Promise<Meeting[]> {
+    return db.select().from(meetings);
+  }
+
+  async getMeeting(id: string): Promise<Meeting | undefined> {
+    const [row] = await db.select().from(meetings).where(eq(meetings.id, id)).limit(1);
+    return row;
+  }
+
+  async createMeeting(insertMeeting: InsertMeeting): Promise<Meeting> {
+    const [created] = await db
+      .insert(meetings)
+      .values({
+        archiveState: "active",
+        archiveSource: null,
+        ...insertMeeting,
+      })
+      .returning();
+    return created;
+  }
+
+  async updateMeeting(id: string, updates: Partial<InsertMeeting>): Promise<Meeting | undefined> {
+    const [updated] = await db
+      .update(meetings)
+      .set(updates)
+      .where(eq(meetings.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMeeting(id: string): Promise<void> {
+    await db.delete(meetings).where(eq(meetings.id, id));
+  }
+
+  async getMeetingConflict(eventId: string, sponsorId: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined> {
+    const conditions = [
+      eq(meetings.eventId, eventId),
+      eq(meetings.sponsorId, sponsorId),
+      eq(meetings.date, date),
+      eq(meetings.time, time),
+      ne(meetings.status, "Cancelled"),
+      ne(meetings.status, "NoShow"),
+      ne(meetings.archiveState, "archived"),
+    ];
+    if (excludeId) {
+      conditions.push(ne(meetings.id, excludeId));
+    }
+    const [row] = await db
+      .select()
+      .from(meetings)
+      .where(and(...conditions))
+      .limit(1);
+    return row;
+  }
+
+  async cascadeArchiveEvent(eventId: string): Promise<void> {
+    await db
+      .update(attendees)
+      .set({ archiveState: "archived", archiveSource: "event" })
+      .where(and(eq(attendees.assignedEvent, eventId), eq(attendees.archiveState, "active")));
+
+    await db
+      .update(meetings)
+      .set({ archiveState: "archived", archiveSource: "event" })
+      .where(and(eq(meetings.eventId, eventId), ne(meetings.archiveState, "archived")));
+
+    const allSponsors = await db.select().from(sponsors);
+    for (const sponsor of allSponsors) {
+      const links = sponsor.assignedEvents ?? [];
+      const hasActiveLink = links.some((ae) => ae.eventId === eventId && (ae.archiveState ?? "active") === "active");
+      if (hasActiveLink) {
+        const updatedLinks = links.map((ae) =>
+          ae.eventId === eventId && (ae.archiveState ?? "active") === "active"
+            ? { ...ae, archiveState: "archived" as const, archiveSource: "event" as const }
+            : ae
+        );
+        await db.update(sponsors).set({ assignedEvents: updatedLinks }).where(eq(sponsors.id, sponsor.id));
+      }
+    }
+  }
+
+  async cascadeUnarchiveEvent(eventId: string): Promise<void> {
+    await db
+      .update(attendees)
+      .set({ archiveState: "active", archiveSource: null })
+      .where(and(eq(attendees.assignedEvent, eventId), eq(attendees.archiveSource, "event")));
+
+    await db
+      .update(meetings)
+      .set({ archiveState: "active", archiveSource: null })
+      .where(and(eq(meetings.eventId, eventId), eq(meetings.archiveSource, "event")));
+
+    const allSponsors = await db.select().from(sponsors);
+    for (const sponsor of allSponsors) {
+      const links = sponsor.assignedEvents ?? [];
+      const hasEventLink = links.some((ae) => ae.eventId === eventId && ae.archiveSource === "event");
+      if (hasEventLink) {
+        const updatedLinks = links.map((ae) =>
+          ae.eventId === eventId && ae.archiveSource === "event"
+            ? { ...ae, archiveState: "active" as const, archiveSource: null }
+            : ae
+        );
+        await db.update(sponsors).set({ assignedEvents: updatedLinks }).where(eq(sponsors.id, sponsor.id));
+      }
+    }
+  }
+
+  // ── Sponsor Tokens ────────────────────────────────────────────────────────
+
+  async getSponsorToken(token: string): Promise<SponsorToken | undefined> {
+    const [row] = await db
+      .select()
+      .from(sponsorTokens)
+      .where(eq(sponsorTokens.token, token))
+      .limit(1);
+    return row ?? undefined;
+  }
+
+  async getSponsorTokensBySponsor(sponsorId: string): Promise<SponsorToken[]> {
+    return db.select().from(sponsorTokens).where(eq(sponsorTokens.sponsorId, sponsorId));
+  }
+
+  async createSponsorToken(sponsorId: string, eventId: string): Promise<SponsorToken> {
+    const token = randomBytes(32).toString("hex");
+    const now = new Date();
+    const expiresAt = new Date(now);
+    expiresAt.setDate(expiresAt.getDate() + 90);
+
+    const [created] = await db
+      .insert(sponsorTokens)
+      .values({ token, sponsorId, eventId, isActive: true, expiresAt, createdAt: now })
+      .returning();
+    return created;
+  }
+
+  async revokeSponsorToken(token: string): Promise<SponsorToken | undefined> {
+    const [updated] = await db
+      .update(sponsorTokens)
+      .set({ isActive: false })
+      .where(eq(sponsorTokens.token, token))
+      .returning();
+    return updated ?? undefined;
+  }
+
+  async deleteSponsorToken(token: string): Promise<void> {
+    await db.delete(sponsorTokens).where(eq(sponsorTokens.token, token));
+  }
+
+  // ── Sponsor Notifications ─────────────────────────────────────────────────
+
+  async createNotification(n: Omit<SponsorNotification, "id" | "createdAt">): Promise<SponsorNotification> {
+    const [created] = await db
+      .insert(sponsorNotifications)
+      .values({
+        ...n,
+        type: n.type as string,
+        createdAt: new Date(),
+      })
+      .returning();
+    return {
+      ...created,
+      type: created.type as SponsorNotificationType,
+    };
+  }
+
+  async getNotificationsForSponsorEvent(sponsorId: string, eventId: string): Promise<SponsorNotification[]> {
+    const rows = await db
+      .select()
+      .from(sponsorNotifications)
+      .where(and(eq(sponsorNotifications.sponsorId, sponsorId), eq(sponsorNotifications.eventId, eventId)))
+      .orderBy(desc(sponsorNotifications.createdAt));
+    return rows.map((r) => ({ ...r, type: r.type as SponsorNotificationType }));
+  }
+
+  async markNotificationRead(id: string): Promise<void> {
+    await db
+      .update(sponsorNotifications)
+      .set({ isRead: true })
+      .where(eq(sponsorNotifications.id, id));
+  }
+
+  async markAllNotificationsRead(sponsorId: string, eventId: string): Promise<void> {
+    await db
+      .update(sponsorNotifications)
+      .set({ isRead: true })
+      .where(
+        and(
+          eq(sponsorNotifications.sponsorId, sponsorId),
+          eq(sponsorNotifications.eventId, eventId),
+          eq(sponsorNotifications.isRead, false)
+        )
+      );
+  }
+
+  // ── App Settings ──────────────────────────────────────────────────────────
+
+  async getSettings(): Promise<AppSettings> {
+    const [row] = await db.select().from(appConfig).where(eq(appConfig.key, "settings")).limit(1);
+    if (!row) return { ...DEFAULT_SETTINGS };
+    return { ...DEFAULT_SETTINGS, ...(row.value as Partial<AppSettings>) };
+  }
+
+  async updateSettings(updates: Partial<AppSettings>): Promise<AppSettings> {
+    const current = await this.getSettings();
+    const merged = { ...current, ...updates };
+    await db
+      .insert(appConfig)
+      .values({ key: "settings", value: merged })
+      .onConflictDoUpdate({ target: appConfig.key, set: { value: merged } });
+    return merged;
+  }
+
+  // ── App Branding ──────────────────────────────────────────────────────────
+
+  async getBranding(): Promise<AppBranding> {
+    const [row] = await db.select().from(appConfig).where(eq(appConfig.key, "branding")).limit(1);
+    if (!row) return { ...DEFAULT_BRANDING };
+    return { ...DEFAULT_BRANDING, ...(row.value as Partial<AppBranding>) };
+  }
+
+  async updateBranding(updates: Partial<AppBranding>): Promise<AppBranding> {
+    const current = await this.getBranding();
+    const merged = { ...current, ...updates };
+    await db
+      .insert(appConfig)
+      .values({ key: "branding", value: merged })
+      .onConflictDoUpdate({ target: appConfig.key, set: { value: merged } });
+    return merged;
+  }
+
+  // ── Password Reset Tokens ─────────────────────────────────────────────────
+
+  async createPasswordResetToken(userId: string): Promise<PasswordResetToken> {
+    await db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(and(eq(passwordResetTokens.userId, userId), eq(passwordResetTokens.used, false)));
+
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = Date.now() + 60 * 60 * 1000;
+
+    await db.insert(passwordResetTokens).values({ token, userId, expiresAt, used: false });
+    return { token, userId, expiresAt, used: false };
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    const [row] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.token, token))
+      .limit(1);
+    return row ?? undefined;
+  }
+
+  async markResetTokenUsed(token: string): Promise<void> {
+    await db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.token, token));
+  }
+
+  async updateUserPassword(userId: string, newPassword: string): Promise<void> {
+    await db.update(users).set({ password: newPassword }).where(eq(users.id, userId));
+  }
+}

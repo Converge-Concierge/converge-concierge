@@ -6,25 +6,29 @@ import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
-
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+import { randomBytes } from "crypto";
+import { objectStorageClient } from "./replit_integrations/object_storage/objectStorage";
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname) || ".png";
-      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("image/")) cb(null, true);
     else cb(new Error("Only image files are allowed"));
   },
 });
+
+async function uploadToObjectStorage(buffer: Buffer, mimetype: string, originalname: string): Promise<string> {
+  const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+  if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID is not set");
+  const ext = path.extname(originalname) || ".png";
+  const key = `${Date.now()}-${randomBytes(8).toString("hex")}${ext}`;
+  const objectName = `public/uploads/${key}`;
+  const bucket = objectStorageClient.bucket(bucketId);
+  const file = bucket.file(objectName);
+  await file.save(buffer, { contentType: mimetype, resumable: false });
+  return `/uploads/${key}`;
+}
 
 async function seedData() {
   const events = await storage.getEvents();
@@ -167,11 +171,34 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // ── File Upload ──────────────────────────────────────────────────────────
 
   app.post("/api/upload", requireAuth, (req, res) => {
-    upload.single("file")(req, res, (err) => {
+    upload.single("file")(req, res, async (err) => {
       if (err) return res.status(400).json({ message: err.message });
       if (!req.file) return res.status(400).json({ message: "No file provided" });
-      res.json({ url: `/uploads/${req.file.filename}` });
+      try {
+        const url = await uploadToObjectStorage(req.file.buffer, req.file.mimetype, req.file.originalname);
+        res.json({ url });
+      } catch (uploadErr: any) {
+        console.error("Object storage upload failed:", uploadErr);
+        res.status(500).json({ message: "File upload failed" });
+      }
     });
+  });
+
+  app.get("/uploads/:key", async (req, res) => {
+    try {
+      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+      if (!bucketId) return res.status(500).json({ message: "Storage not configured" });
+      const file = objectStorageClient.bucket(bucketId).file(`public/uploads/${req.params.key}`);
+      const [exists] = await file.exists();
+      if (!exists) return res.status(404).json({ message: "Not found" });
+      const [metadata] = await file.getMetadata();
+      res.set("Content-Type", (metadata.contentType as string) || "application/octet-stream");
+      res.set("Cache-Control", "public, max-age=31536000");
+      file.createReadStream().pipe(res);
+    } catch (e: any) {
+      console.error("Upload serve error:", e);
+      res.status(500).json({ message: "Failed to serve file" });
+    }
   });
 
   // ── Auth ─────────────────────────────────────────────────────────────────

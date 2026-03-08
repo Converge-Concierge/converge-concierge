@@ -11,6 +11,7 @@ import {
   DEFAULT_SETTINGS, DEFAULT_BRANDING,
 } from "@shared/schema";
 import { randomUUID, randomBytes } from "crypto";
+import { DatabaseStorage } from "./database-storage";
 
 function buildFullName(firstName?: string, lastName?: string, fallback?: string): string {
   const first = (firstName ?? "").trim();
@@ -542,4 +543,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

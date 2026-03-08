@@ -7,7 +7,7 @@ Converge Concierge is a fintech event scheduling platform operating in **schedul
 - **Public site** — landing page → event page → multi-step booking wizard (sponsor → date → time → attendee details → confirmation)
 - **Admin panel** (`/admin/*`) — full management of Events, Sponsors, Attendees, Meetings, Reports, and Users (admin-only)
 
-Backend: Express + in-memory storage (MemStorage). Frontend: React SPA with Vite, Wouter, TanStack Query v5, shadcn/ui, Tailwind CSS, Framer Motion.
+Backend: Express + **PostgreSQL** (Drizzle ORM, `DatabaseStorage`). Frontend: React SPA with Vite, Wouter, TanStack Query v5, shadcn/ui, Tailwind CSS, Framer Motion. File uploads use **Replit App Storage** (Google Cloud Storage via sidecar).
 
 ---
 
@@ -39,8 +39,11 @@ Key frontend directories:
 
 - **Runtime**: Node.js + Express 5, TypeScript via `tsx`
 - **Entry**: `server/index.ts` → `server/routes.ts`
-- **Storage**: `server/storage.ts` — `IStorage` interface, `MemStorage` implementation (in-memory Maps). Drizzle ORM + PostgreSQL schema defined and ready in `shared/schema.ts`.
-- **Seeding**: `seedData()` in `server/routes.ts` populates 4 events, 2 sponsors, 6 attendees on first startup
+- **Storage**: `server/storage.ts` — `IStorage` interface exported; `server/database-storage.ts` — `DatabaseStorage` class (Drizzle + PostgreSQL). `MemStorage` kept in `storage.ts` for reference but is NOT used.
+- **DB Client**: `server/db.ts` — Drizzle client using `pg` Pool, connected via `DATABASE_URL`
+- **Seeding**: `seedData()` + `seedUsers()` in `server/routes.ts` — idempotent (skip if data already exists); populates 4 events, 2 sponsors, 6 attendees, 2 users on first run
+- **File Uploads**: `POST /api/upload` stores files in Replit App Storage (`public/uploads/<key>` in GCS bucket). `GET /uploads/:key` proxies from GCS. No local disk storage.
+- **App Storage bucket**: `DEFAULT_OBJECT_STORAGE_BUCKET_ID` env var; integration files at `server/replit_integrations/object_storage/`
 
 ### Shared
 
@@ -95,9 +98,9 @@ All at `/event/:slug` — single-page multi-step wizard:
 ## Auth & RBAC
 
 ### Session auth
-- `express-session` with `SESSION_SECRET` env var; 8-hour cookie; MemStore (no DB)
+- `express-session` with `SESSION_SECRET` env var; 8-hour cookie; MemStore (session in-process only — sessions reset on restart, data persists in PostgreSQL)
 - Session stores `userId` and `role` — type-augmented via `declare module "express-session"`
-- Passwords stored as plain text in MemStorage (demo app, no bcrypt needed)
+- Passwords stored as plain text in PostgreSQL (demo app, no bcrypt)
 
 ### Roles
 | Role | Access |
@@ -105,7 +108,7 @@ All at `/event/:slug` — single-page multi-step wizard:
 | `admin` | All pages including /admin/users; full CRUD on users |
 | `manager` | All pages except /admin/users (shows Access Denied) |
 
-### Default seeded users (re-created on each server restart)
+### Default seeded users (seeded once on first startup — persist to PostgreSQL)
 - `admin@converge.com` / `password` — role: admin
 - `manager@converge.com` / `password` — role: manager
 
@@ -188,9 +191,11 @@ All at `/event/:slug` — single-page multi-step wizard:
 - Public booking forms (EventPage + BookingPage) show "First Name" / "Last Name" fields (no combined Full Name)
 - Admin AttendeeFormModal also split into first/last; AttendeesTable sorts by lastName by default
 
-### File Upload Endpoint (added)
-- `POST /api/upload` (requireAuth, multer diskStorage) → `/uploads/<filename>`; `/uploads/` served statically
-- BrandingPage logo and EventFormModal logo use upload endpoint (not base64)
+### File Upload Endpoint
+- `POST /api/upload` (requireAuth, multer memoryStorage) → uploads to Replit App Storage at `public/uploads/<key>` in GCS bucket
+- `GET /uploads/:key` → proxies file from GCS to browser (public cache)
+- Returns `/uploads/<key>` URL — persists across restarts
+- BrandingPage logos and EventFormModal logo use this endpoint
 
 ### Password Recovery Flow (added)
 - `PasswordResetToken` in schema; `createPasswordResetToken`, `getPasswordResetToken`, `markResetTokenUsed`, `updateUserPassword` in IStorage + MemStorage
@@ -234,5 +239,4 @@ All at `/event/:slug` — single-page multi-step wizard:
 - **Do NOT change** the LandingPage (`/`) layout or styling
 - **Do NOT redesign** the admin sidebar or admin layout shell
 - **Do NOT add** matchmaking, sponsor targeting, preference matching, or approval workflows
-- **MemStorage only** — no database until explicitly requested
 - Preserve all scheduling rules and conflict detection

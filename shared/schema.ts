@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, jsonb, bigint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -75,6 +75,8 @@ export const events = pgTable("events", {
 
 export const insertEventSchema = createInsertSchema(events).extend({
   slug: z.string().min(1, "Event code is required").regex(/^[A-Z0-9]+$/, "Event code must be uppercase letters and numbers only"),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
   archiveSource: z.enum(["manual", "event"]).nullable().optional(),
   primaryColor: z.string().nullable().optional(),
   secondaryColor: z.string().nullable().optional(),
@@ -287,3 +289,47 @@ export const DEFAULT_BRANDING: AppBranding = {
   sponsorDashboardLogoUrl: "",
   publicEventLogoUrl: "",
 };
+
+// ── DB tables for singleton config (settings + branding stored by key) ────────
+
+export const appConfig = pgTable("app_config", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+});
+
+// ── Sponsor Tokens ────────────────────────────────────────────────────────────
+
+export const sponsorTokens = pgTable("sponsor_tokens", {
+  token: text("token").primaryKey(),
+  sponsorId: varchar("sponsor_id").notNull(),
+  eventId: varchar("event_id").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Sponsor Notifications ─────────────────────────────────────────────────────
+
+export const sponsorNotifications = pgTable("sponsor_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sponsorId: varchar("sponsor_id").notNull(),
+  eventId: varchar("event_id").notNull(),
+  meetingId: varchar("meeting_id").notNull(),
+  type: text("type").notNull(),
+  attendeeName: text("attendee_name").notNull(),
+  attendeeCompany: text("attendee_company").notNull(),
+  eventName: text("event_name").notNull(),
+  date: text("date").notNull(),
+  time: text("time").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ── Password Reset Tokens ─────────────────────────────────────────────────────
+
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  token: text("token").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+  used: boolean("used").notNull().default(false),
+});

@@ -130,11 +130,11 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="startDate">Start Date</Label>
-                  <Input id="startDate" type="date" value={formData.startDate instanceof Date ? formData.startDate.toISOString().split("T")[0] : ""} onChange={(e) => setFormData({ ...formData, startDate: new Date(e.target.value) })} required />
+                  <Input id="startDate" type="date" value={formData.startDate instanceof Date && !isNaN(formData.startDate.getTime()) ? formData.startDate.toISOString().split("T")[0] : ""} onChange={(e) => { const d = e.target.value ? new Date(e.target.value + "T12:00:00") : new Date(); setFormData({ ...formData, startDate: d }); }} required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="endDate">End Date</Label>
-                  <Input id="endDate" type="date" value={formData.endDate instanceof Date ? formData.endDate.toISOString().split("T")[0] : ""} onChange={(e) => setFormData({ ...formData, endDate: new Date(e.target.value) })} required />
+                  <Input id="endDate" type="date" value={formData.endDate instanceof Date && !isNaN(formData.endDate.getTime()) ? formData.endDate.toISOString().split("T")[0] : ""} onChange={(e) => { const d = e.target.value ? new Date(e.target.value + "T12:00:00") : new Date(); setFormData({ ...formData, endDate: d }); }} required />
                 </div>
               </div>
 

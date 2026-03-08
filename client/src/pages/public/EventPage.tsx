@@ -7,9 +7,9 @@ import { Event, Sponsor, Meeting, AppBranding } from "@shared/schema";
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
   AlertCircle, ChevronLeft, ChevronDown, Clock, User, Video, Download, ExternalLink,
-  Filter, X, Gem, Linkedin,
+  Filter, X, Gem, Linkedin, MonitorPlay,
 } from "lucide-react";
-import { ONLINE_PLATFORMS } from "@shared/schema";
+import { SiZoom, SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,6 @@ import PublicFooter from "@/components/PublicFooter";
 import LegalAcknowledgment from "@/components/LegalAcknowledgment";
 
 // ── Event domain mapping ─────────────────────────────────────────────────────
-// Maps event code prefix → official event website URL
 const eventDomainMap: Record<string, string> = {
   CUGI:  "https://CUGrowthSummit.com",
   FRC:   "https://FintechRiskandCompliance.com",
@@ -87,12 +86,26 @@ function generateSlots(blocks: Event["meetingBlocks"], date: string): string[] {
   return slots;
 }
 
+function detectTimezone(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const map: Record<string, string> = {
+      "America/Chicago":     "Central (CT)",
+      "America/New_York":    "Eastern (ET)",
+      "America/Denver":      "Mountain (MT)",
+      "America/Los_Angeles": "Pacific (PT)",
+    };
+    return map[tz] || "Central (CT)";
+  } catch {
+    return "Central (CT)";
+  }
+}
+
 // ── Shell ────────────────────────────────────────────────────────────────────
 
 function Shell({
   children, onBack, backLabel, style,
 }: { children: React.ReactNode; onBack?: () => void; backLabel?: string; style?: React.CSSProperties }) {
-  const [, nav] = useLocation();
   const { data: branding } = useQuery<AppBranding>({ queryKey: ["/api/branding-public"] });
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex flex-col" style={style}>
@@ -130,9 +143,13 @@ function Shell({
 
 // ── StepBar ──────────────────────────────────────────────────────────────────
 
-const STEP_LABELS = ["Sponsor", "Date", "Time", "Your Info", "Confirm"];
+const ONSITE_STEPS = ["Sponsor", "Date", "Time", "Your Info", "Confirm"];
+const ONLINE_STEPS = ["Sponsor", "Date", "Time", "Platform", "Your Info", "Confirm"];
 
-function StepBar({ current, slug, name, accentColor }: { current: number; slug: string; name: string; accentColor?: string | null }) {
+function StepBar({ current, slug, name, accentColor, labels }: {
+  current: number; slug: string; name: string; accentColor?: string | null; labels?: string[];
+}) {
+  const stepLabels = labels ?? ONSITE_STEPS;
   return (
     <div className="w-full max-w-2xl mx-auto px-6 pt-6 pb-8">
       <div className="flex items-center gap-2 mb-5">
@@ -145,11 +162,11 @@ function StepBar({ current, slug, name, accentColor }: { current: number; slug: 
         <span className="text-sm text-muted-foreground truncate">{name}</span>
       </div>
       <div className="flex items-center">
-        {STEP_LABELS.map((label, i) => {
-          const done = i < current;
+        {stepLabels.map((label, i) => {
+          const done   = i < current;
           const active = i === current;
           return (
-            <div key={i} className={cn("flex items-center", i < STEP_LABELS.length - 1 ? "flex-1" : "")}>
+            <div key={i} className={cn("flex items-center", i < stepLabels.length - 1 ? "flex-1" : "")}>
               <div className="flex flex-col items-center gap-1 shrink-0">
                 <div
                   className={cn(
@@ -158,11 +175,7 @@ function StepBar({ current, slug, name, accentColor }: { current: number; slug: 
                     : active ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
                     :          "bg-muted text-muted-foreground",
                   )}
-                  style={
-                    accentColor && done
-                      ? { backgroundColor: accentColor, color: "#fff" }
-                      : undefined
-                  }
+                  style={accentColor && done ? { backgroundColor: accentColor, color: "#fff" } : undefined}
                 >
                   {done ? "✓" : i + 1}
                 </div>
@@ -171,7 +184,7 @@ function StepBar({ current, slug, name, accentColor }: { current: number; slug: 
                   active ? "text-foreground" : "text-muted-foreground",
                 )}>{label}</span>
               </div>
-              {i < STEP_LABELS.length - 1 && (
+              {i < stepLabels.length - 1 && (
                 <div className={cn("h-px flex-1 mx-1.5 mb-3 transition-colors duration-300", done ? "bg-accent" : "bg-border")} />
               )}
             </div>
@@ -185,8 +198,15 @@ function StepBar({ current, slug, name, accentColor }: { current: number; slug: 
 // ── Recap chip ────────────────────────────────────────────────────────────────
 
 function RecapChip({
-  sponsor, date, time, onChangeSponsor, onChangeDate,
-}: { sponsor?: Sponsor | null; date?: string; time?: string; onChangeSponsor?: () => void; onChangeDate?: () => void }) {
+  sponsor, date, time, platform, onChangeSponsor, onChangeDate,
+}: {
+  sponsor?: Sponsor | null;
+  date?: string;
+  time?: string;
+  platform?: string;
+  onChangeSponsor?: () => void;
+  onChangeDate?: () => void;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 rounded-xl bg-muted/50 border border-border/50 text-sm">
       {sponsor && (
@@ -212,6 +232,14 @@ function RecapChip({
           </span>
         </>
       )}
+      {platform && (
+        <>
+          <span className="text-muted-foreground/50 hidden sm:inline">·</span>
+          <span className="flex items-center gap-1 text-muted-foreground">
+            <Video className="h-3.5 w-3.5" />{platform}
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -227,10 +255,10 @@ const slide = {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type AttendeeForm = { firstName: string; lastName: string; company: string; title: string; email: string; linkedinUrl: string };
-type OnlineForm = { date: string; time: string; timezone: string; platform: string };
-
-const TIMEZONES = ["Central (CT)", "Eastern (ET)", "Mountain (MT)", "Pacific (PT)"];
+type AttendeeForm = {
+  firstName: string; lastName: string; company: string;
+  title: string; email: string; linkedinUrl: string;
+};
 
 function onlineSlots(): string[] {
   const slots: string[] = [];
@@ -243,6 +271,21 @@ function onlineSlots(): string[] {
 }
 const ONLINE_SLOTS = onlineSlots();
 
+// Platform display config
+const TeamsIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none">
+    <rect x="2" y="2" width="20" height="20" rx="4" fill="#6264A7" />
+    <text x="12" y="17" textAnchor="middle" fontSize="13" fontWeight="bold" fill="white" fontFamily="sans-serif">T</text>
+  </svg>
+);
+
+const PLATFORM_CONFIG: { id: string; label: string; icon: React.ReactNode }[] = [
+  { id: "Zoom",            label: "Zoom",            icon: <SiZoom className="h-6 w-6" style={{ color: "#2D8CFF" }} /> },
+  { id: "Microsoft Teams", label: "Microsoft Teams", icon: <TeamsIcon /> },
+  { id: "Google Meet",     label: "Google Meet",     icon: <SiGooglemeet className="h-6 w-6" style={{ color: "#00897B" }} /> },
+  { id: "",                label: "No Preference",   icon: <MonitorPlay className="h-6 w-6 text-muted-foreground" /> },
+];
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function EventPage() {
@@ -253,29 +296,40 @@ export default function EventPage() {
   const { data: sponsors = [], isLoading: spL } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
   const { data: meetings = [] }                 = useQuery<Meeting[]>({ queryKey: ["/api/meetings"] });
 
-  // step 0=sponsor 1=date 2=time 3=form 4=success
-  const [step, setStep] = useState(0);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [showAllFilters, setShowAllFilters] = useState(false);
+  // step 0=sponsor, 1=date, 2=time
+  // onsite:  3=info, 4=confirm
+  // online:  3=platform, 4=info, 5=confirm
+  const [step,         setStep]         = useState(0);
+  const [showSuccess,  setShowSuccess]  = useState(false);
+  const [meetingMode,  setMeetingMode]  = useState<"onsite" | "online">("onsite");
+  const [activeFilters,   setActiveFilters]   = useState<string[]>([]);
+  const [showAllFilters,  setShowAllFilters]  = useState(false);
   const [selectedSponsor, setSelectedSponsor] = useState<Sponsor | null>(null);
   const [selectedDate,    setSelectedDate]    = useState("");
   const [selectedTime,    setSelectedTime]    = useState("");
   const [selectedLoc,     setSelectedLoc]     = useState("");
-  const [attendee, setAttendee] = useState<AttendeeForm>({ firstName: "", lastName: "", company: "", title: "", email: "", linkedinUrl: "" });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [agreeToTerms, setAgreeToTerms] = useState(false);
-  const [showLinkedIn, setShowLinkedIn] = useState(false);
-
-  // ── Online meeting state ──────────────────────────────────────────────────
-  const [meetingMode, setMeetingMode] = useState<"onsite" | "online">("onsite");
-  const [onlineForm, setOnlineForm] = useState<OnlineForm>({ date: "", time: "", timezone: "Central (CT)", platform: "" });
+  const [selectedPlatform, setSelectedPlatform] = useState("");
+  const [timezone,        setTimezone]        = useState("Central (CT)");
+  const [attendee, setAttendee] = useState<AttendeeForm>({
+    firstName: "", lastName: "", company: "", title: "", email: "", linkedinUrl: "",
+  });
+  const [submitting,    setSubmitting]    = useState(false);
+  const [error,         setError]         = useState("");
+  const [agreeToTerms,  setAgreeToTerms]  = useState(false);
+  const [showLinkedIn,  setShowLinkedIn]  = useState(false);
   const [createdMeetingId, setCreatedMeetingId] = useState<string | null>(null);
 
   const event = events.find((e) => e.slug === slug);
   const eventSponsors = event
     ? sponsors
-        .filter((s) => (s.archiveState ?? "active") === "active" && (s.assignedEvents ?? []).some((ae) => ae.eventId === event.id && (ae.archiveState ?? "active") === "active" && !!ae.sponsorshipLevel && ae.sponsorshipLevel !== "None"))
+        .filter((s) =>
+          (s.archiveState ?? "active") === "active" &&
+          (s.assignedEvents ?? []).some((ae) =>
+            ae.eventId === event.id &&
+            (ae.archiveState ?? "active") === "active" &&
+            !!ae.sponsorshipLevel && ae.sponsorshipLevel !== "None"
+          )
+        )
         .sort((a, b) => {
           const la = LEVEL_ORDER[getSponsorEventLevel(a, event.id)] ?? 99;
           const lb = LEVEL_ORDER[getSponsorEventLevel(b, event.id)] ?? 99;
@@ -291,10 +345,7 @@ export default function EventPage() {
       (s.attributes ?? []).forEach((a) => {
         const trimmed = a.trim();
         const key = trimmed.toLowerCase();
-        if (trimmed && !seen.has(key)) {
-          seen.add(key);
-          result.push(trimmed);
-        }
+        if (trimmed && !seen.has(key)) { seen.add(key); result.push(trimmed); }
       });
     });
     return result;
@@ -311,11 +362,11 @@ export default function EventPage() {
   const eventColorStyle = useMemo((): React.CSSProperties => {
     if (!event) return {};
     const vars: Record<string, string> = {};
-    if (event.primaryColor)   vars["--event-primary"]    = event.primaryColor;
-    if (event.secondaryColor) vars["--event-secondary"]  = event.secondaryColor;
-    if (event.accentColor)    vars["--event-accent"]     = event.accentColor;
-    if (event.buttonColor)    vars["--event-button"]     = event.buttonColor;
-    if (event.bgAccentColor)  vars["--event-bg-accent"]  = event.bgAccentColor;
+    if (event.primaryColor)   vars["--event-primary"]   = event.primaryColor;
+    if (event.secondaryColor) vars["--event-secondary"] = event.secondaryColor;
+    if (event.accentColor)    vars["--event-accent"]    = event.accentColor;
+    if (event.buttonColor)    vars["--event-button"]    = event.buttonColor;
+    if (event.bgAccentColor)  vars["--event-bg-accent"] = event.bgAccentColor;
     return vars as React.CSSProperties;
   }, [event]);
 
@@ -338,10 +389,8 @@ export default function EventPage() {
 
   const eventEnded = useMemo(() => {
     if (!event?.endDate) return false;
-    const endStr = event.endDate as unknown as string;
-    const endDate = parseISO(endStr);
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    const endDate = parseISO(event.endDate as unknown as string);
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
     return endDate < startOfToday;
   }, [event?.endDate]);
 
@@ -354,18 +403,15 @@ export default function EventPage() {
     return false;
   }, [event?.schedulingEnabled, event?.schedulingShutoffAt]);
 
-  const hasExternalLink = !!event?.externalSchedulingUrl;
-  const showExternalHandoff = schedulingDisabled && hasExternalLink;
-  const showSchedulingClosed = (eventEnded || schedulingDisabled) && !hasExternalLink;
+  const hasExternalLink       = !!event?.externalSchedulingUrl;
+  const showExternalHandoff   = schedulingDisabled && hasExternalLink;
+  const showSchedulingClosed  = (eventEnded || schedulingDisabled) && !hasExternalLink;
 
   const availableDates = useMemo(() => {
     if (!event) return [];
-    const startStr = event.startDate as unknown as string;
-    const endStr = event.endDate as unknown as string;
-    const evStart = parseISO(startStr);
-    const evEnd = parseISO(endStr);
-    evStart.setHours(0, 0, 0, 0);
-    evEnd.setHours(23, 59, 59, 999);
+    const evStart = parseISO(event.startDate as unknown as string);
+    const evEnd   = parseISO(event.endDate   as unknown as string);
+    evStart.setHours(0, 0, 0, 0); evEnd.setHours(23, 59, 59, 999);
     return [...new Set(
       (event.meetingBlocks ?? [])
         .filter((b) => {
@@ -388,21 +434,15 @@ export default function EventPage() {
   function pickOnlineMeeting(s: Sponsor) {
     setSelectedSponsor(s);
     setMeetingMode("online");
-    setOnlineForm({ date: "", time: "", timezone: "Central (CT)", platform: "" });
+    setSelectedDate(""); setSelectedTime(""); setSelectedPlatform("");
+    setTimezone(detectTimezone());
     setAttendee({ firstName: "", lastName: "", company: "", title: "", email: "", linkedinUrl: "" });
+    setAgreeToTerms(false);
     setError("");
-    go(3);
+    go(1);
   }
 
-  function pickDate(d: string) {
-    setSelectedDate(d); setSelectedTime(""); setError(""); go(2);
-  }
-  function pickTime(t: string) {
-    setSelectedTime(t); setError(""); go(3);
-  }
-
-  async function handleOnlineSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleOnlineSubmit() {
     if (!event || !selectedSponsor) return;
     setError(""); setSubmitting(true);
     try {
@@ -413,11 +453,11 @@ export default function EventPage() {
           eventId:           event.id,
           sponsorId:         selectedSponsor.id,
           meetingType:       "online_request",
-          date:              onlineForm.date,
-          time:              onlineForm.time,
+          date:              selectedDate,
+          time:              selectedTime,
           location:          "Online",
-          platform:          onlineForm.platform || null,
-          preferredTimezone: onlineForm.timezone,
+          platform:          selectedPlatform || null,
+          preferredTimezone: timezone,
           status:            "Pending",
           source:            "public",
           manualAttendee: {
@@ -435,7 +475,7 @@ export default function EventPage() {
       if (!res.ok) { setError(body.message || "Something went wrong. Please try again."); return; }
       await queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
       setCreatedMeetingId(body.id ?? null);
-      go(5);
+      setShowSuccess(true);
     } catch {
       setError("Network error. Please check your connection and try again.");
     } finally {
@@ -475,7 +515,7 @@ export default function EventPage() {
       if (!res.ok) { setError(body.message || "Something went wrong. Please try again."); return; }
       await queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
       setCreatedMeetingId(body.id ?? null);
-      go(5);
+      setShowSuccess(true);
     } catch {
       setError("Network error. Please check your connection and try again.");
     } finally {
@@ -505,8 +545,8 @@ export default function EventPage() {
     );
   }
 
-  // ── STEP 5: SUCCESS ───────────────────────────────────────────────────────
-  if (step === 5) {
+  // ── SUCCESS ───────────────────────────────────────────────────────────────
+  if (showSuccess) {
     const isOnlineSuccess = meetingMode === "online";
     return (
       <Shell style={eventColorStyle}>
@@ -528,7 +568,7 @@ export default function EventPage() {
               <>
                 <h2 className="text-2xl font-display font-bold text-foreground mb-2">Online Meeting Request Sent</h2>
                 <p className="text-muted-foreground text-sm mb-6">
-                  Your online meeting request has been submitted. The sponsor will contact you to confirm the meeting time and send the meeting link.
+                  Your online meeting request has been submitted. The sponsor will contact you to confirm the meeting time and send a link.
                 </p>
                 <div className="rounded-xl bg-muted/50 border border-border/50 p-4 text-left space-y-3 text-sm mb-6">
                   <div className="flex items-center gap-2.5">
@@ -543,15 +583,15 @@ export default function EventPage() {
                   </div>
                   <div className="flex items-center gap-2.5 text-muted-foreground">
                     <Calendar className="h-4 w-4 text-accent shrink-0" />
-                    <span>Preferred: {format(parseISO(onlineForm.date), "EEEE, MMMM d, yyyy")}</span>
+                    <span>Preferred: {selectedDate ? format(parseISO(selectedDate), "EEEE, MMMM d, yyyy") : "—"}</span>
                   </div>
                   <div className="flex items-center gap-2.5 text-muted-foreground">
                     <Clock className="h-4 w-4 text-accent shrink-0" />
-                    <span>{fmt12(onlineForm.time)} {onlineForm.timezone}</span>
+                    <span>{selectedTime ? `${fmt12(selectedTime)} ${timezone}` : "—"}</span>
                   </div>
                   <div className="flex items-center gap-2.5 text-muted-foreground">
                     <Video className="h-4 w-4 shrink-0" />
-                    <span>{onlineForm.platform || "No platform preference"}</span>
+                    <span>{selectedPlatform || "No platform preference"}</span>
                   </div>
                   <div className="flex items-center gap-2.5 text-muted-foreground border-t border-border/50 pt-3">
                     <User className="h-4 w-4 shrink-0" />
@@ -601,9 +641,7 @@ export default function EventPage() {
             {!isOnlineSuccess && createdMeetingId && event && selectedSponsor && (
               <div className="flex flex-col sm:flex-row gap-2 mb-3">
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-2 text-xs"
+                  variant="outline" size="sm" className="flex-1 gap-2 text-xs"
                   onClick={() => downloadICS({
                     meetingId:    createdMeetingId,
                     sponsorName:  selectedSponsor.name,
@@ -631,9 +669,7 @@ export default function EventPage() {
                     location:     selectedLoc || "TBD",
                     meetingType:  "onsite",
                   })}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1"
+                  target="_blank" rel="noopener noreferrer" className="flex-1"
                   data-testid="link-add-google-calendar"
                 >
                   <Button variant="outline" size="sm" className="w-full gap-2 text-xs">
@@ -644,6 +680,7 @@ export default function EventPage() {
             )}
             <Button
               onClick={() => {
+                setShowSuccess(false);
                 setStep(0);
                 setSelectedSponsor(null);
                 setSelectedDate("");
@@ -673,8 +710,7 @@ export default function EventPage() {
             {event.logoUrl && (
               <div className="flex justify-center mb-5">
                 <img
-                  src={event.logoUrl}
-                  alt={event.name}
+                  src={event.logoUrl} alt={event.name}
                   className="h-20 sm:h-24 max-w-[280px] sm:max-w-[340px] object-contain"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   data-testid="img-event-logo"
@@ -686,10 +722,7 @@ export default function EventPage() {
             </h1>
             <div className="flex flex-wrap items-center justify-center gap-4 text-muted-foreground text-sm">
               <span className="flex items-center gap-1.5">
-                <Calendar
-                  className="h-3.5 w-3.5 text-accent"
-                  style={evAccent ? { color: evAccent } : undefined}
-                />
+                <Calendar className="h-3.5 w-3.5 text-accent" style={evAccent ? { color: evAccent } : undefined} />
                 {format(parseISO(event.startDate as unknown as string), "MMMM d")}
                 {" – "}
                 {format(parseISO(event.endDate as unknown as string), "MMMM d, yyyy")}
@@ -701,13 +734,11 @@ export default function EventPage() {
               {getEventWebsite(event.slug, event.websiteUrl) && (
                 <a
                   href={getEventWebsite(event.slug, event.websiteUrl)!}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-1.5 text-accent hover:opacity-80 transition-opacity font-medium"
                   data-testid="link-event-website"
                 >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Event Website
+                  <ExternalLink className="h-3.5 w-3.5" /> Event Website
                 </a>
               )}
             </div>
@@ -722,9 +753,7 @@ export default function EventPage() {
                 </p>
               </div>
               <a
-                href={event?.externalSchedulingUrl ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={event?.externalSchedulingUrl ?? "#"} target="_blank" rel="noopener noreferrer"
                 data-testid="btn-open-event-app"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
               >
@@ -763,7 +792,7 @@ export default function EventPage() {
             )}
           </div>
 
-          {/* Solution Types filter bar — only shown when sponsors have solution types assigned */}
+          {/* Solution Types filter bar */}
           {attributesInUse.length > 0 && (() => {
             const allOptions = attributesInUse;
             const SHOW_LIMIT = 7;
@@ -790,7 +819,9 @@ export default function EventPage() {
                     return (
                       <button
                         key={attr}
-                        onClick={() => setActiveFilters((prev) => active ? prev.filter((f) => f.toLowerCase() !== attr.toLowerCase()) : [...prev, attr])}
+                        onClick={() => setActiveFilters((prev) =>
+                          active ? prev.filter((f) => f.toLowerCase() !== attr.toLowerCase()) : [...prev, attr]
+                        )}
                         data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
                         className={cn(
                           "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
@@ -844,10 +875,8 @@ export default function EventPage() {
                   )}
                   data-testid={`sponsor-card-${sponsor.id}`}
                 >
-                  {/* Card body */}
                   <div className="flex-1 p-4">
                     <div className="flex items-start justify-between gap-2 mb-3">
-                      {/* Logo / Icon */}
                       <div className="h-9 flex items-center shrink-0">
                         {sponsor.logoUrl ? (
                           <img src={sponsor.logoUrl} alt={sponsor.name} className="h-8 max-w-[90px] object-contain" />
@@ -864,15 +893,9 @@ export default function EventPage() {
                         </span>
                       )}
                     </div>
-
-                    {/* Name */}
-                    <h3 className="text-sm font-display font-bold text-foreground leading-tight mb-1">
-                      {sponsor.name}
-                    </h3>
+                    <h3 className="text-sm font-display font-bold text-foreground leading-tight mb-1">{sponsor.name}</h3>
                     {sponsor.shortDescription && (
-                      <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2 mb-1">
-                        {sponsor.shortDescription}
-                      </p>
+                      <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2 mb-1">{sponsor.shortDescription}</p>
                     )}
                     <Link
                       href={`/event/${event.slug}/sponsor/${sponsor.id}`}
@@ -883,8 +906,6 @@ export default function EventPage() {
                       <ExternalLink className="h-2.5 w-2.5" /> View Profile
                     </Link>
                   </div>
-
-                  {/* CTA buttons pinned to bottom */}
                   <div className="px-4 pb-4 space-y-1.5">
                     {(eventEnded || schedulingDisabled) ? (
                       <div className="w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs font-medium text-center border border-border/60" data-testid={`text-scheduling-closed-${sponsor.id}`}>
@@ -926,26 +947,31 @@ export default function EventPage() {
     );
   }
 
-  // ── STEP 1: DATE SELECTION ────────────────────────────────────────────────
+  // ── STEP 1: DATE SELECTION (shared for onsite + online) ───────────────────
   if (step === 1) {
+    const stepLabels = meetingMode === "online" ? ONLINE_STEPS : ONSITE_STEPS;
     return (
-      <Shell onBack={() => go(0)} backLabel="Sponsors">
-        <StepBar current={1} slug={event.slug} name={event.name} accentColor={evAccent} />
+      <Shell onBack={() => go(0)} backLabel="Sponsors" style={eventColorStyle}>
+        <StepBar current={1} slug={event.slug} name={event.name} accentColor={evAccent} labels={stepLabels} />
         <AnimatePresence mode="wait">
           <motion.div key="step-date" {...slide} className="w-full max-w-2xl mx-auto px-6 space-y-7">
             <RecapChip sponsor={selectedSponsor} onChangeSponsor={() => go(0)} />
 
             <div>
               <h2 className="text-xl font-display font-semibold text-foreground mb-1 flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-accent" /> Choose a Date
+                <Calendar className="h-5 w-5 text-accent" style={evAccent ? { color: evAccent } : undefined} />
+                {meetingMode === "online" ? "Choose a Preferred Date" : "Choose a Date"}
               </h2>
-              <p className="text-sm text-muted-foreground mb-5">Select a day to view available time slots.</p>
-
+              <p className="text-sm text-muted-foreground mb-5">
+                {meetingMode === "online"
+                  ? "Select your preferred day for the online meeting."
+                  : "Select a day to view available time slots."}
+              </p>
               <div className="flex flex-wrap gap-3">
                 {availableDates.map((d) => (
                   <button
                     key={d}
-                    onClick={() => pickDate(d)}
+                    onClick={() => { setSelectedDate(d); setSelectedTime(""); setSelectedLoc(""); setError(""); }}
                     data-testid={`date-btn-${d}`}
                     className={cn(
                       "px-5 py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-150 active:scale-[0.97]",
@@ -960,50 +986,86 @@ export default function EventPage() {
                 ))}
               </div>
             </div>
+
+            {/* Navigation */}
+            <div className="flex gap-3 pb-2">
+              <Button
+                type="button" variant="outline" onClick={() => go(0)}
+                className="shrink-0" data-testid="button-date-back"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Back
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 shadow-md"
+                style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
+                disabled={!selectedDate}
+                onClick={() => { setError(""); go(2); }}
+                data-testid="button-date-continue"
+              >
+                Continue
+              </Button>
+            </div>
           </motion.div>
         </AnimatePresence>
       </Shell>
     );
   }
 
-  // ── STEP 2: TIME SELECTION ────────────────────────────────────────────────
+  // ── STEP 2: TIME SELECTION (shared for onsite + online) ───────────────────
   if (step === 2) {
-    const slots = generateSlots(event.meetingBlocks ?? [], selectedDate);
-    const allBooked = slots.length > 0 && slots.every((t) => bookedSlots.has(`${selectedSponsor?.id}|${selectedDate}|${t}`));
+    const stepLabels = meetingMode === "online" ? ONLINE_STEPS : ONSITE_STEPS;
+    const slots = meetingMode === "online"
+      ? ONLINE_SLOTS
+      : generateSlots(event.meetingBlocks ?? [], selectedDate);
+    const allBooked = meetingMode === "onsite" && slots.length > 0 &&
+      slots.every((t) => bookedSlots.has(`${selectedSponsor?.id}|${selectedDate}|${t}`));
 
     return (
-      <Shell onBack={() => go(1)} backLabel="Date">
-        <StepBar current={2} slug={event.slug} name={event.name} accentColor={evAccent} />
+      <Shell onBack={() => go(1)} backLabel="Date" style={eventColorStyle}>
+        <StepBar current={2} slug={event.slug} name={event.name} accentColor={evAccent} labels={stepLabels} />
         <AnimatePresence mode="wait">
           <motion.div key="step-time" {...slide} className="w-full max-w-2xl mx-auto px-6 space-y-7">
-            <RecapChip sponsor={selectedSponsor} date={selectedDate} onChangeSponsor={() => go(0)} onChangeDate={() => go(1)} />
+            <RecapChip
+              sponsor={selectedSponsor} date={selectedDate}
+              onChangeSponsor={() => go(0)} onChangeDate={() => go(1)}
+            />
 
             <div>
               <h2 className="text-xl font-display font-semibold text-foreground mb-1 flex items-center gap-2">
-                <Clock className="h-5 w-5 text-accent" /> Choose a Time
+                <Clock className="h-5 w-5 text-accent" style={evAccent ? { color: evAccent } : undefined} />
+                {meetingMode === "online" ? "Choose a Preferred Time" : "Choose a Time"}
               </h2>
+              {meetingMode === "online" && (
+                <p className="text-sm text-muted-foreground mb-1">
+                  Timezone: <span className="font-medium">{timezone}</span>
+                </p>
+              )}
               <p className="text-sm text-muted-foreground mb-5">
-                Greyed-out slots are already taken. Each session is 30 minutes.
+                {meetingMode === "online"
+                  ? "Select your preferred time. The sponsor will confirm the exact time."
+                  : "30-minute sessions. Strikethrough = already booked."}
               </p>
 
-              {slots.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No time slots configured for this date.</p>
-              ) : allBooked ? (
-                <div className="flex flex-col items-center gap-3 py-10 text-muted-foreground">
-                  <Clock className="h-8 w-8 opacity-30" />
-                  <p className="text-sm">All time slots on this date are fully booked.</p>
-                  <Button variant="outline" size="sm" onClick={() => go(1)}>Choose a different date</Button>
+              {allBooked && (
+                <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 mb-4 text-amber-800 text-sm">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  All time slots for this sponsor on this date are fully booked. Please choose a different date.
                 </div>
+              )}
+
+              {slots.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">No time slots available for this date.</p>
               ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {slots.map((t) => {
-                    const booked = bookedSlots.has(`${selectedSponsor?.id}|${selectedDate}|${t}`);
+                    const booked = meetingMode === "onsite" && bookedSlots.has(`${selectedSponsor?.id}|${selectedDate}|${t}`);
                     const active = selectedTime === t;
                     return (
                       <button
                         key={t}
                         disabled={booked}
-                        onClick={() => pickTime(t)}
+                        onClick={() => { setSelectedTime(t); setSelectedLoc(""); setError(""); }}
                         data-testid={`time-btn-${t}`}
                         title={booked ? "Already booked" : fmt12(t)}
                         className={cn(
@@ -1022,116 +1084,150 @@ export default function EventPage() {
                 </div>
               )}
             </div>
+
+            {/* Navigation */}
+            <div className="flex gap-3 pb-2">
+              <Button
+                type="button" variant="outline" onClick={() => go(1)}
+                className="shrink-0" data-testid="button-time-back"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Back
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 shadow-md"
+                style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
+                disabled={!selectedTime}
+                onClick={() => { setError(""); go(3); }}
+                data-testid="button-time-continue"
+              >
+                Continue
+              </Button>
+            </div>
           </motion.div>
         </AnimatePresence>
       </Shell>
     );
   }
 
-  // ── LOCATION HELPERS (shared between step 3 & 4) ─────────────────────────
-  const allLocations = event.meetingLocations ?? [];
-  const selectedBlock = (event.meetingBlocks ?? []).find((b) => b.date === selectedDate && toMins(b.startTime) <= toMins(selectedTime) && toMins(selectedTime) < toMins(b.endTime));
-  const blockLocationIds = selectedBlock?.locationIds ?? [];
-  const locations = blockLocationIds.length > 0
-    ? allLocations.filter((loc) => blockLocationIds.includes(loc.id))
-    : allLocations;
+  // ── ONLINE STEPS (3: Platform, 4: Your Info, 5: Confirm) ─────────────────
 
-  function validateInfo(): string {
-    if (!attendee.firstName.trim()) return "First name is required.";
-    if (!attendee.company.trim()) return "Company is required.";
-    if (!attendee.title.trim()) return "Title is required.";
-    if (!attendee.email.trim()) return "Email is required.";
-    if (!/\S+@\S+\.\S+/.test(attendee.email)) return "Please enter a valid email address.";
-    if (locations.length > 0 && !selectedLoc) return "Please select a meeting location.";
-    return "";
-  }
-
-  // Online meeting request form
   if (meetingMode === "online") {
-    const selectCls = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
-    return (
-      <Shell onBack={() => { setMeetingMode("onsite"); go(0); }} backLabel="Sponsors">
-        <AnimatePresence mode="wait">
-          <motion.div key="online-form" {...slide} className="w-full max-w-2xl mx-auto px-6 pt-8 pb-16 space-y-6">
 
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-2">
-              <div className="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
-                <Video className="h-5 w-5 text-violet-600" />
-              </div>
+    // ── ONLINE STEP 3: PLATFORM ─────────────────────────────────────────────
+    if (step === 3) {
+      return (
+        <Shell onBack={() => go(2)} backLabel="Time" style={eventColorStyle}>
+          <StepBar current={3} slug={event.slug} name={event.name} accentColor={evAccent} labels={ONLINE_STEPS} />
+          <AnimatePresence mode="wait">
+            <motion.div key="online-platform" {...slide} className="w-full max-w-2xl mx-auto px-6 space-y-7">
+              <RecapChip
+                sponsor={selectedSponsor} date={selectedDate} time={selectedTime}
+                onChangeSponsor={() => go(0)} onChangeDate={() => go(1)}
+              />
+
               <div>
-                <h2 className="text-xl font-display font-semibold text-foreground">Request an Online Meeting</h2>
-                <p className="text-sm text-muted-foreground">with <strong>{selectedSponsor?.name}</strong></p>
-              </div>
-            </div>
-
-            <p className="text-sm text-muted-foreground rounded-xl bg-violet-50 border border-violet-200 px-4 py-3">
-              Submit your preferred time and the sponsor will reach out to confirm the meeting and send a link.
-            </p>
-
-            <form onSubmit={handleOnlineSubmit} className="space-y-5">
-              {error && (
-                <div className="flex items-start gap-2 rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive">
-                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" /><span>{error}</span>
-                </div>
-              )}
-
-              {/* Meeting request details */}
-              <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5 space-y-4">
-                <h3 className="text-sm font-semibold text-foreground">Meeting Request Details</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="on-date" className="text-xs font-medium">Preferred Date</Label>
-                    <Input id="on-date" type="date" value={onlineForm.date}
-                      onChange={(e) => setOnlineForm({ ...onlineForm, date: e.target.value })}
-                      required className="h-9 text-sm" data-testid="input-online-date" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="on-time" className="text-xs font-medium">Preferred Time</Label>
-                    <select id="on-time" className={selectCls} value={onlineForm.time}
-                      onChange={(e) => setOnlineForm({ ...onlineForm, time: e.target.value })}
-                      required data-testid="select-online-time">
-                      <option value="">Select time...</option>
-                      {ONLINE_SLOTS.map((t) => <option key={t} value={t}>{fmt12(t)}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="on-tz" className="text-xs font-medium">Time Zone</Label>
-                    <select id="on-tz" className={selectCls} value={onlineForm.timezone}
-                      onChange={(e) => setOnlineForm({ ...onlineForm, timezone: e.target.value })}
-                      data-testid="select-online-timezone">
-                      {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="on-platform" className="text-xs font-medium">
-                      Platform <span className="text-muted-foreground font-normal">(optional)</span>
-                    </Label>
-                    <select id="on-platform" className={selectCls} value={onlineForm.platform}
-                      onChange={(e) => setOnlineForm({ ...onlineForm, platform: e.target.value })}
-                      data-testid="select-online-platform">
-                      {ONLINE_PLATFORMS.map((p) => (
-                        <option key={p} value={p === "No Preference" ? "" : p}>{p}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Attendee details */}
-              <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5 space-y-4">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <User className="h-4 w-4 text-accent" /> Your Details
-                </h3>
-                <p className="text-xs text-muted-foreground -mt-2">
-                  Already registered for this event? Enter your email and we'll link the request to your record.
+                <h2 className="text-xl font-display font-semibold text-foreground mb-1 flex items-center gap-2">
+                  <Video className="h-5 w-5 text-accent" style={evAccent ? { color: evAccent } : undefined} />
+                  Choose Online Meeting Platform
+                </h2>
+                <p className="text-sm text-muted-foreground mb-5">
+                  How would you prefer to connect? The sponsor will send the link once confirmed.
                 </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {PLATFORM_CONFIG.map(({ id, label, icon }) => {
+                    const active = selectedPlatform === id;
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setSelectedPlatform(id)}
+                        data-testid={`platform-btn-${label.toLowerCase().replace(/\s+/g, "-")}`}
+                        className={cn(
+                          "flex flex-col items-center gap-3 px-4 py-5 rounded-xl border-2 font-semibold text-sm transition-all duration-150 active:scale-[0.97]",
+                          active
+                            ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25"
+                            : "bg-card text-foreground border-border hover:border-primary/60 hover:bg-muted/60",
+                        )}
+                        style={active && evButton ? { backgroundColor: evButton, borderColor: evButton, boxShadow: `0 4px 14px ${evButton}30` } : undefined}
+                      >
+                        <span className={cn("transition-all", active ? "opacity-80 invert" : "")}>{icon}</span>
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Navigation */}
+              <div className="flex gap-3 pb-2">
+                <Button
+                  type="button" variant="outline" onClick={() => go(2)}
+                  className="shrink-0" data-testid="button-platform-back"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Back
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 shadow-md"
+                  style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
+                  onClick={() => go(4)}
+                  data-testid="button-platform-continue"
+                >
+                  Continue
+                </Button>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </Shell>
+      );
+    }
+
+    // ── ONLINE STEP 4: YOUR INFO ────────────────────────────────────────────
+    if (step === 4) {
+      function validateOnlineInfo(): string {
+        if (!attendee.firstName.trim()) return "First name is required.";
+        if (!attendee.company.trim())   return "Company is required.";
+        if (!attendee.title.trim())     return "Title is required.";
+        if (!attendee.email.trim())     return "Email is required.";
+        if (!/\S+@\S+\.\S+/.test(attendee.email)) return "Please enter a valid email address.";
+        return "";
+      }
+      return (
+        <Shell onBack={() => go(3)} backLabel="Platform" style={eventColorStyle}>
+          <StepBar current={4} slug={event.slug} name={event.name} accentColor={evAccent} labels={ONLINE_STEPS} />
+          <AnimatePresence mode="wait">
+            <motion.div key="online-info" {...slide} className="w-full max-w-2xl mx-auto px-6 pb-12 space-y-4">
+              <RecapChip
+                sponsor={selectedSponsor} date={selectedDate} time={selectedTime}
+                platform={selectedPlatform || "No Preference"}
+                onChangeSponsor={() => go(0)} onChangeDate={() => go(1)}
+              />
+
+              <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <User className="h-4 w-4 text-accent" style={evAccent ? { color: evAccent } : undefined} />
+                    Your Info
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Already registered for this event? Enter your email to link to your record.
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="flex items-start gap-2 rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" /><span>{error}</span>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="on-firstname" className="text-xs font-medium">First Name</Label>
                     <Input id="on-firstname" value={attendee.firstName}
                       onChange={(e) => setAttendee({ ...attendee, firstName: e.target.value })}
-                      required placeholder="Jane" className="h-9 text-sm" data-testid="input-online-firstname" />
+                      placeholder="Jane" className="h-9 text-sm" data-testid="input-online-firstname" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="on-lastname" className="text-xs font-medium">Last Name</Label>
@@ -1143,19 +1239,19 @@ export default function EventPage() {
                     <Label htmlFor="on-company" className="text-xs font-medium">Company</Label>
                     <Input id="on-company" value={attendee.company}
                       onChange={(e) => setAttendee({ ...attendee, company: e.target.value })}
-                      required placeholder="Acme Financial" className="h-9 text-sm" data-testid="input-online-company" />
+                      placeholder="Acme Financial" className="h-9 text-sm" data-testid="input-online-company" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="on-title" className="text-xs font-medium">Title</Label>
                     <Input id="on-title" value={attendee.title}
                       onChange={(e) => setAttendee({ ...attendee, title: e.target.value })}
-                      required placeholder="VP of Finance" className="h-9 text-sm" data-testid="input-online-title" />
+                      placeholder="VP of Finance" className="h-9 text-sm" data-testid="input-online-title" />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 sm:col-span-2">
                     <Label htmlFor="on-email" className="text-xs font-medium">Email</Label>
                     <Input id="on-email" type="email" value={attendee.email}
                       onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
-                      required placeholder="jane@company.com" className="h-9 text-sm" data-testid="input-online-email" />
+                      placeholder="jane@company.com" className="h-9 text-sm" data-testid="input-online-email" />
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -1168,30 +1264,173 @@ export default function EventPage() {
                 </div>
               </div>
 
-              <LegalAcknowledgment checked={agreeToTerms} onChange={setAgreeToTerms} id="agree-online" />
+              {/* Navigation */}
+              <div className="flex gap-3">
+                <Button
+                  type="button" variant="outline" onClick={() => { setError(""); go(3); }}
+                  className="shrink-0" data-testid="button-online-info-back"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Back
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 shadow-md"
+                  style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
+                  onClick={() => {
+                    const err = validateOnlineInfo();
+                    setError(err);
+                    if (!err) { setError(""); go(5); }
+                  }}
+                  data-testid="button-online-info-continue"
+                >
+                  Continue
+                </Button>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </Shell>
+      );
+    }
 
-              <Button
-                type="submit"
-                size="lg"
-                disabled={submitting || !agreeToTerms}
-                className="w-full bg-violet-600 text-white hover:bg-violet-700 shadow-md shadow-violet-200"
-                style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
-                data-testid="button-online-submit"
-              >
-                {submitting ? "Submitting…" : "Submit Online Meeting Request"}
-              </Button>
-            </form>
-          </motion.div>
-        </AnimatePresence>
-      </Shell>
-    );
+    // ── ONLINE STEP 5: CONFIRM ──────────────────────────────────────────────
+    if (step === 5) {
+      const displayName = [attendee.firstName, attendee.lastName].filter(Boolean).join(" ");
+      return (
+        <Shell onBack={() => { setError(""); setAgreeToTerms(false); go(4); }} backLabel="Your Info" style={eventColorStyle}>
+          <StepBar current={5} slug={event.slug} name={event.name} accentColor={evAccent} labels={ONLINE_STEPS} />
+          <AnimatePresence mode="wait">
+            <motion.div key="online-confirm" {...slide} className="w-full max-w-2xl mx-auto px-6 pb-12 space-y-4">
+              <RecapChip
+                sponsor={selectedSponsor} date={selectedDate} time={selectedTime}
+                platform={selectedPlatform || "No Preference"}
+                onChangeSponsor={() => go(0)} onChangeDate={() => go(1)}
+              />
+
+              {/* Summary card */}
+              <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5 space-y-0">
+                <h3 className="text-sm font-semibold text-foreground mb-4">Review Your Request</h3>
+                <dl className="divide-y divide-border/40 text-sm">
+                  <div className="flex items-center gap-3 py-2.5">
+                    <Building2 className="h-4 w-4 text-accent shrink-0" style={evAccent ? { color: evAccent } : undefined} />
+                    <dt className="w-24 shrink-0 text-xs text-muted-foreground">Sponsor</dt>
+                    <dd className="font-medium text-foreground flex items-center gap-1.5">
+                      {selectedSponsor?.name}
+                      {selectedSponsor && getSponsorEventLevel(selectedSponsor, event?.id ?? "") && (
+                        <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5", levelBadge[getSponsorEventLevel(selectedSponsor, event?.id ?? "")] || "bg-muted text-muted-foreground")}>
+                          {getSponsorEventLevel(selectedSponsor, event?.id ?? "") === "Platinum" && <Gem className="h-2 w-2" />}
+                          {getSponsorEventLevel(selectedSponsor, event?.id ?? "")}
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex items-center gap-3 py-2.5">
+                    <Calendar className="h-4 w-4 text-accent shrink-0" style={evAccent ? { color: evAccent } : undefined} />
+                    <dt className="w-24 shrink-0 text-xs text-muted-foreground">Preferred Date</dt>
+                    <dd className="font-medium text-foreground">{selectedDate ? format(parseISO(selectedDate), "EEEE, MMMM d, yyyy") : "—"}</dd>
+                  </div>
+                  <div className="flex items-center gap-3 py-2.5">
+                    <Clock className="h-4 w-4 text-accent shrink-0" style={evAccent ? { color: evAccent } : undefined} />
+                    <dt className="w-24 shrink-0 text-xs text-muted-foreground">Preferred Time</dt>
+                    <dd className="font-medium text-foreground">{selectedTime ? `${fmt12(selectedTime)} ${timezone}` : "—"}</dd>
+                  </div>
+                  <div className="flex items-center gap-3 py-2.5">
+                    <Video className="h-4 w-4 text-accent shrink-0" style={evAccent ? { color: evAccent } : undefined} />
+                    <dt className="w-24 shrink-0 text-xs text-muted-foreground">Platform</dt>
+                    <dd className="font-medium text-foreground">{selectedPlatform || "No Preference"}</dd>
+                  </div>
+                  <div className="flex items-center gap-3 py-2.5">
+                    <dt className="w-24 shrink-0 ml-7 text-xs text-muted-foreground">Meeting Type</dt>
+                    <dd className="text-foreground">Online</dd>
+                  </div>
+                  <div className="flex items-center gap-3 py-2.5">
+                    <User className="h-4 w-4 text-accent shrink-0" style={evAccent ? { color: evAccent } : undefined} />
+                    <dt className="w-24 shrink-0 text-xs text-muted-foreground">Name</dt>
+                    <dd className="font-medium text-foreground">{displayName || "—"}</dd>
+                  </div>
+                  <div className="flex items-center gap-3 py-2.5">
+                    <dt className="w-24 shrink-0 ml-7 text-xs text-muted-foreground">Company</dt>
+                    <dd className="text-foreground">{attendee.company}</dd>
+                  </div>
+                  <div className="flex items-center gap-3 py-2.5">
+                    <dt className="w-24 shrink-0 ml-7 text-xs text-muted-foreground">Title</dt>
+                    <dd className="text-foreground">{attendee.title}</dd>
+                  </div>
+                  <div className="flex items-center gap-3 py-2.5">
+                    <dt className="w-24 shrink-0 ml-7 text-xs text-muted-foreground">Email</dt>
+                    <dd className="text-foreground">{attendee.email}</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="space-y-4">
+                <LegalAcknowledgment checked={agreeToTerms} onChange={setAgreeToTerms} id="agree-online" />
+
+                {error && (
+                  <div className="flex items-start gap-2 rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" /><span>{error}</span>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <Button
+                    type="button" variant="outline"
+                    onClick={() => { setError(""); setAgreeToTerms(false); go(4); }}
+                    className="shrink-0" data-testid="button-online-confirm-back"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Back
+                  </Button>
+                  <Button
+                    type="button"
+                    size="lg"
+                    disabled={submitting || !agreeToTerms}
+                    className="flex-1 shadow-md"
+                    style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
+                    onClick={handleOnlineSubmit}
+                    data-testid="button-online-submit"
+                  >
+                    {submitting ? "Submitting…" : "Submit Online Meeting Request"}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </Shell>
+      );
+    }
   }
 
-  // ── STEP 3: YOUR INFO ────────────────────────────────────────────────────
+  // ── LOCATION HELPERS (onsite, steps 3+) ───────────────────────────────────
+  const allLocations = event.meetingLocations ?? [];
+  const selectedBlock = (event.meetingBlocks ?? []).find(
+    (b) => b.date === selectedDate && toMins(b.startTime) <= toMins(selectedTime) && toMins(selectedTime) < toMins(b.endTime)
+  );
+  const blockLocationIds = selectedBlock?.locationIds ?? [];
+  const blockFilteredLocs = blockLocationIds.length > 0
+    ? allLocations.filter((loc) => blockLocationIds.includes(loc.id))
+    : allLocations;
+  const sponsorTier = selectedSponsor ? getSponsorEventLevel(selectedSponsor, event.id) : "";
+  const locations = blockFilteredLocs.filter((loc) => {
+    const allowed = loc.allowedSponsorLevels ?? [];
+    if (allowed.length === 0) return true;
+    if (!sponsorTier) return false;
+    return (allowed as string[]).includes(sponsorTier);
+  });
+
+  function validateInfo(): string {
+    if (!attendee.firstName.trim()) return "First name is required.";
+    if (!attendee.company.trim())   return "Company is required.";
+    if (!attendee.title.trim())     return "Title is required.";
+    if (!attendee.email.trim())     return "Email is required.";
+    if (!/\S+@\S+\.\S+/.test(attendee.email)) return "Please enter a valid email address.";
+    if (locations.length > 0 && !selectedLoc) return "Please select a meeting location.";
+    return "";
+  }
+
+  // ── STEP 3: YOUR INFO (onsite) ────────────────────────────────────────────
   if (step === 3) {
     return (
-      <Shell onBack={() => go(2)} backLabel="Time">
-        <StepBar current={3} slug={event.slug} name={event.name} accentColor={evAccent} />
+      <Shell onBack={() => go(2)} backLabel="Time" style={eventColorStyle}>
+        <StepBar current={3} slug={event.slug} name={event.name} accentColor={evAccent} labels={ONSITE_STEPS} />
         <AnimatePresence mode="wait">
           <motion.div key="step-info" {...slide} className="w-full max-w-2xl mx-auto px-6 pb-12 space-y-4">
             <RecapChip sponsor={selectedSponsor} date={selectedDate} time={selectedTime}
@@ -1207,8 +1446,7 @@ export default function EventPage() {
                 <div className="flex flex-wrap gap-2">
                   {locations.map((loc) => (
                     <button
-                      type="button"
-                      key={loc.id}
+                      type="button" key={loc.id}
                       onClick={() => { setSelectedLoc(loc.name); setError(""); }}
                       data-testid={`loc-btn-${loc.id}`}
                       className={cn(
@@ -1302,15 +1540,13 @@ export default function EventPage() {
 
             {/* Navigation */}
             <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={() => go(2)} className="shrink-0">
+              <Button type="button" variant="outline" onClick={() => go(2)} className="shrink-0" data-testid="button-info-back">
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
               </Button>
               <Button
                 type="button"
                 className="flex-1 shadow-md"
-                style={evButton
-                  ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` }
-                  : undefined}
+                style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
                 onClick={() => {
                   const err = validateInfo();
                   setError(err);
@@ -1327,13 +1563,13 @@ export default function EventPage() {
     );
   }
 
-  // ── STEP 4: CONFIRM ───────────────────────────────────────────────────────
+  // ── STEP 4: CONFIRM (onsite) ──────────────────────────────────────────────
   const displayName = [attendee.firstName, attendee.lastName].filter(Boolean).join(" ");
-  const displayLoc = selectedLoc || (locations[0]?.name ?? "TBD");
+  const displayLoc  = selectedLoc || (locations[0]?.name ?? "TBD");
 
   return (
-    <Shell onBack={() => { setError(""); setAgreeToTerms(false); go(3); }} backLabel="Your Info">
-      <StepBar current={4} slug={event.slug} name={event.name} accentColor={evAccent} />
+    <Shell onBack={() => { setError(""); setAgreeToTerms(false); go(3); }} backLabel="Your Info" style={eventColorStyle}>
+      <StepBar current={4} slug={event.slug} name={event.name} accentColor={evAccent} labels={ONSITE_STEPS} />
       <AnimatePresence mode="wait">
         <motion.div key="step-confirm" {...slide} className="w-full max-w-2xl mx-auto px-6 pb-12 space-y-4">
           <RecapChip sponsor={selectedSponsor} date={selectedDate} time={selectedTime}
@@ -1342,7 +1578,6 @@ export default function EventPage() {
           {/* Summary card */}
           <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5 space-y-0">
             <h3 className="text-sm font-semibold text-foreground mb-4">Review Your Meeting</h3>
-
             <dl className="divide-y divide-border/40 text-sm">
               <div className="flex items-center gap-3 py-2.5">
                 <Building2 className="h-4 w-4 text-accent shrink-0" style={evAccent ? { color: evAccent } : undefined} />
@@ -1412,11 +1647,9 @@ export default function EventPage() {
 
             <div className="flex gap-3">
               <Button
-                type="button"
-                variant="outline"
+                type="button" variant="outline"
                 onClick={() => { setError(""); setAgreeToTerms(false); go(3); }}
-                className="shrink-0"
-                data-testid="button-confirm-back"
+                className="shrink-0" data-testid="button-confirm-back"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
               </Button>

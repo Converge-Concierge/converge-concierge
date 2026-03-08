@@ -1,0 +1,120 @@
+Add clear navigation buttons to every step of the public scheduling flow.
+
+Important rules:
+- Do not redesign the flow
+- Do not break existing onsite or online scheduling logic
+- Preserve the current step indicator and card-based UX
+- Make additive UX improvements only
+
+Goal:
+On each scheduling page, users should be able to move backward easily if they want to change sponsor, date, time, platform, or details.
+
+==================================================
+1. ADD PREVIOUS / NEXT NAVIGATION TO EACH STEP
+==================================================
+
+For both onsite and online scheduling flows, add navigation buttons at the bottom of every step.
+
+Required behavior:
+- each step should include a Back button
+- each step should include a Continue / Next button when appropriate
+- if it is the first step, do not show Back
+- if it is the final step, keep the existing Confirm / Submit button
+
+Use these labels:
+
+Step 1 Sponsor
+- no Back button
+- Continue button enabled only after sponsor selection
+
+Step 2 Date
+- Back to Sponsor
+- Continue button enabled only after date selection
+
+Step 3 Time
+- Back to Date
+- Continue button enabled only after time selection
+
+Step 4 Your Info
+- Back to Time
+- Continue button enabled only after required fields validate
+
+Step 5 Confirm
+- Back to Your Info
+- Confirm Meeting / Submit Online Meeting Request
+
+For online scheduling, if there is a dedicated Platform step:
+- Back to Time
+- Continue after platform selection
+- then Your Info
+- then Confirm
+
+==================================================
+2. PRESERVE THE EXISTING "CHANGE" LINKS
+==================================================
+
+Do not remove the small inline "Change" links in the summary bar near the top.
+
+Keep both:
+- inline Change links
+- bottom navigation buttons
+
+Reason:
+Some users prefer inline jumps, others expect standard next/back navigation.
+
+==================================================
+3. KEEP USER SELECTIONS WHEN MOVING BACK
+==================================================
+
+Critical:
+When a user clicks Back, preserve all previously entered selections.
+
+Examples:
+- changing time should not erase sponsor/date
+- changing date should not erase sponsor
+- going back from Your Info should not erase typed attendee details
+- going back in online flow should preserve selected platform if already chosen
+
+==================================================
+4. BUTTON PLACEMENT
+==================================================
+
+Add the navigation buttons below the main content card/grid for each step.
+
+Recommended layout:
+- Back button on the left
+- Continue / Next / Confirm button on the right
+
+Keep the styling aligned with the current premium design system.
+
+Do not make the buttons oversized or visually heavy.
+
+==================================================
+5. MOBILE UX
+==================================================
+
+Ensure the navigation buttons work cleanly on mobile:
+- stack if necessary
+- maintain comfortable spacing
+- keep primary action visually clear
+
+==================================================
+6. APPLY TO BOTH FLOWS
+==================================================
+
+Apply this navigation pattern to:
+- onsite meeting scheduling flow
+- online meeting request flow
+
+The online flow should match the onsite flow as closely as possible.
+
+==================================================
+7. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- each scheduling step has clear back/next navigation
+- users can go back to change date/time/etc.
+- selections are preserved when navigating backward
+- inline Change links still work
+- onsite and online flows feel consistent

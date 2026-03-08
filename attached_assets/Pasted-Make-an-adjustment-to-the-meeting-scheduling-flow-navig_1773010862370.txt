@@ -1,0 +1,105 @@
+Make an adjustment to the meeting scheduling flow navigation.
+
+Important rules:
+- Do not redesign the scheduling flow
+- Do not break existing onsite or online scheduling logic
+- Preserve the current step indicator, summary bar, and card-based UX
+- Make a small UX behavior update only
+
+Current issue:
+The flow was updated to add explicit Back/Continue buttons to the Date and Time steps, but this removed the fast auto-advance behavior that worked well.
+
+Required update:
+Keep the explicit Back buttons on the Date and Time steps, but re-enable auto-advance on click.
+
+==================================================
+1. DATE STEP BEHAVIOR
+==================================================
+
+On the Date step:
+- Keep the Back button visible
+- Re-enable auto-advance when the user clicks a date card
+
+Expected behavior:
+- User clicks a date
+- Selected date is saved
+- Flow automatically advances to the Time step
+
+Do NOT require the user to click Continue after selecting a date.
+
+==================================================
+2. TIME STEP BEHAVIOR
+==================================================
+
+On the Time step:
+- Keep the Back button visible
+- Re-enable auto-advance when the user clicks a time slot card
+
+Expected behavior:
+- User clicks a time slot
+- Selected time is saved
+- Flow automatically advances to the next step
+  - onsite: Your Info
+  - online: Online Platform or next configured step
+
+Do NOT require the user to click Continue after selecting a time.
+
+==================================================
+3. KEEP BACK BUTTONS
+==================================================
+
+Do not remove the explicit Back buttons that were added.
+
+Required:
+- Date step keeps Back to Sponsor
+- Time step keeps Back to Date
+- Later steps keep their existing Back buttons
+
+Goal:
+Users can still quickly go backward, but forward movement on date/time selection remains fast and intuitive.
+
+==================================================
+4. CONTINUE BUTTONS
+==================================================
+
+For the Date and Time steps:
+- Continue buttons are no longer needed if auto-advance is restored
+- Remove them if they are currently visible
+OR
+- hide them on those two steps only
+
+For later steps such as:
+- Your Info
+- Confirm
+keep the existing Continue / Submit buttons as appropriate
+
+==================================================
+5. PRESERVE SELECTIONS
+==================================================
+
+When a user goes back:
+- preserve previously selected sponsor
+- preserve previously selected date
+- preserve previously selected time
+- preserve entered details on later steps
+
+==================================================
+6. APPLY TO BOTH FLOWS
+==================================================
+
+Apply this behavior to:
+- onsite meeting scheduling flow
+- online meeting request flow
+
+Use the same interaction pattern in both places.
+
+==================================================
+7. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Date step has a Back button and auto-advances on date click
+- Time step has a Back button and auto-advances on time click
+- users can still navigate backward easily
+- later steps keep their existing Continue / Submit buttons
+- onsite and online flows remain consistent

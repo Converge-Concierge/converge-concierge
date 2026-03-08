@@ -1,0 +1,254 @@
+Align the Online Meeting Request UX with the Onsite Meeting scheduling UX.
+
+Important rules:
+- Do not redesign the application
+- Reuse the existing scheduling components used for onsite meetings wherever possible
+- Do not break existing meeting creation, sponsor dashboards, reports, notifications, legal acknowledgment, or confirmation screens
+- Preserve all current working functionality
+- Make this a UX/flow improvement using the existing data model where possible
+
+Goal:
+Make the Online Meeting Request flow use the same step-based card UX as the Onsite Meeting scheduling flow instead of a long stacked form.
+
+==================================================
+1. MATCH THE SAME STEP STRUCTURE
+==================================================
+
+Online meetings should follow the same overall step-based structure already used for onsite meetings.
+
+Current onsite flow:
+- Sponsor
+- Date
+- Time
+- Your Info
+- Confirm
+
+Required online flow:
+- Sponsor
+- Date
+- Time
+- Online Platform
+- Your Info
+- Confirm
+
+This should feel like the same product, not a separate form experience.
+
+==================================================
+2. REMOVE THE LONG STACKED FORM
+==================================================
+
+Problem:
+The current online meeting request page shows a long stacked form with:
+- Preferred Date
+- Preferred Time
+- Time Zone
+- Platform
+- Personal Information
+
+Required fix:
+Replace that long-form experience with step-based cards.
+
+New behavior:
+- Date selection uses the same date card selector as onsite scheduling
+- Time selection uses the same time slot cards as onsite scheduling
+- Platform selection gets its own simple card step
+- Personal details appear only in the final info step
+- Confirmation gets its own final summary step
+
+==================================================
+3. DATE SELECTION — REUSE ONSITE COMPONENT
+==================================================
+
+Use the same date selection component already used for onsite scheduling.
+
+Example:
+Select a Date
+[ May 18 ]
+[ May 19 ]
+[ May 20 ]
+
+Behavior:
+- Clicking a date loads available online request times for that date
+- Maintain the same styling, spacing, and progress UX as the onsite flow
+
+==================================================
+4. TIME SELECTION — REUSE ONSITE TIME SLOT CARDS
+==================================================
+
+Use the same time slot card UX already used for onsite meetings.
+
+Example:
+Select a Time
+[ 9:00 AM ]
+[ 9:30 AM ]
+[ 10:00 AM ]
+[ 10:30 AM ]
+
+Required:
+- remove the current time dropdown
+- use clickable time cards instead
+- keep the same styling as onsite scheduling
+
+==================================================
+5. PLATFORM SELECTION — NEW STEP
+==================================================
+
+After time selection, add a dedicated Online Platform step.
+
+Title:
+Choose Online Meeting Platform
+
+Display as clickable cards/buttons:
+- Zoom
+- Microsoft Teams
+- Google Meet
+- No Preference
+
+Implementation notes:
+- store platform as meetingPlatform
+- keep it optional
+- default = No Preference
+- visually match the card/button treatment used elsewhere in scheduling
+
+==================================================
+6. YOUR INFO STEP — REUSE EXISTING DETAILS FORM
+==================================================
+
+The Your Info step should contain the attendee form, similar to onsite scheduling.
+
+Fields:
+- First Name
+- Last Name
+- Company
+- Title
+- Email
+- LinkedIn Profile (optional)
+
+Requirements:
+- keep the Terms of Use / Privacy Policy acknowledgment
+- validate required fields before allowing continue
+- preserve entered values when navigating back
+
+==================================================
+7. REMOVE MANUAL TIMEZONE DROPDOWN
+==================================================
+
+Problem:
+Timezone should not be manually selected in this UX.
+
+Required behavior:
+- automatically detect timezone from the browser if available
+- if detection fails, default to the event timezone
+- display timezone as informational text only, not as an editable dropdown
+
+Example:
+Timezone: Central (CT)
+
+Do not make the user manually choose a timezone in the main request flow.
+
+==================================================
+8. VISUAL CONSISTENCY
+==================================================
+
+Ensure the online flow matches onsite visually.
+
+Reuse the same:
+- step progress indicator
+- card layout
+- spacing
+- button styles
+- validation pattern
+- mobile responsiveness
+
+Desired flow example:
+Sponsor → Date → Time → Online → Your Info → Confirm
+
+==================================================
+9. DATA MODEL — MINIMAL CHANGE ONLY
+==================================================
+
+Reuse the existing meeting/request model wherever possible.
+
+Add only if needed:
+- meetingType: "online" | "onsite"
+- meetingPlatform: string
+
+Examples:
+- online + Zoom
+- online + Teams
+- online + GoogleMeet
+- online + NoPreference
+
+Do not introduce unnecessary model complexity.
+
+==================================================
+10. CONFIRM STEP
+==================================================
+
+Add a final Confirm step, matching the onsite UX.
+
+This confirm card should summarize:
+- Sponsor
+- Date
+- Time
+- Meeting Type: Online
+- Platform
+- Attendee Name
+- Company
+- Title
+- Email
+
+At the bottom:
+- legal acknowledgment / checkbox
+- Back button
+- Submit Online Meeting Request button
+
+==================================================
+11. SUCCESS STATE
+==================================================
+
+After submission, show the same style of confirmation UI used for onsite meetings.
+
+Example message:
+Meeting Request Sent
+The sponsor will confirm your online meeting shortly.
+
+Keep the existing confirmation logic, but make the screen visually consistent with onsite confirmation.
+
+==================================================
+12. APPLY NAVIGATION BUTTONS
+==================================================
+
+Use the same step navigation approach as the onsite flow:
+- Back button on each step except the first
+- Continue button when appropriate
+- preserve all previous selections when navigating backward
+
+Do not remove the inline “Change” links if they already exist in the summary bar.
+
+==================================================
+13. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Online meeting flow uses the same step-card UX as onsite scheduling
+- Long stacked form is removed
+- Date uses cards
+- Time uses cards
+- Platform uses cards
+- Timezone is auto-detected / informational only
+- Attendee details are only in the final info step
+- Confirm step exists
+- Visual UX matches onsite scheduling
+- Mobile layout remains clean and usable
+
+==================================================
+14. OPTIONAL IMPROVEMENT
+==================================================
+
+If practical, add calendar integration after online meeting confirmation:
+- Add to Google Calendar
+- Download ICS
+- Add to Outlook
+
+Do not block the main UX refactor if this is too much for now.

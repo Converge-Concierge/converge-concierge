@@ -62,8 +62,8 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 relative z-10 flex flex-col pb-10">
-        <div className="w-full max-w-4xl mx-auto px-6 pt-5 pb-5 text-center">
+      <main className="flex-1 relative z-10 flex flex-col pb-16">
+        <div className="w-full max-w-4xl mx-auto px-6 pt-5 pb-12 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -80,14 +80,14 @@ export default function LandingPage() {
               Schedule Your{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Strategy Meetings</span>
             </h1>
-            <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            <p className="mt-6 text-base md:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
               Connect with solution partners through curated 1-on-1 meetings.
             </p>
           </motion.div>
         </div>
 
         {/* Events Grid */}
-        <div className="w-full max-w-7xl mx-auto px-6">
+        <div className="w-full max-w-7xl mx-auto px-6 mb-10">
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
               {[1, 2, 3, 4].map((i) => (
@@ -129,11 +129,11 @@ export default function LandingPage() {
                       )}
                     </div>
 
-                    <h3 className="text-xl font-display font-bold text-foreground mb-3 group-hover:text-primary transition-colors leading-tight text-center">
+                    <h3 className="text-xl font-display font-bold text-foreground mb-4 group-hover:text-primary transition-colors leading-tight text-center">
                       {event.name}
                     </h3>
 
-                    <div className="mt-auto space-y-2.5 pt-4 border-t border-border/50">
+                    <div className="mt-auto space-y-3 pt-5 border-t border-border/50">
                       <div className="flex items-center text-muted-foreground text-sm font-medium">
                         <Calendar className="mr-3 h-4 w-4 text-accent" />
                         {format(parseISO(event.startDate as unknown as string), "MMMM d")}

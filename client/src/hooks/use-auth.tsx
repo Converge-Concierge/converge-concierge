@@ -51,7 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.message || "Invalid credentials");
     }
-    await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    const userData = await res.json();
+    queryClient.setQueryData(["/api/auth/me"], userData);
   }
 
   async function logout() {

@@ -7,12 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
+import { AppBranding } from "@shared/schema";
 
 type FlowStep = "login" | "forgot-email" | "forgot-reset";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
+  const { data: branding } = useQuery<AppBranding>({ queryKey: ["/api/branding-public"] });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [email, setEmail] = useState("admin@converge.com");
@@ -124,12 +127,27 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80" />
           <div className="relative z-10 flex flex-col justify-center h-full p-16 xl:p-24 text-primary-foreground max-w-2xl">
             <div className="mb-12">
-              <Hexagon className="h-16 w-16 text-accent mb-6" />
+              {branding?.appLogoUrl ? (
+                <img
+                  src={branding.appLogoUrl}
+                  alt={branding.appName || "Converge Events"}
+                  className="h-14 max-w-[260px] object-contain mb-6"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                  }}
+                  data-testid="img-login-logo"
+                />
+              ) : null}
+              <Hexagon
+                className={`h-16 w-16 text-accent mb-6 ${branding?.appLogoUrl ? "hidden" : ""}`}
+                data-testid="icon-login-hexagon"
+              />
               <h1 className="text-5xl font-display font-bold leading-tight mb-6">
-                Command Center for Premium Events
+                Command Center for Converge Events
               </h1>
               <p className="text-primary-foreground/70 text-lg leading-relaxed max-w-lg">
-                Manage attendees, coordinate VIP meetings, and oversee sponsor interactions from one centralized concierge platform.
+                Power the Converge Events experience. Manage sponsors, coordinate executive meetings, oversee attendee engagement, and deliver high-impact networking from one intelligent event command center.
               </p>
             </div>
             
@@ -153,7 +171,18 @@ export default function LoginPage() {
             className="w-full max-w-md relative z-10"
           >
             <div className="lg:hidden flex justify-center mb-8">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+              {branding?.appLogoUrl ? (
+                <img
+                  src={branding.appLogoUrl}
+                  alt={branding.appName || "Converge Events"}
+                  className="h-10 max-w-[180px] object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                  }}
+                />
+              ) : null}
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 ${branding?.appLogoUrl ? "hidden" : ""}`}>
                 <Hexagon className="h-7 w-7" />
               </div>
             </div>

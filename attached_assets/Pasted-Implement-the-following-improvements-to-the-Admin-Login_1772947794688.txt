@@ -1,0 +1,98 @@
+Implement the following improvements to the Admin Login experience.
+
+Important:
+- Do not change authentication logic beyond fixing the duplicate login issue
+- Do not break admin authentication or session management
+- Maintain the existing layout and styling system
+
+==================================================
+1. ADD CONVERGE EVENTS LOGO
+==================================================
+
+On the left side of the Admin Login page:
+
+Replace the current hexagon placeholder icon with the official
+Converge Events logo.
+
+Requirements:
+- Position the logo above the headline
+- Center it horizontally within the left panel
+- Maintain balanced spacing between the logo and headline
+- If the logo cannot be loaded, fall back to the current hexagon icon
+- Ensure responsive scaling on smaller screens
+
+==================================================
+2. UPDATE HEADLINE
+==================================================
+
+Replace:
+
+"Command Center for Premium Events"
+
+WITH:
+
+"Command Center for Converge Events"
+
+Keep the same typography and visual hierarchy.
+
+==================================================
+3. IMPROVE THE DESCRIPTION COPY
+==================================================
+
+Replace the paragraph:
+
+"Manage attendees, coordinate VIP meetings, and oversee sponsor interactions from one centralized concierge platform."
+
+WITH:
+
+"Power the Converge Events experience. Manage sponsors, coordinate executive meetings, oversee attendee engagement, and deliver high-impact networking from one intelligent event command center."
+
+Keep the same font size and layout styling.
+
+==================================================
+4. FIX DOUBLE LOGIN ISSUE
+==================================================
+
+Problem:
+Currently admins must enter email/password, click "Sign In", and then
+enter credentials again before actually logging in.
+
+Expected behavior:
+Admins should authenticate successfully after a single login submission.
+
+Required fix:
+
+Investigate the login flow and ensure:
+- Only one authentication request is required
+- Successful authentication immediately creates the admin session
+- The user is redirected directly to the admin dashboard
+
+Likely causes to check:
+
+1. Duplicate login form submission
+2. Middleware redirect loop
+3. Auth guard incorrectly requiring re-authentication
+4. Session/cookie not being set on first login
+5. Login endpoint returning a redirect to login again
+
+Correct behavior:
+
+Login Page
+→ Enter email/password
+→ Click "Sign In to Dashboard"
+→ Authenticated
+→ Redirect to Admin Dashboard
+
+No second login screen should appear.
+
+==================================================
+5. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+
+- Admin login page shows the Converge Events logo
+- Headline reads "Command Center for Converge Events"
+- Updated marketing description appears
+- Admin login requires only ONE credential entry
+- After login, the admin is redirected directly to the dashboard

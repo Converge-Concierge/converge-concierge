@@ -8,6 +8,8 @@ import { format, parseISO, isWithinInterval } from "date-fns";
 import PublicFooter from "@/components/PublicFooter";
 import { cn } from "@/lib/utils";
 
+const isDev = import.meta.env.DEV;
+
 function eventStatusLabel(event: Event): string {
   const now = new Date();
   const start = new Date(event.startDate);
@@ -44,7 +46,11 @@ export default function LandingPage() {
   const { data: branding } = useQuery<AppBranding>({ queryKey: ["/api/branding-public"] });
 
   const activeEvents = allEvents
-    .filter((e) => e.archiveState === "active")
+    .filter((e) => {
+      if (e.archiveState !== "active") return false;
+      if (isDev && e.name.includes("(Copy)")) return false;
+      return true;
+    })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   return (
@@ -87,9 +93,10 @@ export default function LandingPage() {
         </nav>
       </header>
 
-      {/* Hero Section */}
-      <main className="flex-1 relative z-10 flex flex-col pb-16">
-        <div className="w-full max-w-4xl mx-auto px-6 pt-5 pb-12 text-center">
+      {/* Hero + Events */}
+      <main className="flex-1 relative z-10 flex flex-col pb-12">
+        {/* Hero text */}
+        <div className="w-full max-w-4xl mx-auto px-6 pt-6 pb-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -106,14 +113,14 @@ export default function LandingPage() {
               Schedule Your{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Strategy Meetings</span>
             </h1>
-            <p className="mt-6 text-base md:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
               Connect with solution partners through curated 1-on-1 meetings.
             </p>
           </motion.div>
         </div>
 
         {/* Events Grid */}
-        <div className="w-full max-w-7xl mx-auto px-6 mb-10">
+        <div className="w-full max-w-7xl mx-auto px-6">
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
               {[1, 2, 3, 4].map((i) => (
@@ -157,18 +164,18 @@ export default function LandingPage() {
                       </div>
                     )}
 
-                    {/* Event logo */}
+                    {/* Event logo — 100% larger */}
                     <div className="flex justify-center mb-4">
                       {event.logoUrl ? (
                         <img
                           src={event.logoUrl}
                           alt={event.name}
-                          className="h-12 max-w-[140px] object-contain"
+                          className="h-24 max-w-[200px] object-contain"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                         />
                       ) : (
-                        <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-                          <Building2 className="h-6 w-6 text-muted-foreground/40" />
+                        <div className="h-24 w-24 rounded-xl bg-muted flex items-center justify-center">
+                          <Building2 className="h-10 w-10 text-muted-foreground/40" />
                         </div>
                       )}
                     </div>

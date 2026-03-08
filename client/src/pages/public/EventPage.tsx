@@ -20,6 +20,20 @@ import { downloadICS, googleCalendarUrl } from "@/lib/ics";
 import PublicFooter from "@/components/PublicFooter";
 import LegalAcknowledgment from "@/components/LegalAcknowledgment";
 
+// ── Event domain mapping ─────────────────────────────────────────────────────
+// Maps event code prefix → official event website URL
+const eventDomainMap: Record<string, string> = {
+  CUGI:  "https://CUGrowthSummit.com",
+  FRC:   "https://FintechRiskandCompliance.com",
+  TLS:   "https://TreasuryLeadership.com",
+  USBT:  "https://USBankTechSummit.com",
+};
+
+function getEventWebsite(slug: string): string | null {
+  const prefix = slug.replace(/\d+$/, "").toUpperCase();
+  return eventDomainMap[prefix] ?? null;
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 const levelBorder: Record<string, string> = {
@@ -687,6 +701,18 @@ export default function EventPage() {
                 <MapPin className="h-3.5 w-3.5 text-muted-foreground/70" />
                 {event.location}
               </span>
+              {getEventWebsite(event.slug) && (
+                <a
+                  href={getEventWebsite(event.slug)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-accent hover:opacity-80 transition-opacity font-medium"
+                  data-testid="link-event-website"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Event Website
+                </a>
+              )}
             </div>
           </div>
 

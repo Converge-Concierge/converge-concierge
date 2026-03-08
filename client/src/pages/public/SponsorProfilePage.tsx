@@ -175,6 +175,37 @@ export default function SponsorProfilePage() {
             </div>
           </div>
 
+          {/* CTA block — second position, right below the name card */}
+          {slug && (
+            <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
+              <h2 className="text-sm font-semibold text-foreground mb-1">
+                Meeting with {sponsor.name}{event ? ` at ${event.name}` : ""}
+              </h2>
+              <p className="text-xs text-muted-foreground mb-4">Schedule a 30-minute 1-on-1 meeting at the event, or request an online call.</p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={() => nav(`/event/${slug}`)}
+                  className="gap-2 flex-1"
+                  data-testid="button-schedule-onsite"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Schedule Onsite Meeting
+                </Button>
+                {(sponsor.allowOnlineMeetings) && (
+                  <Button
+                    variant="outline"
+                    onClick={() => nav(`/event/${slug}`)}
+                    className="gap-2 flex-1"
+                    data-testid="button-request-online"
+                  >
+                    <Video className="h-4 w-4" />
+                    Request Online Meeting
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Solution Types */}
           {(sponsor.attributes ?? []).length > 0 && (
             <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
@@ -211,34 +242,6 @@ export default function SponsorProfilePage() {
             </div>
           )}
 
-          {/* CTA block */}
-          {slug && (
-            <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
-              <h2 className="text-sm font-semibold text-foreground mb-1">Meet with {sponsor.name}</h2>
-              <p className="text-xs text-muted-foreground mb-4">Schedule a 30-minute 1-on-1 meeting at the event, or request an online call.</p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button
-                  onClick={() => nav(`/event/${slug}`)}
-                  className="gap-2 flex-1"
-                  data-testid="button-schedule-onsite"
-                >
-                  <Calendar className="h-4 w-4" />
-                  Schedule Onsite Meeting
-                </Button>
-                {(sponsor.allowOnlineMeetings) && (
-                  <Button
-                    variant="outline"
-                    onClick={() => nav(`/event/${slug}`)}
-                    className="gap-2 flex-1"
-                    data-testid="button-request-online"
-                  >
-                    <Video className="h-4 w-4" />
-                    Request Online Meeting
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
         </motion.div>
       </main>
 

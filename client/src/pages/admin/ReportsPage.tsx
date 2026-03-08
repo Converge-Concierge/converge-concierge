@@ -5,7 +5,8 @@ import { Event, Sponsor, Attendee, Meeting } from "@shared/schema";
 import {
   BarChart3, Download, Calendar, Building2, Users,
   Clock, CheckCircle2, XCircle, AlertCircle, Handshake, Search,
-  TrendingUp, ArrowUpDown, ExternalLink, User,
+  TrendingUp, ArrowUpDown, ExternalLink, User, Globe, Shield,
+  Monitor, Video,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,8 @@ const STATUS_COLORS: Record<string, string> = {
   Completed:  "#22c55e",
   Cancelled:  "#ef4444",
   NoShow:     "#f59e0b",
+  Pending:    "#8b5cf6",
+  Confirmed:  "#06b6d4",
 };
 
 const statusBadgeColors: Record<string, string> = {
@@ -28,6 +31,8 @@ const statusBadgeColors: Record<string, string> = {
   Completed: "bg-green-100 text-green-700 border-green-200",
   Cancelled: "bg-red-100 text-red-700 border-red-200",
   NoShow:    "bg-yellow-100 text-yellow-700 border-yellow-200",
+  Pending:   "bg-violet-100 text-violet-700 border-violet-200",
+  Confirmed: "bg-cyan-100 text-cyan-700 border-cyan-200",
 };
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -35,10 +40,14 @@ const statusIcons: Record<string, React.ReactNode> = {
   Completed: <CheckCircle2 className="h-3 w-3" />,
   Cancelled: <XCircle className="h-3 w-3" />,
   NoShow:    <AlertCircle className="h-3 w-3" />,
+  Pending:   <Clock className="h-3 w-3" />,
+  Confirmed: <CheckCircle2 className="h-3 w-3" />,
 };
 
+const ALL_STATUSES = ["Scheduled", "Completed", "Cancelled", "NoShow", "Pending", "Confirmed"];
+
 type ReportTab = "all" | "by-sponsor" | "by-attendee";
-type SortKey = "name" | "total" | "scheduled" | "completed" | "cancelled" | "noShow" | "companies";
+type SortKey = "name" | "total" | "scheduled" | "completed" | "cancelled" | "noShow" | "companies" | "online" | "onsite" | "pending";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -47,7 +56,9 @@ function fmt12(t: string) {
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
 }
 
-function StatCard({ label, value, icon: Icon, color }: { label: string; value: number; icon: React.ElementType; color: string }) {
+function KpiCard({ label, value, icon: Icon, color, sub }: {
+  label: string; value: string | number; icon: React.ElementType; color: string; sub?: string;
+}) {
   return (
     <div className={cn("rounded-2xl border p-5 flex items-center gap-4", color)}>
       <div className="h-10 w-10 rounded-xl bg-white/60 flex items-center justify-center shrink-0">
@@ -56,6 +67,7 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
       <div>
         <p className="text-2xl font-display font-bold leading-none">{value}</p>
         <p className="text-xs font-medium mt-1 opacity-80">{label}</p>
+        {sub && <p className="text-[10px] opacity-60 mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -113,6 +125,7 @@ function MeetingRow({ m, eventSlug, sponsorName, attendee, striped }: {
   attendee: Attendee | undefined;
   striped: boolean;
 }) {
+  const isOnline = m.meetingType === "online_request";
   return (
     <tr
       className={cn("border-b border-border/30 hover:bg-muted/30 transition-colors", striped && "bg-muted/10")}
@@ -140,9 +153,26 @@ function MeetingRow({ m, eventSlug, sponsorName, attendee, striped }: {
       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmt12(m.time)}</td>
       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{m.location}</td>
       <td className="px-4 py-3">
+        <span className={cn(
+          "inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border w-fit",
+          isOnline
+            ? "bg-violet-50 text-violet-700 border-violet-200"
+            : "bg-sky-50 text-sky-700 border-sky-200",
+        )}>
+          {isOnline ? <Video className="h-3 w-3" /> : <Monitor className="h-3 w-3" />}
+          {isOnline ? "Online" : "Onsite"}
+        </span>
+      </td>
+      <td className="px-4 py-3">
         <span className={cn("flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border w-fit", statusBadgeColors[m.status] ?? "bg-muted text-muted-foreground border-muted")}>
           {statusIcons[m.status]} {m.status}
         </span>
+      </td>
+      <td className="px-4 py-3">
+        {m.source === "public"
+          ? <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200"><Globe className="h-3 w-3" />Public</span>
+          : <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border bg-slate-100 text-slate-600 border-slate-200"><Shield className="h-3 w-3" />Admin</span>
+        }
       </td>
     </tr>
   );
@@ -151,7 +181,7 @@ function MeetingRow({ m, eventSlug, sponsorName, attendee, striped }: {
 const REPORT_THEAD = (
   <thead>
     <tr className="border-b border-border/50 bg-muted/30">
-      {["Event Code", "Sponsor", "Attendee", "Company", "Title", "Email", "LinkedIn", "Date", "Time", "Location", "Status"].map((h) => (
+      {["Event Code", "Sponsor", "Attendee", "Company", "Title", "Email", "LinkedIn", "Date", "Time", "Location", "Type", "Status", "Source"].map((h) => (
         <th key={h} className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 whitespace-nowrap">{h}</th>
       ))}
     </tr>
@@ -163,9 +193,13 @@ const REPORT_THEAD = (
 export default function ReportsPage() {
   const [tab, setTab] = useState<ReportTab>("all");
   const [reportEventId, setReportEventId] = useState("");
+  const [reportSponsorId, setReportSponsorId] = useState("");
+  const [reportMeetingType, setReportMeetingType] = useState("");
   const [search, setSearch] = useState("");
   const [filterEvent, setFilterEvent] = useState("");
+  const [filterSponsorId, setFilterSponsorId] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterMeetingType, setFilterMeetingType] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("total");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -176,17 +210,35 @@ export default function ReportsPage() {
 
   const getEventSlug    = (id: string) => events.find((e) => e.id === id)?.slug ?? "—";
   const getSponsorName  = (id: string) => sponsors.find((s) => s.id === id)?.name ?? "—";
-  const getAttendee     = (id: string) => attendees.find((a) => a.id === id);
-  const getAttendeeName = (id: string) => getAttendee(id)?.name ?? "—";
-  const getAttendeeCompany = (id: string) => getAttendee(id)?.company ?? "—";
+  const getAttendee     = (id: string | undefined) => attendees.find((a) => a.id === id);
+  const getAttendeeName = (id: string | undefined) => getAttendee(id)?.name ?? "—";
+  const getAttendeeCompany = (id: string | undefined) => getAttendee(id)?.company ?? "—";
 
   // ── Summary stat cards ─────────────────────────────────────────────────────
 
   const statusCounts = useMemo(() => {
-    const c: Record<string, number> = { Scheduled: 0, Completed: 0, Cancelled: 0, NoShow: 0 };
+    const c: Record<string, number> = { Scheduled: 0, Completed: 0, Cancelled: 0, NoShow: 0, Pending: 0, Confirmed: 0 };
     meetings.forEach((m) => { if (m.status in c) c[m.status]++; });
     return c;
   }, [meetings]);
+
+  // ── KPI metrics ────────────────────────────────────────────────────────────
+
+  const kpiMetrics = useMemo(() => {
+    const uniqueAttendeeIds = new Set(meetings.map((m) => m.attendeeId).filter(Boolean));
+    const uniqueCompanies = new Set<string>();
+    meetings.forEach((m) => {
+      const company = getAttendee(m.attendeeId)?.company;
+      if (company) uniqueCompanies.add(company);
+    });
+    const sponsorsWithMeetings = new Set(meetings.map((m) => m.sponsorId)).size;
+    const avgMeetings = sponsorsWithMeetings > 0 ? (meetings.length / sponsorsWithMeetings).toFixed(1) : "0";
+    return {
+      uniqueAttendees: uniqueAttendeeIds.size,
+      uniqueCompanies: uniqueCompanies.size,
+      avgMeetings,
+    };
+  }, [meetings, attendees]);
 
   // ── Meetings by Event bar ──────────────────────────────────────────────────
 
@@ -199,20 +251,29 @@ export default function ReportsPage() {
   // ── Sponsor analytics ──────────────────────────────────────────────────────
 
   const sponsorAnalytics = useMemo(() => {
-    type Row = { id: string; name: string; total: number; scheduled: number; completed: number; cancelled: number; noShow: number; companies: number };
+    type Row = {
+      id: string; name: string; total: number;
+      scheduled: number; completed: number; cancelled: number; noShow: number;
+      companies: number; online: number; onsite: number; pending: number;
+    };
     const map: Record<string, Row> = {};
-    sponsors.forEach((s) => { map[s.id] = { id: s.id, name: s.name, total: 0, scheduled: 0, completed: 0, cancelled: 0, noShow: 0, companies: 0 }; });
+    sponsors.forEach((s) => {
+      map[s.id] = { id: s.id, name: s.name, total: 0, scheduled: 0, completed: 0, cancelled: 0, noShow: 0, companies: 0, online: 0, onsite: 0, pending: 0 };
+    });
     const companyTracker: Record<string, Set<string>> = {};
     meetings.forEach((m) => {
       if (!map[m.sponsorId]) return;
       const row = map[m.sponsorId];
       row.total++;
       if (m.status === "Scheduled") row.scheduled++;
-      if (m.status === "Completed") row.completed++;
-      if (m.status === "Cancelled") row.cancelled++;
-      if (m.status === "NoShow")    row.noShow++;
+      if (m.status === "Completed")  row.completed++;
+      if (m.status === "Cancelled")  row.cancelled++;
+      if (m.status === "NoShow")     row.noShow++;
+      if (m.status === "Pending")    row.pending++;
+      if (m.meetingType === "online_request") row.online++;
+      else                                    row.onsite++;
       if (!companyTracker[m.sponsorId]) companyTracker[m.sponsorId] = new Set();
-      const company = attendees.find((a) => a.id === m.attendeeId)?.company;
+      const company = getAttendee(m.attendeeId)?.company;
       if (company) companyTracker[m.sponsorId].add(company);
     });
     Object.keys(companyTracker).forEach((sid) => { if (map[sid]) map[sid].companies = companyTracker[sid].size; });
@@ -234,16 +295,24 @@ export default function ReportsPage() {
 
   const chartData = useMemo(() =>
     [...sponsorAnalytics].filter((s) => s.total > 0).sort((a, b) => b.total - a.total)
-      .map((s) => ({ name: s.name, Scheduled: s.scheduled, Completed: s.completed, Cancelled: s.cancelled, NoShow: s.noShow })),
+      .map((s) => ({ name: s.name, Scheduled: s.scheduled, Completed: s.completed, Cancelled: s.cancelled, NoShow: s.noShow, Pending: s.pending })),
   [sponsorAnalytics]);
 
   // ── Report tab data ────────────────────────────────────────────────────────
 
   const reportMeetings = useMemo(() => {
     let ms = meetings;
-    if (reportEventId) ms = ms.filter((m) => m.eventId === reportEventId);
+    if (reportEventId)    ms = ms.filter((m) => m.eventId === reportEventId);
+    if (reportSponsorId)  ms = ms.filter((m) => m.sponsorId === reportSponsorId);
+    if (reportMeetingType) {
+      ms = ms.filter((m) => {
+        if (reportMeetingType === "onsite") return (m.meetingType ?? "onsite") !== "online_request";
+        if (reportMeetingType === "online") return m.meetingType === "online_request";
+        return true;
+      });
+    }
     return [...ms].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-  }, [meetings, reportEventId]);
+  }, [meetings, reportEventId, reportSponsorId, reportMeetingType]);
 
   // Grouped by sponsor
   const bySponsorsGroups = useMemo(() => {
@@ -261,8 +330,9 @@ export default function ReportsPage() {
   const byAttendeeGroups = useMemo(() => {
     const groups: Record<string, Meeting[]> = {};
     reportMeetings.forEach((m) => {
-      if (!groups[m.attendeeId]) groups[m.attendeeId] = [];
-      groups[m.attendeeId].push(m);
+      const key = m.attendeeId || `manual-${m.id}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(m);
     });
     return Object.entries(groups)
       .map(([attendeeId, ms]) => ({ attendeeId, attendee: getAttendee(attendeeId), meetings: ms }))
@@ -271,10 +341,14 @@ export default function ReportsPage() {
 
   // ── CSV exports ────────────────────────────────────────────────────────────
 
-  const HEADERS = ["Event Code", "Sponsor", "Attendee Name", "Company", "Title", "Email", "LinkedIn", "Date", "Time", "Location", "Status"];
+  const HEADERS = [
+    "Event Code", "Sponsor", "Attendee Name", "Company", "Title", "Email", "LinkedIn",
+    "Date", "Time", "Location", "Meeting Type", "Status", "Source", "Platform",
+  ];
 
   function meetingToRow(m: Meeting) {
     const at = getAttendee(m.attendeeId);
+    const isOnline = m.meetingType === "online_request";
     return [
       getEventSlug(m.eventId),
       getSponsorName(m.sponsorId),
@@ -286,7 +360,10 @@ export default function ReportsPage() {
       m.date,
       fmt12(m.time),
       m.location,
+      isOnline ? "Online" : "Onsite",
       m.status,
+      m.source === "public" ? "Public" : "Admin",
+      isOnline ? ((m as any).platform ?? "") : "",
     ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
   }
 
@@ -301,13 +378,18 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   }
 
-  // ── Old meeting log filter (kept for overall search) ───────────────────────
+  // ── Meeting log filter ─────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
     return meetings
       .filter((m) => {
         if (filterEvent && m.eventId !== filterEvent) return false;
+        if (filterSponsorId && m.sponsorId !== filterSponsorId) return false;
         if (filterStatus && m.status !== filterStatus) return false;
+        if (filterMeetingType) {
+          if (filterMeetingType === "onsite" && m.meetingType === "online_request") return false;
+          if (filterMeetingType === "online" && m.meetingType !== "online_request") return false;
+        }
         if (search) {
           const q = search.toLowerCase();
           const sponsor = getSponsorName(m.sponsorId).toLowerCase();
@@ -318,7 +400,7 @@ export default function ReportsPage() {
         return true;
       })
       .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-  }, [meetings, filterEvent, filterStatus, search]);
+  }, [meetings, filterEvent, filterSponsorId, filterStatus, filterMeetingType, search]);
 
   const selectClass = "flex h-9 rounded-lg border border-input bg-card px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
@@ -348,12 +430,37 @@ export default function ReportsPage() {
         <p className="text-muted-foreground mt-1 text-sm">Meeting analytics and exports across all events.</p>
       </div>
 
-      {/* Top stats */}
+      {/* Top stats — row 1: volume & status */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Meetings"       value={meetings.length}                                icon={Handshake}    color="bg-card border-border/60" />
-        <StatCard label="Scheduled"             value={statusCounts.Scheduled}                         icon={Clock}        color="bg-blue-50 border-blue-200 text-blue-800" />
-        <StatCard label="Completed"             value={statusCounts.Completed}                         icon={CheckCircle2} color="bg-green-50 border-green-200 text-green-800" />
-        <StatCard label="Cancelled / No-Show"   value={statusCounts.Cancelled + statusCounts.NoShow}   icon={XCircle}      color="bg-red-50 border-red-200 text-red-800" />
+        <KpiCard label="Total Meetings"       value={meetings.length}                                icon={Handshake}    color="bg-card border-border/60" />
+        <KpiCard label="Scheduled"             value={statusCounts.Scheduled}                         icon={Clock}        color="bg-blue-50 border-blue-200 text-blue-800" />
+        <KpiCard label="Completed"             value={statusCounts.Completed}                         icon={CheckCircle2} color="bg-green-50 border-green-200 text-green-800" />
+        <KpiCard label="Cancelled / No-Show"   value={statusCounts.Cancelled + statusCounts.NoShow}   icon={XCircle}      color="bg-red-50 border-red-200 text-red-800" />
+      </div>
+
+      {/* Top stats — row 2: ROI KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard
+          label="Unique Attendees"
+          value={kpiMetrics.uniqueAttendees}
+          icon={User}
+          color="bg-indigo-50 border-indigo-200 text-indigo-800"
+          sub="distinct individuals across all meetings"
+        />
+        <KpiCard
+          label="Unique Companies"
+          value={kpiMetrics.uniqueCompanies}
+          icon={Building2}
+          color="bg-teal-50 border-teal-200 text-teal-800"
+          sub="distinct organizations represented"
+        />
+        <KpiCard
+          label="Avg Meetings / Sponsor"
+          value={kpiMetrics.avgMeetings}
+          icon={TrendingUp}
+          color="bg-amber-50 border-amber-200 text-amber-800"
+          sub="among sponsors with at least one meeting"
+        />
       </div>
 
       {/* Meetings by Event */}
@@ -414,7 +521,8 @@ export default function ReportsPage() {
                 <Bar dataKey="Scheduled" stackId="a" fill={STATUS_COLORS.Scheduled} />
                 <Bar dataKey="Completed"  stackId="a" fill={STATUS_COLORS.Completed}  />
                 <Bar dataKey="Cancelled"  stackId="a" fill={STATUS_COLORS.Cancelled}  />
-                <Bar dataKey="NoShow"     stackId="a" fill={STATUS_COLORS.NoShow}     radius={[0, 4, 4, 0]} />
+                <Bar dataKey="NoShow"     stackId="a" fill={STATUS_COLORS.NoShow}     />
+                <Bar dataKey="Pending"    stackId="a" fill={STATUS_COLORS.Pending}    radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -433,6 +541,9 @@ export default function ReportsPage() {
                 <tr className="border-b border-border/50 bg-muted/30">
                   <SortHeader label="Sponsor"          sortKey="name"      current={sortKey} dir={sortDir} onSort={handleSort} />
                   <SortHeader label="Total"            sortKey="total"     current={sortKey} dir={sortDir} onSort={handleSort} />
+                  <SortHeader label="Onsite"           sortKey="onsite"    current={sortKey} dir={sortDir} onSort={handleSort} />
+                  <SortHeader label="Online"           sortKey="online"    current={sortKey} dir={sortDir} onSort={handleSort} />
+                  <SortHeader label="Pending"          sortKey="pending"   current={sortKey} dir={sortDir} onSort={handleSort} />
                   <SortHeader label="Scheduled"        sortKey="scheduled" current={sortKey} dir={sortDir} onSort={handleSort} />
                   <SortHeader label="Completed"        sortKey="completed" current={sortKey} dir={sortDir} onSort={handleSort} />
                   <SortHeader label="Cancelled"        sortKey="cancelled" current={sortKey} dir={sortDir} onSort={handleSort} />
@@ -449,6 +560,9 @@ export default function ReportsPage() {
                     <tr key={row.id} className={cn("border-b border-border/30 hover:bg-muted/30 transition-colors", i % 2 === 1 && "bg-muted/10", row.total === 0 && "opacity-50")} data-testid={`analytics-row-${row.id}`}>
                       <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">{row.name}</td>
                       <td className="px-4 py-3"><span className={cn("text-sm font-bold", row.total > 0 ? "text-foreground" : "text-muted-foreground")}>{row.total}</span></td>
+                      <td className="px-4 py-3">{row.onsite > 0 ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-sky-50 text-sky-700 border-sky-200">{row.onsite}</span> : <span className="text-muted-foreground text-sm">—</span>}</td>
+                      <td className="px-4 py-3">{row.online > 0 ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-violet-100 text-violet-700 border-violet-200">{row.online}</span> : <span className="text-muted-foreground text-sm">—</span>}</td>
+                      <td className="px-4 py-3">{row.pending > 0 ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-violet-50 text-violet-600 border-violet-200">{row.pending}</span> : <span className="text-muted-foreground text-sm">—</span>}</td>
                       <td className="px-4 py-3">{row.scheduled > 0 ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-blue-100 text-blue-700 border-blue-200">{row.scheduled}</span> : <span className="text-muted-foreground text-sm">—</span>}</td>
                       <td className="px-4 py-3">{row.completed > 0 ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-green-100 text-green-700 border-green-200">{row.completed}</span> : <span className="text-muted-foreground text-sm">—</span>}</td>
                       <td className="px-4 py-3">{row.cancelled > 0 ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-red-100 text-red-700 border-red-200">{row.cancelled}</span> : <span className="text-muted-foreground text-sm">—</span>}</td>
@@ -480,38 +594,29 @@ export default function ReportsPage() {
           <h2 className="text-xl font-display font-semibold text-foreground">Event Reports</h2>
         </div>
 
-        {/* Tab bar + event filter + CSV */}
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          {/* Tabs */}
-          <div className="flex gap-1 p-1 bg-muted/60 rounded-xl border border-border/40">
-            {tabLabels.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                data-testid={`tab-${key}`}
-                className={cn(
-                  "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
-                  tab === key
-                    ? "bg-card shadow-sm text-foreground border border-border/60"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        {/* Tab bar + filters + CSV */}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 bg-muted/60 rounded-xl border border-border/40">
+              {tabLabels.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setTab(key)}
+                  data-testid={`tab-${key}`}
+                  className={cn(
+                    "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
+                    tab === key
+                      ? "bg-card shadow-sm text-foreground border border-border/60"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
 
-          {/* Event filter + CSV export */}
-          <div className="flex items-center gap-2">
-            <select
-              className={selectClass}
-              value={reportEventId}
-              onChange={(e) => setReportEventId(e.target.value)}
-              data-testid="select-report-event"
-            >
-              <option value="">All Events</option>
-              {events.map((e) => <option key={e.id} value={e.id}>{e.slug} — {e.name}</option>)}
-            </select>
+            {/* CSV export */}
             <button
               onClick={() => {
                 const filename = tab === "all" ? "all-meetings" : tab === "by-sponsor" ? "meetings-by-sponsor" : "meetings-by-attendee";
@@ -522,6 +627,47 @@ export default function ReportsPage() {
             >
               <Download className="h-4 w-4" /> Export CSV
             </button>
+          </div>
+
+          {/* Filter row */}
+          <div className="flex flex-wrap gap-2">
+            <select
+              className={selectClass}
+              value={reportEventId}
+              onChange={(e) => setReportEventId(e.target.value)}
+              data-testid="select-report-event"
+            >
+              <option value="">All Events</option>
+              {events.map((e) => <option key={e.id} value={e.id}>{e.slug} — {e.name}</option>)}
+            </select>
+            <select
+              className={selectClass}
+              value={reportSponsorId}
+              onChange={(e) => setReportSponsorId(e.target.value)}
+              data-testid="select-report-sponsor"
+            >
+              <option value="">All Sponsors</option>
+              {sponsors.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <select
+              className={selectClass}
+              value={reportMeetingType}
+              onChange={(e) => setReportMeetingType(e.target.value)}
+              data-testid="select-report-meeting-type"
+            >
+              <option value="">All Types</option>
+              <option value="onsite">Onsite</option>
+              <option value="online">Online</option>
+            </select>
+            {(reportEventId || reportSponsorId || reportMeetingType) && (
+              <button
+                onClick={() => { setReportEventId(""); setReportSponsorId(""); setReportMeetingType(""); }}
+                className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border/60 hover:bg-muted transition-colors"
+                data-testid="btn-report-clear-filters"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         </div>
 
@@ -610,33 +756,46 @@ export default function ReportsPage() {
 
       {/* ── All-time meeting log (search + filter) ─────────────────────────────── */}
       <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-border/50 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <h3 className="text-sm font-semibold text-foreground whitespace-nowrap">Meeting Log</h3>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by sponsor, attendee, event…"
-              className="pl-9 bg-muted/50 border-transparent focus-visible:ring-accent/20 h-9 text-sm"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              data-testid="input-reports-search"
-            />
+        <div className="p-5 border-b border-border/50 flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <h3 className="text-sm font-semibold text-foreground whitespace-nowrap">Meeting Log</h3>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by sponsor, attendee, event…"
+                className="pl-9 bg-muted/50 border-transparent focus-visible:ring-accent/20 h-9 text-sm"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                data-testid="input-reports-search"
+              />
+            </div>
+            <button
+              onClick={() => exportCSV(filtered, "meeting-log")}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors shadow-sm whitespace-nowrap"
+              data-testid="button-export-csv"
+            >
+              <Download className="h-4 w-4" /> Export CSV
+            </button>
           </div>
-          <select className={selectClass} value={filterEvent} onChange={(e) => setFilterEvent(e.target.value)} data-testid="select-reports-event">
-            <option value="">All Events</option>
-            {events.map((e) => <option key={e.id} value={e.id}>{e.slug}</option>)}
-          </select>
-          <select className={selectClass} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} data-testid="select-reports-status">
-            <option value="">All Statuses</option>
-            {["Scheduled", "Completed", "Cancelled", "NoShow"].map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <button
-            onClick={() => exportCSV(filtered, "meeting-log")}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors shadow-sm whitespace-nowrap"
-            data-testid="button-export-csv"
-          >
-            <Download className="h-4 w-4" /> Export CSV
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <select className={selectClass} value={filterEvent} onChange={(e) => setFilterEvent(e.target.value)} data-testid="select-reports-event">
+              <option value="">All Events</option>
+              {events.map((e) => <option key={e.id} value={e.id}>{e.slug}</option>)}
+            </select>
+            <select className={selectClass} value={filterSponsorId} onChange={(e) => setFilterSponsorId(e.target.value)} data-testid="select-reports-sponsor">
+              <option value="">All Sponsors</option>
+              {sponsors.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <select className={selectClass} value={filterMeetingType} onChange={(e) => setFilterMeetingType(e.target.value)} data-testid="select-reports-meeting-type">
+              <option value="">All Types</option>
+              <option value="onsite">Onsite</option>
+              <option value="online">Online</option>
+            </select>
+            <select className={selectClass} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} data-testid="select-reports-status">
+              <option value="">All Statuses</option>
+              {ALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
         </div>
 
         <div className="px-5 py-2.5 border-b border-border/50 bg-muted/20">

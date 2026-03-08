@@ -142,6 +142,7 @@ export const meetings = pgTable("meetings", {
   time: text("time").notNull(), // HH:mm
   location: text("location").notNull(), // Location name or ID
   status: text("status", { enum: ["Scheduled", "Completed", "Cancelled", "NoShow"] }).notNull().default("Scheduled"),
+  source: text("source", { enum: ["admin", "public"] }).notNull().default("admin"),
   notes: text("notes"),
   archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
   archiveSource: text("archive_source", { enum: ["event", "manual"] }),
@@ -149,6 +150,7 @@ export const meetings = pgTable("meetings", {
 
 export const insertMeetingSchema = createInsertSchema(meetings).extend({
   archiveSource: z.enum(["event", "manual"]).nullable().optional(),
+  source: z.enum(["admin", "public"]).optional().default("admin"),
 });
 export type Meeting = typeof meetings.$inferSelect;
 export type InsertMeeting = z.infer<typeof insertMeetingSchema>;

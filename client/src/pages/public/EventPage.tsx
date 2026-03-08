@@ -252,6 +252,7 @@ export default function EventPage() {
           time:      selectedTime,
           location:  selectedLoc || (event.meetingLocations?.[0]?.name ?? "TBD"),
           status:    "Scheduled",
+          source:    "public",
           manualAttendee: {
             name:        attendee.name,
             company:     attendee.company,

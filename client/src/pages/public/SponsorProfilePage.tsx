@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Hexagon, Building2, ArrowLeft, Globe, Linkedin, Calendar, Video,
-  FileText, ChevronRight,
+  FileText, ChevronRight, Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Event, Sponsor } from "@shared/schema";
@@ -169,6 +169,22 @@ export default function SponsorProfilePage() {
             </div>
           </div>
 
+          {/* Solution Types */}
+          {(sponsor.attributes ?? []).length > 0 && (
+            <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+                <Tag className="h-4 w-4 text-accent" /> Solution Types
+              </h2>
+              <div className="flex flex-wrap gap-2" data-testid="sponsor-solution-types">
+                {(sponsor.attributes ?? []).map((attr) => (
+                  <span key={attr} className="px-3 py-1 rounded-full text-xs font-medium bg-accent/10 text-accent border border-accent/20">
+                    {attr}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Solutions Summary */}
           {sponsor.solutionsSummary && (
             <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
@@ -207,7 +223,7 @@ export default function SponsorProfilePage() {
                   <Button
                     variant="outline"
                     onClick={() => nav(`/event/${slug}`)}
-                    className="gap-2 flex-1 border-violet-300 text-violet-700 hover:bg-violet-50"
+                    className="gap-2 flex-1"
                     data-testid="button-request-online"
                   >
                     <Video className="h-4 w-4" />

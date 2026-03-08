@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sponsor, InsertSponsor, Event, EventSponsorLink, SPONSOR_ATTRIBUTES } from "@shared/schema";
-import { Building2, X, ImagePlus, Lock, ChevronDown, ChevronUp, Globe, Linkedin, Phone, Mail, User } from "lucide-react";
+import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SponsorFormModalProps {
@@ -35,7 +35,6 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
   const [formData, setFormData] = useState<Partial<InsertSponsor>>({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false });
   const [dragOver, setDragOver] = useState(false);
   const [logoError, setLogoError] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -43,10 +42,8 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
       setLogoError(false);
       if (sponsor) {
         setFormData({ ...sponsor, allowOnlineMeetings: sponsor.allowOnlineMeetings ?? false, attributes: sponsor.attributes ?? [] });
-        setProfileOpen(true);
       } else {
         setFormData({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false, attributes: [] });
-        setProfileOpen(true);
       }
     }
   }, [sponsor, isOpen]);
@@ -238,12 +235,12 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
               </div>
             </fieldset>
 
-            {/* Solution Type */}
+            {/* Solution Types */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Solution Type <span className="text-muted-foreground font-normal text-xs">(up to 3)</span></Label>
+                <Label>Solution Types <span className="text-muted-foreground font-normal text-xs">(select up to 3)</span></Label>
                 {(formData.attributes?.length ?? 0) > 0 && (
-                  <span className="text-xs text-accent font-medium">{formData.attributes?.length} selected</span>
+                  <span className="text-xs text-accent font-medium">{formData.attributes?.length} of 3 selected</span>
                 )}
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -277,125 +274,111 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                   );
                 })}
               </div>
-              <p className="text-[10px] text-muted-foreground">Used to filter sponsors by Solution Type on the public event page.</p>
+              <p className="text-[10px] text-muted-foreground">Shown on public event pages as sponsor filters.</p>
             </div>
 
-            {/* Sponsor Profile (collapsible) */}
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setProfileOpen((v) => !v)}
-                className="w-full flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
-                data-testid="toggle-sponsor-profile"
-              >
-                <span className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-accent" /> Sponsor Profile (optional)
-                </span>
-                {profileOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-              </button>
+            {/* Sponsor Profile */}
+            <div className="pt-1 border-t border-border/40 space-y-4">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5 pt-1">
+                <Globe className="h-3.5 w-3.5 text-accent" /> Sponsor Profile
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="sp-short-desc" className="text-xs">Short Description</Label>
+                <textarea
+                  id="sp-short-desc"
+                  rows={2}
+                  disabled={readOnly}
+                  value={formData.shortDescription ?? ""}
+                  onChange={(e) => setFormData((p) => ({ ...p, shortDescription: e.target.value }))}
+                  placeholder="One-line summary of what this sponsor does…"
+                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 placeholder:text-muted-foreground"
+                  data-testid="input-sponsor-short-desc"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sp-website" className="text-xs flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" /> Website URL</Label>
+                <Input
+                  id="sp-website"
+                  disabled={readOnly}
+                  value={formData.websiteUrl ?? ""}
+                  onChange={(e) => setFormData((p) => ({ ...p, websiteUrl: e.target.value }))}
+                  placeholder="https://sponsor.com"
+                  className="h-8 text-xs"
+                  data-testid="input-sponsor-website"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sp-linkedin" className="text-xs flex items-center gap-1.5"><Linkedin className="h-3.5 w-3.5" /> LinkedIn URL</Label>
+                <Input
+                  id="sp-linkedin"
+                  disabled={readOnly}
+                  value={formData.linkedinUrl ?? ""}
+                  onChange={(e) => setFormData((p) => ({ ...p, linkedinUrl: e.target.value }))}
+                  placeholder="https://linkedin.com/company/…"
+                  className="h-8 text-xs"
+                  data-testid="input-sponsor-linkedin"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sp-solutions" className="text-xs">Solutions Summary</Label>
+                <textarea
+                  id="sp-solutions"
+                  rows={3}
+                  disabled={readOnly}
+                  value={formData.solutionsSummary ?? ""}
+                  onChange={(e) => setFormData((p) => ({ ...p, solutionsSummary: e.target.value }))}
+                  placeholder="Describe the products, services, or solutions this sponsor offers…"
+                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 placeholder:text-muted-foreground"
+                  data-testid="input-sponsor-solutions"
+                />
+              </div>
+            </div>
 
-              {profileOpen && (
-                <div className="rounded-lg border border-border/50 bg-muted/20 p-4 space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="sp-short-desc" className="text-xs">Short Description</Label>
-                    <textarea
-                      id="sp-short-desc"
-                      rows={2}
-                      disabled={readOnly}
-                      value={formData.shortDescription ?? ""}
-                      onChange={(e) => setFormData((p) => ({ ...p, shortDescription: e.target.value }))}
-                      placeholder="One-line summary of what this sponsor does…"
-                      className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 placeholder:text-muted-foreground"
-                      data-testid="input-sponsor-short-desc"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="sp-website" className="text-xs flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" /> Website URL</Label>
-                    <Input
-                      id="sp-website"
-                      disabled={readOnly}
-                      value={formData.websiteUrl ?? ""}
-                      onChange={(e) => setFormData((p) => ({ ...p, websiteUrl: e.target.value }))}
-                      placeholder="https://sponsor.com"
-                      className="h-8 text-xs"
-                      data-testid="input-sponsor-website"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="sp-linkedin" className="text-xs flex items-center gap-1.5"><Linkedin className="h-3.5 w-3.5" /> LinkedIn URL</Label>
-                    <Input
-                      id="sp-linkedin"
-                      disabled={readOnly}
-                      value={formData.linkedinUrl ?? ""}
-                      onChange={(e) => setFormData((p) => ({ ...p, linkedinUrl: e.target.value }))}
-                      placeholder="https://linkedin.com/company/…"
-                      className="h-8 text-xs"
-                      data-testid="input-sponsor-linkedin"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="sp-solutions" className="text-xs">Solutions Summary</Label>
-                    <textarea
-                      id="sp-solutions"
-                      rows={3}
-                      disabled={readOnly}
-                      value={formData.solutionsSummary ?? ""}
-                      onChange={(e) => setFormData((p) => ({ ...p, solutionsSummary: e.target.value }))}
-                      placeholder="Describe the products, services, or solutions this sponsor offers…"
-                      className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 placeholder:text-muted-foreground"
-                      data-testid="input-sponsor-solutions"
-                    />
-                  </div>
-
-                  <div className="pt-2 border-t border-border/40">
-                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2.5 flex items-center gap-1.5">
-                      <User className="h-3 w-3" /> Main Contact
-                    </p>
-                    <div className="space-y-2.5">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="sp-contact-name" className="text-xs flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> Contact Name</Label>
-                        <Input
-                          id="sp-contact-name"
-                          disabled={readOnly}
-                          value={formData.contactName ?? ""}
-                          onChange={(e) => setFormData((p) => ({ ...p, contactName: e.target.value }))}
-                          placeholder="Jane Smith"
-                          className="h-8 text-xs"
-                          data-testid="input-sponsor-contact-name"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="sp-contact-email" className="text-xs flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Email</Label>
-                          <Input
-                            id="sp-contact-email"
-                            type="email"
-                            disabled={readOnly}
-                            value={formData.contactEmail ?? ""}
-                            onChange={(e) => setFormData((p) => ({ ...p, contactEmail: e.target.value }))}
-                            placeholder="jane@sponsor.com"
-                            className="h-8 text-xs"
-                            data-testid="input-sponsor-contact-email"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="sp-contact-phone" className="text-xs flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> Phone</Label>
-                          <Input
-                            id="sp-contact-phone"
-                            type="tel"
-                            disabled={readOnly}
-                            value={formData.contactPhone ?? ""}
-                            onChange={(e) => setFormData((p) => ({ ...p, contactPhone: e.target.value }))}
-                            placeholder="+1 555 000 0000"
-                            className="h-8 text-xs"
-                            data-testid="input-sponsor-contact-phone"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            {/* Main Contact */}
+            <div className="pt-1 border-t border-border/40 space-y-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5 pt-1">
+                <User className="h-3.5 w-3.5 text-accent" /> Main Contact
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="sp-contact-name" className="text-xs">Contact Name</Label>
+                <Input
+                  id="sp-contact-name"
+                  disabled={readOnly}
+                  value={formData.contactName ?? ""}
+                  onChange={(e) => setFormData((p) => ({ ...p, contactName: e.target.value }))}
+                  placeholder="Jane Smith"
+                  className="h-8 text-xs"
+                  data-testid="input-sponsor-contact-name"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="sp-contact-email" className="text-xs flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Email</Label>
+                  <Input
+                    id="sp-contact-email"
+                    type="email"
+                    disabled={readOnly}
+                    value={formData.contactEmail ?? ""}
+                    onChange={(e) => setFormData((p) => ({ ...p, contactEmail: e.target.value }))}
+                    placeholder="jane@sponsor.com"
+                    className="h-8 text-xs"
+                    data-testid="input-sponsor-contact-email"
+                  />
                 </div>
-              )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="sp-contact-phone" className="text-xs flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> Phone</Label>
+                  <Input
+                    id="sp-contact-phone"
+                    type="tel"
+                    disabled={readOnly}
+                    value={formData.contactPhone ?? ""}
+                    onChange={(e) => setFormData((p) => ({ ...p, contactPhone: e.target.value }))}
+                    placeholder="+1 555 000 0000"
+                    className="h-8 text-xs"
+                    data-testid="input-sponsor-contact-phone"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Assign Events */}

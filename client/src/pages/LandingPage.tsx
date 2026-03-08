@@ -129,7 +129,7 @@ export default function LandingPage() {
                       )}
                     </div>
 
-                    <h3 className="text-xl font-display font-bold text-foreground mb-3 group-hover:text-primary transition-colors leading-tight">
+                    <h3 className="text-xl font-display font-bold text-foreground mb-3 group-hover:text-primary transition-colors leading-tight text-center">
                       {event.name}
                     </h3>
 

@@ -220,6 +220,7 @@ export default function EventPage() {
   // step 0=sponsor 1=date 2=time 3=form 4=success
   const [step, setStep] = useState(0);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [showAllFilters, setShowAllFilters] = useState(false);
   const [selectedSponsor, setSelectedSponsor] = useState<Sponsor | null>(null);
   const [selectedDate,    setSelectedDate]    = useState("");
   const [selectedTime,    setSelectedTime]    = useState("");
@@ -588,44 +589,59 @@ export default function EventPage() {
             )}
           </div>
 
-          {/* Solution Type filter bar — always visible when there are sponsors */}
-          {eventSponsors.length > 0 && (
-            <div className="flex items-start gap-2 mb-5 flex-wrap">
-              <div className="flex items-center gap-1 pt-1 shrink-0">
-                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">Solution Type:</span>
-              </div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {(attributesInUse.length > 0 ? attributesInUse : SPONSOR_ATTRIBUTES).map((attr) => {
-                  const active = activeFilters.includes(attr);
-                  return (
+          {/* Solution Types filter bar */}
+          {eventSponsors.length > 0 && (() => {
+            const allOptions = attributesInUse.length > 0 ? attributesInUse : SPONSOR_ATTRIBUTES;
+            const SHOW_LIMIT = 7;
+            const visibleOptions = showAllFilters ? allOptions : allOptions.slice(0, SHOW_LIMIT);
+            const hasMore = allOptions.length > SHOW_LIMIT;
+            return (
+              <div className="mb-5 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-xs font-medium text-muted-foreground">Solution Types:</span>
+                  {activeFilters.length > 0 && (
                     <button
-                      key={attr}
-                      onClick={() => setActiveFilters((prev) => active ? prev.filter((f) => f !== attr) : [...prev, attr])}
-                      data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
-                      className={cn(
-                        "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
-                        active
-                          ? "bg-accent text-accent-foreground border-accent"
-                          : "bg-card text-muted-foreground border-border hover:border-accent/50 hover:text-foreground",
-                      )}
+                      onClick={() => setActiveFilters([])}
+                      className="flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground hover:text-destructive transition-colors"
+                      data-testid="filter-clear"
                     >
-                      {attr}
+                      <X className="h-3 w-3" /> Clear All
                     </button>
-                  );
-                })}
-                {activeFilters.length > 0 && (
-                  <button
-                    onClick={() => setActiveFilters([])}
-                    className="flex items-center gap-1 px-2 py-1 rounded-full text-xs text-muted-foreground hover:text-destructive transition-colors"
-                    data-testid="filter-clear"
-                  >
-                    <X className="h-3 w-3" /> Clear
-                  </button>
-                )}
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {visibleOptions.map((attr) => {
+                    const active = activeFilters.includes(attr);
+                    return (
+                      <button
+                        key={attr}
+                        onClick={() => setActiveFilters((prev) => active ? prev.filter((f) => f !== attr) : [...prev, attr])}
+                        data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
+                        className={cn(
+                          "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                          active
+                            ? "bg-accent text-accent-foreground border-accent"
+                            : "bg-card text-muted-foreground border-border hover:border-accent/50 hover:text-foreground",
+                        )}
+                      >
+                        {attr}
+                      </button>
+                    );
+                  })}
+                  {hasMore && (
+                    <button
+                      onClick={() => setShowAllFilters((v) => !v)}
+                      className="px-2.5 py-1 rounded-full text-xs font-medium text-accent border border-accent/30 hover:bg-accent/10 transition-all"
+                      data-testid="filter-show-more"
+                    >
+                      {showAllFilters ? "Show Less" : `+${allOptions.length - SHOW_LIMIT} More`}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {eventSponsors.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-muted-foreground gap-3">

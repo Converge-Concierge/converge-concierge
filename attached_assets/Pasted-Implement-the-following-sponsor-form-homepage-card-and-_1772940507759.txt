@@ -1,0 +1,177 @@
+Implement the following sponsor form, homepage card, and event filter improvements in Converge Concierge.
+
+Important rules:
+- Do not redesign the admin shell/sidebar
+- Do not break existing scheduling, online requests, sponsor dashboards, reports, or access links
+- Preserve all current working functionality
+- Make additive/fix-only changes where possible
+
+Current problems to fix:
+1. Homepage event names are not centered in the cards
+2. Sponsor form still does not show the expanded sponsor profile/contact fields
+3. Sponsor form needs to support Solution Types properly
+4. Event page Solution Type filter must scale when many solution types exist
+
+==================================================
+1. HOMEPAGE EVENT CARD TITLE ALIGNMENT
+==================================================
+
+Required change:
+- Center the event names horizontally within each homepage event card
+- Keep the cards clickable
+- Preserve the current tighter homepage layout
+- Keep the event logo centered at the top of each card
+
+Do not add arrows back.
+Do not add extra labels.
+Just improve title alignment and card polish.
+
+==================================================
+2. SPONSOR FORM — EXPANDED PROFILE SECTION MUST ACTUALLY EXIST
+==================================================
+
+Problem:
+Edit Sponsor still only shows the basic fields and does not expose the richer sponsor profile fields.
+
+Required fix:
+In Create/Edit Sponsor, visibly add and persist the following sections/fields:
+
+A. Sponsor Basics
+- Sponsor Name
+- Sponsorship Level
+- Status
+- Allow Online Meetings
+- Logo upload / logo URL
+
+B. Sponsor Profile
+- Short Description
+- Website URL
+- LinkedIn URL
+- Solutions Summary
+
+C. Main Contact
+- Main Contact Name
+- Main Contact Email
+- Main Contact Phone
+
+D. Solution Types
+- multi-select field
+- sponsor can have up to 3 Solution Types
+- values come from an admin-defined reusable list
+
+Requirements:
+- these fields must be visible in the form
+- form must be vertically scrollable
+- values must save correctly
+- values must reload correctly when editing
+- public sponsor profile page must render these fields where relevant
+
+Do not leave this functionality hidden or collapsed beyond usability.
+If collapsible sections are used, they must be clearly visible and openable.
+
+==================================================
+3. RENAME AND STANDARDIZE SOLUTION TYPES
+==================================================
+
+Use the label:
+Solution Types
+
+Do not use:
+- Attributes
+- Attribute
+
+Behavior:
+- each sponsor can have up to 3 Solution Types
+- Solution Types come from a reusable admin-defined list
+- sponsor form should use a clean multi-select or tag picker
+- selected values should display clearly in the form
+
+Examples:
+- Compliance
+- Onboarding
+- Payments
+- Fraud
+- Lending
+- Treasury
+- AI
+- Automation
+- Core Processing
+- Member Experience
+
+==================================================
+4. EVENT PAGE FILTER — SCALE FOR MANY SOLUTION TYPES
+==================================================
+
+Problem:
+The Solution Type filter is visible, but it must handle significantly more options than the current example.
+
+Required behavior:
+- filter chips/tags must wrap into additional rows automatically when needed
+- do not force horizontal overflow
+- do not let chips overlap sponsor cards
+- maintain compact spacing
+- keep the sponsor grid pushed down only as much as necessary
+
+Add the following behavior:
+- filter row wraps cleanly to multiple lines
+- selected chips are visually distinct
+- include:
+  - Clear All
+  - optional Show More / Show Less if the list becomes large
+
+Preferred behavior:
+- show the most relevant/common Solution Types first
+- if there are many options, allow multi-row wrap and optionally collapse after 2 rows with Show More
+
+Dynamic behavior:
+- sponsor count updates based on filter selection
+- sponsor grid updates correctly
+- no broken layout when the number of Solution Types doubles or more
+
+==================================================
+5. SPONSOR CARD CONTENT IMPROVEMENT
+==================================================
+
+Keep sponsor cards compact, but improve content quality.
+
+On the event page sponsor card, show when available:
+- Sponsor Name
+- Sponsorship Level badge
+- Short Description (2-line clamp max)
+- View Profile link
+- Primary CTA: Schedule Onsite Meeting
+- Secondary CTA: Online Meeting
+
+Requirements:
+- onsite CTA remains visually primary
+- online CTA remains secondary but consistent with the same style family
+- no purple mismatch
+- keep card density efficient for larger sponsor counts
+
+==================================================
+6. PUBLIC SPONSOR PROFILE PAGE
+==================================================
+
+When sponsor data exists, render:
+- Short Description
+- Website URL
+- LinkedIn URL
+- Solutions Summary
+- Main Contact info only if intended for public display
+  - if not intended for public display, keep it internal/admin-only
+
+If you do not want Main Contact public, store it for admin/sponsor operations only and do not show it on the public profile page.
+
+==================================================
+7. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- homepage event names are centered in the cards
+- sponsor form visibly contains Sponsor Profile, Main Contact, and Solution Types fields
+- sponsor form scrolls properly
+- sponsor data saves and reloads correctly
+- Solution Types can be assigned to sponsors
+- event page filter wraps cleanly into multiple rows when many Solution Types exist
+- layout remains stable if the number of Solution Types doubles
+- sponsor cards remain compact and polished

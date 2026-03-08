@@ -228,15 +228,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "Email is required" });
     const user = await storage.getUserByEmail(email);
-    if (!user) return res.status(404).json({ message: "No account found with that email address" });
-    if (!user.isActive) return res.status(403).json({ message: "This account is inactive" });
+    if (!user || !user.isActive) {
+      if (process.env.NODE_ENV === "production") {
+        return res.json({ message: "If an account exists for that email, reset instructions have been logged to the server." });
+      }
+      return res.status(404).json({ message: "No account found with that email address" });
+    }
     const tokenRecord = await storage.createPasswordResetToken(user.id);
     console.log(`[PASSWORD RESET] Token generated for ${email} — token: ${tokenRecord.token} — expires: ${new Date(tokenRecord.expiresAt).toISOString()}`);
-    res.json({
-      message: "Reset token generated. Use it to set a new password.",
-      token: tokenRecord.token,
-      expiresAt: new Date(tokenRecord.expiresAt).toISOString(),
-    });
+    if (process.env.NODE_ENV === "production") {
+      res.json({
+        message: "If an account exists for that email, reset instructions have been logged to the server.",
+      });
+    } else {
+      res.json({
+        message: "Reset token generated. Use it to set a new password.",
+        token: tokenRecord.token,
+        expiresAt: new Date(tokenRecord.expiresAt).toISOString(),
+      });
+    }
   });
 
   app.post("/api/auth/reset-password", async (req, res) => {
@@ -722,6 +732,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       event: {
         id: event.id, name: event.name, slug: event.slug, location: event.location,
         startDate: event.startDate, endDate: event.endDate,
+        logoUrl: event.logoUrl ?? null,
       },
       stats: {
         total:         sponsorMeetings.length,

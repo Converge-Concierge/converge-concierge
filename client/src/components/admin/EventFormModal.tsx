@@ -77,8 +77,7 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
       setFormData({ ...event, startDate: new Date(event.startDate), endDate: new Date(event.endDate) });
       const hasColors = event.primaryColor || event.secondaryColor || event.accentColor || event.buttonColor || event.bgAccentColor;
       setColorOpen(!!hasColors);
-      const hasSchedulingSettings = event.schedulingEnabled === false || event.schedulingShutoffAt || event.externalSchedulingUrl;
-      setSchedulingOpen(!!hasSchedulingSettings);
+      setSchedulingOpen(true);
     } else {
       setFormData({
         name: "", slug: "", location: "", startDate: new Date(), endDate: new Date(),
@@ -88,7 +87,7 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
         websiteUrl: null,
       });
       setColorOpen(false);
-      setSchedulingOpen(false);
+      setSchedulingOpen(true);
     }
   }, [event, isOpen]);
 

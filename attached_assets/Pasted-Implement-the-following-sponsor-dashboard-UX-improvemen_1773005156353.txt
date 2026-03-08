@@ -1,0 +1,122 @@
+Implement the following sponsor dashboard UX improvements.
+
+Important rules:
+- Do not redesign the entire sponsor dashboard
+- Do not break sponsor access links, meeting actions, notifications, reporting, CSV export, or admin workflows
+- Preserve all current working functionality
+- Make additive visual/UX improvements only
+
+Goal:
+Make the sponsor dashboard feel more branded, premium, and visually informative.
+
+==================================================
+1. ADD CONVERGE EVENTS LOGO TO TOP RIGHT
+==================================================
+
+Problem:
+The sponsor dashboard header currently has empty whitespace on the top right.
+
+Required fix:
+- Add the Converge Events logo to the top-right area of the sponsor dashboard header
+- Keep the current "Secure Access" and "Sign Out" controls intact
+- Position the logo cleanly so it complements, not crowds, the header
+- Use responsive sizing
+- If no logo is available, fall back gracefully and do not break layout
+
+==================================================
+2. ADD EVENT LOGO TO THE LEFT SIDE OF THE TOP SUMMARY CARD
+==================================================
+
+Problem:
+The top sponsor summary card currently has a generic placeholder on the left.
+
+Required fix:
+- Replace the generic placeholder with the actual event logo for the current sponsor-event context
+- Example:
+  If sponsor is viewing TLS2026 dashboard, show the TLS event logo
+- Keep sponsor name, sponsorship badge, and event details as they are
+- If event logo is missing, use the clean fallback placeholder
+
+==================================================
+3. USE CHARTS WHERE APPROPRIATE
+==================================================
+
+Problem:
+The dashboard is currently very text-and-number heavy.
+It would look better with simple visual reporting.
+
+Required fix:
+Add lightweight charts where appropriate without cluttering the page.
+
+Suggested chart use:
+A. Meeting status summary
+- small donut or pie chart showing:
+  - Pending
+  - Confirmed / Scheduled
+  - Completed
+  - Cancelled / Declined / No Show
+
+B. Meeting type summary
+- small pie or donut chart showing:
+  - Onsite
+  - Online
+
+C. Leads / companies trend or breakdown
+- compact bar chart if there is enough data
+- if not enough data, do not show an empty chart
+
+Requirements:
+- Use charts only where data exists
+- Keep visuals clean and premium
+- Do not overwhelm the page
+- Charts should support the KPI cards, not replace them
+
+==================================================
+4. KEEP KPI CARDS
+==================================================
+
+Do not remove the current KPI cards:
+- Total Meetings
+- Completed
+- Pending Online
+- Companies Met
+
+Instead:
+- keep the KPI cards
+- add a visual chart section below or beside them where it fits best
+
+==================================================
+5. PRESERVE SPONSOR VALUE / ROI FEEL
+==================================================
+
+The sponsor dashboard should feel like a sponsor ROI portal.
+
+Visual goals:
+- more premium
+- more branded
+- more useful at a glance
+- easier for sponsors to understand performance quickly
+
+Do not make it look like a generic analytics dashboard.
+Keep it aligned to an event sponsorship experience.
+
+==================================================
+6. RESPONSIVE REQUIREMENTS
+==================================================
+
+Ensure:
+- header still works on smaller screens
+- top card remains readable
+- charts stack cleanly on tablet/mobile
+- no overflow or broken spacing
+
+==================================================
+7. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- sponsor dashboard header includes Converge Events logo on top right
+- top sponsor summary card shows the current event logo on the left
+- dashboard includes clean pie/bar chart visuals where appropriate
+- KPI cards remain visible
+- overall dashboard feels more premium and visually informative

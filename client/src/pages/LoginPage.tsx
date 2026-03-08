@@ -63,8 +63,12 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Request failed");
-      setResetToken(data.token);
-      setStep("forgot-reset");
+      if (data.token) {
+        setResetToken(data.token);
+        setStep("forgot-reset");
+      } else {
+        setForgotSent(true);
+      }
     } catch (err: any) {
       setForgotError(err.message ?? "Something went wrong");
     } finally {
@@ -309,10 +313,16 @@ export default function LoginPage() {
                         <div className="h-14 w-14 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
                           <CheckCircle2 className="h-7 w-7 text-accent" />
                         </div>
-                        <h2 className="text-xl font-display font-bold text-foreground mb-2">Check your email</h2>
-                        <p className="text-muted-foreground text-sm mb-6">
-                          If an account exists for that email address, password reset instructions have been sent.
+                        <h2 className="text-xl font-display font-bold text-foreground mb-2">Request Received</h2>
+                        <p className="text-muted-foreground text-sm mb-3">
+                          If an account exists for that email address, reset instructions have been processed.
                         </p>
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 mb-6 text-left">
+                          <p className="text-xs font-semibold text-amber-800 mb-1">Administrator recovery</p>
+                          <p className="text-xs text-amber-700">
+                            Check the deployment logs for a line starting with <code className="bg-amber-100 px-1 rounded font-mono">[PASSWORD RESET]</code> to find your token, then visit <code className="bg-amber-100 px-1 rounded font-mono">/reset-password?token=…</code> to set a new password.
+                          </p>
+                        </div>
                         <Button onClick={backToLogin} className="w-full" data-testid="btn-back-after-forgot">
                           Back to Sign In
                         </Button>

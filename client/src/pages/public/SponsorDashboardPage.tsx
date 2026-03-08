@@ -9,6 +9,7 @@ import {
   UserCheck, AlertCircle, ChevronDown, ChevronUp, FileDown,
   BarChart3, Monitor, TrendingUp, Link2, X as XIcon, Gem,
 } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
@@ -59,10 +60,14 @@ interface DashboardData {
     linkedinUrl?: string | null;
     solutionsSummary?: string | null;
   };
-  event: { id: string; name: string; slug: string; location: string; startDate: string; endDate: string };
+  event: { id: string; name: string; slug: string; location: string; startDate: string; endDate: string; logoUrl?: string | null };
   stats: { total: number; scheduled: number; completed: number; cancelled: number; pendingOnline: number; companies: number };
   meetings: SponsorMeeting[];
   notifications: SponsorNotification[];
+}
+
+interface AppBranding {
+  appName: string; appLogoUrl: string; sponsorDashboardLogoUrl: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -121,6 +126,8 @@ export default function SponsorDashboardPage() {
   const [linkInput, setLinkInput] = useState("");
 
   useEffect(() => { if (!token) nav("/sponsor/login"); }, [token]);
+
+  const { data: branding } = useQuery<AppBranding>({ queryKey: ["/api/branding-public"] });
 
   const { data, isLoading, isError } = useQuery<DashboardData>({
     queryKey: ["/api/sponsor-access", token],
@@ -263,7 +270,7 @@ export default function SponsorDashboardPage() {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <Hexagon className="h-5 w-5" />
           </div>
-          <span className="font-display text-xl font-bold text-foreground tracking-tight">Converge Concierge</span>
+          <span className="font-display text-xl font-bold text-foreground tracking-tight hidden sm:inline">Converge Concierge</span>
         </div>
         <div className="flex items-center gap-3">
           {unreadCount > 0 && (
@@ -274,8 +281,18 @@ export default function SponsorDashboardPage() {
           )}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-100 border border-green-300">
             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-            <span className="text-xs font-semibold text-green-700">Secure Access</span>
+            <span className="text-xs font-semibold text-green-700 hidden sm:inline">Secure Access</span>
           </div>
+          {(branding?.sponsorDashboardLogoUrl || branding?.appLogoUrl) && (
+            <div className="h-9 border-l border-border/50 pl-3 flex items-center">
+              <img
+                src={branding.sponsorDashboardLogoUrl || branding.appLogoUrl}
+                alt={branding.appName || "Converge Events"}
+                className="h-8 max-w-[120px] object-contain"
+                data-testid="img-dashboard-logo"
+              />
+            </div>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -299,15 +316,23 @@ export default function SponsorDashboardPage() {
           {/* Sponsor + Event header */}
           <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="h-14 w-14 rounded-xl bg-muted border border-border flex items-center justify-center shrink-0">
-                {sponsor.logoUrl ? (
-                  <img src={sponsor.logoUrl} alt={sponsor.name} className="h-10 max-w-[48px] object-contain" />
+              {/* Event logo on the left */}
+              <div className="h-16 w-16 rounded-xl bg-white border border-border/70 flex items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-event-logo-card">
+                {event.logoUrl ? (
+                  <img src={event.logoUrl} alt={event.name} className="h-14 max-w-[60px] object-contain p-1" />
                 ) : (
-                  <Building2 className="h-7 w-7 text-muted-foreground/50" />
+                  <div className="flex flex-col items-center justify-center w-full h-full bg-muted/50">
+                    <Calendar className="h-7 w-7 text-accent/60" />
+                  </div>
                 )}
               </div>
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
+                  {sponsor.logoUrl && (
+                    <div className="h-8 w-8 rounded-lg border border-border/60 bg-white flex items-center justify-center overflow-hidden shrink-0">
+                      <img src={sponsor.logoUrl} alt={sponsor.name} className="h-full w-full object-contain p-0.5" />
+                    </div>
+                  )}
                   <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-sponsor-name">{sponsor.name}</h1>
                   {sponsor.level && (
                     <span className={cn("text-xs font-semibold border px-2.5 py-0.5 rounded-full inline-flex items-center gap-1", levelBadge[sponsor.level] || "bg-muted text-muted-foreground border-border")}>
@@ -359,6 +384,94 @@ export default function SponsorDashboardPage() {
             <StatCard label="Pending Online"      value={stats.pendingOnline} icon={Video}       />
             <StatCard label="Companies Met"       value={stats.companies}     icon={Users}       />
           </div>
+
+          {/* Charts — only shown when there's data */}
+          {stats.total > 0 && (() => {
+            const statusData = [
+              { name: "Completed",  value: stats.completed,     color: "#14b8a6" },
+              { name: "Pending",    value: stats.pendingOnline, color: "#8b5cf6" },
+              { name: "Scheduled",  value: stats.scheduled,     color: "#3b82f6" },
+              { name: "Cancelled",  value: stats.cancelled,     color: "#ef4444" },
+            ].filter((d) => d.value > 0);
+
+            const onsiteCount  = meetings.filter((m) => m.meetingType === "onsite").length;
+            const onlineCount  = meetings.filter((m) => m.meetingType !== "onsite").length;
+            const typeData = [
+              { name: "Onsite",  value: onsiteCount,  color: "#0d9488" },
+              { name: "Online",  value: onlineCount,  color: "#6366f1" },
+            ].filter((d) => d.value > 0);
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Meeting status donut */}
+                {statusData.length > 0 && (
+                  <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5">
+                    <p className="text-sm font-semibold text-foreground mb-1">Meeting Status</p>
+                    <p className="text-xs text-muted-foreground mb-4">Breakdown of all {stats.total} meeting{stats.total !== 1 ? "s" : ""}</p>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={statusData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={80}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {statusData.map((entry, i) => (
+                            <Cell key={i} fill={entry.color} stroke="transparent" />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }}
+                          formatter={(val: number, name: string) => [`${val}`, name]}
+                        />
+                        <Legend
+                          iconType="circle"
+                          iconSize={8}
+                          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                {/* Meeting type pie */}
+                {typeData.length > 1 && (
+                  <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5">
+                    <p className="text-sm font-semibold text-foreground mb-1">Meeting Type</p>
+                    <p className="text-xs text-muted-foreground mb-4">Onsite vs. Online split</p>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={typeData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={80}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {typeData.map((entry, i) => (
+                            <Cell key={i} fill={entry.color} stroke="transparent" />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }}
+                          formatter={(val: number, name: string) => [`${val}`, name]}
+                        />
+                        <Legend
+                          iconType="circle"
+                          iconSize={8}
+                          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Notifications */}
           {notifications.length > 0 && (

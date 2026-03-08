@@ -1,0 +1,129 @@
+Implement the following fixes in Converge Concierge.
+
+Important rules:
+- Do not redesign the app
+- Do not break scheduling, sponsor dashboards, reports, legal pages, or access links
+- Preserve all current working functionality
+- Make additive/fix-only changes only
+
+Current issues to fix:
+1. Edit Event is missing the Nunify/external-app handoff controls
+2. Events list should show event logo previews
+3. Sponsors list is still showing one misleading level for multi-event sponsors
+4. Admin login/reset is unstable and must be made reliable
+
+==================================================
+1. EDIT EVENT — ADD SCHEDULING HANDOFF / NUNIFY CONTROLS
+==================================================
+
+Problem:
+The Edit Event modal does not include a way to turn off Converge Concierge scheduling and redirect users to Nunify (or another external event app).
+
+Required fields in Create/Edit Event:
+- Scheduling Enabled (toggle)
+- Scheduled Shutoff Date/Time
+- External Scheduling Label
+- External Scheduling URL
+- External Scheduling Message
+
+Suggested defaults:
+- External Scheduling Label = "Open Event App"
+- External Scheduling Message = "Meeting scheduling for this event has moved to the event app."
+
+Behavior:
+- If Scheduling Enabled = false, Converge Concierge booking is disabled for that event
+- If current date/time is after Scheduled Shutoff Date/Time, booking is automatically disabled
+- Public event page should then:
+  - hide/disable Converge booking buttons
+  - show the external scheduling message
+  - show the external scheduling button linking to the configured URL
+- This must be configurable per event, not hardcoded to Nunify
+
+Placement in Edit Event:
+- add this as a clear section below Event Website URL and above Meeting Configuration
+- keep the modal scrollable
+
+==================================================
+2. EVENTS TABLE — SHOW EVENT LOGO PREVIEW
+==================================================
+
+Problem:
+Uploaded event logos are visible in Edit Event but not in the Events list.
+
+Required fix:
+- In Admin -> Events table, show a small event logo preview to the left of the event name
+- If no logo exists, show a clean fallback placeholder
+- Keep row height compact and aligned with current styling
+
+==================================================
+3. SPONSORS TABLE — FIX LEVEL DISPLAY FOR EVENT-SPECIFIC LEVELS
+==================================================
+
+Problem:
+Winnow is:
+- FRC2026 → Platinum
+- USBT2026 → Gold
+
+But the Sponsors table still shows only Platinum, which is incorrect.
+
+Required fix:
+Because sponsorship level is event-specific, the Sponsors table must not show a single misleading level.
+
+Use this display logic:
+- If sponsor has one assigned event only:
+  - show that single level normally
+- If sponsor has multiple assigned events and all levels are the same:
+  - show that level normally
+- If sponsor has multiple assigned events with different levels:
+  - show "Varies by Event"
+  OR show compact per-event labels like:
+    FRC2026: Platinum
+    USBT2026: Gold
+
+Preferred:
+- if compact enough, show per-event labels inline
+- otherwise show "Varies by Event"
+
+Do not revert to a sponsor-wide level model.
+
+==================================================
+4. ADMIN LOGIN / PASSWORD RESET — MAKE RELIABLE
+==================================================
+
+Problem:
+Admin access is unreliable, and password reset email is not dependable.
+
+Required fixes:
+
+A. Admin login
+- Ensure valid admin credentials can log in successfully in production
+- Remove any remaining double-login behavior
+- Verify session/cookie is set correctly on first login
+- Verify redirect to dashboard works
+
+B. Password reset
+- Do not expose reset tokens publicly in production UI
+- If email is configured:
+  - verify email delivery actually works
+  - verify SMTP/provider settings
+  - verify sender/from-address
+  - add logging for delivery success/failure
+- If email is NOT configured or not reliable:
+  - create a secure non-public admin recovery path
+  - example: server-side one-time recovery utility or protected admin-only reset route
+  - this fallback must not be exposed publicly
+
+C. Immediate goal
+- Admin must be able to recover access safely
+- Production must not show raw reset tokens on public pages
+
+==================================================
+5. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Edit Event includes scheduling handoff controls
+- Events list shows event logo previews
+- Sponsors table no longer shows one incorrect level for multi-event sponsors
+- Admin login works reliably
+- Password reset is secure and functional

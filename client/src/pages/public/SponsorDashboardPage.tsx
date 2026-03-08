@@ -6,7 +6,8 @@ import {
   Hexagon, ShieldX, Calendar, MapPin, Building2, Users,
   CheckCircle2, Clock, Handshake, Linkedin, LogOut,
   Bell, BellOff, Download, ExternalLink, Video, Mail,
-  UserCheck, AlertCircle, ChevronDown, ChevronUp,
+  UserCheck, AlertCircle, ChevronDown, ChevronUp, FileDown,
+  BarChart3, Monitor, TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
@@ -600,6 +601,98 @@ export default function SponsorDashboardPage() {
               )
             )}
           </div>
+          {/* ── Performance Report section ─────────────────────────────────── */}
+          <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-accent" /> Sponsor Performance Report
+              </h2>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Metrics grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: "Total Meetings",           value: stats.total,                                              icon: Handshake,   color: "bg-card border-border/60" },
+                  { label: "Completed",                 value: stats.completed,                                          icon: CheckCircle2, color: "bg-green-50 border-green-200 text-green-800" },
+                  { label: "Pending Online Requests",   value: stats.pendingOnline,                                      icon: Video,        color: "bg-violet-50 border-violet-200 text-violet-800" },
+                  { label: "Cancelled / No-Show",       value: stats.cancelled,                                          icon: AlertCircle,  color: "bg-red-50 border-red-200 text-red-800" },
+                  { label: "Unique Companies Met",      value: stats.companies,                                          icon: Users,        color: "bg-teal-50 border-teal-200 text-teal-800" },
+                  { label: "Total Leads Captured",      value: (() => { const s = new Set(meetings.map((m) => m.attendee.email || m.attendee.name)); return s.size; })(), icon: UserCheck, color: "bg-indigo-50 border-indigo-200 text-indigo-800" },
+                  { label: "Onsite Meetings",           value: meetings.filter((m) => m.meetingType !== "online_request").length, icon: Monitor, color: "bg-blue-50 border-blue-200 text-blue-800" },
+                  { label: "Online Meetings",           value: meetings.filter((m) => m.meetingType === "online_request").length, icon: Video,  color: "bg-violet-50 border-violet-200 text-violet-800" },
+                ].map(({ label, value, icon: Icon, color }) => (
+                  <div key={label} className={cn("rounded-xl border p-4 flex flex-col gap-2", color)}>
+                    <Icon className="h-4 w-4 opacity-70" />
+                    <div>
+                      <p className="text-xl font-display font-bold leading-none">{value}</p>
+                      <p className="text-[11px] font-medium mt-1 opacity-75 leading-tight">{label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Top Companies */}
+              {(() => {
+                const cmap: Record<string, number> = {};
+                for (const m of meetings) {
+                  if (m.attendee.company && m.attendee.company !== "—") {
+                    cmap[m.attendee.company] = (cmap[m.attendee.company] ?? 0) + 1;
+                  }
+                }
+                const top5 = Object.entries(cmap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                if (top5.length === 0) return null;
+                return (
+                  <div>
+                    <h3 className="text-xs font-semibold text-foreground flex items-center gap-2 mb-3">
+                      <TrendingUp className="h-3.5 w-3.5 text-accent" /> Top Companies Met
+                    </h3>
+                    <div className="space-y-2">
+                      {top5.map(([company, count], i) => {
+                        const max = top5[0][1];
+                        return (
+                          <div key={company}>
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="text-foreground font-medium">{i + 1}. {company}</span>
+                              <span className="text-muted-foreground">{count} meeting{count !== 1 ? "s" : ""}</span>
+                            </div>
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-accent rounded-full" style={{ width: `${(count / max) * 100}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Action buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-border/40">
+                <a
+                  href={`/api/sponsor-report/pdf?token=${token}`}
+                  download
+                  className="flex-1"
+                  data-testid="link-download-pdf"
+                >
+                  <Button className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
+                    <FileDown className="h-4 w-4" />
+                    Download PDF Report
+                  </Button>
+                </a>
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  onClick={exportLeadsCSV}
+                  data-testid="btn-export-leads-report"
+                >
+                  <Download className="h-4 w-4" />
+                  Export Leads CSV
+                </Button>
+              </div>
+            </div>
+          </div>
+
         </motion.div>
       </main>
 

@@ -6,7 +6,7 @@ import {
   BarChart3, Download, Calendar, Building2, Users,
   Clock, CheckCircle2, XCircle, AlertCircle, Handshake, Search,
   TrendingUp, ArrowUpDown, ExternalLink, User, Globe, Shield,
-  Monitor, Video,
+  Monitor, Video, FileDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -585,6 +585,64 @@ export default function ReportsPage() {
             </table>
           </div>
         </div>
+      </div>
+
+      {/* ── Sponsor PDF Report ─────────────────────────────────────────────────── */}
+      <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-5">
+          <FileDown className="h-5 w-5 text-accent" />
+          <h2 className="text-lg font-display font-semibold text-foreground">Sponsor Performance PDF</h2>
+          <span className="text-xs text-muted-foreground">— generate a detailed sponsor report</span>
+        </div>
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Event</label>
+            <select
+              className={selectClass}
+              value={reportEventId}
+              onChange={(e) => setReportEventId(e.target.value)}
+              data-testid="select-pdf-event"
+            >
+              <option value="">— select event —</option>
+              {events.map((e) => <option key={e.id} value={e.id}>{e.slug} — {e.name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sponsor</label>
+            <select
+              className={selectClass}
+              value={reportSponsorId}
+              onChange={(e) => setReportSponsorId(e.target.value)}
+              data-testid="select-pdf-sponsor"
+            >
+              <option value="">— select sponsor —</option>
+              {sponsors
+                .filter((s) => !reportEventId || (s.assignedEvents ?? []).some((ae) => ae.eventId === reportEventId))
+                .map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <a
+            href={reportEventId && reportSponsorId
+              ? `/api/sponsor-report/admin-pdf?eventId=${reportEventId}&sponsorId=${reportSponsorId}`
+              : undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="btn-download-sponsor-pdf"
+            className={cn(
+              "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
+              reportEventId && reportSponsorId
+                ? "bg-accent text-accent-foreground border-accent hover:bg-accent/90 shadow-sm"
+                : "bg-muted text-muted-foreground border-muted cursor-not-allowed opacity-50 pointer-events-none"
+            )}
+          >
+            <FileDown className="h-4 w-4" /> Download PDF Report
+          </a>
+        </div>
+        {reportEventId && reportSponsorId && (
+          <p className="text-xs text-muted-foreground mt-3">
+            Generating report for <strong>{sponsors.find((s) => s.id === reportSponsorId)?.name}</strong> at <strong>{events.find((e) => e.id === reportEventId)?.name}</strong>.
+          </p>
+        )}
       </div>
 
       {/* ── Tabbed Reports ─────────────────────────────────────────────────────── */}

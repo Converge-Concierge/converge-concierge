@@ -3,6 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType } from "@shared/schema";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
+import { buildSponsorReportPDF } from "./pdf-report";
 
 async function seedData() {
   const events = await storage.getEvents();
@@ -593,6 +594,89 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const sponsor = await storage.getSponsor(req.params.id);
     if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
     res.json(sponsor);
+  });
+
+  // ── Sponsor Report PDF helpers ─────────────────────────────────────────────
+
+  async function buildReportData(sponsorId: string, eventId: string) {
+    const [sponsor, event, allMeetings, allAttendees] = await Promise.all([
+      storage.getSponsor(sponsorId),
+      storage.getEvent(eventId),
+      storage.getMeetings(),
+      storage.getAttendees(),
+    ]);
+    if (!sponsor || !event) return null;
+
+    const sponsorMeetings = allMeetings.filter(
+      (m) => m.sponsorId === sponsorId && m.eventId === eventId
+    );
+    const attendeeMap = new Map(allAttendees.map((a) => [a.id, a]));
+
+    const meetings = sponsorMeetings.map((m) => {
+      const at = attendeeMap.get(m.attendeeId);
+      return {
+        id:               m.id,
+        date:             m.date,
+        time:             m.time,
+        location:         m.location,
+        status:           m.status,
+        meetingType:      m.meetingType ?? "onsite",
+        attendeeName:     at?.name ?? "Unknown",
+        attendeeTitle:    at?.title ?? "",
+        attendeeCompany:  at?.company ?? "",
+        attendeeEmail:    at?.email ?? "",
+        attendeeLinkedin: at?.linkedinUrl ?? "",
+      };
+    });
+
+    return {
+      generatedAt: new Date(),
+      event: {
+        name:      event.name,
+        slug:      event.slug,
+        location:  event.location,
+        startDate: event.startDate,
+        endDate:   event.endDate,
+      },
+      sponsor: { name: sponsor.name, level: sponsor.level },
+      meetings,
+    };
+  }
+
+  // Token-gated: sponsor downloads their own report
+  app.get("/api/sponsor-report/pdf", async (req, res) => {
+    const token = req.query.token as string;
+    if (!token) return res.status(400).json({ message: "Token required" });
+
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const data = await buildReportData(tokenRecord.sponsorId, tokenRecord.eventId);
+    if (!data) return res.status(404).json({ message: "Sponsor or event not found" });
+
+    const filename = `${data.sponsor.name.replace(/\s+/g, "_")}_${data.event.slug}_Report.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+    const pdf = buildSponsorReportPDF(data);
+    (pdf as any).pipe(res);
+  });
+
+  // Admin: download sponsor report by eventId + sponsorId
+  app.get("/api/sponsor-report/admin-pdf", requireAuth, async (req, res) => {
+    const { eventId, sponsorId } = req.query as { eventId?: string; sponsorId?: string };
+    if (!eventId || !sponsorId) return res.status(400).json({ message: "eventId and sponsorId required" });
+
+    const data = await buildReportData(sponsorId, eventId);
+    if (!data) return res.status(404).json({ message: "Sponsor or event not found" });
+
+    const filename = `${data.sponsor.name.replace(/\s+/g, "_")}_${data.event.slug}_Report.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+    const pdf = buildSponsorReportPDF(data);
+    (pdf as any).pipe(res);
   });
 
   return httpServer;

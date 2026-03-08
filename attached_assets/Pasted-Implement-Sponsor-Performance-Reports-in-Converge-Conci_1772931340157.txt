@@ -1,0 +1,143 @@
+Implement Sponsor Performance Reports in Converge Concierge.
+
+Important rules:
+- Do not redesign the landing page
+- Do not redesign the admin shell or sidebar
+- Do not break existing onsite scheduling
+- Do not break existing online meeting requests
+- Do not break sponsor access links or sponsor dashboards
+- Preserve all current working functionality
+- Make additive changes only
+
+Goal:
+Turn sponsor meeting and lead data into a sponsor-facing ROI report that can be viewed in the sponsor dashboard and downloaded as a PDF.
+
+==================================================
+1. SPONSOR DASHBOARD — PERFORMANCE REPORT SECTION
+==================================================
+
+In the existing sponsor access dashboard, add a new section below Lead Contacts called:
+
+Sponsor Performance Report
+
+Display these metrics for the current sponsor + current event only:
+- Total Meetings
+- Completed Meetings
+- Pending Online Requests
+- Cancelled / No Show
+- Unique Companies Met
+- Total Leads Captured
+- Onsite Meetings
+- Online Meetings
+
+If possible, also show:
+- Top Companies Met (top 5 by unique count)
+
+Add buttons:
+- Download PDF Report
+- Export Leads CSV
+
+Reuse the existing CSV export where possible.
+
+==================================================
+2. PDF REPORT GENERATION
+==================================================
+
+Create a server-side PDF generation endpoint for sponsor performance reports.
+
+Use the existing sponsor access token system.
+The report must only include data for:
+- the sponsor tied to the access token
+- the event tied to the access token
+
+Header:
+Converge Concierge
+Sponsor Performance Report
+
+Event Information:
+- Event Name
+- Event Code
+- Location
+- Event Dates
+
+Sponsor Information:
+- Sponsor Name
+- Sponsorship Level
+
+Meeting Summary:
+- Total Meetings
+- Completed Meetings
+- Pending Online Requests
+- Cancelled / No Show
+- Onsite Meetings
+- Online Meetings
+- Unique Companies Met
+- Total Leads Captured
+
+Lead Contacts Table:
+Columns:
+- Attendee Name
+- Title
+- Company
+- Email
+- LinkedIn (if present)
+- Meeting Type
+- Date
+- Time
+- Status
+
+Optional section if easy:
+Top Companies Met
+
+==================================================
+3. DATA RULES
+==================================================
+
+Filter all report data by:
+- sponsorId
+- eventId
+
+Sponsors must never see another sponsor’s data.
+
+Use the existing secure sponsor access token architecture already in the app.
+
+==================================================
+4. ADMIN REPORTS ENHANCEMENT
+==================================================
+
+In Admin -> Reports, add a sponsor report action so admins can generate the same sponsor performance report by:
+- Event
+- Sponsor
+
+Do not redesign the Reports page.
+Add this cleanly into the existing Event Reports / Sponsor Performance area.
+
+Admin should be able to:
+- select event
+- select sponsor
+- download PDF report
+
+==================================================
+5. UI REQUIREMENTS
+==================================================
+
+- Keep the existing visual style
+- Do not redesign the dashboard
+- Use the same card/table patterns already in the sponsor dashboard
+- Place the new report section below Lead Contacts
+
+==================================================
+6. DO NOT
+==================================================
+
+Do not:
+- add matchmaking
+- change login flow
+- remove existing CSV export
+- redesign sponsor dashboard
+- break tokenized sponsor access
+
+Only add:
+- sponsor performance report section
+- PDF report generation
+- admin-side sponsor PDF report generation

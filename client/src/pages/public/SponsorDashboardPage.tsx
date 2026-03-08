@@ -283,12 +283,12 @@ export default function SponsorDashboardPage() {
             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
             <span className="text-xs font-semibold text-green-700 hidden sm:inline">Secure Access</span>
           </div>
-          {(branding?.sponsorDashboardLogoUrl || branding?.appLogoUrl) && (
+          {branding?.appLogoUrl && (
             <div className="h-9 border-l border-border/50 pl-3 flex items-center">
               <img
-                src={branding.sponsorDashboardLogoUrl || branding.appLogoUrl}
+                src={branding.appLogoUrl}
                 alt={branding.appName || "Converge Events"}
-                className="h-8 max-w-[120px] object-contain"
+                className="h-8 max-w-[140px] object-contain"
                 data-testid="img-dashboard-logo"
               />
             </div>
@@ -316,23 +316,18 @@ export default function SponsorDashboardPage() {
           {/* Sponsor + Event header */}
           <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              {/* Event logo on the left */}
-              <div className="h-16 w-16 rounded-xl bg-white border border-border/70 flex items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-event-logo-card">
-                {event.logoUrl ? (
-                  <img src={event.logoUrl} alt={event.name} className="h-14 max-w-[60px] object-contain p-1" />
+              {/* Sponsor logo on the left — primary visual */}
+              <div className="h-16 w-16 rounded-xl bg-white border border-border/70 flex items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-sponsor-logo-card">
+                {sponsor.logoUrl ? (
+                  <img src={sponsor.logoUrl} alt={sponsor.name} className="h-14 max-w-[60px] object-contain p-1" />
                 ) : (
                   <div className="flex flex-col items-center justify-center w-full h-full bg-muted/50">
-                    <Calendar className="h-7 w-7 text-accent/60" />
+                    <Building2 className="h-7 w-7 text-muted-foreground/40" />
                   </div>
                 )}
               </div>
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  {sponsor.logoUrl && (
-                    <div className="h-8 w-8 rounded-lg border border-border/60 bg-white flex items-center justify-center overflow-hidden shrink-0">
-                      <img src={sponsor.logoUrl} alt={sponsor.name} className="h-full w-full object-contain p-0.5" />
-                    </div>
-                  )}
                   <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-sponsor-name">{sponsor.name}</h1>
                   {sponsor.level && (
                     <span className={cn("text-xs font-semibold border px-2.5 py-0.5 rounded-full inline-flex items-center gap-1", levelBadge[sponsor.level] || "bg-muted text-muted-foreground border-border")}>
@@ -344,11 +339,17 @@ export default function SponsorDashboardPage() {
                 {sponsor.shortDescription && (
                   <p className="text-sm text-muted-foreground mb-1.5">{sponsor.shortDescription}</p>
                 )}
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                {/* Event label row with optional event logo */}
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                   <span className="font-mono text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20">
                     {event.slug}
                   </span>
                   <span className="font-medium text-foreground">{event.name}</span>
+                  {event.logoUrl && (
+                    <div className="h-6 w-6 rounded border border-border/60 bg-white flex items-center justify-center overflow-hidden shrink-0" data-testid="img-event-logo-card">
+                      <img src={event.logoUrl} alt={event.name} className="h-5 w-5 object-contain p-px" />
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-4 mt-1.5 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">

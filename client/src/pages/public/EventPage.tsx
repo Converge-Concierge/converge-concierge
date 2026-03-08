@@ -116,13 +116,9 @@ function Shell({
             {branding?.appName || "Converge Concierge"}
           </span>
         </Link>
-        {onBack ? (
+        {onBack && (
           <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5 text-muted-foreground">
             <ChevronLeft className="h-4 w-4" />{backLabel ?? "Back"}
-          </Button>
-        ) : (
-          <Button variant="outline" size="sm" onClick={() => nav("/")} className="gap-1.5">
-            <ArrowLeft className="h-4 w-4" />All Events
           </Button>
         )}
       </header>

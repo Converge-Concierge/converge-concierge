@@ -1,0 +1,162 @@
+Implement sponsor-side meeting status updates in the Sponsor Portal.
+
+Important rules:
+- Do not redesign the sponsor dashboard
+- Do not break sponsor access links, notifications, reports, CSV export, or admin workflows
+- Preserve all current working functionality
+- Make additive/fix-only changes only
+
+Problem:
+In production, sponsors can see meeting statuses in the Sponsor Portal, but they cannot update them.
+
+Goal:
+Allow sponsors to update meeting/request status from the Sponsor Portal for meetings tied to their sponsor access link.
+
+==================================================
+1. SPONSOR PORTAL — ENABLE STATUS ACTIONS
+==================================================
+
+In the Sponsor Portal "Your Meetings" section, add status update actions for each meeting row.
+
+Required sponsor actions:
+- Confirm
+- Mark Completed
+- Cancel
+- Decline Request (for online requests if still pending)
+
+Apply actions based on current meeting type/status:
+
+A. Onsite meeting
+If status is Scheduled:
+- Mark Completed
+- Cancel
+
+B. Online meeting request
+If status is Pending:
+- Confirm
+- Decline Request
+- Cancel
+
+C. Online meeting
+If status is Confirmed or Scheduled:
+- Mark Completed
+- Cancel
+
+Do not show invalid actions for a given status.
+
+==================================================
+2. STATUS DEFINITIONS
+==================================================
+
+Use/normalize these statuses consistently:
+- Pending
+- Confirmed
+- Scheduled
+- Completed
+- Cancelled
+- NoShow
+- Declined
+
+If current code already uses a slightly different set, map them cleanly without breaking existing records.
+
+Recommended behavior:
+- Online request submitted by attendee -> Pending
+- Sponsor confirms -> Confirmed
+- Onsite direct booking -> Scheduled
+- Sponsor finishes meeting -> Completed
+- Sponsor rejects request -> Declined
+- Sponsor voids meeting -> Cancelled
+
+==================================================
+3. SECURITY / ACCESS CONTROL
+==================================================
+
+Critical:
+Sponsors must only be able to update meetings that belong to:
+- their sponsor record
+- their event access token context
+
+Do not allow a sponsor to update:
+- another sponsor’s meetings
+- meetings outside the linked event
+- meetings through manipulated client requests
+
+Validate updates server-side using the sponsor access token context.
+
+==================================================
+4. UI REQUIREMENTS
+==================================================
+
+Keep the current Sponsor Portal layout.
+
+In the "Your Meetings" table:
+- add an Actions column or inline action menu/button
+- keep it compact and professional
+- maintain current styling
+
+Recommended UI:
+- small action dropdown
+or
+- compact action buttons within each row
+
+After update:
+- refresh the row status immediately
+- show a success toast/message
+- if update fails, show a clear error message
+
+==================================================
+5. NOTIFICATIONS
+==================================================
+
+When a sponsor updates status:
+- create/update the relevant notification record if your notification system supports it
+
+Minimum notification behavior:
+- when sponsor confirms an online request
+- when sponsor declines an online request
+- when sponsor cancels a meeting
+- when sponsor marks a meeting completed
+
+If attendee notifications are not yet implemented, at least persist the updated status for reporting/admin visibility.
+
+==================================================
+6. REPORTING / ADMIN CONSISTENCY
+==================================================
+
+Sponsor status changes must immediately flow through to:
+- Sponsor Portal KPI cards
+- Admin Meetings table
+- Admin Reports
+- Sponsor Performance Report
+- CSV/PDF exports where status appears
+
+Examples:
+- Mark Completed -> Completed counts increase
+- Decline Request -> Pending count decreases
+- Cancelled -> Cancelled counts update
+
+==================================================
+7. OPTIONAL BUT STRONGLY RECOMMENDED
+==================================================
+
+If practical, for online requests add:
+- optional field for sponsor note when confirming or declining
+- optional meeting link field when confirming an online meeting
+
+If confirmed with a meeting link:
+- save the platform/link to the meeting record
+- show it in sponsor/admin views where appropriate
+
+Do not block this task if the note/link field is too large a change.
+Status updates are the priority.
+
+==================================================
+8. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- sponsor can update meeting status from the Sponsor Portal
+- actions shown are appropriate to the meeting type/status
+- updates are secure and limited to that sponsor/event context
+- status changes appear immediately in the portal
+- admin/reports reflect the new status correctly

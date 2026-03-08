@@ -7,12 +7,13 @@ import {
   CheckCircle2, Clock, Handshake, Linkedin, LogOut,
   Bell, BellOff, Download, ExternalLink, Video, Mail,
   UserCheck, AlertCircle, ChevronDown, ChevronUp, FileDown,
-  BarChart3, Monitor, TrendingUp,
+  BarChart3, Monitor, TrendingUp, Link2, X as XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { downloadICS, googleCalendarUrl } from "@/lib/ics";
+import { useToast } from "@/hooks/use-toast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,7 @@ interface SponsorMeeting {
   meetingType: string;
   platform: string | null;
   preferredTimezone: string | null;
+  meetingLink: string | null;
   attendee: { name: string; company: string; title: string; email: string; linkedinUrl?: string | null };
 }
 
@@ -63,6 +65,7 @@ const statusColors: Record<string, string> = {
   NoShow:     "bg-yellow-100 text-yellow-700 border-yellow-200",
   Pending:    "bg-violet-100 text-violet-700 border-violet-200",
   Confirmed:  "bg-teal-100 text-teal-700 border-teal-200",
+  Declined:   "bg-orange-100 text-orange-700 border-orange-200",
 };
 
 const notifIcons: Record<string, { icon: React.ElementType; color: string; label: string }> = {
@@ -71,6 +74,7 @@ const notifIcons: Record<string, { icon: React.ElementType; color: string; label
   meeting_cancelled:        { icon: AlertCircle,  color: "text-red-500",    label: "Meeting cancelled"       },
   request_confirmed:        { icon: CheckCircle2, color: "text-green-500",  label: "Request confirmed"       },
   request_declined:         { icon: BellOff,      color: "text-orange-500", label: "Request declined"        },
+  meeting_completed:        { icon: CheckCircle2, color: "text-teal-500",   label: "Meeting completed"       },
 };
 
 function fmt12(t: string) {
@@ -101,8 +105,11 @@ export default function SponsorDashboardPage() {
   const token = localStorage.getItem("sponsor_token") ?? "";
   const qc = useQueryClient();
 
+  const { toast } = useToast();
   const [notifOpen, setNotifOpen] = useState(true);
   const [leadsOpen, setLeadsOpen] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [linkInput, setLinkInput] = useState("");
 
   useEffect(() => { if (!token) nav("/sponsor/login"); }, [token]);
 
@@ -125,6 +132,36 @@ export default function SponsorDashboardPage() {
   const markRead = useMutation({
     mutationFn: (id: string) => fetch(`/api/sponsor-notifications/${id}/read?token=${token}`, { method: "PATCH" }).then((r) => r.json()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/sponsor-access", token] }),
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ meetingId, status, meetingLink }: { meetingId: string; status: string; meetingLink?: string }) => {
+      const res = await fetch(`/api/sponsor-meetings/${meetingId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, status, meetingLink }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to update status");
+      }
+      return res.json();
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["/api/sponsor-access", token] });
+      setConfirmingId(null);
+      setLinkInput("");
+      const labels: Record<string, string> = {
+        Completed: "Meeting marked as completed.",
+        Cancelled: "Meeting cancelled.",
+        Confirmed: "Online request confirmed.",
+        Declined:  "Request declined.",
+      };
+      toast({ title: "Status updated", description: labels[variables.status] ?? "Meeting status updated." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
   });
 
   function handleSignOut() {
@@ -401,13 +438,14 @@ export default function SponsorDashboardPage() {
               </div>
             ) : (
               <>
-                <div className="hidden sm:grid grid-cols-[120px_1fr_140px_90px_90px_100px] gap-3 px-6 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <div className="hidden sm:grid grid-cols-[120px_1fr_140px_90px_90px_90px_150px] gap-3 px-6 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   <span>Date / Time</span>
                   <span>Attendee</span>
                   <span>Company</span>
                   <span>Type</span>
                   <span>Location</span>
                   <span>Status</span>
+                  <span>Actions</span>
                 </div>
                 <div className="divide-y divide-border/40">
                   {[...meetings]
@@ -415,10 +453,12 @@ export default function SponsorDashboardPage() {
                     .map((m) => {
                       const isOnline = m.meetingType === "online_request";
                       const canExport = m.status === "Scheduled" || m.status === "Confirmed" || m.status === "Completed";
+                      const isConfirming = confirmingId === m.id;
+                      const isBusy = updateStatus.isPending;
                       return (
                         <div
                           key={m.id}
-                          className="px-6 py-4 flex flex-col sm:grid sm:grid-cols-[120px_1fr_140px_90px_90px_100px] sm:items-center gap-3 hover:bg-muted/30 transition-colors"
+                          className="px-6 py-4 flex flex-col sm:grid sm:grid-cols-[120px_1fr_140px_90px_90px_90px_150px] sm:items-start gap-3 hover:bg-muted/30 transition-colors"
                           data-testid={`meeting-row-${m.id}`}
                         >
                           {/* Date + Time + ICS */}
@@ -516,9 +556,103 @@ export default function SponsorDashboardPage() {
                             <span className={cn(
                               "text-xs font-semibold px-2.5 py-1 rounded-full border w-fit block",
                               statusColors[m.status] ?? "bg-muted text-muted-foreground border-muted"
-                            )}>
+                            )} data-testid={`status-badge-${m.id}`}>
                               {m.status}
                             </span>
+                            {m.meetingLink && (
+                              <a href={m.meetingLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-0.5 mt-1" data-testid={`link-meeting-link-${m.id}`}>
+                                <Link2 className="h-2.5 w-2.5" /> Meeting link
+                              </a>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex flex-col gap-1 min-w-0" data-testid={`actions-${m.id}`}>
+                            {/* Onsite Scheduled or Online Confirmed → Complete / Cancel */}
+                            {((m.status === "Scheduled" && !isOnline) ||
+                              (m.status === "Confirmed")) && (
+                              <>
+                                <button
+                                  onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Completed" })}
+                                  disabled={isBusy}
+                                  className="text-xs px-2 py-1 rounded-md bg-green-100 text-green-700 hover:bg-green-200 border border-green-200 transition-colors disabled:opacity-50 w-full text-left"
+                                  data-testid={`btn-complete-${m.id}`}
+                                >
+                                  Mark Completed
+                                </button>
+                                <button
+                                  onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Cancelled" })}
+                                  disabled={isBusy}
+                                  className="text-xs px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors disabled:opacity-50 w-full text-left"
+                                  data-testid={`btn-cancel-${m.id}`}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+
+                            {/* Online Pending → Confirm / Decline / Cancel */}
+                            {m.status === "Pending" && isOnline && (
+                              isConfirming ? (
+                                <div className="flex flex-col gap-1.5">
+                                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                    <Link2 className="h-2.5 w-2.5" /> Meeting link (optional)
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="https://..."
+                                    value={linkInput}
+                                    onChange={(e) => setLinkInput(e.target.value)}
+                                    className="text-xs px-2 py-1 rounded-md border border-input bg-background w-full"
+                                    data-testid={`input-meeting-link-${m.id}`}
+                                    autoFocus
+                                  />
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Confirmed", meetingLink: linkInput })}
+                                      disabled={isBusy}
+                                      className="flex-1 text-xs px-2 py-1 rounded-md bg-teal-600 text-white hover:bg-teal-700 transition-colors disabled:opacity-50"
+                                      data-testid={`btn-confirm-submit-${m.id}`}
+                                    >
+                                      Confirm
+                                    </button>
+                                    <button
+                                      onClick={() => { setConfirmingId(null); setLinkInput(""); }}
+                                      className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                                      data-testid={`btn-confirm-cancel-${m.id}`}
+                                    >
+                                      <XIcon className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => { setConfirmingId(m.id); setLinkInput(""); }}
+                                    className="text-xs px-2 py-1 rounded-md bg-teal-100 text-teal-700 hover:bg-teal-200 border border-teal-200 transition-colors w-full text-left"
+                                    data-testid={`btn-confirm-${m.id}`}
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button
+                                    onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Declined" })}
+                                    disabled={isBusy}
+                                    className="text-xs px-2 py-1 rounded-md bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 transition-colors disabled:opacity-50 w-full text-left"
+                                    data-testid={`btn-decline-${m.id}`}
+                                  >
+                                    Decline Request
+                                  </button>
+                                  <button
+                                    onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Cancelled" })}
+                                    disabled={isBusy}
+                                    className="text-xs px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors disabled:opacity-50 w-full text-left"
+                                    data-testid={`btn-cancel-${m.id}`}
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              )
+                            )}
                           </div>
                         </div>
                       );

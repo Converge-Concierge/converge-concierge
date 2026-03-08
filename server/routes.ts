@@ -638,6 +638,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           meetingType: m.meetingType ?? "onsite",
           platform: m.platform ?? null,
           preferredTimezone: m.preferredTimezone ?? null,
+          meetingLink: m.meetingLink ?? null,
           attendee: attendee
             ? { name: attendee.name, company: attendee.company, title: attendee.title, email: attendee.email, linkedinUrl: attendee.linkedinUrl ?? null }
             : { name: "Unknown", company: "—", title: "—", email: "—", linkedinUrl: null },
@@ -675,6 +676,56 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         createdAt: n.createdAt.toISOString(),
       })),
     });
+  });
+
+  // ── Sponsor Meeting Status Updates (token-gated) ─────────────────────────
+
+  app.patch("/api/sponsor-meetings/:id/status", async (req, res) => {
+    const { token, status, meetingLink, sponsorNote } = req.body;
+    if (!token) return res.status(401).json({ message: "Token required" });
+
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const existing = await storage.getMeeting(req.params.id);
+    if (!existing) return res.status(404).json({ message: "Meeting not found" });
+
+    // Security: meeting must belong to the sponsor and event on the token
+    if (existing.sponsorId !== tokenRecord.sponsorId || existing.eventId !== tokenRecord.eventId) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Validate allowed status transitions per meeting type/status
+    const allowedTransitions: Record<string, string[]> = {
+      Scheduled:  ["Completed", "Cancelled"],
+      Pending:    ["Confirmed", "Declined", "Cancelled"],
+      Confirmed:  ["Completed", "Cancelled"],
+    };
+    const allowed = allowedTransitions[existing.status as string] ?? [];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: `Cannot change status from ${existing.status} to ${status}` });
+    }
+
+    const updateData: Record<string, unknown> = { status };
+    if (meetingLink !== undefined) updateData.meetingLink = meetingLink || null;
+    if (sponsorNote !== undefined) updateData.notes = sponsorNote || null;
+
+    const meeting = await storage.updateMeeting(req.params.id, updateData);
+    if (!meeting) return res.status(404).json({ message: "Meeting not found" });
+
+    // Fire status-change notifications
+    let notifType: SponsorNotificationType | null = null;
+    if (status === "Confirmed" && existing.meetingType === "online_request") notifType = "request_confirmed";
+    else if (status === "Declined" && existing.meetingType === "online_request") notifType = "request_declined";
+    else if (status === "Cancelled") notifType = "meeting_cancelled";
+    else if (status === "Completed") notifType = "meeting_completed";
+
+    if (notifType) {
+      fireNotification(notifType, meeting.id, meeting.sponsorId, meeting.eventId, meeting.attendeeId, meeting.date, meeting.time);
+    }
+
+    res.json({ ok: true, status: meeting.status, meetingLink: meeting.meetingLink ?? null });
   });
 
   // ── Sponsor Notifications (token-gated) ───────────────────────────────────

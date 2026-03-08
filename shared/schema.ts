@@ -178,6 +178,7 @@ export const SPONSOR_NOTIFICATION_TYPES = [
   "meeting_cancelled",
   "request_confirmed",
   "request_declined",
+  "meeting_completed",
 ] as const;
 
 export type SponsorNotificationType = typeof SPONSOR_NOTIFICATION_TYPES[number];
@@ -226,9 +227,10 @@ export const meetings = pgTable("meetings", {
   location: text("location").notNull(), // Location name for onsite; "Online" for online requests
   platform: text("platform"),       // Online meeting platform preference
   preferredTimezone: text("preferred_timezone"), // Timezone for online requests
-  status: text("status", { enum: ["Scheduled", "Completed", "Cancelled", "NoShow", "Pending", "Confirmed"] }).notNull().default("Scheduled"),
+  status: text("status", { enum: ["Scheduled", "Completed", "Cancelled", "NoShow", "Pending", "Confirmed", "Declined"] }).notNull().default("Scheduled"),
   source: text("source", { enum: ["admin", "public"] }).notNull().default("admin"),
   notes: text("notes"),
+  meetingLink: varchar("meeting_link"),
   archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
   archiveSource: text("archive_source", { enum: ["event", "manual"] }),
 });
@@ -237,7 +239,8 @@ export const insertMeetingSchema = createInsertSchema(meetings).extend({
   archiveSource: z.enum(["event", "manual"]).nullable().optional(),
   source: z.enum(["admin", "public"]).optional().default("admin"),
   meetingType: z.enum(["onsite", "online_request"]).optional().default("onsite"),
-  status: z.enum(["Scheduled", "Completed", "Cancelled", "NoShow", "Pending", "Confirmed"]).optional().default("Scheduled"),
+  status: z.enum(["Scheduled", "Completed", "Cancelled", "NoShow", "Pending", "Confirmed", "Declined"]).optional().default("Scheduled"),
+  meetingLink: z.string().nullable().optional(),
   platform: z.string().nullable().optional(),
   preferredTimezone: z.string().nullable().optional(),
 });

@@ -165,9 +165,18 @@ All at `/event/:slug` — single-page multi-step wizard:
 
 ### Sponsor Notifications (added)
 - `SponsorNotification` type in `shared/schema.ts`; `notifications` Map in `MemStorage`
-- Auto-created on meeting create (`onsite_booked`, `online_request_submitted`) and status change (`meeting_cancelled`, `request_confirmed`, `request_declined`)
+- Auto-created on meeting create (`onsite_booked`, `online_request_submitted`) and status change (`meeting_cancelled`, `request_confirmed`, `request_declined`, `meeting_completed`)
 - Scoped to `sponsorId + eventId`; returned in `/api/sponsor-access/:token` response
 - Mark-read endpoints: `PATCH /api/sponsor-notifications/:id/read?token=`, `PATCH /api/sponsor-notifications/read-all?token=`
+
+### Sponsor Meeting Status Updates (added)
+- Sponsors can update meeting status from their dashboard meetings table
+- `PATCH /api/sponsor-meetings/:id/status` — body: `{ token, status, meetingLink?, sponsorNote? }`
+- Validates token, checks ownership (`sponsorId + eventId` match), enforces allowed transitions
+- Allowed transitions: `Scheduled (onsite) → [Completed, Cancelled]`; `Pending (online) → [Confirmed, Declined, Cancelled]`; `Confirmed → [Completed, Cancelled]`
+- Confirming an online request shows an inline meeting-link input (optional URL stored in `meetings.meeting_link` column)
+- `meetings` table: `status` enum includes `"Declined"`; `meeting_link` is a nullable `varchar` column
+- `drizzle.config.ts` uses `tablesFilter: ["!user_sessions"]` to prevent Drizzle from dropping the session table
 
 ### ICS / Calendar Integration (added)
 - `client/src/lib/ics.ts` — `generateICS()`, `downloadICS()`, `googleCalendarUrl()`

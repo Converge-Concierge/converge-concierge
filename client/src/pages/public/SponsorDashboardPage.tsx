@@ -7,13 +7,22 @@ import {
   CheckCircle2, Clock, Handshake, Linkedin, LogOut,
   Bell, BellOff, Download, ExternalLink, Video, Mail,
   UserCheck, AlertCircle, ChevronDown, ChevronUp, FileDown,
-  BarChart3, Monitor, TrendingUp, Link2, X as XIcon,
+  BarChart3, Monitor, TrendingUp, Link2, X as XIcon, Gem,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { downloadICS, googleCalendarUrl } from "@/lib/ics";
+
 import { useToast } from "@/hooks/use-toast";
+
+const levelBadge: Record<string, string> = {
+  Platinum: "bg-slate-800 text-white border-slate-700",
+  Gold:     "bg-amber-100 text-amber-900 border-amber-300",
+  Silver:   "bg-gray-100 text-gray-600 border-gray-300",
+  Bronze:   "bg-orange-100 text-orange-700 border-orange-300",
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -300,9 +309,12 @@ export default function SponsorDashboardPage() {
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-sponsor-name">{sponsor.name}</h1>
-                  <span className="text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-300 px-2.5 py-0.5 rounded-full">
-                    {sponsor.level} Sponsor
-                  </span>
+                  {sponsor.level && (
+                    <span className={cn("text-xs font-semibold border px-2.5 py-0.5 rounded-full inline-flex items-center gap-1", levelBadge[sponsor.level] || "bg-muted text-muted-foreground border-border")}>
+                      {sponsor.level === "Platinum" && <Gem className="h-3 w-3" />}
+                      {sponsor.level} Sponsor
+                    </span>
+                  )}
                 </div>
                 {sponsor.shortDescription && (
                   <p className="text-sm text-muted-foreground mb-1.5">{sponsor.shortDescription}</p>

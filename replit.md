@@ -39,6 +39,7 @@ The platform uses a modern web stack with a clear separation between frontend an
 
 - **Schema**: `shared/schema.ts` defines all data types and Drizzle table definitions, serving as a single source of truth.
 - **Key Entities**: `events`, `sponsors`, `attendees`, `meetings`, `PasswordResetToken`, `SponsorNotification`.
+- **Sponsorship Level**: Per-event. Stored in `sponsors.assignedEvents` JSONB as `EventSponsorLink.sponsorshipLevel`. The global `sponsors.level` column is nullable (kept for fallback only). Admin form shows per-event level dropdowns replacing the old global dropdown.
 - **Event Scheduling Logic**: Includes conflict detection for meeting slots, cascade archiving/unarchiving of related records (attendees, meetings) based on event status, and attendee resolution logic (lookup, reactivation, creation).
 
 ### Feature Specifications

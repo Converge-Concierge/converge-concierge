@@ -34,6 +34,8 @@ export default function SponsorProfilePage() {
   });
 
   const event = events.find((e) => e.slug === slug);
+  const eventLink = event ? (sponsor?.assignedEvents ?? []).find((ae) => ae.eventId === event.id && (ae.archiveState ?? "active") === "active") : null;
+  const sponsorLevel = eventLink?.sponsorshipLevel ?? sponsor?.level ?? "";
 
   if (isLoading) {
     return (
@@ -126,10 +128,12 @@ export default function SponsorProfilePage() {
                   >
                     {sponsor.name}
                   </h1>
-                  <span className={cn("text-xs font-semibold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1", levelBadge[sponsor.level] || "bg-muted text-muted-foreground border-border")}>
-                    {sponsor.level === "Platinum" && <Gem className="h-3 w-3" />}
-                    {sponsor.level} Sponsor
-                  </span>
+                  {sponsorLevel && (
+                    <span className={cn("text-xs font-semibold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1", levelBadge[sponsorLevel] || "bg-muted text-muted-foreground border-border")}>
+                      {sponsorLevel === "Platinum" && <Gem className="h-3 w-3" />}
+                      {sponsorLevel} Sponsor
+                    </span>
+                  )}
                 </div>
 
                 {sponsor.shortDescription && (

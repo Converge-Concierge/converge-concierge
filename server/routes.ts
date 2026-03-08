@@ -649,9 +649,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const uniqueCompanies = new Set(meetingsWithAttendees.map((m) => m.attendee.company).filter((c) => c !== "—"));
     const notifications = await storage.getNotificationsForSponsorEvent(tokenRecord.sponsorId, tokenRecord.eventId);
 
+    const eventLink = (sponsor.assignedEvents ?? []).find((ae) => ae.eventId === tokenRecord.eventId);
+    const sponsorLevel = eventLink?.sponsorshipLevel ?? sponsor.level ?? "";
+
     res.json({
       sponsor: {
-        id: sponsor.id, name: sponsor.name, level: sponsor.level, logoUrl: sponsor.logoUrl ?? "",
+        id: sponsor.id, name: sponsor.name, level: sponsorLevel, logoUrl: sponsor.logoUrl ?? "",
         shortDescription: sponsor.shortDescription ?? null,
         websiteUrl: sponsor.websiteUrl ?? null,
         linkedinUrl: sponsor.linkedinUrl ?? null,
@@ -839,7 +842,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         startDate: event.startDate,
         endDate:   event.endDate,
       },
-      sponsor: { name: sponsor.name, level: sponsor.level },
+      sponsor: { name: sponsor.name, level: ((sponsor.assignedEvents ?? []).find((ae) => ae.eventId === eventId)?.sponsorshipLevel ?? sponsor.level ?? "") },
       meetings,
     };
   }

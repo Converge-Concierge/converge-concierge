@@ -46,8 +46,12 @@ export const meetingTimeBlockSchema = z.object({
 export type MeetingTimeBlock = z.infer<typeof meetingTimeBlockSchema>;
 
 // --- EventSponsor Relationship Link ---
+export const SPONSORSHIP_LEVELS = ["Platinum", "Gold", "Silver", "Bronze"] as const;
+export type SponsorshipLevel = typeof SPONSORSHIP_LEVELS[number];
+
 export const eventSponsorLinkSchema = z.object({
   eventId: z.string(),
+  sponsorshipLevel: z.enum(SPONSORSHIP_LEVELS).nullable().optional(),
   archiveState: z.enum(["active", "archived"]).default("active"),
   archiveSource: z.enum(["manual", "event"]).nullable().default(null),
 });
@@ -98,7 +102,7 @@ export const sponsors = pgTable("sponsors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   logoUrl: text("logo_url"),
-  level: text("level", { enum: ["Platinum", "Gold", "Silver", "Bronze"] }).notNull(),
+  level: text("level", { enum: ["Platinum", "Gold", "Silver", "Bronze"] }),
   assignedEvents: jsonb("assigned_events").$type<EventSponsorLink[]>().notNull().default([]),
   archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
   archiveSource: text("archive_source", { enum: ["manual", "event"] }),

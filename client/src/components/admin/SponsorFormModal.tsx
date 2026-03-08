@@ -3,8 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Sponsor, InsertSponsor, Event, EventSponsorLink } from "@shared/schema";
+import { Sponsor, InsertSponsor, Event, EventSponsorLink, SPONSORSHIP_LEVELS, SponsorshipLevel } from "@shared/schema";
 import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +17,7 @@ interface SponsorFormModalProps {
   readOnly?: boolean;
 }
 
-const LEVELS = ["Platinum", "Gold", "Silver", "Bronze"] as const;
+const LEVELS = SPONSORSHIP_LEVELS;
 
 const levelColors: Record<string, string> = {
   Platinum: "border-slate-700 bg-slate-800 text-white",
@@ -42,7 +41,7 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
       if (sponsor) {
         setFormData({ ...sponsor, allowOnlineMeetings: sponsor.allowOnlineMeetings ?? false, attributes: sponsor.attributes ?? [] });
       } else {
-        setFormData({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false, attributes: [] });
+        setFormData({ name: "", logoUrl: "", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false, attributes: [] });
       }
     }
   }, [sponsor, isOpen]);
@@ -78,21 +77,30 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function toggleEvent(eventId: string) {
+  function setEventLevel(eventId: string, level: SponsorshipLevel | null) {
     if (readOnly) return;
     const current = formData.assignedEvents || [];
-    const existingIdx = current.findIndex((ae) => ae.eventId === eventId);
-    if (existingIdx >= 0) {
-      const existing = current[existingIdx];
-      if ((existing.archiveState ?? "active") === "active") {
-        setFormData((prev) => ({ ...prev, assignedEvents: current.filter((_, i) => i !== existingIdx) }));
-      } else {
-        setFormData((prev) => ({ ...prev, assignedEvents: current.map((ae, i) => i === existingIdx ? { ...ae, archiveState: "active" as const, archiveSource: null } : ae) }));
-      }
+    if (level === null) {
+      setFormData((prev) => ({ ...prev, assignedEvents: current.filter((ae) => ae.eventId !== eventId) }));
     } else {
-      const newLink: EventSponsorLink = { eventId, archiveState: "active", archiveSource: null };
-      setFormData((prev) => ({ ...prev, assignedEvents: [...current, newLink] }));
+      const existingIdx = current.findIndex((ae) => ae.eventId === eventId);
+      if (existingIdx >= 0) {
+        setFormData((prev) => ({
+          ...prev,
+          assignedEvents: current.map((ae, i) =>
+            i === existingIdx ? { ...ae, sponsorshipLevel: level, archiveState: "active" as const, archiveSource: null } : ae
+          ),
+        }));
+      } else {
+        const newLink: EventSponsorLink = { eventId, sponsorshipLevel: level, archiveState: "active", archiveSource: null };
+        setFormData((prev) => ({ ...prev, assignedEvents: [...current, newLink] }));
+      }
     }
+  }
+
+  function getEventAssignedLevel(eventId: string): SponsorshipLevel | null {
+    const ae = (formData.assignedEvents || []).find((link) => link.eventId === eventId && (link.archiveState ?? "active") === "active");
+    return ae?.sponsorshipLevel ?? null;
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -179,25 +187,13 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                 <Input id="sp-name" value={formData.name} onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))} placeholder="Acme Financial" required={!readOnly} data-testid="input-sponsor-name" />
               </div>
 
-              {/* Level + Status */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="sp-level">Sponsorship Level</Label>
-                  <select id="sp-level" className={selectClass} value={formData.level} onChange={(e) => setFormData((prev) => ({ ...prev, level: e.target.value as InsertSponsor["level"] }))} data-testid="select-sponsor-level">
-                    {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-                  </select>
-                  <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold w-fit", levelColors[formData.level ?? "Gold"])}>
-                    {formData.level === "Platinum" && <Gem className="h-3 w-3" />}
-                    {formData.level}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sp-status">Status</Label>
-                  <select id="sp-status" className={selectClass} value={formData.archiveState ?? "active"} onChange={(e) => setFormData((prev) => ({ ...prev, archiveState: e.target.value as "active" | "archived" }))} data-testid="select-sponsor-status">
-                    <option value="active">Active</option>
-                    <option value="archived">Archived</option>
-                  </select>
-                </div>
+              {/* Status */}
+              <div className="space-y-2">
+                <Label htmlFor="sp-status">Status</Label>
+                <select id="sp-status" className={selectClass} value={formData.archiveState ?? "active"} onChange={(e) => setFormData((prev) => ({ ...prev, archiveState: e.target.value as "active" | "archived" }))} data-testid="select-sponsor-status">
+                  <option value="active">Active</option>
+                  <option value="archived">Archived</option>
+                </select>
               </div>
 
               {/* Allow Online Meetings toggle */}
@@ -394,27 +390,61 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
               </div>
             </div>
 
-            {/* Assign Events */}
+            {/* Event Sponsorship Assignments */}
             <div className="space-y-2">
-              <Label>Assigned Event(s)</Label>
-              {(formData.assignedEvents?.length ?? 0) === 0 && readOnly ? (
-                <p className="text-sm text-muted-foreground italic py-2">No events assigned.</p>
-              ) : (
-                <div className="rounded-xl border border-border/60 divide-y divide-border/40 overflow-hidden">
-                  {events.filter((ev) => readOnly ? (formData.assignedEvents || []).some((ae) => ae.eventId === ev.id) : (ev.archiveState ?? "active") === "active").map((ev) => {
-                    const checked = (formData.assignedEvents || []).some((ae) => ae.eventId === ev.id && (ae.archiveState ?? "active") === "active");
-                    return (
-                      <label key={ev.id} htmlFor={`ev-${ev.id}`} className={cn("flex items-center gap-3 px-4 py-3 transition-colors", readOnly ? "cursor-default" : "cursor-pointer hover:bg-muted/40", checked ? "bg-accent/5" : "")}>
-                        <Checkbox id={`ev-${ev.id}`} checked={checked} onCheckedChange={() => toggleEvent(ev.id)} disabled={readOnly} data-testid={`checkbox-event-${ev.id}`} />
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-mono text-xs font-semibold text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded shrink-0">{ev.slug}</span>
-                          <span className="text-sm text-foreground truncate">{ev.name}</span>
+              <Label>Event Sponsorship Assignments</Label>
+              <p className="text-[11px] text-muted-foreground -mt-1">Select a sponsorship level per event. "None" means not assigned.</p>
+              {(() => {
+                const visibleEvents = events.filter((ev) =>
+                  readOnly
+                    ? (formData.assignedEvents || []).some((ae) => ae.eventId === ev.id && (ae.archiveState ?? "active") === "active")
+                    : (ev.archiveState ?? "active") === "active"
+                );
+                if (visibleEvents.length === 0) {
+                  return <p className="text-sm text-muted-foreground italic py-2">{readOnly ? "No events assigned." : "No active events available."}</p>;
+                }
+                return (
+                  <div className="rounded-xl border border-border/60 divide-y divide-border/40 overflow-hidden">
+                    {visibleEvents.map((ev) => {
+                      const currentLevel = getEventAssignedLevel(ev.id);
+                      return (
+                        <div
+                          key={ev.id}
+                          className={cn("flex items-center gap-3 px-4 py-3", currentLevel ? "bg-accent/5" : "")}
+                          data-testid={`event-assignment-row-${ev.id}`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className="font-mono text-xs font-semibold text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded shrink-0">
+                              {ev.slug}
+                            </span>
+                            <span className="text-sm text-foreground truncate">{ev.name}</span>
+                          </div>
+                          {readOnly ? (
+                            currentLevel ? (
+                              <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold shrink-0", levelColors[currentLevel])}>
+                                {currentLevel === "Platinum" && <Gem className="h-3 w-3" />}
+                                {currentLevel}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic shrink-0">None</span>
+                            )
+                          ) : (
+                            <select
+                              className={cn(selectClass, "w-32 shrink-0")}
+                              value={currentLevel ?? ""}
+                              onChange={(e) => setEventLevel(ev.id, (e.target.value || null) as SponsorshipLevel | null)}
+                              data-testid={`select-event-level-${ev.id}`}
+                            >
+                              <option value="">None</option>
+                              {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                            </select>
+                          )}
                         </div>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </form>
         </div>

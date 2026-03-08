@@ -47,6 +47,13 @@ const levelAccentSecondary: Record<string, string> = {
   Bronze:   "border-orange-300 text-orange-700 bg-orange-50/60 hover:bg-orange-100",
 };
 
+const LEVEL_ORDER: Record<string, number> = { Platinum: 0, Gold: 1, Silver: 2, Bronze: 3 };
+
+function getSponsorEventLevel(sponsor: Sponsor, eventId: string): string {
+  const link = (sponsor.assignedEvents ?? []).find((ae) => ae.eventId === eventId && (ae.archiveState ?? "active") === "active");
+  return link?.sponsorshipLevel ?? "";
+}
+
 function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m; }
 function fromMins(n: number) {
   return `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
@@ -258,7 +265,12 @@ export default function EventPage() {
   const eventSponsors = event
     ? sponsors
         .filter((s) => (s.archiveState ?? "active") === "active" && (s.assignedEvents ?? []).some((ae) => ae.eventId === event.id && (ae.archiveState ?? "active") === "active"))
-        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+        .sort((a, b) => {
+          const la = LEVEL_ORDER[getSponsorEventLevel(a, event.id)] ?? 99;
+          const lb = LEVEL_ORDER[getSponsorEventLevel(b, event.id)] ?? 99;
+          if (la !== lb) return la - lb;
+          return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+        })
     : [];
 
   const attributesInUse = useMemo(() => {
@@ -498,10 +510,12 @@ export default function EventPage() {
                   <div className="flex items-center gap-2.5">
                     <Building2 className="h-4 w-4 text-accent shrink-0" />
                     <span className="font-semibold text-foreground">{selectedSponsor?.name}</span>
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full ml-auto inline-flex items-center gap-0.5", levelBadge[selectedSponsor?.level ?? ""] || "")}>
-                      {selectedSponsor?.level === "Platinum" && <Gem className="h-2.5 w-2.5" />}
-                      {selectedSponsor?.level}
-                    </span>
+                    {selectedSponsor && getSponsorEventLevel(selectedSponsor, event?.id ?? "") && (
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full ml-auto inline-flex items-center gap-0.5", levelBadge[getSponsorEventLevel(selectedSponsor, event?.id ?? "")] || "")}>
+                        {getSponsorEventLevel(selectedSponsor, event?.id ?? "") === "Platinum" && <Gem className="h-2.5 w-2.5" />}
+                        {getSponsorEventLevel(selectedSponsor, event?.id ?? "")}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2.5 text-muted-foreground">
                     <Calendar className="h-4 w-4 text-accent shrink-0" />
@@ -531,10 +545,12 @@ export default function EventPage() {
                   <div className="flex items-center gap-2.5">
                     <Building2 className="h-4 w-4 text-accent shrink-0" />
                     <span className="font-semibold text-foreground">{selectedSponsor?.name}</span>
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full ml-auto inline-flex items-center gap-0.5", levelBadge[selectedSponsor?.level ?? ""] || "")}>
-                      {selectedSponsor?.level === "Platinum" && <Gem className="h-2.5 w-2.5" />}
-                      {selectedSponsor?.level}
-                    </span>
+                    {selectedSponsor && getSponsorEventLevel(selectedSponsor, event?.id ?? "") && (
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full ml-auto inline-flex items-center gap-0.5", levelBadge[getSponsorEventLevel(selectedSponsor, event?.id ?? "")] || "")}>
+                        {getSponsorEventLevel(selectedSponsor, event?.id ?? "") === "Platinum" && <Gem className="h-2.5 w-2.5" />}
+                        {getSponsorEventLevel(selectedSponsor, event?.id ?? "")}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2.5 text-muted-foreground">
                     <Calendar className="h-4 w-4 text-accent shrink-0" />
@@ -763,7 +779,7 @@ export default function EventPage() {
                   className={cn(
                     "flex flex-col rounded-xl border-2 shadow-sm overflow-hidden",
                     "hover:shadow-md hover:-translate-y-0.5 transition-all duration-200",
-                    levelBorder[sponsor.level] || "border-border bg-card",
+                    levelBorder[getSponsorEventLevel(sponsor, event.id)] || "border-border bg-card",
                   )}
                   data-testid={`sponsor-card-${sponsor.id}`}
                 >
@@ -780,10 +796,12 @@ export default function EventPage() {
                           </div>
                         )}
                       </div>
-                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 inline-flex items-center gap-0.5", levelBadge[sponsor.level] || "bg-muted text-muted-foreground")}>
-                        {sponsor.level === "Platinum" && <Gem className="h-2.5 w-2.5" />}
-                        {sponsor.level}
-                      </span>
+                      {getSponsorEventLevel(sponsor, event.id) && (
+                        <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 inline-flex items-center gap-0.5", levelBadge[getSponsorEventLevel(sponsor, event.id)] || "bg-muted text-muted-foreground")}>
+                          {getSponsorEventLevel(sponsor, event.id) === "Platinum" && <Gem className="h-2.5 w-2.5" />}
+                          {getSponsorEventLevel(sponsor, event.id)}
+                        </span>
+                      )}
                     </div>
 
                     {/* Name */}
@@ -818,7 +836,7 @@ export default function EventPage() {
                           data-testid={`btn-meet-${sponsor.id}`}
                           className={cn(
                             "w-full py-2 rounded-lg text-white text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
-                            levelAccent[sponsor.level] || "bg-primary hover:bg-primary/90",
+                            levelAccent[getSponsorEventLevel(sponsor, event.id)] || "bg-primary hover:bg-primary/90",
                           )}
                         >
                           Schedule Onsite Meeting
@@ -829,7 +847,7 @@ export default function EventPage() {
                             data-testid={`btn-online-${sponsor.id}`}
                             className={cn(
                               "w-full py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5",
-                              levelAccentSecondary[sponsor.level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
+                              levelAccentSecondary[getSponsorEventLevel(sponsor, event.id)] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
                             )}
                           >
                             <Video className="h-3 w-3" /> Online Meeting
@@ -1270,10 +1288,12 @@ export default function EventPage() {
                 <dt className="w-24 shrink-0 text-xs text-muted-foreground">Sponsor</dt>
                 <dd className="font-medium text-foreground flex items-center gap-1.5">
                   {selectedSponsor?.name}
-                  <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5", levelBadge[selectedSponsor?.level ?? ""] || "bg-muted text-muted-foreground")}>
-                    {selectedSponsor?.level === "Platinum" && <Gem className="h-2 w-2" />}
-                    {selectedSponsor?.level}
-                  </span>
+                  {selectedSponsor && getSponsorEventLevel(selectedSponsor, event?.id ?? "") && (
+                    <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5", levelBadge[getSponsorEventLevel(selectedSponsor, event?.id ?? "")] || "bg-muted text-muted-foreground")}>
+                      {getSponsorEventLevel(selectedSponsor, event?.id ?? "") === "Platinum" && <Gem className="h-2 w-2" />}
+                      {getSponsorEventLevel(selectedSponsor, event?.id ?? "")}
+                    </span>
+                  )}
                 </dd>
               </div>
               <div className="flex items-center gap-3 py-2.5">

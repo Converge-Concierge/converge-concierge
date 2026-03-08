@@ -1,0 +1,142 @@
+Refactor the sponsorship model so sponsorship level is defined per event, not per sponsor.
+
+Problem:
+Currently the Sponsor model contains a single "sponsorshipLevel" field.
+
+In reality, a sponsor may have different sponsorship levels for different events.
+
+Example:
+Winnow
+- FRC2026 → Platinum
+- USBT2026 → Gold
+
+Required change:
+Move sponsorship level to the sponsor-event relationship.
+
+--------------------------------
+
+1. DATABASE CHANGE
+
+Create a join table called SponsorEvent or EventSponsor.
+
+Fields:
+
+id
+sponsorId
+eventId
+sponsorshipLevel
+status
+createdAt
+updatedAt
+
+Remove sponsorshipLevel from the Sponsor table.
+
+--------------------------------
+
+2. ADMIN UI CHANGE
+
+In the Edit Sponsor modal:
+
+Replace:
+
+"Sponsorship Level"
+
+With:
+
+Event Sponsorship Assignments.
+
+For each event show:
+
+Event Name
+Sponsorship Level dropdown
+
+Example:
+
+FRC2026
+[ Platinum ▼ ]
+
+USBT2026
+[ Gold ▼ ]
+
+TLS2026
+[ None ▼ ]
+
+Only events with a level selected should be considered assigned.
+
+--------------------------------
+
+3. EVENT PAGE LOGIC
+
+When loading sponsors for an event:
+
+Query SponsorEvent where eventId = current event.
+
+Use the sponsorshipLevel from SponsorEvent.
+
+Do NOT use the sponsor table for level anymore.
+
+--------------------------------
+
+4. SPONSOR CARD DISPLAY
+
+Display level badge based on SponsorEvent.sponsorshipLevel.
+
+Examples:
+
+Platinum → diamond icon
+Gold → gold badge
+Silver → silver badge
+
+--------------------------------
+
+5. SPONSOR SORTING
+
+Sort sponsors by:
+
+1. Sponsorship Level priority
+2. Alphabetical
+
+Priority order:
+
+Platinum
+Gold
+Silver
+Bronze
+
+--------------------------------
+
+6. SPONSOR PORTAL
+
+When sponsors log in:
+
+Determine the event context.
+
+Load sponsorship level from SponsorEvent.
+
+--------------------------------
+
+7. MIGRATION
+
+For existing sponsors:
+
+When migrating data:
+
+Create SponsorEvent records for each assigned event using the current sponsor.sponsorshipLevel.
+
+Then remove sponsorshipLevel from Sponsor table.
+
+--------------------------------
+
+8. SUCCESS CRITERIA
+
+After implementation:
+
+Sponsors can have different sponsorship levels per event.
+
+Admin UI allows setting level per event.
+
+Event pages display correct levels.
+
+Sponsor sorting works correctly.
+
+Sponsor reporting remains accurate.

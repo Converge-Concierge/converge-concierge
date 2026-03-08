@@ -18,6 +18,14 @@ const levelColors: Record<string, string> = {
 
 const levelOrder: Record<string, number> = { Platinum: 0, Gold: 1, Silver: 2, Bronze: 3 };
 
+function getBestLevel(sponsor: Sponsor): string {
+  const active = (sponsor.assignedEvents ?? []).filter((ae) => (ae.archiveState ?? "active") === "active");
+  for (const l of ["Platinum", "Gold", "Silver", "Bronze"] as const) {
+    if (active.some((ae) => ae.sponsorshipLevel === l)) return l;
+  }
+  return sponsor.level ?? "";
+}
+
 interface SponsorsTableProps {
   sponsors: Sponsor[];
   events: Event[];
@@ -79,7 +87,7 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
 
   const getValue = (s: Sponsor, key: string): string | number => {
     if (key === "name") return s.name;
-    if (key === "level") return levelOrder[s.level] ?? 99;
+    if (key === "level") return levelOrder[getBestLevel(s)] ?? 99;
     if (key === "archiveState") return s.archiveState;
     return "";
   };
@@ -113,10 +121,17 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
                   <TableCell className="py-3"><SponsorLogo name={sponsor.name} logoUrl={sponsor.logoUrl} /></TableCell>
                   <TableCell className="font-semibold text-foreground py-3">{sponsor.name}</TableCell>
                   <TableCell className="py-3">
-                    <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold", levelColors[sponsor.level] ?? "")}>
-                      {sponsor.level === "Platinum" && <Gem className="h-3 w-3" />}
-                      {sponsor.level}
-                    </span>
+                    {(() => {
+                      const best = getBestLevel(sponsor);
+                      return best ? (
+                        <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold", levelColors[best] ?? "")}>
+                          {best === "Platinum" && <Gem className="h-3 w-3" />}
+                          {best}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground italic text-xs">None</span>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="py-3">{getEventBadges(sponsor.assignedEvents || [])}</TableCell>
                   <TableCell className="py-3">

@@ -16,6 +16,8 @@ interface AttendeeFormModalProps {
 
 export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events, readOnly }: AttendeeFormModalProps) {
   const [formData, setFormData] = useState<Partial<InsertAttendee>>({
+    firstName: "",
+    lastName: "",
     name: "",
     company: "",
     title: "",
@@ -26,21 +28,27 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
 
   useEffect(() => {
     if (attendee) {
-      setFormData({ ...attendee, linkedinUrl: attendee.linkedinUrl || "" });
+      setFormData({
+        ...attendee,
+        firstName: attendee.firstName || attendee.name?.split(" ")[0] || "",
+        lastName: attendee.lastName || attendee.name?.split(" ").slice(1).join(" ") || "",
+        linkedinUrl: attendee.linkedinUrl || "",
+      });
     } else {
-      setFormData({ name: "", company: "", title: "", email: "", linkedinUrl: "", assignedEvent: "" });
+      setFormData({ firstName: "", lastName: "", name: "", company: "", title: "", email: "", linkedinUrl: "", assignedEvent: "" });
     }
   }, [attendee, isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...formData };
+    const data = { ...formData } as any;
     if (!data.linkedinUrl) delete data.linkedinUrl;
+    const fullName = [data.firstName, data.lastName].filter(Boolean).join(" ");
+    data.name = fullName;
     onSubmit(data as InsertAttendee);
   };
 
   const activeEvents = events.filter((e) => (e.archiveState ?? "active") === "active");
-
   const assignedEvent = events.find((e) => e.id === formData.assignedEvent);
 
   return (
@@ -57,16 +65,29 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
         <form id="attendee-form" onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="at-name">Name</Label>
+              <Label htmlFor="at-firstName">First Name</Label>
               <Input
-                id="at-name"
-                value={formData.name}
-                onChange={(e) => !readOnly && setFormData({ ...formData, name: e.target.value })}
+                id="at-firstName"
+                value={formData.firstName || ""}
+                onChange={(e) => !readOnly && setFormData({ ...formData, firstName: e.target.value })}
                 required={!readOnly}
                 readOnly={readOnly}
-                data-testid="input-attendee-name"
+                data-testid="input-attendee-firstname"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="at-lastName">Last Name</Label>
+              <Input
+                id="at-lastName"
+                value={formData.lastName || ""}
+                onChange={(e) => !readOnly && setFormData({ ...formData, lastName: e.target.value })}
+                readOnly={readOnly}
+                data-testid="input-attendee-lastname"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="at-company">Company</Label>
               <Input
@@ -78,9 +99,6 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
                 data-testid="input-attendee-company"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="at-title">Title</Label>
               <Input
@@ -92,18 +110,19 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
                 data-testid="input-attendee-title"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="at-email">Email</Label>
-              <Input
-                id="at-email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => !readOnly && setFormData({ ...formData, email: e.target.value })}
-                required={!readOnly}
-                readOnly={readOnly}
-                data-testid="input-attendee-email"
-              />
-            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="at-email">Email</Label>
+            <Input
+              id="at-email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => !readOnly && setFormData({ ...formData, email: e.target.value })}
+              required={!readOnly}
+              readOnly={readOnly}
+              data-testid="input-attendee-email"
+            />
           </div>
 
           <div className="space-y-2">

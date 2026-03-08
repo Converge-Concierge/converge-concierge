@@ -4,6 +4,27 @@ import { storage } from "./storage";
 import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType } from "@shared/schema";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname) || ".png";
+      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files are allowed"));
+  },
+});
 
 async function seedData() {
   const events = await storage.getEvents();
@@ -119,12 +140,12 @@ async function seedData() {
 
   // Seed attendees — distributed across events
   const attendeeSeeds: InsertAttendee[] = [
-    { name: "Sarah Chen", company: "First National Bank", title: "VP of Digital Banking", email: "s.chen@fnb.com", assignedEvent: createdEvents["FRC2026"] },
-    { name: "Marcus Rivera", company: "TechCredit Union", title: "Chief Risk Officer", email: "m.rivera@techcu.com", assignedEvent: createdEvents["FRC2026"] },
-    { name: "Priya Nair", company: "Capital Growth Partners", title: "Head of Treasury", email: "p.nair@cgp.com", assignedEvent: createdEvents["TLS2026"] },
-    { name: "James Whitfield", company: "Summit Financial", title: "Director of Compliance", email: "j.whitfield@sf.com", assignedEvent: createdEvents["FRC2026"] },
-    { name: "Lisa Monroe", company: "Apex Bank", title: "Chief Innovation Officer", email: "l.monroe@apexbank.com", assignedEvent: createdEvents["UBTS2026"] },
-    { name: "David Park", company: "Regional Credit Union", title: "EVP Operations", email: "d.park@rcu.com", assignedEvent: createdEvents["TLS2026"] },
+    { firstName: "Sarah", lastName: "Chen", name: "Sarah Chen", company: "First National Bank", title: "VP of Digital Banking", email: "s.chen@fnb.com", assignedEvent: createdEvents["FRC2026"] },
+    { firstName: "Marcus", lastName: "Rivera", name: "Marcus Rivera", company: "TechCredit Union", title: "Chief Risk Officer", email: "m.rivera@techcu.com", assignedEvent: createdEvents["FRC2026"] },
+    { firstName: "Priya", lastName: "Nair", name: "Priya Nair", company: "Capital Growth Partners", title: "Head of Treasury", email: "p.nair@cgp.com", assignedEvent: createdEvents["TLS2026"] },
+    { firstName: "James", lastName: "Whitfield", name: "James Whitfield", company: "Summit Financial", title: "Director of Compliance", email: "j.whitfield@sf.com", assignedEvent: createdEvents["FRC2026"] },
+    { firstName: "Lisa", lastName: "Monroe", name: "Lisa Monroe", company: "Apex Bank", title: "Chief Innovation Officer", email: "l.monroe@apexbank.com", assignedEvent: createdEvents["UBTS2026"] },
+    { firstName: "David", lastName: "Park", name: "David Park", company: "Regional Credit Union", title: "EVP Operations", email: "d.park@rcu.com", assignedEvent: createdEvents["TLS2026"] },
   ];
 
   for (const att of attendeeSeeds) {
@@ -143,6 +164,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   seedData().catch(console.error);
   seedUsers().catch(console.error);
 
+  // ── File Upload ──────────────────────────────────────────────────────────
+
+  app.post("/api/upload", requireAuth, (req, res) => {
+    upload.single("file")(req, res, (err) => {
+      if (err) return res.status(400).json({ message: err.message });
+      if (!req.file) return res.status(400).json({ message: "No file provided" });
+      res.json({ url: `/uploads/${req.file.filename}` });
+    });
+  });
+
   // ── Auth ─────────────────────────────────────────────────────────────────
 
   app.post("/api/auth/login", async (req, res) => {
@@ -159,6 +190,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy(() => res.json({ message: "Logged out" }));
+  });
+
+  // ── Password Recovery ─────────────────────────────────────────────────────
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email is required" });
+    const user = await storage.getUserByEmail(email);
+    if (!user) return res.status(404).json({ message: "No account found with that email address" });
+    if (!user.isActive) return res.status(403).json({ message: "This account is inactive" });
+    const tokenRecord = await storage.createPasswordResetToken(user.id);
+    // In production, send via email. For now, return the token for dev use.
+    res.json({
+      message: "Reset token generated. Use it to set a new password.",
+      token: tokenRecord.token,
+      expiresAt: new Date(tokenRecord.expiresAt).toISOString(),
+      _dev: "Token returned directly — wire up email in production.",
+    });
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ message: "Token and newPassword are required" });
+    if (newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
+    const record = await storage.getPasswordResetToken(token);
+    if (!record) return res.status(400).json({ message: "Invalid or expired reset token" });
+    if (record.used) return res.status(400).json({ message: "This reset token has already been used" });
+    if (Date.now() > record.expiresAt) return res.status(400).json({ message: "This reset token has expired" });
+    await storage.updateUserPassword(record.userId, newPassword);
+    await storage.markResetTokenUsed(token);
+    res.json({ message: "Password updated successfully" });
   });
 
   app.get("/api/auth/me", async (req, res) => {
@@ -308,8 +370,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       // 3. No record for this event (may exist for other events) → create new
+      const fullName = ma.name || [ma.firstName, ma.lastName].filter(Boolean).join(" ");
       const created = await storage.createAttendee({
-        name: ma.name,
+        firstName: ma.firstName,
+        lastName: ma.lastName,
+        name: fullName,
         company: ma.company,
         title: ma.title,
         email: ma.email,

@@ -12,7 +12,8 @@ import { Link } from "wouter";
 import { format } from "date-fns";
 
 interface AttendeeForm {
-  name: string;
+  firstName: string;
+  lastName: string;
   company: string;
   title: string;
   email: string;
@@ -33,7 +34,7 @@ export default function BookingPage() {
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const [attendee, setAttendee] = useState<AttendeeForm>({
-    name: "", company: "", title: "", email: "", linkedinUrl: "",
+    firstName: "", lastName: "", company: "", title: "", email: "", linkedinUrl: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -94,7 +95,9 @@ export default function BookingPage() {
         location: selectedLocation,
         status: "Scheduled",
         manualAttendee: {
-          name: attendee.name,
+          firstName: attendee.firstName,
+          lastName: attendee.lastName,
+          name: [attendee.firstName, attendee.lastName].filter(Boolean).join(" "),
           company: attendee.company,
           title: attendee.title,
           email: attendee.email,
@@ -314,19 +317,26 @@ export default function BookingPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="pub-name">Full Name</Label>
-                  <Input id="pub-name" value={attendee.name}
-                    onChange={(e) => setAttendee({ ...attendee, name: e.target.value })}
-                    required placeholder="Jane Smith"
-                    data-testid="input-pub-name" />
+                  <Label htmlFor="pub-firstname">First Name</Label>
+                  <Input id="pub-firstname" value={attendee.firstName}
+                    onChange={(e) => setAttendee({ ...attendee, firstName: e.target.value })}
+                    required placeholder="Jane"
+                    data-testid="input-pub-firstname" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pub-company">Company</Label>
-                  <Input id="pub-company" value={attendee.company}
-                    onChange={(e) => setAttendee({ ...attendee, company: e.target.value })}
-                    required placeholder="Acme Financial"
-                    data-testid="input-pub-company" />
+                  <Label htmlFor="pub-lastname">Last Name</Label>
+                  <Input id="pub-lastname" value={attendee.lastName}
+                    onChange={(e) => setAttendee({ ...attendee, lastName: e.target.value })}
+                    placeholder="Smith"
+                    data-testid="input-pub-lastname" />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pub-company">Company</Label>
+                <Input id="pub-company" value={attendee.company}
+                  onChange={(e) => setAttendee({ ...attendee, company: e.target.value })}
+                  required placeholder="Acme Financial"
+                  data-testid="input-pub-company" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

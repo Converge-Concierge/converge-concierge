@@ -184,7 +184,7 @@ const slide = {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type AttendeeForm = { name: string; company: string; title: string; email: string; linkedinUrl: string };
+type AttendeeForm = { firstName: string; lastName: string; company: string; title: string; email: string; linkedinUrl: string };
 type OnlineForm = { date: string; time: string; timezone: string; platform: string };
 
 const TIMEZONES = ["Central (CT)", "Eastern (ET)", "Mountain (MT)", "Pacific (PT)"];
@@ -216,7 +216,7 @@ export default function EventPage() {
   const [selectedDate,    setSelectedDate]    = useState("");
   const [selectedTime,    setSelectedTime]    = useState("");
   const [selectedLoc,     setSelectedLoc]     = useState("");
-  const [attendee, setAttendee] = useState<AttendeeForm>({ name: "", company: "", title: "", email: "", linkedinUrl: "" });
+  const [attendee, setAttendee] = useState<AttendeeForm>({ firstName: "", lastName: "", company: "", title: "", email: "", linkedinUrl: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -262,7 +262,7 @@ export default function EventPage() {
     setSelectedSponsor(s);
     setMeetingMode("online");
     setOnlineForm({ date: "", time: "", timezone: "Central (CT)", platform: "" });
-    setAttendee({ name: "", company: "", title: "", email: "", linkedinUrl: "" });
+    setAttendee({ firstName: "", lastName: "", company: "", title: "", email: "", linkedinUrl: "" });
     setError("");
     go(3);
   }
@@ -294,7 +294,9 @@ export default function EventPage() {
           status:            "Pending",
           source:            "public",
           manualAttendee: {
-            name:        attendee.name,
+            firstName:   attendee.firstName,
+            lastName:    attendee.lastName,
+            name:        [attendee.firstName, attendee.lastName].filter(Boolean).join(" "),
             company:     attendee.company,
             title:       attendee.title,
             email:       attendee.email,
@@ -331,7 +333,9 @@ export default function EventPage() {
           status:    "Scheduled",
           source:    "public",
           manualAttendee: {
-            name:        attendee.name,
+            firstName:   attendee.firstName,
+            lastName:    attendee.lastName,
+            name:        [attendee.firstName, attendee.lastName].filter(Boolean).join(" "),
             company:     attendee.company,
             title:       attendee.title,
             email:       attendee.email,
@@ -421,7 +425,7 @@ export default function EventPage() {
                   </div>
                   <div className="flex items-center gap-2.5 text-muted-foreground border-t border-border/50 pt-3">
                     <User className="h-4 w-4 shrink-0" />
-                    <span>{attendee.name} · {attendee.company}</span>
+                    <span>{[attendee.firstName, attendee.lastName].filter(Boolean).join(" ") || "—"} · {attendee.company}</span>
                   </div>
                 </div>
               </>
@@ -455,7 +459,7 @@ export default function EventPage() {
                   )}
                   <div className="flex items-center gap-2.5 text-muted-foreground border-t border-border/50 pt-3">
                     <User className="h-4 w-4 shrink-0" />
-                    <span>{attendee.name} · {attendee.company}</span>
+                    <span>{[attendee.firstName, attendee.lastName].filter(Boolean).join(" ") || "—"} · {attendee.company}</span>
                   </div>
                 </div>
               </>
@@ -470,7 +474,7 @@ export default function EventPage() {
                   onClick={() => downloadICS({
                     meetingId:    createdMeetingId,
                     sponsorName:  selectedSponsor.name,
-                    attendeeName: attendee.name,
+                    attendeeName: [attendee.firstName, attendee.lastName].filter(Boolean).join(" "),
                     eventName:    event.name,
                     eventSlug:    event.slug,
                     date:         selectedDate,
@@ -486,7 +490,7 @@ export default function EventPage() {
                   href={googleCalendarUrl({
                     meetingId:    createdMeetingId,
                     sponsorName:  selectedSponsor.name,
-                    attendeeName: attendee.name,
+                    attendeeName: [attendee.firstName, attendee.lastName].filter(Boolean).join(" "),
                     eventName:    event.name,
                     eventSlug:    event.slug,
                     date:         selectedDate,
@@ -823,10 +827,16 @@ export default function EventPage() {
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="on-name" className="text-xs font-medium">Full Name</Label>
-                    <Input id="on-name" value={attendee.name}
-                      onChange={(e) => setAttendee({ ...attendee, name: e.target.value })}
-                      required placeholder="Jane Smith" className="h-9 text-sm" data-testid="input-online-name" />
+                    <Label htmlFor="on-firstname" className="text-xs font-medium">First Name</Label>
+                    <Input id="on-firstname" value={attendee.firstName}
+                      onChange={(e) => setAttendee({ ...attendee, firstName: e.target.value })}
+                      required placeholder="Jane" className="h-9 text-sm" data-testid="input-online-firstname" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="on-lastname" className="text-xs font-medium">Last Name</Label>
+                    <Input id="on-lastname" value={attendee.lastName}
+                      onChange={(e) => setAttendee({ ...attendee, lastName: e.target.value })}
+                      placeholder="Smith" className="h-9 text-sm" data-testid="input-online-lastname" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="on-company" className="text-xs font-medium">Company</Label>
@@ -927,10 +937,16 @@ export default function EventPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="pub-name" className="text-xs font-medium">Full Name</Label>
-                  <Input id="pub-name" value={attendee.name}
-                    onChange={(e) => setAttendee({ ...attendee, name: e.target.value })}
-                    required placeholder="Jane Smith" data-testid="input-pub-name" className="h-9 text-sm" />
+                  <Label htmlFor="pub-firstname" className="text-xs font-medium">First Name</Label>
+                  <Input id="pub-firstname" value={attendee.firstName}
+                    onChange={(e) => setAttendee({ ...attendee, firstName: e.target.value })}
+                    required placeholder="Jane" data-testid="input-pub-firstname" className="h-9 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pub-lastname" className="text-xs font-medium">Last Name</Label>
+                  <Input id="pub-lastname" value={attendee.lastName}
+                    onChange={(e) => setAttendee({ ...attendee, lastName: e.target.value })}
+                    placeholder="Smith" data-testid="input-pub-lastname" className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="pub-company" className="text-xs font-medium">Company</Label>

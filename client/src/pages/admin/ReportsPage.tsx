@@ -379,6 +379,52 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   }
 
+  function exportSponsorSummaryCSV() {
+    const headers = ["Sponsor", "Total Meetings", "Scheduled", "Completed", "Cancelled", "No-Show", "Pending", "Onsite", "Online"];
+    const rows = bySponsorsGroups.map(({ name, meetings: sms }) => {
+      const scheduled  = sms.filter((m) => m.status === "Scheduled").length;
+      const completed  = sms.filter((m) => m.status === "Completed").length;
+      const cancelled  = sms.filter((m) => m.status === "Cancelled").length;
+      const noShow     = sms.filter((m) => m.status === "NoShow").length;
+      const pending    = sms.filter((m) => m.status === "Pending").length;
+      const online     = sms.filter((m) => m.meetingType === "online_request").length;
+      const onsite     = sms.length - online;
+      return [name, sms.length, scheduled, completed, cancelled, noShow, pending, onsite, online]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+    const csv = [headers.map((h) => `"${h}"`).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sponsor-summary-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportAttendeeSummaryCSV() {
+    const headers = ["Attendee Name", "Company", "Title", "Email", "Total Meetings", "Events"];
+    const rows = byAttendeeGroups.map(({ attendee, meetings: ams }) => {
+      const events = [...new Set(ams.map((m) => getEventSlug(m.eventId)))].join("; ");
+      return [
+        attendee?.name ?? "—",
+        attendee?.company ?? "—",
+        attendee?.title ?? "—",
+        attendee?.email ?? "—",
+        ams.length,
+        events,
+      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+    const csv = [headers.map((h) => `"${h}"`).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `attendee-summary-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function downloadAdminPDF() {
     if (!reportEventId || !reportSponsorId || pdfDownloading) return;
     setPdfDownloading(true);
@@ -701,16 +747,36 @@ export default function ReportsPage() {
             </div>
 
             {/* CSV export */}
-            <button
-              onClick={() => {
-                const filename = tab === "all" ? "all-meetings" : tab === "by-sponsor" ? "meetings-by-sponsor" : "meetings-by-attendee";
-                exportCSV(reportMeetings, filename);
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors shadow-sm whitespace-nowrap"
-              data-testid="btn-export-report"
-            >
-              <Download className="h-4 w-4" /> Export CSV
-            </button>
+            <div className="flex items-center gap-2">
+              {tab === "by-sponsor" && (
+                <button
+                  onClick={exportSponsorSummaryCSV}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors shadow-sm whitespace-nowrap"
+                  data-testid="btn-export-sponsor-summary"
+                >
+                  <Download className="h-4 w-4" /> Export Sponsor Summary
+                </button>
+              )}
+              {tab === "by-attendee" && (
+                <button
+                  onClick={exportAttendeeSummaryCSV}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors shadow-sm whitespace-nowrap"
+                  data-testid="btn-export-attendee-summary"
+                >
+                  <Download className="h-4 w-4" /> Export Attendee Summary
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  const filename = tab === "all" ? "all-meetings" : tab === "by-sponsor" ? "meetings-by-sponsor" : "meetings-by-attendee";
+                  exportCSV(reportMeetings, filename);
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors shadow-sm whitespace-nowrap"
+                data-testid="btn-export-report"
+              >
+                <Download className="h-4 w-4" /> Export Meetings CSV
+              </button>
+            </div>
           </div>
 
           {/* Filter row */}

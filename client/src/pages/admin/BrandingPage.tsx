@@ -86,12 +86,24 @@ function LogoField({
   testId?: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const { toast } = useToast();
 
-  function handleFile(file: File) {
+  async function handleFile(file: File) {
     if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = (e) => onChange(e.target?.result as string);
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", credentials: "include", body: fd });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      onChange(url);
+    } catch {
+      toast({ title: "Upload failed", description: "Could not upload the image file.", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -100,7 +112,7 @@ function LogoField({
       <div className="flex gap-2">
         <Input
           id={id}
-          value={value.startsWith("data:") ? "" : value}
+          value={value.startsWith("/uploads/") || value.startsWith("data:") ? "" : value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="https://example.com/logo.png"
           className="text-sm flex-1"
@@ -108,11 +120,13 @@ function LogoField({
         />
         <button
           type="button"
+          disabled={uploading}
           onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-input text-sm text-muted-foreground hover:bg-muted transition-colors shrink-0"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-input text-sm text-muted-foreground hover:bg-muted transition-colors shrink-0 disabled:opacity-60"
           data-testid={testId ? `${testId}-upload` : undefined}
         >
-          <ImagePlus className="h-4 w-4" /> Upload
+          <ImagePlus className="h-4 w-4" />
+          {uploading ? "Uploading…" : "Upload"}
         </button>
         <input
           ref={fileRef}
@@ -127,7 +141,7 @@ function LogoField({
           <div className="h-10 w-10 rounded border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
             <img src={value} alt="Logo preview" className="h-full w-full object-contain p-1" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
           </div>
-          <span className="text-xs text-muted-foreground">{value.startsWith("data:") ? "Uploaded file" : value.slice(0, 50) + (value.length > 50 ? "…" : "")}</span>
+          <span className="text-xs text-muted-foreground">{value.startsWith("/uploads/") ? "Uploaded file" : value.slice(0, 50) + (value.length > 50 ? "…" : "")}</span>
           <button
             type="button"
             onClick={() => onChange("")}

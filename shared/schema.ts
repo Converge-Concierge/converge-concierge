@@ -105,6 +105,8 @@ export type InsertSponsor = z.infer<typeof insertSponsorSchema>;
 // --- Attendee ---
 export const attendees = pgTable("attendees", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  firstName: text("first_name").notNull().default(""),
+  lastName: text("last_name").notNull().default(""),
   name: text("name").notNull(),
   company: text("company").notNull(),
   title: text("title").notNull(),
@@ -116,6 +118,8 @@ export const attendees = pgTable("attendees", {
 });
 
 export const insertAttendeeSchema = createInsertSchema(attendees).extend({
+  firstName: z.string().default(""),
+  lastName: z.string().default(""),
   archiveSource: z.enum(["event", "manual"]).nullable().optional(),
 });
 export type Attendee = typeof attendees.$inferSelect;
@@ -123,12 +127,22 @@ export type InsertAttendee = z.infer<typeof insertAttendeeSchema>;
 
 // Manual attendee entry used when scheduling a meeting without a pre-existing record
 export const manualAttendeeSchema = z.object({
-  name: z.string().min(1),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  name: z.string().min(1).optional(),
   company: z.string().min(1),
   title: z.string().min(1),
   email: z.string().email(),
   linkedinUrl: z.string().url().optional().or(z.literal("")),
 });
+
+// --- Password Reset Token ---
+export interface PasswordResetToken {
+  token: string;
+  userId: string;
+  expiresAt: number;
+  used: boolean;
+}
 
 // --- Sponsor Notifications ---
 export const SPONSOR_NOTIFICATION_TYPES = [

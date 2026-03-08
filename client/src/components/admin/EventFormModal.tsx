@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Event, InsertEvent } from "@shared/schema";
 import { MeetingLocationsEditor } from "./MeetingLocationsEditor";
 import { MeetingBlocksEditor } from "./MeetingBlocksEditor";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Lock } from "lucide-react";
+import { Lock, ImagePlus, X } from "lucide-react";
 
 interface EventFormModalProps {
   isOpen: boolean;
@@ -28,6 +28,25 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
     meetingLocations: [],
     meetingBlocks: [],
   });
+  const [logoUploading, setLogoUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleLogoFile(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    setLogoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", credentials: "include", body: fd });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      setFormData((prev) => ({ ...prev, logoUrl: url }));
+    } catch {
+      alert("Logo upload failed. Please try again.");
+    } finally {
+      setLogoUploading(false);
+    }
+  }
 
   useEffect(() => {
     if (event) {
@@ -103,8 +122,48 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="logoUrl">Event Logo (URL or Upload)</Label>
-                <Input id="logoUrl" value={formData.logoUrl || ""} onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })} placeholder="Enter image URL" />
+                <Label htmlFor="logoUrl">Event Logo</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="logoUrl"
+                    value={formData.logoUrl?.startsWith("/uploads/") ? "" : (formData.logoUrl || "")}
+                    onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                    placeholder="Paste image URL or upload a file"
+                    data-testid="input-event-logo-url"
+                  />
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      disabled={logoUploading}
+                      onClick={() => fileRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-input text-sm text-muted-foreground hover:bg-muted transition-colors shrink-0 disabled:opacity-60"
+                      data-testid="btn-event-logo-upload"
+                    >
+                      <ImagePlus className="h-4 w-4" />
+                      {logoUploading ? "Uploading…" : "Upload"}
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); }}
+                />
+                {formData.logoUrl && (
+                  <div className="flex items-center gap-3 mt-1 p-2 rounded-lg border border-border bg-muted/20">
+                    <img src={formData.logoUrl} alt="Logo preview" className="h-8 w-8 object-contain rounded" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
+                    <span className="text-xs text-muted-foreground flex-1 truncate">
+                      {formData.logoUrl.startsWith("/uploads/") ? "Uploaded file" : formData.logoUrl.slice(0, 60) + (formData.logoUrl.length > 60 ? "…" : "")}
+                    </span>
+                    {!readOnly && (
+                      <button type="button" onClick={() => setFormData({ ...formData, logoUrl: "" })} className="text-xs text-destructive hover:underline shrink-0">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </fieldset>
 

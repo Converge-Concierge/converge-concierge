@@ -20,11 +20,13 @@ interface AttendeesTableProps {
 }
 
 export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete }: AttendeesTableProps) {
-  const { sort, toggle } = useSortState("name");
+  const { sort, toggle } = useSortState("lastName");
 
   const getEvent = (id: string) => events.find((e) => e.id === id);
 
   const getValue = (a: Attendee, key: string): string => {
+    if (key === "lastName") return a.lastName || a.name?.split(" ").slice(1).join(" ") || "";
+    if (key === "firstName") return a.firstName || a.name?.split(" ")[0] || "";
     if (key === "name") return a.name;
     if (key === "company") return a.company;
     if (key === "title") return a.title;
@@ -40,7 +42,8 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <SortHead sortKey="name" sort={sort} onSort={toggle}>Name</SortHead>
+            <SortHead sortKey="lastName" sort={sort} onSort={toggle}>Last Name</SortHead>
+            <SortHead sortKey="firstName" sort={sort} onSort={toggle}>First Name</SortHead>
             <SortHead sortKey="company" sort={sort} onSort={toggle}>Company</SortHead>
             <SortHead sortKey="title" sort={sort} onSort={toggle}>Title</SortHead>
             <SortHead sortKey="email" sort={sort} onSort={toggle}>Email</SortHead>
@@ -53,7 +56,7 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
             <TableRow key={attendee.id} data-testid={`row-attendee-${attendee.id}`} className={cn(tab === "archived" ? "opacity-70" : "")}>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{attendee.name}</span>
+                  <span className="font-medium">{attendee.lastName || attendee.name?.split(" ").slice(1).join(" ") || "—"}</span>
                   {attendee.linkedinUrl && (
                     <a
                       href={attendee.linkedinUrl}
@@ -69,6 +72,7 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
                   )}
                 </div>
               </TableCell>
+              <TableCell className="font-medium">{attendee.firstName || attendee.name?.split(" ")[0] || "—"}</TableCell>
               <TableCell>{attendee.company}</TableCell>
               <TableCell>{attendee.title}</TableCell>
               <TableCell className="text-muted-foreground text-sm">{attendee.email}</TableCell>

@@ -1,0 +1,186 @@
+Implement the following admin fixes and workflow improvements.
+
+Important rules:
+- Do not redesign the landing page
+- Do not redesign the admin shell or sidebar
+- Do not break existing scheduling, sponsor dashboards, sponsor access links, reports, or profile pages
+- Preserve all current working functionality
+- Make additive/fix-only changes where possible
+
+Current problems to fix:
+1. Branding save fails with: 413 request entity too large
+2. Events form has no working event logo upload option
+3. Attendees should support separate first/last names for better sorting
+4. Reports should consistently support export actions
+5. Admin login has no password recovery flow
+
+==================================================
+1. BRANDING SAVE FIX (413 REQUEST ENTITY TOO LARGE)
+==================================================
+
+Problem:
+Saving Branding fails with:
+413 request entity too large
+
+Likely cause:
+branding logo uploads are being stored as oversized base64 payloads in the request body.
+
+Required fix:
+- Do not send large image files as base64 inside the branding save request
+- Support either:
+  a) file upload handled separately, storing a file URL/reference
+  or
+  b) smaller file handling with server body size support increased safely only if needed
+
+Preferred behavior:
+- upload branding logo as a file
+- store the uploaded file URL/path in branding settings
+- save branding metadata separately from the raw file body
+
+Requirements:
+- Save Branding must work successfully
+- Existing uploaded logo preview should still work
+- Remove dead/failing save behavior
+- Show a clear success/error toast
+- Do not break current branding form layout
+
+==================================================
+2. EVENTS — ADD WORKING EVENT LOGO UPLOAD
+==================================================
+
+Problem:
+Events form currently only has image URL input and no working upload option.
+
+Required fix:
+In Create/Edit Event:
+- support event logo upload
+- support event logo URL input
+- allow admin to use either method
+
+Behavior:
+- if file uploaded, store file URL/path and save it to the event record
+- if URL entered, save URL
+- show current event logo preview if present
+- allow remove/replace logo
+
+Do not redesign the event modal.
+Just add working upload support alongside the existing URL option.
+
+==================================================
+3. ATTENDEES — SPLIT NAME INTO FIRST / LAST
+==================================================
+
+Improve attendee data structure for sorting and reporting.
+
+Requirements:
+- Add:
+  - firstName
+  - lastName
+- Preserve compatibility with existing name field/data
+- For existing attendee records, migrate or infer values where possible:
+  - if full name exists, split into first token / remaining tokens as a practical fallback
+- In attendee forms:
+  - show First Name
+  - show Last Name
+- In tables/reports:
+  - display combined full name cleanly
+- Add sort options using:
+  - lastName
+  - firstName
+
+Important:
+- Do not break existing meetings linked to attendees
+- Keep display name generation simple and consistent
+
+==================================================
+4. REPORT EXPORT CONSISTENCY
+==================================================
+
+Goal:
+All reports should consistently support export.
+
+Required behavior:
+For each report view, provide at least one export option:
+- CSV required
+- PDF if already supported or easy to support
+
+Apply this to:
+- All Meetings
+- By Sponsor
+- By Attendee
+- Sponsor Performance Report
+- Any event-specific meeting report view
+
+Requirements:
+- If a PDF version does not exist yet, keep CSV available
+- Do not show dead export buttons
+- Export output should reflect current filters:
+  - event
+  - sponsor
+  - attendee
+  - meeting type
+  - status
+- Use clear button labels:
+  - Export CSV
+  - Download PDF
+
+==================================================
+5. ADMIN PASSWORD RECOVERY
+==================================================
+
+Problem:
+If the sole admin forgets their password, there is no recovery flow.
+
+Implement a password recovery/reset flow for admin users.
+
+Minimum required behavior:
+- On login page add:
+  Forgot password?
+- Clicking it opens a password recovery flow
+
+Preferred approach:
+- email-based password reset
+or
+- secure one-time reset token flow
+
+If email delivery is not fully configured yet:
+- build the reset token flow and the UI/endpoints
+- allow local/dev preview/testing of reset token generation
+- prepare email hook for production
+
+Requirements:
+- only active admin users can reset their own password
+- reset token must expire
+- reset token must be one-time use
+- show clear success/error messages
+- do not break existing login flow
+
+==================================================
+6. ROLE / PERMISSION SAFETY
+==================================================
+
+Preserve current role rules:
+- only Admin can manage users
+- Managers cannot access user administration
+- do not introduce custom arbitrary roles in this step
+
+==================================================
+7. UI / UX REQUIREMENTS
+==================================================
+
+- Keep current visual style
+- Preserve current admin page layouts and modals
+- Add upload controls cleanly into existing forms
+- Add password recovery link cleanly into login page
+- Do not redesign tables or dashboards
+
+==================================================
+8. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Branding saves without 413 error
+- Event form supports working logo upload and preview
+- Attendees use First Name / Last Name in forms and sorting
+- Every report view has a working export option (at least CSV)
+- Login page has a working password recovery flow

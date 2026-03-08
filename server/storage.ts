@@ -7,9 +7,23 @@ import {
   type SponsorToken,
   type SponsorNotification, type SponsorNotificationType,
   type AppSettings, type AppBranding,
+  type PasswordResetToken,
   DEFAULT_SETTINGS, DEFAULT_BRANDING,
 } from "@shared/schema";
 import { randomUUID, randomBytes } from "crypto";
+
+function buildFullName(firstName?: string, lastName?: string, fallback?: string): string {
+  const first = (firstName ?? "").trim();
+  const last = (lastName ?? "").trim();
+  if (first || last) return [first, last].filter(Boolean).join(" ");
+  return fallback ?? "";
+}
+
+function splitName(fullName: string): { firstName: string; lastName: string } {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
 
 export type UpdateUser = Partial<Omit<InsertUser, "password"> & { password?: string }>;
 
@@ -77,6 +91,12 @@ export interface IStorage {
   // App branding (single global record)
   getBranding(): Promise<AppBranding>;
   updateBranding(updates: Partial<AppBranding>): Promise<AppBranding>;
+
+  // Password reset tokens
+  createPasswordResetToken(userId: string): Promise<PasswordResetToken>;
+  getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
+  markResetTokenUsed(token: string): Promise<void>;
+  updateUserPassword(userId: string, newPassword: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -89,6 +109,7 @@ export class MemStorage implements IStorage {
   private notifications: Map<string, SponsorNotification>;
   private appSettings: AppSettings;
   private appBranding: AppBranding;
+  private passwordResetTokens: Map<string, PasswordResetToken>;
 
   constructor() {
     this.users = new Map();
@@ -100,6 +121,7 @@ export class MemStorage implements IStorage {
     this.notifications = new Map();
     this.appSettings = { ...DEFAULT_SETTINGS };
     this.appBranding = { ...DEFAULT_BRANDING };
+    this.passwordResetTokens = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -255,10 +277,21 @@ export class MemStorage implements IStorage {
 
   async createAttendee(insertAttendee: InsertAttendee): Promise<Attendee> {
     const id = randomUUID();
+    // Ensure firstName/lastName/name are all consistent
+    let { firstName, lastName, name } = insertAttendee as any;
+    if (!firstName && !lastName && name) {
+      const split = splitName(name);
+      firstName = split.firstName;
+      lastName = split.lastName;
+    }
+    const computedName = buildFullName(firstName, lastName, name);
     const attendee: Attendee = {
       archiveState: "active",
       archiveSource: null,
       ...insertAttendee,
+      firstName: firstName ?? "",
+      lastName: lastName ?? "",
+      name: computedName,
       id,
     } as Attendee;
     this.attendees.set(id, attendee);
@@ -268,9 +301,13 @@ export class MemStorage implements IStorage {
   async updateAttendee(id: string, updates: Partial<InsertAttendee>): Promise<Attendee | undefined> {
     const existing = this.attendees.get(id);
     if (!existing) return undefined;
-    const updated = { ...existing, ...updates } as Attendee;
-    this.attendees.set(id, updated);
-    return updated;
+    const merged = { ...existing, ...updates } as any;
+    // Recompute name if firstName or lastName changed
+    if (updates.firstName !== undefined || updates.lastName !== undefined) {
+      merged.name = buildFullName(merged.firstName, merged.lastName, merged.name);
+    }
+    this.attendees.set(id, merged);
+    return merged;
   }
 
   async deleteAttendee(id: string): Promise<void> {
@@ -469,6 +506,39 @@ export class MemStorage implements IStorage {
   async updateBranding(updates: Partial<AppBranding>): Promise<AppBranding> {
     this.appBranding = { ...this.appBranding, ...updates };
     return { ...this.appBranding };
+  }
+
+  // Password reset tokens
+  async createPasswordResetToken(userId: string): Promise<PasswordResetToken> {
+    // Invalidate any existing tokens for this user
+    for (const [k, t] of Array.from(this.passwordResetTokens.entries())) {
+      if (t.userId === userId && !t.used) {
+        this.passwordResetTokens.set(k, { ...t, used: true });
+      }
+    }
+    const token = randomBytes(32).toString("hex");
+    const record: PasswordResetToken = {
+      token,
+      userId,
+      expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
+      used: false,
+    };
+    this.passwordResetTokens.set(token, record);
+    return record;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    return this.passwordResetTokens.get(token);
+  }
+
+  async markResetTokenUsed(token: string): Promise<void> {
+    const t = this.passwordResetTokens.get(token);
+    if (t) this.passwordResetTokens.set(token, { ...t, used: true });
+  }
+
+  async updateUserPassword(userId: string, newPassword: string): Promise<void> {
+    const user = this.users.get(userId);
+    if (user) this.users.set(userId, { ...user, password: newPassword });
   }
 }
 

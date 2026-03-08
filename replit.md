@@ -183,6 +183,27 @@ All at `/event/:slug` — single-page multi-step wizard:
 - Export Leads CSV button
 - KPI cards: Total / Completed / Pending Online / Companies Met
 
+### Attendee First/Last Name Split (added)
+- `attendees` table has `firstName` + `lastName` columns; `name` auto-computed as `firstName + " " + lastName`
+- Public booking forms (EventPage + BookingPage) show "First Name" / "Last Name" fields (no combined Full Name)
+- Admin AttendeeFormModal also split into first/last; AttendeesTable sorts by lastName by default
+
+### File Upload Endpoint (added)
+- `POST /api/upload` (requireAuth, multer diskStorage) → `/uploads/<filename>`; `/uploads/` served statically
+- BrandingPage logo and EventFormModal logo use upload endpoint (not base64)
+
+### Password Recovery Flow (added)
+- `PasswordResetToken` in schema; `createPasswordResetToken`, `getPasswordResetToken`, `markResetTokenUsed`, `updateUserPassword` in IStorage + MemStorage
+- `POST /api/auth/forgot-password` → `{ token }` (dev mode, no email)
+- `POST /api/auth/reset-password` → validates token, updates password
+- LoginPage has inline 3-step flow: login → forgot (enter email + get token) → reset (enter token + new password)
+- Standalone `/reset-password?token=...` page at `ResetPasswordPage.tsx`
+
+### Reports CSV Exports (added)
+- By Sponsor tab: "Export Sponsor Summary" button → sponsor-level aggregate CSV (total, scheduled, completed, cancelled, no-show, onsite, online)
+- By Attendee tab: "Export Attendee Summary" button → attendee-level aggregate CSV (name, company, title, email, total meetings, events)
+- All Meetings tab: "Export Meetings CSV" button (meeting-level, respects all filters)
+
 ---
 
 ## Design Constraints

@@ -92,6 +92,10 @@ async function seedData() {
       assignedEvents: [createdEvents["FRC2026"], createdEvents["UBTS2026"]].filter(Boolean).map(toLink),
       archiveState: "active",
       allowOnlineMeetings: true,
+      shortDescription: "AI-powered financial risk intelligence for banks and credit unions.",
+      websiteUrl: "https://www.winnow.ai",
+      linkedinUrl: "https://www.linkedin.com/company/winnow-ai",
+      solutionsSummary: "Winnow delivers real-time risk scoring, fraud detection, and regulatory compliance automation to financial institutions of all sizes. Our platform integrates with core banking systems to surface actionable insights without disrupting existing workflows.\n\nKey offerings:\n• Adaptive fraud detection with sub-100ms decisioning\n• Regulatory change management and policy mapping\n• AI-driven credit risk scoring models\n• Real-time transaction monitoring and alert management",
     },
     {
       name: "eGain",
@@ -99,6 +103,11 @@ async function seedData() {
       level: "Silver",
       assignedEvents: [createdEvents["FRC2026"], createdEvents["TLS2026"]].filter(Boolean).map(toLink),
       archiveState: "active",
+      allowOnlineMeetings: false,
+      shortDescription: "Conversational AI and knowledge automation for financial services teams.",
+      websiteUrl: "https://www.egain.com",
+      linkedinUrl: "https://www.linkedin.com/company/egain",
+      solutionsSummary: "eGain helps banks, credit unions, and wealth management firms modernize customer engagement through AI-powered knowledge management and omnichannel conversation tools.\n\nCore solutions:\n• AI knowledge hub for compliance and product information\n• Agent assist and virtual assistant for contact centers\n• Digital-first engagement across chat, email, and messaging\n• Analytics and coaching for service quality improvement",
     },
   ];
 

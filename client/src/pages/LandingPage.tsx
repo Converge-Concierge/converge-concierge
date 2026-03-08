@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Hexagon, ArrowRight, Calendar, MapPin, Clock } from "lucide-react";
+import { Hexagon, Calendar, MapPin, Clock, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { Event } from "@shared/schema";
@@ -113,10 +113,20 @@ export default function LandingPage() {
                     onClick={() => setLocation(`/event/${event.slug}`)}
                     data-testid={`event-card-${event.slug}`}
                   >
-                    <div className="flex justify-end items-start mb-4">
-                      <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center group-hover:bg-accent group-hover:text-accent-foreground transition-colors duration-300">
-                        <ArrowRight className="h-4 w-4" />
-                      </div>
+                    {/* Event logo */}
+                    <div className="flex justify-center mb-4">
+                      {event.logoUrl ? (
+                        <img
+                          src={event.logoUrl}
+                          alt={event.name}
+                          className="h-12 max-w-[140px] object-contain"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden"); }}
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
+                          <Building2 className="h-6 w-6 text-muted-foreground/40" />
+                        </div>
+                      )}
                     </div>
 
                     <h3 className="text-xl font-display font-bold text-foreground mb-3 group-hover:text-primary transition-colors leading-tight">

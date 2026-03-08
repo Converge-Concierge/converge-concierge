@@ -58,12 +58,14 @@ export default function HelpCenterPage() {
                 Questions about your event registration, sponsor meetings, or anything else? Please contact Converge Events for assistance and a team member will be happy to help.
               </p>
               <a
-                href="mailto:support@convergeevents.com"
-                className="inline-flex items-center gap-2 mt-3 text-sm font-medium text-accent hover:underline"
-                data-testid="link-support-email"
+                href="https://convergeevents.com/contact/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-semibold hover:bg-accent/90 transition-colors"
+                data-testid="link-support-contact"
               >
                 <Mail className="h-4 w-4" />
-                support@convergeevents.com
+                Contact Converge Events
               </a>
             </div>
           </div>

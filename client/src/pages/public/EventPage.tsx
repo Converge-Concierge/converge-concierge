@@ -38,6 +38,12 @@ const levelAccent: Record<string, string> = {
   Silver:   "bg-gray-500 hover:bg-gray-600",
   Bronze:   "bg-orange-600 hover:bg-orange-700",
 };
+const levelAccentSecondary: Record<string, string> = {
+  Platinum: "border-slate-300 text-slate-700 bg-slate-50/60 hover:bg-slate-100",
+  Gold:     "border-yellow-300 text-yellow-700 bg-yellow-50/60 hover:bg-yellow-100",
+  Silver:   "border-gray-300 text-gray-600 bg-gray-50/60 hover:bg-gray-100",
+  Bronze:   "border-orange-300 text-orange-700 bg-orange-50/60 hover:bg-orange-100",
+};
 
 function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m; }
 function fromMins(n: number) {
@@ -582,12 +588,15 @@ export default function EventPage() {
             )}
           </div>
 
-          {/* Attribute filter bar */}
-          {attributesInUse.length > 0 && (
-            <div className="flex items-center gap-2 mb-5 flex-wrap">
-              <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          {/* Solution Type filter bar — always visible when there are sponsors */}
+          {eventSponsors.length > 0 && (
+            <div className="flex items-start gap-2 mb-5 flex-wrap">
+              <div className="flex items-center gap-1 pt-1 shrink-0">
+                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">Solution Type:</span>
+              </div>
               <div className="flex items-center gap-1.5 flex-wrap">
-                {attributesInUse.map((attr) => {
+                {(attributesInUse.length > 0 ? attributesInUse : SPONSOR_ATTRIBUTES).map((attr) => {
                   const active = activeFilters.includes(attr);
                   return (
                     <button
@@ -697,7 +706,10 @@ export default function EventPage() {
                       <button
                         onClick={() => pickOnlineMeeting(sponsor)}
                         data-testid={`btn-online-${sponsor.id}`}
-                        className="w-full py-1.5 rounded-lg text-xs font-semibold border border-violet-200 text-violet-700 bg-violet-50/50 hover:bg-violet-50 transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5"
+                        className={cn(
+                          "w-full py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5",
+                          levelAccentSecondary[sponsor.level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
+                        )}
                       >
                         <Video className="h-3 w-3" /> Online Meeting
                       </button>

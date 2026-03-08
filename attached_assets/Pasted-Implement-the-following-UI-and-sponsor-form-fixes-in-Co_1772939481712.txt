@@ -1,0 +1,163 @@
+Implement the following UI and sponsor-form fixes in Converge Concierge.
+
+Important rules:
+- Do not redesign the admin shell/sidebar
+- Do not break existing scheduling, online requests, sponsor dashboards, reports, or access links
+- Preserve all current working functionality
+- Make additive/fix-only changes where possible
+
+Current fixes required:
+1. Homepage event cards
+2. Help Center link target
+3. Sponsor form missing contact fields
+4. Rename "Attributes" to "Solution Type"
+5. Add sponsor filter to event page
+6. Fix sponsor CTA button styling on event page
+
+==================================================
+1. HOMEPAGE EVENT CARDS
+==================================================
+
+Required changes:
+- Remove the arrow icons from homepage event cards
+- Add the event logo at the top of each homepage event card
+- Center the event logo horizontally within the card
+- Keep the card clickable
+- Preserve the cleaner homepage layout already implemented
+
+If an event has no logo:
+- show a clean fallback placeholder icon
+
+Do not add extra clutter.
+Keep all 4 event cards visible above the fold if reasonably possible.
+
+==================================================
+2. HELP CENTER LINK
+==================================================
+
+Problem:
+Help Center currently shows a direct email address.
+
+Required change:
+Replace the email contact reference with a link/button to:
+
+https://convergeevents.com/contact/
+
+Behavior:
+- Link text should clearly indicate Contact Us / Contact Converge Events
+- Open normally in a new tab if appropriate
+- Do not leave a plain email address on the Help Center page
+
+==================================================
+3. SPONSOR FORM — MAIN CONTACT FIELDS
+==================================================
+
+Problem:
+The sponsor contact fields were described as implemented but are not visible in the sponsor edit form.
+
+Required fix:
+Ensure the following fields are actually visible, editable, saved, and reloaded in Create/Edit Sponsor:
+
+Main Contact subsection:
+- Main Contact Name
+- Main Contact Email
+- Main Contact Phone
+
+Also preserve the existing sponsor profile fields:
+- Short Description
+- Website URL
+- LinkedIn URL
+- Solutions Summary
+
+Make sure the form is scrollable so lower profile fields are reachable.
+
+Do not redesign the sponsor modal.
+Just make the fields visible and functional.
+
+==================================================
+4. RENAME ATTRIBUTES TO SOLUTION TYPE
+==================================================
+
+Replace the label "Attributes" everywhere with:
+
+Solution Type
+
+This applies to:
+- sponsor form
+- event-page filter UI
+- any related admin labels/help text
+
+Behavior:
+- each sponsor can have up to 3 Solution Types
+- Solution Types come from an admin-defined reusable list
+- keep values consistent across sponsors
+
+Examples:
+- Compliance
+- Onboarding
+- Payments
+- Fraud
+- Lending
+- Treasury
+- AI
+- Automation
+- Core Processing
+- Member Experience
+
+==================================================
+5. EVENT PAGE — SOLUTION TYPE FILTER
+==================================================
+
+Problem:
+The sponsor filter is not visible on the public event page.
+
+Required fix:
+Add a visible, compact filter bar above the sponsor grid.
+
+Requirements:
+- filter sponsors by Solution Type
+- allow one or more Solution Types to be selected
+- include a reset/clear filters action
+- dynamically update sponsor count
+- keep the UI compact and clean
+- do not push sponsor cards too far down the page
+
+This filter must use each sponsor’s selected Solution Types from the sponsor form.
+
+==================================================
+6. EVENT PAGE CTA BUTTON STYLING
+==================================================
+
+Problem:
+The meeting buttons are still visually inconsistent.
+The online meeting button is purple and does not match the event/sponsorship styling.
+
+Required changes:
+- Make "Schedule Onsite Meeting" and "Online Meeting" buttons match visually
+- Use the same button styling family for both
+- Keep Onsite as the primary CTA
+- Keep Online Meeting as the secondary CTA
+- Secondary CTA should still use the event/sponsor color scheme, not purple
+- For Gold sponsor examples, use the gold-accent styling family consistently
+- Remove awkward visual mismatch between the two buttons
+
+Button labels:
+- Primary: Schedule Onsite Meeting
+- Secondary: Online Meeting
+
+Do not remove online meetings.
+Only fix visual hierarchy and styling consistency.
+
+==================================================
+7. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- homepage event cards no longer show arrow icons
+- event logos appear centered at the top of homepage cards
+- Help Center links to https://convergeevents.com/contact/
+- sponsor form visibly includes Main Contact Name / Email / Phone
+- "Attributes" is renamed to "Solution Type"
+- public event page shows a working Solution Type filter
+- sponsor cards filter correctly by Solution Type
+- onsite and online meeting buttons use consistent styling and no purple mismatch remains

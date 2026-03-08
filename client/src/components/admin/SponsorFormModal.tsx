@@ -43,10 +43,10 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
       setLogoError(false);
       if (sponsor) {
         setFormData({ ...sponsor, allowOnlineMeetings: sponsor.allowOnlineMeetings ?? false, attributes: sponsor.attributes ?? [] });
-        setProfileOpen(!!(sponsor.shortDescription || sponsor.websiteUrl || sponsor.linkedinUrl || sponsor.solutionsSummary || sponsor.contactName || sponsor.contactEmail || sponsor.contactPhone));
+        setProfileOpen(true);
       } else {
         setFormData({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false, attributes: [] });
-        setProfileOpen(false);
+        setProfileOpen(true);
       }
     }
   }, [sponsor, isOpen]);
@@ -238,10 +238,10 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
               </div>
             </fieldset>
 
-            {/* Attributes */}
+            {/* Solution Type */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Attributes <span className="text-muted-foreground font-normal text-xs">(up to 3)</span></Label>
+                <Label>Solution Type <span className="text-muted-foreground font-normal text-xs">(up to 3)</span></Label>
                 {(formData.attributes?.length ?? 0) > 0 && (
                   <span className="text-xs text-accent font-medium">{formData.attributes?.length} selected</span>
                 )}
@@ -277,7 +277,7 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                   );
                 })}
               </div>
-              <p className="text-[10px] text-muted-foreground">Used to filter sponsors on the public event page.</p>
+              <p className="text-[10px] text-muted-foreground">Used to filter sponsors by Solution Type on the public event page.</p>
             </div>
 
             {/* Sponsor Profile (collapsible) */}

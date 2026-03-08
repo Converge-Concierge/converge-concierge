@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Hexagon, HelpCircle, Mail, ArrowLeft, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import PublicFooter from "@/components/PublicFooter";
 
 export default function HelpCenterPage() {
   return (
@@ -87,9 +88,7 @@ export default function HelpCenterPage() {
         </div>
       </main>
 
-      <footer className="relative z-10 border-t border-border/50 bg-white/50 py-5 text-center">
-        <p className="text-xs text-muted-foreground">&copy; 2026 Converge Events. All rights reserved.</p>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

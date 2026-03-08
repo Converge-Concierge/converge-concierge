@@ -206,6 +206,14 @@ All at `/event/:slug` — single-page multi-step wizard:
 
 ---
 
+### Legal Pages & Shared Footer (added)
+
+- `/terms` → `client/src/pages/TermsPage.tsx` — full Terms of Use (22 sections, TreaSolution Inc. / Converge Events)
+- `/privacy` → `client/src/pages/PrivacyPage.tsx` — full Privacy Policy (11 sections)
+- `PublicFooter` (`client/src/components/PublicFooter.tsx`) — shared footer with © 2026 Converge Events + Terms of Use / Privacy Policy / Contact links; used on all public-facing pages
+- `LegalAcknowledgment` (`client/src/components/LegalAcknowledgment.tsx`) — checkbox component added to all booking forms (EventPage step 3, EventPage online meeting form, BookingPage); submit button disabled until checked
+- Footer added to: LandingPage, EventPage (Shell), SponsorProfilePage, HelpCenterPage, LoginPage (absolute-positioned at bottom of right panel), BookingPage (form + success screen)
+
 ## Design Constraints
 
 - **Do NOT change** the LandingPage (`/`) layout or styling

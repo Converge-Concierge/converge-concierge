@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { Event } from "@shared/schema";
 import { format, parseISO, isAfter, isBefore, isWithinInterval } from "date-fns";
+import PublicFooter from "@/components/PublicFooter";
 
 function eventStatusLabel(event: Event): string {
   const now = new Date();
@@ -161,11 +162,7 @@ export default function LandingPage() {
         </div>
       </main>
 
-      <footer className="w-full border-t border-border/50 bg-white/50 py-6 relative z-10 text-center">
-        <p className="text-muted-foreground text-sm">
-          &copy; 2026 Converge Events. All rights reserved.
-        </p>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

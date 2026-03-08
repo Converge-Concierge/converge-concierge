@@ -1,4 +1,5 @@
 import { useParams, useLocation } from "wouter";
+import PublicFooter from "@/components/PublicFooter";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -236,9 +237,7 @@ export default function SponsorProfilePage() {
         </motion.div>
       </main>
 
-      <footer className="relative z-10 border-t border-border/50 bg-white/50 py-5 text-center">
-        <p className="text-xs text-muted-foreground">&copy; 2026 Converge Events. All rights reserved.</p>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

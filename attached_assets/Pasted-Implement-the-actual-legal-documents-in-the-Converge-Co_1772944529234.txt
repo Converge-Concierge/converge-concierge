@@ -1,0 +1,476 @@
+Implement the actual legal documents in the Converge Concierge app using the exact text below.
+
+Important rules:
+- Do not redesign the app
+- Do not break existing scheduling, online meeting requests, sponsor dashboards, reports, or admin workflows
+- Preserve all current working functionality
+- Make additive changes only
+- Use the legal text below exactly as the page content, with only minimal formatting changes for readability
+
+Requirements:
+1. Create public routes:
+   - /terms
+   - /privacy
+
+2. Add footer links on public-facing pages:
+   - Terms of Use
+   - Privacy Policy
+   - Contact
+
+3. Use Contact link:
+   https://convergeevents.com/contact/
+
+4. Add this acknowledgment to both booking flows:
+   "By scheduling a meeting, you agree to the Terms of Use and Privacy Policy."
+   Make Terms of Use and Privacy Policy clickable.
+   Use a checkbox if practical and require it before final submission.
+
+5. Add Terms / Privacy / Contact links to:
+   - homepage footer
+   - public event page footer
+   - sponsor profile page footer
+   - booking flow / confirmation pages
+   - help center page
+   - admin login page footer
+
+6. Footer copyright everywhere:
+   @2026 Converge Events
+
+7. Keep the legal content in clean dedicated files/components.
+
+==================================================
+TERMS OF USE PAGE CONTENT
+==================================================
+
+Title:
+Converge Concierge Platform Terms of Use
+
+Effective Date:
+March 7, 2026
+
+Body:
+
+These Terms of Use (“Terms”) govern access to and use of the Converge Concierge platform (the “Platform”), operated by TreaSolution, Inc. d/b/a Converge Events (“Company”).
+
+By accessing or using the Platform, you agree to these Terms. If you do not agree, you may not use the Platform.
+
+Governing Law and Venue
+
+These Terms shall be governed by the laws of the State of Illinois, without regard to conflict of law principles.
+
+The exclusive venue and jurisdiction for any dispute arising from these Terms shall be the courts located in DuPage County, Illinois.
+
+1. Platform Purpose
+
+The Platform facilitates introductions and scheduling of meetings between event attendees, event sponsors, and event participants.
+
+The Platform is a facilitation tool only.
+
+Company does not guarantee:
+- meeting availability
+- sponsor participation
+- attendee participation
+- meeting outcomes
+- business results
+
+Sponsors may accept or decline meeting requests at their sole discretion.
+
+2. Event Operational Control
+
+Company maintains exclusive operational control over all events and platform functions.
+
+Company may at any time:
+- modify event schedules
+- change speakers or programming
+- change event format
+- change event date or location
+- modify meeting scheduling functionality
+
+Such changes do not entitle users to refunds or claims.
+
+3. Attendee Responsibilities
+
+Users agree to:
+- provide accurate information
+- attend scheduled meetings when reasonably possible
+- use the Platform only for legitimate business networking
+
+Users may not:
+- scrape or extract platform data
+- record sessions or meetings without permission
+- distribute event materials
+- impersonate other individuals
+- disrupt event operations
+
+Violation may result in removal from the event or platform without refund.
+
+4. Recording and Intellectual Property
+
+All content associated with Company events and the Platform is the exclusive property of Company.
+
+Users may not:
+- record sessions
+- screen capture event materials
+- redistribute recordings
+- reproduce platform content
+
+Company may record events and meetings.
+
+By participating, users grant Company a perpetual, worldwide, royalty-free license to use their:
+- name
+- likeness
+- voice
+- company affiliation
+
+for promotional, educational, or commercial purposes.
+
+5. Sponsor Data Sharing
+
+By using the Platform, users consent to Company sharing limited attendee information with sponsors participating in the event.
+
+This information may include:
+- name
+- job title
+- company
+- email address
+- phone number
+- meeting request information
+
+Sponsors may contact attendees regarding legitimate business opportunities related to the event.
+
+Company does not control sponsor communications after introduction.
+
+6. Assumption of Risk (Onsite Participation)
+
+Participation in any in-person event involves inherent risks.
+
+Users voluntarily assume all risks related to:
+- travel
+- event attendance
+- health or safety risks
+- communicable diseases
+- interactions with other participants
+
+Users release Company and related parties from liability arising from such risks.
+
+7. Confidentiality and Data Use
+
+Users may receive access to proprietary information including:
+- sponsor materials
+- attendee lists
+- event content
+
+Such information may not be:
+- copied
+- redistributed
+- used for competitive purposes
+
+Unauthorized use may result in removal and legal action.
+
+8. Non-Circumvention
+
+Users may not use the Platform to bypass Company in order to:
+- commercially exploit introductions made through Company
+- misuse attendee or sponsor information
+- compete using Company relationships or event structures
+
+9. Limitation of Liability
+
+To the fullest extent permitted by law:
+
+User recovery against Company is limited exclusively to amounts actually recovered and received by Company from applicable insurance policies for the specific claim, and such recovery constitutes the sole and exclusive remedy.
+
+Company has no obligation to maintain insurance of any type or amount.
+
+Insurance coverage may be unavailable or denied.
+
+Company retains exclusive control over insurance tender, defense, cooperation, and settlement.
+
+Company shall not be liable for:
+- indirect damages
+- consequential damages
+- lost profits
+- business interruption
+- reputational harm
+
+No claim may be made against Company’s officers, employees, contractors, or affiliates.
+
+10. Fallback Liability Cap
+
+If a court determines the insurance-only limitation unenforceable, the maximum aggregate liability of Company arising from the Platform shall not exceed $100 USD.
+
+This limitation applies regardless of the legal theory of liability.
+
+11. Indemnification
+
+Users agree to defend, indemnify, and hold harmless Company and its affiliates from any claims arising from:
+- misuse of the Platform
+- violation of these Terms
+- infringement of third-party rights
+- unlawful conduct
+
+Company may retain its own legal counsel at the user’s expense where indemnification applies.
+
+12. Dispute Resolution
+
+Before initiating litigation, the parties shall attempt good-faith negotiation.
+
+Any claim must be filed within one (1) year after the event giving rise to the dispute.
+
+If Company prevails in any dispute, the claimant shall reimburse Company for reasonable attorneys’ fees and legal costs.
+
+13. Injunctive Relief
+
+Company may seek immediate injunctive relief for:
+- misuse of confidential information
+- intellectual property violations
+- unauthorized recordings
+- misuse of data
+- circumvention of Company relationships
+
+14. No Agency
+
+Nothing in these Terms creates:
+- partnership
+- joint venture
+- employment relationship
+- agency relationship
+
+Users may not bind Company to any obligations.
+
+15. Modifications
+
+Company may modify these Terms at any time by posting updated terms.
+
+Continued use of the Platform constitutes acceptance of the revised Terms.
+
+16. Sponsor Introductions and Business Networking
+
+The Platform is designed to facilitate professional networking and business introductions between event attendees and event sponsors.
+
+By using the Platform or requesting a meeting with a sponsor, users acknowledge and agree that the Company may share Limited Attendee Information with sponsors participating in the event.
+
+Limited Attendee Information may include:
+- name
+- company
+- job title
+- email address
+- phone number
+- meeting activity or request information
+
+Such information is shared solely for legitimate business networking purposes associated with the event.
+
+Sponsors may contact attendees regarding products, services, or partnership opportunities relevant to the event.
+
+The Company does not control sponsor communications following introductions and shall not be responsible for any subsequent interactions between attendees and sponsors.
+
+17. Meeting Introductions
+
+The Platform facilitates scheduling requests and introductions between attendees and sponsors.
+
+The Company does not guarantee:
+- meeting acceptance
+- meeting availability
+- meeting attendance
+- meeting outcomes
+- business opportunities resulting from meetings
+
+Sponsors may accept or decline meeting requests at their sole discretion.
+
+Attendees are responsible for attending meetings they schedule and communicating directly with sponsors regarding scheduling adjustments.
+
+The Company shall not be responsible for missed meetings, scheduling conflicts, or the results of any meeting facilitated through the Platform.
+
+18. Networking Disclaimer
+
+Users acknowledge that the Platform facilitates introductions between independent parties.
+
+The Company does not endorse, verify, or guarantee the products, services, representations, or conduct of any sponsor or attendee.
+
+Users are solely responsible for evaluating any business opportunities arising from meetings or introductions facilitated through the Platform.
+
+19. Non-Circumvention of Company Relationships
+
+The Platform facilitates introductions and networking between attendees, sponsors, and other event participants.
+
+Users acknowledge that the Company invests significant resources in organizing events, developing relationships, and facilitating these introductions.
+
+Accordingly, users agree not to use the Platform, event participation, attendee lists, sponsor information, or introductions made through the Platform for the purpose of:
+- organizing or promoting a competing event or conference
+- replicating or substantially copying the Company’s event model
+- soliciting sponsors or participants for competing events
+- commercially exploiting introductions made through the Platform in a manner intended to bypass the Company
+
+Nothing in this section restricts ordinary professional networking between attendees and sponsors. However, users may not use information obtained through the Platform to compete with or undermine the Company’s event business.
+
+The Company reserves the right to pursue injunctive relief and other remedies for violations of this section.
+
+20. Platform Data and Analytics
+
+Users acknowledge that the Platform generates operational, networking, and engagement data in connection with event participation.
+
+All such data, including but not limited to:
+- meeting activity and scheduling data
+- sponsor engagement data
+- attendee interaction data
+- event usage analytics
+- aggregated networking insights
+
+(collectively, “Platform Data”) is owned exclusively by TreaSolution, Inc. d/b/a Converge Events.
+
+The Company may use Platform Data in aggregated or anonymized form for purposes including:
+- improving event operations
+- developing analytics and reporting
+- providing sponsor engagement insights
+- evaluating event performance
+- developing future products or services
+
+Platform Data shall not include personal information beyond what is permitted under the Company’s Privacy Policy.
+
+Users obtain no ownership rights in Platform Data and may not copy, extract, scrape, or commercially exploit Platform Data without the Company’s prior written consent.
+
+21. Automated Access and AI Training Restrictions
+
+Users may not access or use the Platform through automated means without the Company’s prior written permission.
+
+Prohibited activities include, but are not limited to:
+- scraping or harvesting attendee, sponsor, or event information
+- using bots, crawlers, or automated scripts to extract Platform data
+- downloading or copying large portions of Platform content
+- using Platform data to train artificial intelligence, machine learning models, or large language models
+- building datasets derived from Platform activity or event participation
+- reproducing sponsor lists, attendee lists, or meeting information outside the Platform
+
+The Platform and all related data are proprietary assets of TreaSolution, Inc. d/b/a Converge Events.
+
+Any automated extraction, AI training, dataset creation, or systematic copying of Platform content without written authorization is strictly prohibited.
+
+The Company reserves the right to pursue injunctive relief and other remedies for violations of this section.
+
+22. Contact
+
+For questions regarding these Terms, please visit:
+https://convergeevents.com/contact/
+
+==================================================
+PRIVACY POLICY PAGE CONTENT
+==================================================
+
+Title:
+Converge Concierge Platform Privacy Policy
+
+Effective Date:
+March 7, 2026
+
+Body:
+
+TreaSolution, Inc. d/b/a Converge Events (“Company”) respects your privacy.
+
+This Privacy Policy explains how information is collected and used when you access the Converge Concierge platform.
+
+1. Information We Collect
+
+We may collect:
+
+Personal Information
+- Name
+- Email address
+- Company name
+- Job title
+- Phone number
+- Meeting scheduling information
+
+Technical Information
+- IP address
+- browser type
+- device information
+- usage data
+
+2. How We Use Information
+
+We use collected information to:
+- schedule and manage event meetings
+- enable sponsor discovery
+- facilitate networking between attendees and sponsors
+- provide platform functionality
+- improve the Platform
+
+3. Information Shared with Sponsors
+
+When a meeting is scheduled or requested, limited attendee information may be shared with sponsors including:
+- name
+- company
+- title
+- email address
+- phone number
+- meeting request details
+
+This information is shared solely for event networking purposes.
+
+4. Data Retention
+
+We retain user information for as long as necessary to:
+- operate the Platform
+- support event operations
+- maintain reporting for sponsors and organizers
+
+Information may be retained after events conclude.
+
+5. Security
+
+Company implements reasonable technical and organizational safeguards to protect data.
+
+However, no system can guarantee absolute security.
+
+6. Third-Party Services
+
+The Platform may integrate with third-party services such as:
+- calendar services
+- hosting providers
+- analytics tools
+
+These services operate under their own privacy policies.
+
+7. User Rights
+
+Users may request to:
+- access their information
+- correct inaccurate information
+- request deletion of their information
+
+Requests may be submitted through:
+https://convergeevents.com/contact/
+
+8. Data Use Restrictions
+
+Company does not sell or rent personal information collected through the Platform.
+
+Company may share limited attendee information with sponsors and partners only as described in this Privacy Policy and as necessary to facilitate legitimate event networking and meeting scheduling.
+
+9. Breach Notification
+
+In the event of a data breach involving personal information, Company will provide notice within 72 hours where commercially reasonable and legally required.
+
+10. Changes to this Policy
+
+This Privacy Policy may be updated periodically.
+
+Continued use of the Platform constitutes acceptance of the updated policy.
+
+11. Contact
+
+Questions regarding this Privacy Policy may be directed to:
+https://convergeevents.com/contact/
+
+==================================================
+SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- /terms works and renders the exact Terms of Use above
+- /privacy works and renders the exact Privacy Policy above
+- public footer includes Terms of Use / Privacy Policy / Contact
+- booking flow includes the legal acknowledgment with clickable links
+- help center includes legal links
+- admin login includes legal links
+- copyright reads @2026 Converge Events

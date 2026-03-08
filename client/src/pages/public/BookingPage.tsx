@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Link } from "wouter";
 import { format } from "date-fns";
+import PublicFooter from "@/components/PublicFooter";
+import LegalAcknowledgment from "@/components/LegalAcknowledgment";
 
 interface AttendeeForm {
   firstName: string;
@@ -39,6 +41,7 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
 
   const isLoading = eventsLoading || sponsorsLoading;
 
@@ -194,6 +197,7 @@ export default function BookingPage() {
             </Button>
           </motion.div>
         </main>
+        <PublicFooter />
       </div>
     );
   }
@@ -365,18 +369,16 @@ export default function BookingPage() {
               </div>
             </div>
 
-            <Button type="submit" size="lg" disabled={submitting} className="w-full shadow-md shadow-accent/20 bg-accent text-accent-foreground hover:bg-accent/90" data-testid="button-pub-submit">
+            <LegalAcknowledgment checked={agreeToTerms} onChange={setAgreeToTerms} id="agree-booking" />
+
+            <Button type="submit" size="lg" disabled={submitting || !agreeToTerms} className="w-full shadow-md shadow-accent/20 bg-accent text-accent-foreground hover:bg-accent/90" data-testid="button-pub-submit">
               {submitting ? "Scheduling..." : "Confirm Meeting"}
             </Button>
           </form>
         </motion.div>
       </main>
 
-      <footer className="w-full border-t border-border/50 bg-white/50 py-6 relative z-10 text-center">
-        <p className="text-muted-foreground text-sm">
-          &copy; 2026 Converge Events. All rights reserved.
-        </p>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

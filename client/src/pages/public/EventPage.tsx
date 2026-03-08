@@ -17,6 +17,8 @@ import { Link } from "wouter";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { downloadICS, googleCalendarUrl } from "@/lib/ics";
+import PublicFooter from "@/components/PublicFooter";
+import LegalAcknowledgment from "@/components/LegalAcknowledgment";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -93,11 +95,7 @@ function Shell({
         )}
       </header>
       <main className="flex-1 relative z-10 pb-20">{children}</main>
-      <footer className="w-full border-t border-border/50 bg-white/50 py-5 relative z-10 text-center shrink-0">
-        <p className="text-muted-foreground text-xs">
-          &copy; 2026 Converge Events. All rights reserved.
-        </p>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }
@@ -228,6 +226,7 @@ export default function EventPage() {
   const [attendee, setAttendee] = useState<AttendeeForm>({ firstName: "", lastName: "", company: "", title: "", email: "", linkedinUrl: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
 
   // ── Online meeting state ──────────────────────────────────────────────────
   const [meetingMode, setMeetingMode] = useState<"onsite" | "online">("onsite");
@@ -998,10 +997,12 @@ export default function EventPage() {
                 </div>
               </div>
 
+              <LegalAcknowledgment checked={agreeToTerms} onChange={setAgreeToTerms} id="agree-online" />
+
               <Button
                 type="submit"
                 size="lg"
-                disabled={submitting}
+                disabled={submitting || !agreeToTerms}
                 className="w-full bg-violet-600 text-white hover:bg-violet-700 shadow-md shadow-violet-200"
                 data-testid="button-online-submit"
               >
@@ -1109,10 +1110,12 @@ export default function EventPage() {
               </div>
             </div>
 
+            <LegalAcknowledgment checked={agreeToTerms} onChange={setAgreeToTerms} id="agree-onsite" />
+
             <Button
               type="submit"
               size="lg"
-              disabled={submitting || (locations.length > 0 && !selectedLoc)}
+              disabled={submitting || (locations.length > 0 && !selectedLoc) || !agreeToTerms}
               className="w-full bg-accent text-accent-foreground hover:bg-accent/90 shadow-md shadow-accent/20"
               data-testid="button-pub-submit"
             >

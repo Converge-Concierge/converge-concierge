@@ -1,4 +1,5 @@
 import { useLocation, Link } from "wouter";
+import PublicFooter from "@/components/PublicFooter";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Hexagon, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, KeyRound, CheckCircle2, ChevronLeft, Copy, Eye, EyeOff } from "lucide-react";
@@ -135,7 +136,7 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-        <div className="w-full lg:w-1/2 h-full bg-background relative flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full lg:w-1/2 h-full bg-background relative flex flex-col items-center justify-center p-6 sm:p-12">
           <div className="absolute inset-0 bg-grid-pattern opacity-[0.15] pointer-events-none" />
           
           <motion.div 
@@ -438,6 +439,9 @@ export default function LoginPage() {
               </AnimatePresence>
             </div>
           </motion.div>
+          <div className="absolute bottom-0 left-0 right-0 z-10">
+            <PublicFooter />
+          </div>
         </div>
       </div>
     </div>

@@ -15,6 +15,8 @@ import SponsorAutoLoginPage from "@/pages/public/SponsorAutoLoginPage";
 import SponsorProfilePage from "@/pages/public/SponsorProfilePage";
 import ResetPasswordPage from "@/pages/public/ResetPasswordPage";
 import HelpCenterPage from "@/pages/public/HelpCenterPage";
+import TermsPage from "@/pages/TermsPage";
+import PrivacyPage from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +26,8 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/help" component={HelpCenterPage} />
+      <Route path="/terms" component={TermsPage} />
+      <Route path="/privacy" component={PrivacyPage} />
       <Route path="/event/:slug/sponsor/:sponsorId" component={SponsorProfilePage} />
       <Route path="/event/:slug" component={EventPage} />
       <Route path="/sponsor/login" component={SponsorLoginPage} />

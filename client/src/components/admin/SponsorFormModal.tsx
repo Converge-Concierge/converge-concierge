@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sponsor, InsertSponsor, Event, EventSponsorLink, SPONSOR_ATTRIBUTES } from "@shared/schema";
+import { Sponsor, InsertSponsor, Event, EventSponsorLink } from "@shared/schema";
 import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -234,46 +234,59 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
               </div>
             </fieldset>
 
-            {/* Solution Types */}
+            {/* Solution Types — free-form, up to 3 */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Solution Types <span className="text-muted-foreground font-normal text-xs">(select up to 3)</span></Label>
-                {(formData.attributes?.length ?? 0) > 0 && (
-                  <span className="text-xs text-accent font-medium">{formData.attributes?.length} of 3 selected</span>
+                <Label>Solution Types <span className="text-muted-foreground font-normal text-xs">(up to 3)</span></Label>
+                {(formData.attributes ?? []).filter(Boolean).length > 0 && (
+                  <span className="text-xs text-accent font-medium">{(formData.attributes ?? []).filter(Boolean).length} entered</span>
                 )}
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {SPONSOR_ATTRIBUTES.map((attr) => {
-                  const selected = (formData.attributes ?? []).includes(attr);
-                  const maxReached = (formData.attributes ?? []).length >= 3 && !selected;
+              <div className="space-y-2">
+                {[0, 1, 2].map((i) => {
+                  const current = formData.attributes ?? [];
+                  const val = current[i] ?? "";
+                  const filledBefore = i === 0 || !!(current[i - 1] ?? "").trim();
+                  if (i > 0 && !filledBefore && !val) return null;
                   return (
-                    <button
-                      key={attr}
-                      type="button"
-                      disabled={readOnly || maxReached}
-                      onClick={() => {
-                        if (readOnly) return;
-                        const current = formData.attributes ?? [];
-                        const next = selected ? current.filter((a) => a !== attr) : [...current, attr];
-                        setFormData((p) => ({ ...p, attributes: next }));
-                      }}
-                      className={cn(
-                        "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
-                        selected
-                          ? "bg-accent text-accent-foreground border-accent"
-                          : maxReached
-                            ? "bg-muted/40 text-muted-foreground/50 border-border/40 cursor-not-allowed"
-                            : "bg-muted text-muted-foreground border-border/60 hover:border-accent/50 hover:text-foreground",
-                        readOnly && "cursor-default"
+                    <div key={i} className="flex items-center gap-2">
+                      <Input
+                        value={val}
+                        disabled={readOnly}
+                        placeholder={i === 0 ? "e.g. Compliance" : i === 1 ? "e.g. Payments" : "e.g. AI"}
+                        className="h-8 text-xs flex-1"
+                        data-testid={`input-solution-type-${i}`}
+                        onChange={(e) => {
+                          if (readOnly) return;
+                          const next = [...(formData.attributes ?? [])];
+                          while (next.length <= i) next.push("");
+                          next[i] = e.target.value;
+                          setFormData((p) => ({ ...p, attributes: next }));
+                        }}
+                      />
+                      {!readOnly && val && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = [...(formData.attributes ?? [])];
+                            next.splice(i, 1);
+                            setFormData((p) => ({ ...p, attributes: next }));
+                          }}
+                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                          data-testid={`remove-solution-type-${i}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       )}
-                      data-testid={`attr-${attr.toLowerCase().replace(/\s+/g, "-")}`}
-                    >
-                      {attr}
-                    </button>
+                    </div>
                   );
                 })}
+                {/* Show third input only after second is filled */}
+                {!readOnly && (formData.attributes ?? []).filter(Boolean).length < 3 && (formData.attributes ?? []).filter(Boolean).length > 0 && !(formData.attributes ?? [])[2] && (
+                  <p className="text-[10px] text-muted-foreground">Fill the field above to add another</p>
+                )}
               </div>
-              <p className="text-[10px] text-muted-foreground">Shown on public event pages as sponsor filters.</p>
+              <p className="text-[10px] text-muted-foreground">Used to filter sponsors by Solution Type on the event page.</p>
             </div>
 
             {/* Sponsor Profile */}

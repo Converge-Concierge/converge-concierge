@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { AnimatePresence, motion } from "framer-motion";
-import { Event, Sponsor, Meeting, SPONSOR_ATTRIBUTES } from "@shared/schema";
+import { Event, Sponsor, Meeting } from "@shared/schema";
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
   AlertCircle, ChevronLeft, Clock, User, Video, Download, ExternalLink,
@@ -239,14 +239,28 @@ export default function EventPage() {
     ? sponsors.filter((s) => (s.archiveState ?? "active") === "active" && (s.assignedEvents ?? []).some((ae) => ae.eventId === event.id && (ae.archiveState ?? "active") === "active"))
     : [];
 
-  const attributesInUse = useMemo(
-    () => SPONSOR_ATTRIBUTES.filter((a) => eventSponsors.some((s) => (s.attributes ?? []).includes(a))),
-    [eventSponsors],
-  );
+  const attributesInUse = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    eventSponsors.forEach((s) => {
+      (s.attributes ?? []).forEach((a) => {
+        const trimmed = a.trim();
+        const key = trimmed.toLowerCase();
+        if (trimmed && !seen.has(key)) {
+          seen.add(key);
+          result.push(trimmed);
+        }
+      });
+    });
+    return result;
+  }, [eventSponsors]);
 
   const filteredSponsors = useMemo(() => {
     if (activeFilters.length === 0) return eventSponsors;
-    return eventSponsors.filter((s) => activeFilters.some((f) => (s.attributes ?? []).includes(f)));
+    const filterKeys = activeFilters.map((f) => f.toLowerCase());
+    return eventSponsors.filter((s) =>
+      filterKeys.some((fk) => (s.attributes ?? []).some((a) => a.trim().toLowerCase() === fk))
+    );
   }, [eventSponsors, activeFilters]);
 
   const eventColorStyle = useMemo((): React.CSSProperties => {
@@ -601,9 +615,9 @@ export default function EventPage() {
             )}
           </div>
 
-          {/* Solution Types filter bar */}
-          {eventSponsors.length > 0 && (() => {
-            const allOptions = attributesInUse.length > 0 ? attributesInUse : SPONSOR_ATTRIBUTES;
+          {/* Solution Types filter bar — only shown when sponsors have solution types assigned */}
+          {attributesInUse.length > 0 && (() => {
+            const allOptions = attributesInUse;
             const SHOW_LIMIT = 7;
             const visibleOptions = showAllFilters ? allOptions : allOptions.slice(0, SHOW_LIMIT);
             const hasMore = allOptions.length > SHOW_LIMIT;
@@ -624,11 +638,11 @@ export default function EventPage() {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {visibleOptions.map((attr) => {
-                    const active = activeFilters.includes(attr);
+                    const active = activeFilters.some((f) => f.toLowerCase() === attr.toLowerCase());
                     return (
                       <button
                         key={attr}
-                        onClick={() => setActiveFilters((prev) => active ? prev.filter((f) => f !== attr) : [...prev, attr])}
+                        onClick={() => setActiveFilters((prev) => active ? prev.filter((f) => f.toLowerCase() !== attr.toLowerCase()) : [...prev, attr])}
                         data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
                         className={cn(
                           "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",

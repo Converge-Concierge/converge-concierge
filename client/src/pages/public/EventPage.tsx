@@ -539,7 +539,19 @@ export default function EventPage() {
                 </a>
               </div>
             )}
-            <Button onClick={() => nav(`/event/${event.slug}`)} className="w-full" data-testid="button-success-home">
+            <Button
+              onClick={() => {
+                setStep(0);
+                setSelectedSponsor(null);
+                setSelectedDate("");
+                setSelectedTime("");
+                setSelectedLoc("");
+                setCreatedMeetingId(null);
+                setError("");
+              }}
+              className="w-full"
+              data-testid="button-success-home"
+            >
               Back to Event
             </Button>
           </motion.div>

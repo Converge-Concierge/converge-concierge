@@ -1,0 +1,158 @@
+Redesign the final step of the public onsite meeting booking flow to match the card-based UX used in earlier steps.
+
+Important rules:
+- Do not redesign the homepage, event page, sponsor cards, or admin shell
+- Do not break existing scheduling logic, legal acknowledgment, confirmation screens, sponsor dashboards, or reports
+- Preserve all current working functionality
+- Make this a UX/layout improvement using the existing data model where possible
+
+Current problem:
+The first three booking steps are simple card-based selections:
+- Sponsor
+- Date
+- Time
+
+But the final step becomes a long form, which breaks the UX pattern and creates friction.
+
+Goal:
+Split the final step into 2 short card-based steps that stay as compact and above-the-fold as possible.
+
+==================================================
+1. NEW BOOKING FLOW STRUCTURE
+==================================================
+
+Change the public onsite booking flow from:
+
+Sponsor → Date → Time → Your Details
+
+to:
+
+Sponsor → Date → Time → Your Info → Confirm
+
+Update the progress indicator accordingly.
+
+==================================================
+2. STEP 4: YOUR INFO CARD
+==================================================
+
+Replace the current long details form with a compact attendee info card.
+
+Show only the required fields first:
+- First Name
+- Last Name
+- Company
+- Title
+- Email
+
+Move LinkedIn Profile into an optional/collapsible section:
+- Optional Details
+  - LinkedIn Profile
+
+Layout requirements:
+- Keep the card compact
+- Use a 2-column layout on desktop where appropriate
+- Stack cleanly on mobile
+- Keep the card visually consistent with the previous step cards
+- Avoid long scrolling
+
+At the bottom of the card:
+- Back button
+- Continue button
+
+Behavior:
+- Validate required fields before continuing
+- Preserve entered values if the user goes back
+- Keep existing attendee save/link logic intact
+
+==================================================
+3. STEP 5: CONFIRM CARD
+==================================================
+
+Add a new final confirmation card after the attendee info step.
+
+This card should summarize:
+- Sponsor
+- Date
+- Time
+- Location
+- Attendee Name
+- Company
+- Title
+- Email
+
+If LinkedIn was entered, show it optionally/subtly.
+
+At the bottom of the confirm card:
+- legal acknowledgment / checkbox
+- Back button
+- Confirm Meeting button
+
+Legal text:
+By scheduling a meeting, you agree to the Terms of Use and Privacy Policy.
+
+Requirements:
+- Terms of Use and Privacy Policy remain clickable
+- If checkbox is used, require it before final confirmation
+- Keep the card compact and visually polished
+
+==================================================
+4. ABOVE-THE-FOLD / COMPACT UX
+==================================================
+
+Design both new steps so they fit above the fold as much as reasonably possible on desktop.
+
+Do not create another long scrolling page.
+
+Goals:
+- preserve the fast, card-based feel
+- reduce user friction before confirmation
+- make the booking flow feel consistent from start to finish
+
+==================================================
+5. MOBILE UX
+==================================================
+
+Ensure the new Your Info and Confirm steps work well on mobile:
+- stacked layout
+- comfortable spacing
+- no awkward overflow
+- clear primary CTA at the bottom
+
+==================================================
+6. RETURNING ATTENDEE QUALITY-OF-LIFE IMPROVEMENT
+==================================================
+
+If practical, support a returning attendee experience:
+
+When the entered email matches an existing attendee for that event:
+- prefill known attendee details if available
+- allow the user to confirm/edit them before continuing
+
+Do not block this task if it is too large, but implement if easy.
+
+==================================================
+7. DO NOT CHANGE
+==================================================
+
+Do not change:
+- sponsor selection step
+- date selection step
+- time selection step
+- underlying meeting record structure unless necessary
+- confirmation page after successful booking
+- sponsor portal
+- admin workflows
+
+==================================================
+8. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- the booking flow becomes:
+  Sponsor → Date → Time → Your Info → Confirm
+- the long form is replaced by a compact attendee info card
+- there is a separate confirmation summary card
+- the flow feels consistent with the earlier card-based UX
+- required fields validate correctly
+- legal acknowledgment still works
+- meeting booking still saves successfully

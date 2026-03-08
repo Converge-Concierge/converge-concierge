@@ -6,8 +6,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Event, Sponsor, Meeting, AppBranding } from "@shared/schema";
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
-  AlertCircle, ChevronLeft, Clock, User, Video, Download, ExternalLink,
-  Filter, X, Gem,
+  AlertCircle, ChevronLeft, ChevronDown, Clock, User, Video, Download, ExternalLink,
+  Filter, X, Gem, Linkedin,
 } from "lucide-react";
 import { ONLINE_PLATFORMS } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -112,7 +112,7 @@ function Shell({
 
 // ── StepBar ──────────────────────────────────────────────────────────────────
 
-const STEP_LABELS = ["Sponsor", "Date", "Time", "Your Details"];
+const STEP_LABELS = ["Sponsor", "Date", "Time", "Your Info", "Confirm"];
 
 function StepBar({ current, slug, name, accentColor }: { current: number; slug: string; name: string; accentColor?: string | null }) {
   return (
@@ -247,6 +247,7 @@ export default function EventPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [showLinkedIn, setShowLinkedIn] = useState(false);
 
   // ── Online meeting state ──────────────────────────────────────────────────
   const [meetingMode, setMeetingMode] = useState<"onsite" | "online">("onsite");
@@ -398,7 +399,7 @@ export default function EventPage() {
       if (!res.ok) { setError(body.message || "Something went wrong. Please try again."); return; }
       await queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
       setCreatedMeetingId(body.id ?? null);
-      go(4);
+      go(5);
     } catch {
       setError("Network error. Please check your connection and try again.");
     } finally {
@@ -438,7 +439,7 @@ export default function EventPage() {
       if (!res.ok) { setError(body.message || "Something went wrong. Please try again."); return; }
       await queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
       setCreatedMeetingId(body.id ?? null);
-      go(4);
+      go(5);
     } catch {
       setError("Network error. Please check your connection and try again.");
     } finally {
@@ -468,8 +469,8 @@ export default function EventPage() {
     );
   }
 
-  // ── STEP 4: SUCCESS ───────────────────────────────────────────────────────
-  if (step === 4) {
+  // ── STEP 5: SUCCESS ───────────────────────────────────────────────────────
+  if (step === 5) {
     const isOnlineSuccess = meetingMode === "online";
     return (
       <Shell style={eventColorStyle}>
@@ -948,13 +949,23 @@ export default function EventPage() {
     );
   }
 
-  // ── STEP 3: ATTENDEE DETAILS (Onsite) / ONLINE MEETING FORM ─────────────
+  // ── LOCATION HELPERS (shared between step 3 & 4) ─────────────────────────
   const allLocations = event.meetingLocations ?? [];
   const selectedBlock = (event.meetingBlocks ?? []).find((b) => b.date === selectedDate && toMins(b.startTime) <= toMins(selectedTime) && toMins(selectedTime) < toMins(b.endTime));
   const blockLocationIds = selectedBlock?.locationIds ?? [];
   const locations = blockLocationIds.length > 0
     ? allLocations.filter((loc) => blockLocationIds.includes(loc.id))
     : allLocations;
+
+  function validateInfo(): string {
+    if (!attendee.firstName.trim()) return "First name is required.";
+    if (!attendee.company.trim()) return "Company is required.";
+    if (!attendee.title.trim()) return "Title is required.";
+    if (!attendee.email.trim()) return "Email is required.";
+    if (!/\S+@\S+\.\S+/.test(attendee.email)) return "Please enter a valid email address.";
+    if (locations.length > 0 && !selectedLoc) return "Please select a meeting location.";
+    return "";
+  }
 
   // Online meeting request form
   if (meetingMode === "online") {
@@ -1097,21 +1108,22 @@ export default function EventPage() {
     );
   }
 
-  return (
-    <Shell onBack={() => go(2)} backLabel="Time">
-      <StepBar current={3} slug={event.slug} name={event.name} accentColor={evAccent} />
-      <AnimatePresence mode="wait">
-        <motion.div key="step-form" {...slide} className="w-full max-w-2xl mx-auto px-6 space-y-6">
-          <RecapChip sponsor={selectedSponsor} date={selectedDate} time={selectedTime}
-            onChangeSponsor={() => go(0)} onChangeDate={() => go(1)} />
+  // ── STEP 3: YOUR INFO ────────────────────────────────────────────────────
+  if (step === 3) {
+    return (
+      <Shell onBack={() => go(2)} backLabel="Time">
+        <StepBar current={3} slug={event.slug} name={event.name} accentColor={evAccent} />
+        <AnimatePresence mode="wait">
+          <motion.div key="step-info" {...slide} className="w-full max-w-2xl mx-auto px-6 pb-12 space-y-4">
+            <RecapChip sponsor={selectedSponsor} date={selectedDate} time={selectedTime}
+              onChangeSponsor={() => go(0)} onChangeDate={() => go(1)} />
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-
-            {/* Location */}
+            {/* Location picker */}
             {locations.length > 0 && (
               <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5 space-y-3">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-accent" /> Meeting Location
+                  <MapPin className="h-4 w-4 text-accent" style={evAccent ? { color: evAccent } : undefined} />
+                  Meeting Location
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {locations.map((loc) => (
@@ -1134,14 +1146,17 @@ export default function EventPage() {
               </div>
             )}
 
-            {/* Attendee fields */}
+            {/* Info card */}
             <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5 space-y-4">
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <User className="h-4 w-4 text-accent" /> Your Details
-              </h3>
-              <p className="text-xs text-muted-foreground -mt-2">
-                Already registered for this event? Enter your email and we'll link the meeting to your record.
-              </p>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <User className="h-4 w-4 text-accent" style={evAccent ? { color: evAccent } : undefined} />
+                  Your Info
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Already registered for this event? Enter your email to link to your record.
+                </p>
+              </div>
 
               {error && (
                 <div className="flex items-start gap-2 rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive">
@@ -1154,7 +1169,7 @@ export default function EventPage() {
                   <Label htmlFor="pub-firstname" className="text-xs font-medium">First Name</Label>
                   <Input id="pub-firstname" value={attendee.firstName}
                     onChange={(e) => setAttendee({ ...attendee, firstName: e.target.value })}
-                    required placeholder="Jane" data-testid="input-pub-firstname" className="h-9 text-sm" />
+                    placeholder="Jane" data-testid="input-pub-firstname" className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="pub-lastname" className="text-xs font-medium">Last Name</Label>
@@ -1166,44 +1181,175 @@ export default function EventPage() {
                   <Label htmlFor="pub-company" className="text-xs font-medium">Company</Label>
                   <Input id="pub-company" value={attendee.company}
                     onChange={(e) => setAttendee({ ...attendee, company: e.target.value })}
-                    required placeholder="Acme Financial" data-testid="input-pub-company" className="h-9 text-sm" />
+                    placeholder="Acme Financial" data-testid="input-pub-company" className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="pub-title" className="text-xs font-medium">Title</Label>
                   <Input id="pub-title" value={attendee.title}
                     onChange={(e) => setAttendee({ ...attendee, title: e.target.value })}
-                    required placeholder="VP of Finance" data-testid="input-pub-title" className="h-9 text-sm" />
+                    placeholder="VP of Finance" data-testid="input-pub-title" className="h-9 text-sm" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="pub-email" className="text-xs font-medium">Email</Label>
                   <Input id="pub-email" type="email" value={attendee.email}
                     onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
-                    required placeholder="jane@company.com" data-testid="input-pub-email" className="h-9 text-sm" />
+                    placeholder="jane@company.com" data-testid="input-pub-email" className="h-9 text-sm" />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="pub-linkedin" className="text-xs font-medium">
-                  LinkedIn Profile <span className="text-muted-foreground font-normal">(optional)</span>
-                </Label>
-                <Input id="pub-linkedin" type="url" value={attendee.linkedinUrl}
-                  onChange={(e) => setAttendee({ ...attendee, linkedinUrl: e.target.value })}
-                  placeholder="https://linkedin.com/in/..." data-testid="input-pub-linkedin" className="h-9 text-sm" />
+              {/* Collapsible LinkedIn */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowLinkedIn((v) => !v)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="btn-toggle-linkedin"
+                >
+                  <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", showLinkedIn && "rotate-180")} />
+                  Optional Details
+                </button>
+                {showLinkedIn && (
+                  <div className="mt-3 space-y-1.5">
+                    <Label htmlFor="pub-linkedin" className="text-xs font-medium">
+                      LinkedIn Profile <span className="text-muted-foreground font-normal">(optional)</span>
+                    </Label>
+                    <Input id="pub-linkedin" type="url" value={attendee.linkedinUrl}
+                      onChange={(e) => setAttendee({ ...attendee, linkedinUrl: e.target.value })}
+                      placeholder="https://linkedin.com/in/..." data-testid="input-pub-linkedin" className="h-9 text-sm" />
+                  </div>
+                )}
               </div>
             </div>
 
+            {/* Navigation */}
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => go(2)} className="shrink-0">
+                <ChevronLeft className="h-4 w-4 mr-1" /> Back
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 shadow-md"
+                style={evButton
+                  ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` }
+                  : undefined}
+                onClick={() => {
+                  const err = validateInfo();
+                  setError(err);
+                  if (!err) { setError(""); go(4); }
+                }}
+                data-testid="button-info-continue"
+              >
+                Continue
+              </Button>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </Shell>
+    );
+  }
+
+  // ── STEP 4: CONFIRM ───────────────────────────────────────────────────────
+  const displayName = [attendee.firstName, attendee.lastName].filter(Boolean).join(" ");
+  const displayLoc = selectedLoc || (locations[0]?.name ?? "TBD");
+
+  return (
+    <Shell onBack={() => { setError(""); setAgreeToTerms(false); go(3); }} backLabel="Your Info">
+      <StepBar current={4} slug={event.slug} name={event.name} accentColor={evAccent} />
+      <AnimatePresence mode="wait">
+        <motion.div key="step-confirm" {...slide} className="w-full max-w-2xl mx-auto px-6 pb-12 space-y-4">
+          <RecapChip sponsor={selectedSponsor} date={selectedDate} time={selectedTime}
+            onChangeSponsor={() => go(0)} onChangeDate={() => go(1)} />
+
+          {/* Summary card */}
+          <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5 space-y-0">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Review Your Meeting</h3>
+
+            <dl className="divide-y divide-border/40 text-sm">
+              <div className="flex items-center gap-3 py-2.5">
+                <Building2 className="h-4 w-4 text-accent shrink-0" style={evAccent ? { color: evAccent } : undefined} />
+                <dt className="w-24 shrink-0 text-xs text-muted-foreground">Sponsor</dt>
+                <dd className="font-medium text-foreground flex items-center gap-1.5">
+                  {selectedSponsor?.name}
+                  <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5", levelBadge[selectedSponsor?.level ?? ""] || "bg-muted text-muted-foreground")}>
+                    {selectedSponsor?.level === "Platinum" && <Gem className="h-2 w-2" />}
+                    {selectedSponsor?.level}
+                  </span>
+                </dd>
+              </div>
+              <div className="flex items-center gap-3 py-2.5">
+                <Calendar className="h-4 w-4 text-accent shrink-0" style={evAccent ? { color: evAccent } : undefined} />
+                <dt className="w-24 shrink-0 text-xs text-muted-foreground">Date</dt>
+                <dd className="font-medium text-foreground">{format(parseISO(selectedDate), "EEEE, MMMM d, yyyy")}</dd>
+              </div>
+              <div className="flex items-center gap-3 py-2.5">
+                <Clock className="h-4 w-4 text-accent shrink-0" style={evAccent ? { color: evAccent } : undefined} />
+                <dt className="w-24 shrink-0 text-xs text-muted-foreground">Time</dt>
+                <dd className="font-medium text-foreground">{fmt12(selectedTime)}</dd>
+              </div>
+              {displayLoc && (
+                <div className="flex items-center gap-3 py-2.5">
+                  <MapPin className="h-4 w-4 text-accent shrink-0" style={evAccent ? { color: evAccent } : undefined} />
+                  <dt className="w-24 shrink-0 text-xs text-muted-foreground">Location</dt>
+                  <dd className="font-medium text-foreground">{displayLoc}</dd>
+                </div>
+              )}
+              <div className="flex items-center gap-3 py-2.5">
+                <User className="h-4 w-4 text-accent shrink-0" style={evAccent ? { color: evAccent } : undefined} />
+                <dt className="w-24 shrink-0 text-xs text-muted-foreground">Name</dt>
+                <dd className="font-medium text-foreground">{displayName || "—"}</dd>
+              </div>
+              <div className="flex items-center gap-3 py-2.5">
+                <dt className="w-24 shrink-0 ml-7 text-xs text-muted-foreground">Company</dt>
+                <dd className="text-foreground">{attendee.company}</dd>
+              </div>
+              <div className="flex items-center gap-3 py-2.5">
+                <dt className="w-24 shrink-0 ml-7 text-xs text-muted-foreground">Title</dt>
+                <dd className="text-foreground">{attendee.title}</dd>
+              </div>
+              <div className="flex items-center gap-3 py-2.5">
+                <dt className="w-24 shrink-0 ml-7 text-xs text-muted-foreground">Email</dt>
+                <dd className="text-foreground">{attendee.email}</dd>
+              </div>
+              {attendee.linkedinUrl && (
+                <div className="flex items-center gap-3 py-2.5">
+                  <Linkedin className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                  <dt className="w-24 shrink-0 text-xs text-muted-foreground">LinkedIn</dt>
+                  <dd className="text-accent text-xs truncate">{attendee.linkedinUrl}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
             <LegalAcknowledgment checked={agreeToTerms} onChange={setAgreeToTerms} id="agree-onsite" />
 
-            <Button
-              type="submit"
-              size="lg"
-              disabled={submitting || (locations.length > 0 && !selectedLoc) || !agreeToTerms}
-              className="w-full bg-accent text-accent-foreground hover:bg-accent/90 shadow-md shadow-accent/20"
-              style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
-              data-testid="button-pub-submit"
-            >
-              {submitting ? "Confirming…" : "Confirm Meeting"}
-            </Button>
+            {error && (
+              <div className="flex items-start gap-2 rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" /><span>{error}</span>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setError(""); setAgreeToTerms(false); go(3); }}
+                className="shrink-0"
+                data-testid="button-confirm-back"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Back
+              </Button>
+              <Button
+                type="submit"
+                size="lg"
+                disabled={submitting || !agreeToTerms}
+                className="flex-1 shadow-md"
+                style={evButton ? { backgroundColor: evButton, boxShadow: `0 4px 14px ${evButton}40` } : undefined}
+                data-testid="button-pub-submit"
+              >
+                {submitting ? "Confirming…" : "Confirm Meeting"}
+              </Button>
+            </div>
           </form>
         </motion.div>
       </AnimatePresence>

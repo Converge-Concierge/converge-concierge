@@ -12,6 +12,7 @@ import EventPage from "@/pages/public/EventPage";
 import SponsorLoginPage from "@/pages/public/SponsorLoginPage";
 import SponsorDashboardPage from "@/pages/public/SponsorDashboardPage";
 import SponsorAutoLoginPage from "@/pages/public/SponsorAutoLoginPage";
+import SponsorProfilePage from "@/pages/public/SponsorProfilePage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -19,6 +20,7 @@ function Router() {
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/login" component={LoginPage} />
+      <Route path="/event/:slug/sponsor/:sponsorId" component={SponsorProfilePage} />
       <Route path="/event/:slug" component={EventPage} />
       <Route path="/sponsor/login" component={SponsorLoginPage} />
       <Route path="/sponsor/dashboard" component={SponsorDashboardPage} />

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink } from "@shared/schema";
+import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType } from "@shared/schema";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 
 async function seedData() {
@@ -313,6 +313,38 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     return { error: "attendeeId or manualAttendee is required" };
   }
 
+  // ── Notification helper ───────────────────────────────────────────────────
+
+  async function fireNotification(
+    type: SponsorNotificationType,
+    meetingId: string,
+    sponsorId: string,
+    eventId: string,
+    attendeeId: string,
+    date: string,
+    time: string,
+  ) {
+    try {
+      const [event, attendee] = await Promise.all([
+        storage.getEvent(eventId),
+        storage.getAttendee(attendeeId),
+      ]);
+      if (!event || !attendee) return;
+      await storage.createNotification({
+        sponsorId,
+        eventId,
+        meetingId,
+        type,
+        attendeeName:    attendee.name,
+        attendeeCompany: attendee.company,
+        eventName:       event.name,
+        date,
+        time,
+        isRead: false,
+      });
+    } catch (_) {}
+  }
+
   app.post("/api/meetings", async (req, res) => {
     const attendeeResult = await resolveAttendeeId(req.body, req.body.eventId);
     if ("error" in attendeeResult) return res.status(400).json({ message: attendeeResult.error });
@@ -341,7 +373,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
     }
 
-    res.status(201).json(await storage.createMeeting(parsed.data));
+    const meeting = await storage.createMeeting(parsed.data);
+
+    // Fire notification
+    const notifType: SponsorNotificationType =
+      meeting.meetingType === "online_request" ? "online_request_submitted" : "onsite_booked";
+    fireNotification(notifType, meeting.id, meeting.sponsorId, meeting.eventId, meeting.attendeeId, meeting.date, meeting.time);
+
+    res.status(201).json(meeting);
   });
 
   app.patch("/api/meetings/:id", async (req, res) => {
@@ -373,6 +412,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
 
     const meeting = await storage.updateMeeting(req.params.id, body);
+    if (!meeting) return res.status(404).json({ message: "Meeting not found" });
+
+    // Fire status-change notifications
+    const oldStatus = existing.status as string;
+    const newStatus = (meeting.status ?? "") as string;
+    if (oldStatus !== newStatus) {
+      let notifType: SponsorNotificationType | null = null;
+      if (newStatus === "Cancelled") notifType = "meeting_cancelled";
+      else if (newStatus === "Confirmed" && existing.meetingType === "online_request") notifType = "request_confirmed";
+      else if ((newStatus === "Cancelled" || newStatus === "NoShow") && existing.meetingType === "online_request" && oldStatus === "Pending") notifType = "request_declined";
+      if (notifType) {
+        fireNotification(notifType, meeting.id, meeting.sponsorId, meeting.eventId, meeting.attendeeId, meeting.date, meeting.time);
+      }
+    }
+
     res.json(meeting);
   });
 
@@ -438,12 +492,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ── Sponsor Dashboard (public, token-validated) ───────────────────────────
 
-  app.get("/api/sponsor-access/:token", async (req, res) => {
-    const tokenRecord = await storage.getSponsorToken(req.params.token);
+  // Helper to validate a sponsor access token
+  async function validateSponsorToken(token: string): Promise<
+    { ok: false; status: number; message: string } | { ok: true; tokenRecord: NonNullable<Awaited<ReturnType<typeof storage.getSponsorToken>>> }
+  > {
+    const tokenRecord = await storage.getSponsorToken(token);
+    if (!tokenRecord) return { ok: false, status: 401, message: "Invalid access token" };
+    if (!tokenRecord.isActive) return { ok: false, status: 403, message: "Access token has been revoked" };
+    if (new Date(tokenRecord.expiresAt) < new Date()) return { ok: false, status: 403, message: "Access token has expired" };
+    return { ok: true, tokenRecord };
+  }
 
-    if (!tokenRecord) return res.status(401).json({ message: "Invalid access token" });
-    if (!tokenRecord.isActive) return res.status(403).json({ message: "Access token has been revoked" });
-    if (new Date(tokenRecord.expiresAt) < new Date()) return res.status(403).json({ message: "Access token has expired" });
+  app.get("/api/sponsor-access/:token", async (req, res) => {
+    const validation = await validateSponsorToken(req.params.token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
 
     const sponsor = await storage.getSponsor(tokenRecord.sponsorId);
     const event = await storage.getEvent(tokenRecord.eventId);
@@ -463,34 +526,73 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           time: m.time,
           location: m.location,
           status: m.status,
+          meetingType: m.meetingType ?? "onsite",
+          platform: m.platform ?? null,
+          preferredTimezone: m.preferredTimezone ?? null,
           attendee: attendee
-            ? { name: attendee.name, company: attendee.company, title: attendee.title, email: attendee.email, linkedinUrl: attendee.linkedinUrl }
-            : { name: "Unknown", company: "—", title: "—", email: "—" },
+            ? { name: attendee.name, company: attendee.company, title: attendee.title, email: attendee.email, linkedinUrl: attendee.linkedinUrl ?? null }
+            : { name: "Unknown", company: "—", title: "—", email: "—", linkedinUrl: null },
         };
       })
     );
 
     const uniqueCompanies = new Set(meetingsWithAttendees.map((m) => m.attendee.company).filter((c) => c !== "—"));
+    const notifications = await storage.getNotificationsForSponsorEvent(tokenRecord.sponsorId, tokenRecord.eventId);
 
     res.json({
-      sponsor: { id: sponsor.id, name: sponsor.name, level: sponsor.level, logoUrl: sponsor.logoUrl ?? "" },
+      sponsor: {
+        id: sponsor.id, name: sponsor.name, level: sponsor.level, logoUrl: sponsor.logoUrl ?? "",
+        shortDescription: sponsor.shortDescription ?? null,
+        websiteUrl: sponsor.websiteUrl ?? null,
+        linkedinUrl: sponsor.linkedinUrl ?? null,
+        solutionsSummary: sponsor.solutionsSummary ?? null,
+      },
       event: {
-        id: event.id,
-        name: event.name,
-        slug: event.slug,
-        location: event.location,
-        startDate: event.startDate,
-        endDate: event.endDate,
+        id: event.id, name: event.name, slug: event.slug, location: event.location,
+        startDate: event.startDate, endDate: event.endDate,
       },
       stats: {
-        total: sponsorMeetings.length,
-        scheduled: sponsorMeetings.filter((m) => m.status === "Scheduled").length,
-        completed: sponsorMeetings.filter((m) => m.status === "Completed").length,
-        cancelled: sponsorMeetings.filter((m) => m.status === "Cancelled" || m.status === "NoShow").length,
-        companies: uniqueCompanies.size,
+        total:         sponsorMeetings.length,
+        scheduled:     sponsorMeetings.filter((m) => m.status === "Scheduled").length,
+        completed:     sponsorMeetings.filter((m) => m.status === "Completed").length,
+        cancelled:     sponsorMeetings.filter((m) => m.status === "Cancelled" || m.status === "NoShow").length,
+        pendingOnline: sponsorMeetings.filter((m) => m.status === "Pending").length,
+        companies:     uniqueCompanies.size,
       },
       meetings: meetingsWithAttendees,
+      notifications: notifications.map((n) => ({
+        id: n.id, type: n.type, attendeeName: n.attendeeName, attendeeCompany: n.attendeeCompany,
+        eventName: n.eventName, date: n.date, time: n.time, isRead: n.isRead,
+        createdAt: n.createdAt.toISOString(),
+      })),
     });
+  });
+
+  // ── Sponsor Notifications (token-gated) ───────────────────────────────────
+
+  app.patch("/api/sponsor-notifications/read-all", async (req, res) => {
+    const token = (req.query.token as string) || req.body.token;
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+    await storage.markAllNotificationsRead(tokenRecord.sponsorId, tokenRecord.eventId);
+    res.json({ ok: true });
+  });
+
+  app.patch("/api/sponsor-notifications/:id/read", async (req, res) => {
+    const token = (req.query.token as string) || req.body.token;
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    await storage.markNotificationRead(req.params.id);
+    res.json({ ok: true });
+  });
+
+  // ── Public sponsor profile (no auth required) ─────────────────────────────
+
+  app.get("/api/sponsors/:id", async (req, res) => {
+    const sponsor = await storage.getSponsor(req.params.id);
+    if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+    res.json(sponsor);
   });
 
   return httpServer;

@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Event, Sponsor, Meeting } from "@shared/schema";
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
-  AlertCircle, ChevronLeft, Clock, User, Video,
+  AlertCircle, ChevronLeft, Clock, User, Video, Download, ExternalLink,
 } from "lucide-react";
 import { ONLINE_PLATFORMS } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Link } from "wouter";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
+import { downloadICS, googleCalendarUrl } from "@/lib/ics";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -222,6 +223,7 @@ export default function EventPage() {
   // ── Online meeting state ──────────────────────────────────────────────────
   const [meetingMode, setMeetingMode] = useState<"onsite" | "online">("onsite");
   const [onlineForm, setOnlineForm] = useState<OnlineForm>({ date: "", time: "", timezone: "Central (CT)", platform: "" });
+  const [createdMeetingId, setCreatedMeetingId] = useState<string | null>(null);
 
   const event = events.find((e) => e.slug === slug);
   const eventSponsors = event
@@ -303,6 +305,7 @@ export default function EventPage() {
       const body = await res.json();
       if (!res.ok) { setError(body.message || "Something went wrong. Please try again."); return; }
       await queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
+      setCreatedMeetingId(body.id ?? null);
       go(4);
     } catch {
       setError("Network error. Please check your connection and try again.");
@@ -340,6 +343,7 @@ export default function EventPage() {
       if (res.status === 409) { setError(body.message || "This time slot is already booked."); return; }
       if (!res.ok) { setError(body.message || "Something went wrong. Please try again."); return; }
       await queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
+      setCreatedMeetingId(body.id ?? null);
       go(4);
     } catch {
       setError("Network error. Please check your connection and try again.");
@@ -457,6 +461,50 @@ export default function EventPage() {
               </>
             )}
 
+            {!isOnlineSuccess && createdMeetingId && event && selectedSponsor && (
+              <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2 text-xs"
+                  onClick={() => downloadICS({
+                    meetingId:    createdMeetingId,
+                    sponsorName:  selectedSponsor.name,
+                    attendeeName: attendee.name,
+                    eventName:    event.name,
+                    eventSlug:    event.slug,
+                    date:         selectedDate,
+                    time:         selectedTime,
+                    location:     selectedLoc || "TBD",
+                    meetingType:  "onsite",
+                  })}
+                  data-testid="button-download-ics"
+                >
+                  <Download className="h-3.5 w-3.5" /> Download .ics
+                </Button>
+                <a
+                  href={googleCalendarUrl({
+                    meetingId:    createdMeetingId,
+                    sponsorName:  selectedSponsor.name,
+                    attendeeName: attendee.name,
+                    eventName:    event.name,
+                    eventSlug:    event.slug,
+                    date:         selectedDate,
+                    time:         selectedTime,
+                    location:     selectedLoc || "TBD",
+                    meetingType:  "onsite",
+                  })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1"
+                  data-testid="link-add-google-calendar"
+                >
+                  <Button variant="outline" size="sm" className="w-full gap-2 text-xs">
+                    <ExternalLink className="h-3.5 w-3.5" /> Add to Google Calendar
+                  </Button>
+                </a>
+              </div>
+            )}
             <Button onClick={() => nav("/")} className="w-full" data-testid="button-success-home">
               Back to Events
             </Button>
@@ -544,7 +592,17 @@ export default function EventPage() {
                     <h3 className="text-lg font-display font-bold text-foreground leading-tight">
                       {sponsor.name}
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-1">30-minute 1-on-1 session available</p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <p className="text-xs text-muted-foreground">30-minute 1-on-1 session available</p>
+                      <Link
+                        href={`/event/${event.slug}/sponsor/${sponsor.id}`}
+                        className="text-xs text-accent underline underline-offset-2 hover:opacity-80 transition-opacity flex items-center gap-1"
+                        data-testid={`link-sponsor-profile-${sponsor.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="h-3 w-3" /> View Profile
+                      </Link>
+                    </div>
                   </div>
 
                   {/* CTA buttons pinned to bottom */}

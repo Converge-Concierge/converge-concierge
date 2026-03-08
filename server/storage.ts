@@ -5,6 +5,7 @@ import {
   type Attendee, type InsertAttendee,
   type Meeting, type InsertMeeting,
   type SponsorToken,
+  type SponsorNotification, type SponsorNotificationType,
 } from "@shared/schema";
 import { randomUUID, randomBytes } from "crypto";
 
@@ -60,6 +61,12 @@ export interface IStorage {
   createSponsorToken(sponsorId: string, eventId: string): Promise<SponsorToken>;
   revokeSponsorToken(token: string): Promise<SponsorToken | undefined>;
   deleteSponsorToken(token: string): Promise<void>;
+
+  // Sponsor notifications
+  createNotification(n: Omit<SponsorNotification, "id" | "createdAt">): Promise<SponsorNotification>;
+  getNotificationsForSponsorEvent(sponsorId: string, eventId: string): Promise<SponsorNotification[]>;
+  markNotificationRead(id: string): Promise<void>;
+  markAllNotificationsRead(sponsorId: string, eventId: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -69,6 +76,7 @@ export class MemStorage implements IStorage {
   private attendees: Map<string, Attendee>;
   private meetings: Map<string, Meeting>;
   private sponsorTokens: Map<string, SponsorToken>;
+  private notifications: Map<string, SponsorNotification>;
 
   constructor() {
     this.users = new Map();
@@ -77,6 +85,7 @@ export class MemStorage implements IStorage {
     this.attendees = new Map();
     this.meetings = new Map();
     this.sponsorTokens = new Map();
+    this.notifications = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -399,6 +408,33 @@ export class MemStorage implements IStorage {
 
   async deleteSponsorToken(token: string): Promise<void> {
     this.sponsorTokens.delete(token);
+  }
+
+  // Sponsor notifications
+  async createNotification(n: Omit<SponsorNotification, "id" | "createdAt">): Promise<SponsorNotification> {
+    const id = randomUUID();
+    const notif: SponsorNotification = { ...n, id, createdAt: new Date() };
+    this.notifications.set(id, notif);
+    return notif;
+  }
+
+  async getNotificationsForSponsorEvent(sponsorId: string, eventId: string): Promise<SponsorNotification[]> {
+    return Array.from(this.notifications.values())
+      .filter((n) => n.sponsorId === sponsorId && n.eventId === eventId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async markNotificationRead(id: string): Promise<void> {
+    const n = this.notifications.get(id);
+    if (n) this.notifications.set(id, { ...n, isRead: true });
+  }
+
+  async markAllNotificationsRead(sponsorId: string, eventId: string): Promise<void> {
+    for (const [id, n] of Array.from(this.notifications.entries())) {
+      if (n.sponsorId === sponsorId && n.eventId === eventId && !n.isRead) {
+        this.notifications.set(id, { ...n, isRead: true });
+      }
+    }
   }
 }
 

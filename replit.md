@@ -30,7 +30,7 @@ Preferred communication style: Simple, everyday language.
 
 Key frontend directories:
 - `client/src/pages/` — LandingPage, LoginPage, `admin/`, `public/`
-- `client/src/pages/public/` — EventPage.tsx (full 5-step booking wizard)
+- `client/src/pages/public/` — EventPage.tsx (full 5-step booking wizard), SponsorProfilePage.tsx, SponsorDashboardPage.tsx
 - `client/src/components/admin/` — admin tables, form modals, editors
 - `client/src/components/ui/` — shadcn/ui library (do not redesign)
 - `client/src/components/layout/` — AppSidebar
@@ -159,6 +159,29 @@ All at `/event/:slug` — single-page multi-step wizard:
 ### Cache invalidation
 - After public booking success: `queryClient.invalidateQueries({ queryKey: ["/api/meetings"] })`
 - This immediately disables the booked time slot in the UI
+
+### Sponsor Notifications (added)
+- `SponsorNotification` type in `shared/schema.ts`; `notifications` Map in `MemStorage`
+- Auto-created on meeting create (`onsite_booked`, `online_request_submitted`) and status change (`meeting_cancelled`, `request_confirmed`, `request_declined`)
+- Scoped to `sponsorId + eventId`; returned in `/api/sponsor-access/:token` response
+- Mark-read endpoints: `PATCH /api/sponsor-notifications/:id/read?token=`, `PATCH /api/sponsor-notifications/read-all?token=`
+
+### ICS / Calendar Integration (added)
+- `client/src/lib/ics.ts` — `generateICS()`, `downloadICS()`, `googleCalendarUrl()`
+- Triggered from EventPage success screen (onsite only) and SponsorDashboardPage per meeting row
+
+### Sponsor Profile Pages (added)
+- Route: `/event/:slug/sponsor/:sponsorId` → `SponsorProfilePage.tsx`
+- Shows logo, name, level badge, shortDescription, websiteUrl, linkedinUrl, solutionsSummary
+- "View Profile" link added to each sponsor card on EventPage
+- Profile fields editable in admin `SponsorFormModal` (collapsible section)
+
+### Sponsor Dashboard Enhancements (added)
+- Notifications panel (collapsible, mark read / mark all read)
+- Enhanced meetings table with meetingType badge + ICS/GCal buttons per row
+- Lead Contacts section (unique attendees with email, LinkedIn, meeting count)
+- Export Leads CSV button
+- KPI cards: Total / Completed / Pending Online / Companies Met
 
 ---
 

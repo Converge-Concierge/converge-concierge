@@ -84,12 +84,20 @@ export const sponsors = pgTable("sponsors", {
   archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
   archiveSource: text("archive_source", { enum: ["manual", "event"] }),
   allowOnlineMeetings: boolean("allow_online_meetings").notNull().default(false),
+  shortDescription: text("short_description"),
+  websiteUrl: text("website_url"),
+  linkedinUrl: text("linkedin_url"),
+  solutionsSummary: text("solutions_summary"),
 });
 
 export const insertSponsorSchema = createInsertSchema(sponsors).extend({
   assignedEvents: z.array(eventSponsorLinkSchema).default([]),
   archiveSource: z.enum(["manual", "event"]).nullable().optional(),
   allowOnlineMeetings: z.boolean().default(false).optional(),
+  shortDescription: z.string().nullable().optional(),
+  websiteUrl: z.string().nullable().optional(),
+  linkedinUrl: z.string().nullable().optional(),
+  solutionsSummary: z.string().nullable().optional(),
 });
 export type Sponsor = typeof sponsors.$inferSelect;
 export type InsertSponsor = z.infer<typeof insertSponsorSchema>;
@@ -121,6 +129,34 @@ export const manualAttendeeSchema = z.object({
   email: z.string().email(),
   linkedinUrl: z.string().url().optional().or(z.literal("")),
 });
+
+// --- Sponsor Notifications ---
+export const SPONSOR_NOTIFICATION_TYPES = [
+  "onsite_booked",
+  "online_request_submitted",
+  "meeting_cancelled",
+  "request_confirmed",
+  "request_declined",
+] as const;
+
+export type SponsorNotificationType = typeof SPONSOR_NOTIFICATION_TYPES[number];
+
+export const sponsorNotificationSchema = z.object({
+  id: z.string(),
+  sponsorId: z.string(),
+  eventId: z.string(),
+  meetingId: z.string(),
+  type: z.enum(SPONSOR_NOTIFICATION_TYPES),
+  attendeeName: z.string(),
+  attendeeCompany: z.string(),
+  eventName: z.string(),
+  date: z.string(),
+  time: z.string(),
+  isRead: z.boolean().default(false),
+  createdAt: z.date(),
+});
+
+export type SponsorNotification = z.infer<typeof sponsorNotificationSchema>;
 
 // --- Sponsor Access Token ---
 export const sponsorTokenSchema = z.object({

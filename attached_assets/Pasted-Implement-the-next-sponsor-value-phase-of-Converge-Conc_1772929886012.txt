@@ -1,0 +1,197 @@
+Implement the next sponsor-value phase of Converge Concierge.
+
+Important rules:
+- Do not redesign the landing page
+- Do not redesign the admin shell or sidebar
+- Do not break existing onsite scheduling
+- Do not break existing online meeting requests
+- Do not change login flow
+- Preserve all current working functionality
+- Make additive changes only
+
+Current goal:
+Add 3 major sponsor-value features:
+1. Sponsor notifications
+2. Calendar integration
+3. Sponsor profile pages
+
+==================================================
+1. SPONSOR NOTIFICATIONS
+==================================================
+
+Add sponsor-facing notifications for meeting activity.
+
+Trigger notifications for:
+- new onsite meeting booked
+- new online meeting request submitted
+- meeting cancelled
+- online meeting request confirmed
+- online meeting request declined
+
+At minimum, notifications must be visible inside the sponsor access dashboard.
+If email sending is already available in the project, also prepare email notification hooks, but do not block this feature if email delivery is not yet configured.
+
+Add a notifications area to sponsor access pages showing:
+- notification type
+- attendee name
+- company
+- event
+- date/time
+- read/unread state
+- timestamp
+
+Suggested notification types:
+- onsite_booked
+- online_request_submitted
+- meeting_cancelled
+- request_confirmed
+- request_declined
+
+Do not expose one sponsor’s notifications to another sponsor.
+
+==================================================
+2. CALENDAR INTEGRATION
+==================================================
+
+For confirmed meetings, add calendar support.
+
+Applies to:
+- onsite meetings with confirmed/scheduled status
+- online meetings when status becomes Confirmed
+
+Add options:
+- Download ICS
+- Add to Google Calendar (if easy to generate)
+- Add to Outlook (if easy to generate)
+
+At minimum, implement ICS generation.
+
+ICS should include:
+- meeting title
+- sponsor name
+- attendee name
+- date
+- start time
+- end time (default 30 minutes)
+- location for onsite meetings
+- platform / online meeting note for online meetings
+- event code and event name in description
+
+Where to show calendar actions:
+- public confirmation page for onsite meetings
+- public confirmation page for online meeting requests after confirmation if available
+- sponsor dashboard meeting detail if confirmed
+- admin meeting detail if confirmed
+
+Do not break existing confirmation screens.
+
+==================================================
+3. SPONSOR PROFILE PAGES
+==================================================
+
+Create public sponsor profile pages linked from sponsor cards.
+
+When an attendee clicks a sponsor card or “Learn More” action, show a sponsor profile page before booking.
+
+Route example:
+- /event/:eventCode/sponsor/:sponsorId
+
+Sponsor profile should display:
+- sponsor logo
+- sponsor name
+- sponsorship level
+- short description
+- website (optional)
+- LinkedIn URL (optional)
+- product / solution summary (optional)
+- event they are assigned to
+- buttons:
+  - Schedule Onsite Meeting
+  - Request Online Meeting (only if sponsor allows online meetings)
+
+Add these editable sponsor fields in admin:
+- shortDescription
+- websiteUrl
+- linkedinUrl
+- solutionsSummary
+
+Do not require all new fields.
+Keep them optional.
+
+If a sponsor does not have extra profile content, the page should still render cleanly using name, logo, level, and booking actions.
+
+==================================================
+4. SPONSOR ACCESS DASHBOARD ENHANCEMENTS
+==================================================
+
+Use the existing sponsor access link architecture already in the app.
+
+Enhance the sponsor dashboard to include:
+- KPI cards:
+  - Total Meetings
+  - Completed Meetings
+  - Pending Online Requests
+  - Unique Companies
+- Notifications section
+- My Meetings table
+- My Leads table
+- Export Leads CSV
+- Calendar action for confirmed meetings
+
+Sponsors must only see their own data for the linked event.
+
+Do not replace the tokenized sponsor access model.
+Keep using secure sponsor access links.
+
+==================================================
+5. ADMIN ENHANCEMENTS
+==================================================
+
+In Admin -> Sponsors:
+- preserve current Access Links modal
+- do not redesign it
+- keep Copy / Regenerate / Revoke actions
+
+In Admin -> Sponsor form:
+add optional fields:
+- Short Description
+- Website URL
+- LinkedIn URL
+- Solutions Summary
+
+In Admin -> Meetings:
+- preserve current meeting tables and filters
+- if helpful, add indicators showing whether a meeting has sponsor notification sent / read status
+- add ICS action for confirmed meetings if practical
+
+==================================================
+6. UI REQUIREMENTS
+==================================================
+
+- Keep the current visual style
+- Do not redesign the overall experience
+- Add these features cleanly into the existing patterns
+- Preserve current button/card-based public booking UX
+- Sponsor profile page should feel premium but consistent with the current event page style
+
+==================================================
+7. DATA / SECURITY REQUIREMENTS
+==================================================
+
+- Sponsor notifications must be scoped to sponsor + event
+- Sponsor dashboard must remain private via existing access tokens
+- Sponsor profile pages can be public, but sponsor dashboards must remain private
+- Do not leak other sponsors’ meetings or leads
+- Calendar export must include only the relevant meeting info
+
+==================================================
+8. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- sponsor profile page exists and is reachable from public sponsor cards
+- sponsor profile can show description / website / LinkedIn / solutions if present
+- confirmed meetings can generate ICS download
+- sponsor dashboard shows notifications and lead data
+- sponsors can export their leads
+- current scheduling flow still works

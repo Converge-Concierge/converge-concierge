@@ -6,6 +6,8 @@ import {
   type Meeting, type InsertMeeting,
   type SponsorToken,
   type SponsorNotification, type SponsorNotificationType,
+  type AppSettings, type AppBranding,
+  DEFAULT_SETTINGS, DEFAULT_BRANDING,
 } from "@shared/schema";
 import { randomUUID, randomBytes } from "crypto";
 
@@ -67,6 +69,14 @@ export interface IStorage {
   getNotificationsForSponsorEvent(sponsorId: string, eventId: string): Promise<SponsorNotification[]>;
   markNotificationRead(id: string): Promise<void>;
   markAllNotificationsRead(sponsorId: string, eventId: string): Promise<void>;
+
+  // App settings (single global record)
+  getSettings(): Promise<AppSettings>;
+  updateSettings(updates: Partial<AppSettings>): Promise<AppSettings>;
+
+  // App branding (single global record)
+  getBranding(): Promise<AppBranding>;
+  updateBranding(updates: Partial<AppBranding>): Promise<AppBranding>;
 }
 
 export class MemStorage implements IStorage {
@@ -77,6 +87,8 @@ export class MemStorage implements IStorage {
   private meetings: Map<string, Meeting>;
   private sponsorTokens: Map<string, SponsorToken>;
   private notifications: Map<string, SponsorNotification>;
+  private appSettings: AppSettings;
+  private appBranding: AppBranding;
 
   constructor() {
     this.users = new Map();
@@ -86,6 +98,8 @@ export class MemStorage implements IStorage {
     this.meetings = new Map();
     this.sponsorTokens = new Map();
     this.notifications = new Map();
+    this.appSettings = { ...DEFAULT_SETTINGS };
+    this.appBranding = { ...DEFAULT_BRANDING };
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -435,6 +449,26 @@ export class MemStorage implements IStorage {
         this.notifications.set(id, { ...n, isRead: true });
       }
     }
+  }
+
+  // App settings
+  async getSettings(): Promise<AppSettings> {
+    return { ...this.appSettings };
+  }
+
+  async updateSettings(updates: Partial<AppSettings>): Promise<AppSettings> {
+    this.appSettings = { ...this.appSettings, ...updates };
+    return { ...this.appSettings };
+  }
+
+  // App branding
+  async getBranding(): Promise<AppBranding> {
+    return { ...this.appBranding };
+  }
+
+  async updateBranding(updates: Partial<AppBranding>): Promise<AppBranding> {
+    this.appBranding = { ...this.appBranding, ...updates };
+    return { ...this.appBranding };
   }
 }
 

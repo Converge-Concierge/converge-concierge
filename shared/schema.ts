@@ -202,3 +202,49 @@ export const insertMeetingSchema = createInsertSchema(meetings).extend({
 });
 export type Meeting = typeof meetings.$inferSelect;
 export type InsertMeeting = z.infer<typeof insertMeetingSchema>;
+
+// ── Global App Settings (single record, no DB table) ─────────────────────────
+
+export interface AppSettings {
+  defaultTimezone: string;
+  defaultMeetingDuration: number;
+  onlineWindowStart: string;
+  onlineWindowEnd: string;
+  allowManagersToArchive: boolean;
+  allowManagersToEditBranding: boolean;
+  allowManagersToEditSettings: boolean;
+}
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  defaultTimezone: "America/New_York",
+  defaultMeetingDuration: 30,
+  onlineWindowStart: "09:00",
+  onlineWindowEnd: "17:00",
+  allowManagersToArchive: false,
+  allowManagersToEditBranding: false,
+  allowManagersToEditSettings: false,
+};
+
+// ── Global App Branding (single record, no DB table) ─────────────────────────
+
+export interface AppBranding {
+  appName: string;
+  appLogoUrl: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  confirmationLogoUrl: string;
+  sponsorDashboardLogoUrl: string;
+  publicEventLogoUrl: string;
+}
+
+export const DEFAULT_BRANDING: AppBranding = {
+  appName: "Converge Concierge",
+  appLogoUrl: "",
+  primaryColor: "#0D1E3A",
+  secondaryColor: "#F8FAFC",
+  accentColor: "#0D9488",
+  confirmationLogoUrl: "",
+  sponsorDashboardLogoUrl: "",
+  publicEventLogoUrl: "",
+};

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Plus, Search, Edit, Trash2, UserCog, ShieldCheck, User as UserIcon } from "lucide-react";
+import { Plus, Search, Edit, Trash2, UserCog, ShieldCheck, User as UserIcon, ChevronDown, ChevronUp, ShieldAlert, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,89 @@ interface UserFormState {
 const BLANK_FORM: UserFormState = { name: "", email: "", password: "", role: "manager", isActive: true };
 
 const selectClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+const ROLE_DEFS = [
+  {
+    role: "admin",
+    icon: ShieldAlert,
+    color: "text-red-600",
+    bg: "bg-red-50 border-red-200",
+    badge: "bg-red-100 text-red-800",
+    label: "Administrator",
+    summary: "Full platform access. Can manage all resources and users.",
+    permissions: [
+      "Create, edit, and delete events, sponsors, attendees, and meetings",
+      "Manage and create internal user accounts",
+      "Archive and restore any records",
+      "Access all reports and export data",
+      "Edit system settings and access control flags",
+      "Edit global branding",
+      "View and manage sponsor portal tokens",
+    ],
+  },
+  {
+    role: "manager",
+    icon: ShieldCheck,
+    color: "text-blue-600",
+    bg: "bg-blue-50 border-blue-200",
+    badge: "bg-blue-100 text-blue-800",
+    label: "Manager",
+    summary: "Operational access. Can manage event operations but cannot change user accounts or access control settings.",
+    permissions: [
+      "Create and edit events, sponsors, attendees, and meetings",
+      "View all reports",
+      "Archive records (if allowed by admin in Settings)",
+      "Edit branding (if allowed by admin in Settings)",
+      "Edit system preferences (if allowed by admin in Settings)",
+      "Cannot manage internal user accounts",
+      "Cannot change access control flags",
+    ],
+  },
+];
+
+function RoleDefinitionsPanel() {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/30 transition-colors"
+        onClick={() => setExpanded((v) => !v)}
+        data-testid="btn-toggle-role-definitions"
+      >
+        <div className="flex items-center gap-2.5">
+          <Key className="h-4 w-4 text-accent" />
+          <span className="text-sm font-semibold text-foreground">Role Definitions</span>
+          <span className="text-xs text-muted-foreground ml-1">— what each role can do</span>
+        </div>
+        {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+      </button>
+
+      {expanded && (
+        <div className="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border/40">
+          {ROLE_DEFS.map((def) => (
+            <div key={def.role} className={cn("rounded-xl border p-4 space-y-3 mt-4", def.bg)}>
+              <div className="flex items-center gap-2">
+                <def.icon className={cn("h-5 w-5", def.color)} />
+                <span className={cn("text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full", def.badge)}>{def.label}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{def.summary}</p>
+              <ul className="space-y-1.5">
+                {def.permissions.map((p) => (
+                  <li key={p} className="flex items-start gap-1.5 text-xs text-foreground">
+                    <span className={cn("mt-0.5 shrink-0", def.color)}>•</span>
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -145,6 +228,9 @@ export default function UsersPage() {
           <Plus className="mr-2 h-4 w-4" /> Add User
         </Button>
       </div>
+
+      {/* Role Definitions Panel */}
+      <RoleDefinitionsPanel />
 
       <div className="flex items-center gap-4 bg-card p-4 rounded-xl shadow-sm border border-border/50">
         <div className="relative w-full flex-1">

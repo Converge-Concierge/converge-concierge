@@ -1,7 +1,6 @@
 import { Route, Switch, useLocation, Redirect } from "wouter";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
-import { DashboardShell } from "./DashboardShell";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bell, ShieldX } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -12,6 +11,8 @@ import AttendeesPage from "./AttendeesPage";
 import MeetingsPage from "./MeetingsPage";
 import ReportsPage from "./ReportsPage";
 import UsersPage from "./UsersPage";
+import SettingsPage from "./SettingsPage";
+import BrandingPage from "./BrandingPage";
 
 function AccessDenied() {
   return (
@@ -96,8 +97,8 @@ export default function AdminLayout() {
               <Route path="/admin/meetings" component={MeetingsPage} />
               <Route path="/admin/reports" component={ReportsPage} />
               <Route path="/admin/users" component={() => isAdmin ? <UsersPage /> : <AccessDenied />} />
-              <Route path="/admin/branding" component={() => <DashboardShell title="Branding" description="Customize event themes, logos, and visual assets." />} />
-              <Route path="/admin/settings" component={() => <DashboardShell title="Settings" description="Configure system preferences and administrative access." />} />
+              <Route path="/admin/branding" component={BrandingPage} />
+              <Route path="/admin/settings" component={SettingsPage} />
             </Switch>
           </main>
         </div>

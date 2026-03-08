@@ -1,0 +1,185 @@
+Fix the inactive admin modules and tighten role management.
+
+Important rules:
+- Do not redesign the landing page
+- Do not redesign the admin shell or sidebar
+- Do not break public scheduling
+- Do not break sponsor dashboards, reports, or access links
+- Preserve all current working functionality
+- Make additive/fix-only changes where possible
+
+Current problems to fix:
+1. In Admin -> Settings, buttons do not work
+2. In Admin -> Branding, buttons do not work
+3. In Admin -> Users, role handling needs to be clarified and improved
+
+==================================================
+1. SETTINGS MODULE
+==================================================
+
+The Settings page is currently a shell and its buttons do not work.
+
+Implement a real Settings module.
+
+Create working settings sections for:
+- System Preferences
+- Access Control
+- Notification Preferences
+- Default Scheduling Preferences
+
+Minimum Settings fields:
+- Default Time Zone
+- Default Meeting Duration (minutes)
+- Default Online Meeting Window Start
+- Default Online Meeting Window End
+- Allow Managers to Archive Records (true/false)
+- Allow Managers to Edit Branding (true/false)
+- Allow Managers to Edit Settings (true/false)
+
+Behavior:
+- Add/Edit buttons must open working forms or modals
+- Save actions must persist settings
+- Existing search/filter UI can remain simple if not fully used
+- Do not leave dead buttons in the module
+
+Permissions:
+- Admin can edit all settings
+- Manager can only view settings unless explicitly allowed by the relevant setting toggle
+
+==================================================
+2. BRANDING MODULE
+==================================================
+
+The Branding page is currently a shell and its buttons do not work.
+
+Implement a real Branding module.
+
+Create working branding controls for:
+- Global App Logo
+- Global App Name
+- Primary Color
+- Secondary Color
+- Accent Color
+- Confirmation Screen Logo / Branding
+- Sponsor Dashboard Branding Header
+- Public Event Page Branding
+
+If event-level branding already exists, preserve it and do not break it.
+
+Behavior:
+- Add/Edit buttons must open working forms or modals
+- Save actions must persist branding settings
+- File upload or URL input should be supported for logos where practical
+- Show a preview when possible
+
+Permissions:
+- Admin can edit branding
+- Manager can only edit branding if the relevant setting allows it
+- Otherwise Manager can view branding only
+
+==================================================
+3. USERS MODULE — ROLE DEFINITIONS
+==================================================
+
+Do NOT make roles fully custom/arbitrary in V1.
+
+Implement fixed, system-defined roles only:
+- Admin
+- Manager
+- Sponsor
+
+Each role should have a clear definition in the Users module.
+
+Add a "Role Definitions" panel or help text explaining:
+
+Admin:
+- full platform access
+- can manage users
+- can reactivate archived records
+- can delete events/sponsors where allowed
+- can edit settings and branding
+
+Manager:
+- can manage events, sponsors, attendees, meetings, and reports
+- cannot create/edit/delete users
+- cannot reactivate archived records
+- cannot delete events/sponsors if delete is admin-only
+- can edit settings/branding only if explicitly allowed by settings
+
+Sponsor:
+- cannot access admin
+- can only access their sponsor dashboard via sponsor access links or sponsor access system
+- can only see their own event-specific data
+
+In Users:
+- keep role selection as a controlled dropdown using only the 3 fixed roles
+- do not allow arbitrary custom role creation
+- do not add a “create custom role” feature
+
+==================================================
+4. USERS MODULE — FUNCTIONALITY FIXES
+==================================================
+
+Make sure Users module fully supports:
+- create user
+- edit user
+- activate/deactivate user
+- assign fixed role
+- prevent invalid permissions
+
+Behavior:
+- Add/Edit buttons must work
+- Saving a user must persist changes
+- If password is blank during edit, keep existing password
+- Status toggle must work
+
+Permissions:
+- Only Admin can manage users
+- Managers must not access Users routes or actions
+- If a Manager somehow reaches the route, show Access Denied
+
+==================================================
+5. REMOVE DEAD BUTTONS / DEAD STATES
+==================================================
+
+For both Settings and Branding:
+- Do not leave “Add New”, “Create Setting”, or “Create Branding” buttons that do nothing
+- Either wire them to real functionality or remove/replace them with the correct primary actions
+
+For empty states:
+- If there is one global settings record, show “Edit Settings” instead of “Create Setting” after initial creation
+- If there is one global branding record, show “Edit Branding” instead of “Create Branding” after initial creation
+
+==================================================
+6. DATA MODEL / STORAGE
+==================================================
+
+Use a single persisted global settings record for system settings.
+Use a single persisted global branding record for global branding.
+If event-specific branding exists, keep it separate from global branding.
+
+Do not create duplicate settings records unless truly necessary.
+
+==================================================
+7. UI REQUIREMENTS
+==================================================
+
+- Keep the current visual style
+- Preserve existing admin page layout
+- Implement working forms/modals/drawers within the current pattern
+- Avoid redesigning table/card structure unless needed for functionality
+- Keep the experience consistent with Events/Sponsors/Meetings modules
+
+==================================================
+8. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Settings buttons work
+- Branding buttons work
+- Settings save and reload correctly
+- Branding saves and reloads correctly
+- Users can only be assigned Admin / Manager / Sponsor
+- Role definitions are clearly visible
+- Only Admin can manage users
+- No dead shell buttons remain in Settings or Branding

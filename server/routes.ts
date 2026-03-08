@@ -597,6 +597,44 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ ok: true });
   });
 
+  // ── App Settings ──────────────────────────────────────────────────────────
+
+  app.get("/api/settings", requireAuth, async (_req, res) => {
+    res.json(await storage.getSettings());
+  });
+
+  app.put("/api/settings", requireAuth, async (req, res) => {
+    const settings = await storage.getSettings();
+    if (req.session.role !== "admin") {
+      if (!settings.allowManagersToEditSettings) {
+        return res.status(403).json({ message: "Managers are not allowed to edit settings" });
+      }
+      // Managers cannot change the access control flags
+      delete req.body.allowManagersToArchive;
+      delete req.body.allowManagersToEditBranding;
+      delete req.body.allowManagersToEditSettings;
+    }
+    const updated = await storage.updateSettings(req.body);
+    res.json(updated);
+  });
+
+  // ── App Branding ──────────────────────────────────────────────────────────
+
+  app.get("/api/branding", requireAuth, async (_req, res) => {
+    res.json(await storage.getBranding());
+  });
+
+  app.put("/api/branding", requireAuth, async (req, res) => {
+    if (req.session.role !== "admin") {
+      const settings = await storage.getSettings();
+      if (!settings.allowManagersToEditBranding) {
+        return res.status(403).json({ message: "Managers are not allowed to edit branding" });
+      }
+    }
+    const updated = await storage.updateBranding(req.body);
+    res.json(updated);
+  });
+
   // ── Public sponsor profile (no auth required) ─────────────────────────────
 
   app.get("/api/sponsors/:id", async (req, res) => {

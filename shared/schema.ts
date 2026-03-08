@@ -105,6 +105,9 @@ export const sponsors = pgTable("sponsors", {
   websiteUrl: text("website_url"),
   linkedinUrl: text("linkedin_url"),
   solutionsSummary: text("solutions_summary"),
+  contactName: text("contact_name"),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
   attributes: jsonb("attributes").$type<string[]>().default([]),
 });
 
@@ -116,6 +119,9 @@ export const insertSponsorSchema = createInsertSchema(sponsors).extend({
   websiteUrl: z.string().nullable().optional(),
   linkedinUrl: z.string().nullable().optional(),
   solutionsSummary: z.string().nullable().optional(),
+  contactName: z.string().nullable().optional(),
+  contactEmail: z.string().nullable().optional(),
+  contactPhone: z.string().nullable().optional(),
   attributes: z.array(z.string()).default([]).optional(),
 });
 export type Sponsor = typeof sponsors.$inferSelect;

@@ -238,16 +238,26 @@ export default function LoginPage() {
                       </Button>
                     </form>
 
-                    <div className="mt-6 space-y-3 text-center text-sm text-muted-foreground">
-                      <button
-                        type="button"
-                        onClick={() => { setStep("forgot-email"); setForgotEmail(email); }}
-                        className="text-foreground/70 hover:text-accent transition-colors underline underline-offset-4 text-sm"
-                        data-testid="btn-forgot-password"
-                      >
-                        Forgot password?
-                      </button>
-                      <p>Not an administrator? <Link href="/" className="font-medium text-foreground hover:text-accent transition-colors">Return to events</Link></p>
+                    <div className="mt-4 space-y-3">
+                      <Link href="/">
+                        <button
+                          type="button"
+                          className="w-full py-2.5 rounded-xl border-2 border-border text-sm font-semibold text-foreground hover:border-accent/60 hover:bg-muted/40 transition-all"
+                          data-testid="btn-back-to-events"
+                        >
+                          ← Back to Events
+                        </button>
+                      </Link>
+                      <div className="text-center text-sm text-muted-foreground">
+                        <button
+                          type="button"
+                          onClick={() => { setStep("forgot-email"); setForgotEmail(email); }}
+                          className="text-foreground/70 hover:text-accent transition-colors underline underline-offset-4 text-sm"
+                          data-testid="btn-forgot-password"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 )}

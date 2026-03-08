@@ -39,7 +39,7 @@ export default function LandingPage() {
       <div className="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none" />
 
       {/* Header */}
-      <header className="relative z-10 w-full max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
+      <header className="relative z-10 w-full max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <Hexagon className="h-6 w-6" />
@@ -49,7 +49,7 @@ export default function LandingPage() {
           </span>
         </div>
         <nav className="flex items-center gap-4">
-          <Button variant="ghost" className="hidden sm:flex font-medium" onClick={() => console.log("Help")}>
+          <Button variant="ghost" className="hidden sm:flex font-medium" onClick={() => setLocation("/help")}>
             Help Center
           </Button>
           <Button
@@ -62,8 +62,8 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 relative z-10 flex flex-col pb-16">
-        <div className="w-full max-w-4xl mx-auto px-6 pt-10 pb-8 text-center">
+      <main className="flex-1 relative z-10 flex flex-col pb-10">
+        <div className="w-full max-w-4xl mx-auto px-6 pt-5 pb-5 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -100,34 +100,30 @@ export default function LandingPage() {
               <p className="text-sm mt-2">Check back soon for upcoming events.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {activeEvents.map((event, i) => {
                 const slots = countSlots(event.meetingBlocks);
-                const statusLabel = eventStatusLabel(event);
                 return (
                   <motion.div
                     key={event.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: i * 0.1 }}
-                    className="group relative bg-card rounded-2xl p-8 border border-border/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer"
+                    className="group relative bg-card rounded-2xl p-6 border border-border/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col cursor-pointer"
                     onClick={() => setLocation(`/event/${event.slug}`)}
                     data-testid={`event-card-${event.slug}`}
                   >
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-xs font-semibold tracking-wide uppercase">
-                        {statusLabel}
-                      </div>
-                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-accent group-hover:text-accent-foreground transition-colors duration-300">
-                        <ArrowRight className="h-5 w-5" />
+                    <div className="flex justify-end items-start mb-4">
+                      <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center group-hover:bg-accent group-hover:text-accent-foreground transition-colors duration-300">
+                        <ArrowRight className="h-4 w-4" />
                       </div>
                     </div>
 
-                    <h3 className="text-2xl font-display font-bold text-foreground mb-4 group-hover:text-primary transition-colors leading-tight">
+                    <h3 className="text-xl font-display font-bold text-foreground mb-3 group-hover:text-primary transition-colors leading-tight">
                       {event.name}
                     </h3>
 
-                    <div className="mt-auto space-y-3 pt-6 border-t border-border/50">
+                    <div className="mt-auto space-y-2.5 pt-4 border-t border-border/50">
                       <div className="flex items-center text-muted-foreground text-sm font-medium">
                         <Calendar className="mr-3 h-4 w-4 text-accent" />
                         {format(parseISO(event.startDate as unknown as string), "MMMM d")}

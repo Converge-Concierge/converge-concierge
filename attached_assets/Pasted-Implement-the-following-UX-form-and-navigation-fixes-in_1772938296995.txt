@@ -1,0 +1,278 @@
+Implement the following UX, form, and navigation fixes in Converge Concierge.
+
+Important rules:
+- Do not redesign the admin shell/sidebar
+- Do not break existing onsite scheduling
+- Do not break existing online meeting requests
+- Do not break sponsor access links, sponsor dashboards, notifications, calendar actions, reports, or password recovery
+- Preserve all current working functionality
+- Make additive/fix-only changes where possible
+
+Current problems to fix:
+1. Help Center link does not work
+2. Event page sponsor filtering / sponsor-density improvements do not appear implemented
+3. Edit Event modal cannot be scrolled to reach lower sections
+4. Edit Sponsor form is missing key fields
+5. Admin login page needs a clearer and more obvious return-to-events action
+6. Homepage still wastes vertical space and still shows "Upcoming" badges even though all four events are upcoming
+7. Homepage headline should be one line if possible
+
+==================================================
+1. HELP CENTER LINK
+==================================================
+
+Problem:
+The Help Center link does not work.
+
+Required fix:
+- Make Help Center a working link or button
+- Route it to a simple, usable page or modal for now
+
+Minimum acceptable behavior:
+Create a Help Center page with:
+- short intro
+- Contact Us / support message
+- link or button back to homepage
+- link or button to admin login
+
+Suggested content direction:
+- Need help scheduling a meeting?
+- Questions about your event registration or sponsor meetings?
+- Please contact Converge Events for assistance.
+
+Do not leave a dead link in the header.
+
+==================================================
+2. PUBLIC EVENT PAGE — SPONSOR FILTERS + DENSITY
+==================================================
+
+Problem:
+The event page still looks mostly unchanged.
+Sponsor cards are not optimized for larger sponsor counts.
+Sponsor filtering is not visibly implemented.
+
+Required fixes:
+
+A. Sponsor filtering
+Add a compact filter bar above the sponsor grid.
+
+Requirements:
+- filter sponsors by attributes
+- each sponsor can have up to 3 attributes
+- multi-select filter support
+- clear/reset filters action
+- dynamic sponsor count display updates based on filters
+
+B. Sponsor attributes
+In Create/Edit Sponsor add:
+- sponsor attributes selector
+- up to 3 attributes per sponsor
+
+Admin-defined reusable attribute list:
+Add a simple admin-managed attribute list source.
+This can live in Settings or Branding if needed, but keep it simple and usable.
+
+Example attribute values:
+- Compliance
+- Onboarding
+- Payments
+- Fraud
+- Lending
+- Treasury
+- AI
+- Automation
+- Core Processing
+- Member Experience
+
+C. Card optimization
+Make sponsor cards denser and more scalable for 25–50 sponsors:
+- reduce extra whitespace
+- keep onsite meeting as primary CTA
+- keep online meeting as secondary CTA
+- keep View Profile link
+- ensure onsite CTA is visually dominant
+- make grid work well when many sponsors exist
+
+Do not remove sponsor identity.
+Just tighten spacing and improve density.
+
+==================================================
+3. EDIT EVENT MODAL — MAKE FULLY SCROLLABLE
+==================================================
+
+Problem:
+When editing events, the modal cannot scroll down to lower options.
+
+Required fix:
+- make the Edit Event modal fully scrollable vertically
+- preserve sticky or visible primary actions if helpful
+- ensure all sections are reachable:
+  - Event Color Scheme
+  - Meeting Configuration
+  - Meeting Locations
+  - Time Blocks / location mapping
+  - any lower settings
+
+Do not redesign the modal.
+Just fix scrolling and usability.
+
+==================================================
+4. EDIT EVENT — COMPLETE MEETING CONFIGURATION LOGIC
+==================================================
+
+Problem:
+Meeting Configuration and Meeting Locations are still not fully usable.
+
+Required fix:
+- ensure Meeting Locations can be created/edited/deleted
+- ensure Time Blocks can be created/edited/deleted
+- for each time block, allow selecting which locations are available in that block
+- persist and reload this data correctly in the edit modal
+
+Rules:
+- event defines master location list
+- each time block selects available locations from that master list
+- public booking must only show valid locations for the chosen time block
+
+==================================================
+5. EDIT EVENT — EVENT COLOR SCHEME
+==================================================
+
+Problem:
+Event Color Scheme section appears collapsed but not clearly usable.
+
+Required fix:
+- make Event Color Scheme section expand/collapse correctly
+- allow editing:
+  - Primary Color
+  - Secondary Color
+  - Accent Color
+  - Optional Button Color
+  - Optional Gradient/Background Accent
+- save and reload correctly
+- apply to that event’s public event page and booking flow
+- fall back to global branding if not set
+
+==================================================
+6. EDIT SPONSOR — ADD MISSING PROFILE FIELDS
+==================================================
+
+Problem:
+Edit Sponsor still lacks important fields.
+
+Add these fields:
+- Short Description
+- Website URL
+- Main Contact Name
+- Main Contact Email
+- Main Contact Phone
+- LinkedIn URL
+- Solutions Summary
+- Sponsor Attributes (up to 3 from admin-defined list)
+
+Behavior:
+- save correctly to sponsor record
+- render on public sponsor profile page where relevant
+- preserve current fields:
+  - logo
+  - sponsor name
+  - level
+  - status
+  - Allow Online Meetings
+
+Do not redesign the sponsor modal.
+Just extend it and ensure vertical scrolling if needed.
+
+==================================================
+7. ADMIN LOGIN — MAKE RETURN TO EVENTS MORE OBVIOUS
+==================================================
+
+Problem:
+The return-to-events link on the admin login page is too subtle and easy to miss.
+
+Required fix:
+- make the return-to-events action more obvious
+- improve placement and visual prominence
+- use a clearer label such as:
+  - Back to Events
+  or
+  - Return to Event Scheduling
+
+Recommended placement:
+- directly below the sign-in button as a clear secondary button/link
+- more visible than the current small sentence treatment
+
+Do not remove admin login.
+Just make the return path obvious.
+
+==================================================
+8. HOMEPAGE — TIGHTEN HERO AND SHOW ALL 4 EVENTS ABOVE THE FOLD
+==================================================
+
+Problem:
+Homepage still dedicates too much height to the hero and still shows "Upcoming" badges even though all four events are upcoming.
+
+Required fixes:
+
+A. Remove "Upcoming" badges from homepage event cards.
+
+B. Tighten hero layout:
+- reduce top padding
+- reduce hero height
+- bring event cards higher up
+- keep the blue pill element
+- keep the premium visual feel
+
+C. Headline:
+Keep:
+- Schedule Your Strategy Meetings
+Try to keep it on one line at desktop widths.
+
+D. Subtext:
+Shorten or tighten further so it uses less vertical space.
+
+E. Layout target:
+At common desktop widths, all 4 event cards should be visible above the fold if reasonably possible.
+
+Do not add more text.
+The goal is a cleaner, denser homepage optimized around the 4-event annual model.
+
+==================================================
+9. EVENT PAGE HEADER — TIGHTEN TOP AREA
+==================================================
+
+Reduce excess vertical space at the top of the event page:
+- event title still prominent
+- date and location still visible
+- sponsor filter bar visible sooner
+- sponsor cards begin higher on the page
+
+Do not remove event identity.
+Just reduce whitespace.
+
+==================================================
+10. CTA HIERARCHY
+==================================================
+
+Ensure across sponsor cards and sponsor profile pages:
+- Schedule Onsite Meeting = primary CTA
+- Request Online Meeting = secondary CTA
+
+The onsite CTA must be clearly more visually prominent.
+
+==================================================
+11. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Help Center works
+- sponsor filters visibly work on the event page
+- sponsor attributes can be assigned in sponsor edit
+- Edit Event modal scrolls fully
+- Meeting Configuration and location-by-time-block logic work
+- Event Color Scheme works
+- Edit Sponsor includes description/contact/website/phone/attributes
+- admin login has a clear Back to Events action
+- homepage no longer shows Upcoming badges
+- homepage shows a tighter hero and surfaces all 4 events higher
+- event page feels denser and more scalable

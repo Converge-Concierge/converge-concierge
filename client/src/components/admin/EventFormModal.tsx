@@ -81,7 +81,7 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
+      <DialogContent className="max-w-2xl h-[90vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle>{readOnly ? "View Event" : event ? "Edit Event" : "Create Event"}</DialogTitle>
         </DialogHeader>

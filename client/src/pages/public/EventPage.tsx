@@ -545,24 +545,24 @@ export default function EventPage() {
   if (step === 0) {
     return (
       <Shell style={eventColorStyle}>
-        <motion.div {...slide} className="w-full max-w-5xl mx-auto px-6 pt-10 pb-12">
+        <motion.div {...slide} className="w-full max-w-5xl mx-auto px-6 pt-5 pb-8">
           {/* Event header */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 text-accent font-mono text-sm font-semibold mb-4 border border-accent/20">
+          <div className="text-center mb-5">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-accent/10 text-accent font-mono text-xs font-semibold mb-3 border border-accent/20">
               {event.slug}
             </div>
-            <h1 className="text-4xl md:text-5xl font-display font-bold text-foreground tracking-tight leading-tight mb-4">
+            <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight leading-tight mb-2">
               {event.name}
             </h1>
-            <div className="flex flex-wrap items-center justify-center gap-5 text-muted-foreground text-sm font-medium">
-              <span className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-accent" />
+            <div className="flex flex-wrap items-center justify-center gap-4 text-muted-foreground text-sm">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-accent" />
                 {format(parseISO(event.startDate as unknown as string), "MMMM d")}
                 {" – "}
                 {format(parseISO(event.endDate as unknown as string), "MMMM d, yyyy")}
               </span>
-              <span className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground/70" />
+              <span className="flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground/70" />
                 {event.location}
               </span>
             </div>
@@ -630,64 +630,64 @@ export default function EventPage() {
               <button onClick={() => setActiveFilters([])} className="text-xs text-accent underline underline-offset-2">Clear filters</button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredSponsors.map((sponsor, i) => (
                 <motion.div
                   key={sponsor.id}
-                  initial={{ opacity: 0, y: 18 }}
+                  initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.04 + i * 0.07 }}
+                  transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.4) }}
                   className={cn(
-                    "flex flex-col rounded-2xl border-2 shadow-sm overflow-hidden",
-                    "hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200",
+                    "flex flex-col rounded-xl border-2 shadow-sm overflow-hidden",
+                    "hover:shadow-md hover:-translate-y-0.5 transition-all duration-200",
                     levelBorder[sponsor.level] || "border-border bg-card",
                   )}
                   data-testid={`sponsor-card-${sponsor.id}`}
                 >
                   {/* Card body */}
-                  <div className="flex-1 p-6">
-                    {/* Level badge */}
-                    <div className="mb-4">
-                      <span className={cn("text-[11px] font-bold px-2.5 py-1 rounded-full", levelBadge[sponsor.level] || "bg-muted text-muted-foreground")}>
-                        {sponsor.level} Sponsor
+                  <div className="flex-1 p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      {/* Logo / Icon */}
+                      <div className="h-9 flex items-center shrink-0">
+                        {sponsor.logoUrl ? (
+                          <img src={sponsor.logoUrl} alt={sponsor.name} className="h-8 max-w-[90px] object-contain" />
+                        ) : (
+                          <div className="h-9 w-9 rounded-lg bg-white border border-black/10 shadow-sm flex items-center justify-center">
+                            <Building2 className="h-4 w-4 text-muted-foreground/60" />
+                          </div>
+                        )}
+                      </div>
+                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0", levelBadge[sponsor.level] || "bg-muted text-muted-foreground")}>
+                        {sponsor.level}
                       </span>
                     </div>
 
-                    {/* Logo / Icon */}
-                    <div className="mb-4 h-14 flex items-center">
-                      {sponsor.logoUrl ? (
-                        <img src={sponsor.logoUrl} alt={sponsor.name} className="h-10 max-w-[120px] object-contain" />
-                      ) : (
-                        <div className="h-12 w-12 rounded-xl bg-white border border-black/10 shadow-sm flex items-center justify-center">
-                          <Building2 className="h-6 w-6 text-muted-foreground/60" />
-                        </div>
-                      )}
-                    </div>
-
                     {/* Name */}
-                    <h3 className="text-lg font-display font-bold text-foreground leading-tight">
+                    <h3 className="text-sm font-display font-bold text-foreground leading-tight mb-1">
                       {sponsor.name}
                     </h3>
-                    <div className="flex items-center gap-3 mt-1">
-                      <p className="text-xs text-muted-foreground">30-minute 1-on-1 session available</p>
-                      <Link
-                        href={`/event/${event.slug}/sponsor/${sponsor.id}`}
-                        className="text-xs text-accent underline underline-offset-2 hover:opacity-80 transition-opacity flex items-center gap-1"
-                        data-testid={`link-sponsor-profile-${sponsor.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <ExternalLink className="h-3 w-3" /> View Profile
-                      </Link>
-                    </div>
+                    {sponsor.shortDescription && (
+                      <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2 mb-1">
+                        {sponsor.shortDescription}
+                      </p>
+                    )}
+                    <Link
+                      href={`/event/${event.slug}/sponsor/${sponsor.id}`}
+                      className="text-[11px] text-accent hover:opacity-80 transition-opacity flex items-center gap-1"
+                      data-testid={`link-sponsor-profile-${sponsor.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink className="h-2.5 w-2.5" /> View Profile
+                    </Link>
                   </div>
 
                   {/* CTA buttons pinned to bottom */}
-                  <div className="px-6 pb-6 space-y-2">
+                  <div className="px-4 pb-4 space-y-1.5">
                     <button
                       onClick={() => pickSponsor(sponsor)}
                       data-testid={`btn-meet-${sponsor.id}`}
                       className={cn(
-                        "w-full py-2.5 rounded-xl text-white text-sm font-semibold transition-all duration-150 active:scale-[0.98]",
+                        "w-full py-2 rounded-lg text-white text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
                         levelAccent[sponsor.level] || "bg-primary hover:bg-primary/90",
                       )}
                     >
@@ -697,9 +697,9 @@ export default function EventPage() {
                       <button
                         onClick={() => pickOnlineMeeting(sponsor)}
                         data-testid={`btn-online-${sponsor.id}`}
-                        className="w-full py-2.5 rounded-xl text-sm font-semibold border-2 border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2"
+                        className="w-full py-1.5 rounded-lg text-xs font-semibold border border-violet-200 text-violet-700 bg-violet-50/50 hover:bg-violet-50 transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5"
                       >
-                        <Video className="h-4 w-4" /> Request Online Meeting
+                        <Video className="h-3 w-3" /> Online Meeting
                       </button>
                     )}
                   </div>

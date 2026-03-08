@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sponsor, InsertSponsor, Event, EventSponsorLink, SPONSOR_ATTRIBUTES } from "@shared/schema";
 import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User } from "lucide-react";
@@ -106,22 +105,22 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0">
-        <DialogHeader className="p-6 pb-4 shrink-0">
+      <DialogContent className="max-w-lg flex flex-col p-0 gap-0" style={{ maxHeight: "92vh" }}>
+        <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-border/30">
           <DialogTitle className="text-lg font-display font-semibold">
             {readOnly ? "View Sponsor" : sponsor ? "Edit Sponsor" : "Add Sponsor"}
           </DialogTitle>
         </DialogHeader>
 
         {readOnly && (
-          <div className="mx-6 mb-1 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-2.5">
+          <div className="mx-6 mt-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-2.5 shrink-0">
             <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Archived – Read Only. This sponsor cannot be edited.</p>
           </div>
         )}
 
-        <ScrollArea className="flex-1 min-h-0">
-          <form id="sponsor-form" onSubmit={handleSubmit} className="px-6 pb-6 space-y-5">
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <form id="sponsor-form" onSubmit={handleSubmit} className="px-6 pt-5 pb-6 space-y-5">
 
             {/* Logo */}
             <div className="space-y-2">
@@ -404,9 +403,9 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
               )}
             </div>
           </form>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="p-6 pt-4 border-t bg-muted/30 shrink-0 flex gap-2">
+        <DialogFooter className="px-6 py-4 border-t border-border/30 bg-muted/20 shrink-0 flex gap-2">
           {readOnly ? (
             <Button variant="outline" onClick={onClose}>Close</Button>
           ) : (

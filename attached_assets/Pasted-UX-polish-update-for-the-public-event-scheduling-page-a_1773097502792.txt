@@ -1,0 +1,217 @@
+UX polish update for the public event scheduling page and the event welcome page.
+
+Important rules:
+- Do not redesign the scheduling logic
+- Do not break sponsor filtering, sponsor cards, sponsor profile links, or scheduling flows
+- Preserve all current working functionality
+- This is a formatting / hierarchy / visual polish task only
+
+==================================================
+PART 1 — EVENT SCHEDULING PAGE
+==================================================
+
+Goal:
+Make the interest-based discovery prompt the primary header and remove the old sponsor-selection language.
+
+1. REMOVE THE OLD HEADER BLOCK
+
+Remove:
+- "Select a Sponsor"
+- the helper sentence:
+  "Choose who you'd like to meet with. Each 1-on-1 is a private 30-minute strategy session."
+
+This language no longer matches the guided discovery UX.
+
+2. PROMOTE "WHAT ARE YOU INTERESTED IN?"
+
+Make:
+"What are you interested in?"
+
+the primary section header on the event page.
+
+Apply the same typography styling previously used for:
+- "Select a Sponsor"
+
+This means:
+- same font size
+- same font weight
+- same line height
+- same spacing above/below
+
+3. REMOVE FILTER HELPER TEXT
+
+Remove:
+"Select one or more topics to narrow down the sponsors you may want to meet with."
+
+Reason:
+It is redundant and adds clutter.
+
+4. FINAL EVENT PAGE HIERARCHY
+
+The event page should now flow like this:
+
+- Event logo / event title / event details
+- What are you interested in?
+- topic chips
+- sponsor cards
+
+Do not reintroduce "Select a Sponsor" anywhere in this section.
+
+==================================================
+PART 2 — WELCOME PAGE HERO CLEANUP
+==================================================
+
+Goal:
+Fix the visual hierarchy so the welcome page feels polished and conversion-focused.
+
+1. ENSURE THE EVENT LOGO DISPLAYS CORRECTLY
+
+The white square placeholder at the top should be replaced with the actual event logo.
+
+Required:
+- load the event logo dynamically
+- if the logo has transparency or contrast issues, place it inside a white container
+- use a clean padded white background box if needed
+
+2. HERO BACKGROUND
+
+The current dark top background is causing logo presentation issues.
+
+Update the hero background to:
+- white
+OR
+- a very light neutral background
+
+Reason:
+Not all logos are transparent, and the hero should support all event logos cleanly.
+
+3. HERO CONTENT
+
+Keep the hero concise and centered.
+
+Show:
+- event logo
+- registration confirmed badge
+- "You're Registered for [Event Name]"
+- one short supporting line:
+  "Your registration is confirmed. You can now schedule private 1-on-1 meetings with event sponsors."
+
+==================================================
+PART 3 — REMOVE OR MINIMIZE THE MIDDLE SECTION
+==================================================
+
+Current middle block:
+- icon
+- "Schedule Meetings Before the Event"
+- explanatory copy
+- View Sponsors button
+
+This section is visually heavy and creates unnecessary vertical space.
+
+Preferred:
+- remove this entire middle section
+
+If full removal is not clean, reduce it to a single short line above the filters:
+- "Schedule meetings with participating sponsors below."
+
+Do not keep the large card block if it pushes sponsor cards too far down.
+
+==================================================
+PART 4 — MAKE THE DISCOVERY SECTION MORE PRONOUNCED
+==================================================
+
+1. PROMOTE "WHAT ARE YOU INTERESTED IN?"
+
+On the welcome page, make:
+"What are you interested in?"
+
+more visually prominent.
+
+Apply:
+- larger font size
+- stronger font weight
+- more spacing above and below
+
+This should feel like the primary interaction point of the page.
+
+2. EMPHASIZE THE TOPIC CHIPS
+
+Improve the visual prominence of the category chips.
+
+Suggested updates:
+- slightly more padding
+- stronger border contrast
+- clearer hover state
+- stronger selected state
+
+Goal:
+Make them feel like interactive interest buttons, not passive filters.
+
+==================================================
+PART 5 — ABOVE-THE-FOLD REQUIREMENT
+==================================================
+
+Goal:
+The first row of sponsor cards should appear above the fold on standard desktop screens.
+
+To achieve this:
+- reduce unnecessary hero height
+- remove the oversized middle section
+- tighten vertical spacing between hero and interest section
+- keep the discovery section close to the sponsor cards
+
+Success condition:
+On desktop, users should see:
+- registration confirmation
+- "What are you interested in?"
+- topic chips
+- first row of sponsor cards
+without needing to scroll
+
+==================================================
+PART 6 — FILTERED SPONSOR PRIORITIZATION
+==================================================
+
+When sponsor cards are shown after category/topic filtering:
+
+Sort filtered sponsors by sponsorship level priority.
+
+Priority order:
+1. Platinum
+2. Gold
+3. Silver
+4. Bronze
+
+If multiple sponsors match the selected categories:
+- show Platinum first
+- then Gold
+- then Silver
+- then Bronze
+
+Only after sponsorship level priority should any secondary sort apply.
+
+Apply this on:
+- welcome page sponsor grid
+- event scheduling page sponsor grid
+
+==================================================
+PART 7 — SUCCESS CRITERIA
+==================================================
+
+After implementation:
+
+EVENT PAGE
+- "Select a Sponsor" is removed
+- "What are you interested in?" becomes the main section header
+- helper filter text is removed
+
+WELCOME PAGE
+- event logo displays correctly
+- hero background supports all event logos
+- oversized middle section is removed or minimized
+- "What are you interested in?" and chips are more prominent
+- first row of sponsor cards appears above the fold
+
+FILTERING
+- filtered sponsors are ordered by sponsorship level priority
+- Platinum always appears before Gold, Silver, and Bronze when all match

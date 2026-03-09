@@ -787,19 +787,18 @@ export default function EventPage() {
             </div>
           )}
 
-          {/* Primary section header */}
-          {(eventEnded || schedulingDisabled || attributesInUse.length === 0) && (
+          {/* Section header — only when event ended, disabled, or external handoff */}
+          {(eventEnded || schedulingDisabled || showExternalHandoff) && (
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
               <div>
                 <h2 className="text-2xl font-display font-semibold text-foreground mb-1">
-                  {(eventEnded || schedulingDisabled) ? "Event Sponsors" : showExternalHandoff ? "Event Sponsors" : "Select a Sponsor"}
+                  Event Sponsors
                 </h2>
-                {(eventEnded || schedulingDisabled) && (
-                  <p className="text-muted-foreground text-sm">
-                    {eventEnded
-                      ? "This event has concluded. Browse the sponsors who participated."
-                      : "Concierge scheduling is currently unavailable for this event."}
-                  </p>
+                {eventEnded && (
+                  <p className="text-muted-foreground text-sm">This event has concluded. Browse the sponsors who participated.</p>
+                )}
+                {!eventEnded && schedulingDisabled && (
+                  <p className="text-muted-foreground text-sm">Concierge scheduling is currently unavailable for this event.</p>
                 )}
                 {showExternalHandoff && !eventEnded && !schedulingDisabled && (
                   <p className="text-muted-foreground text-sm">Browse the sponsors participating in this event.</p>

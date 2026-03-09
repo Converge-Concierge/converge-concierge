@@ -303,7 +303,12 @@ export default function EventPage() {
   const [step,         setStep]         = useState(0);
   const [showSuccess,  setShowSuccess]  = useState(false);
   const [meetingMode,  setMeetingMode]  = useState<"onsite" | "online">("onsite");
-  const [activeFilters,   setActiveFilters]   = useState<string[]>([]);
+  const [activeFilters,   setActiveFilters]   = useState<string[]>(() => {
+    try {
+      const stored = sessionStorage.getItem(`eventFilters:${slug}`);
+      return stored ? (JSON.parse(stored) as string[]) : [];
+    } catch { return []; }
+  });
   const [showAllFilters,  setShowAllFilters]  = useState(false);
   const [selectedSponsor, setSelectedSponsor] = useState<Sponsor | null>(null);
   const [selectedDate,    setSelectedDate]    = useState("");
@@ -319,6 +324,17 @@ export default function EventPage() {
   const [agreeToTerms,  setAgreeToTerms]  = useState(false);
   const [showLinkedIn,  setShowLinkedIn]  = useState(false);
   const [createdMeetingId, setCreatedMeetingId] = useState<string | null>(null);
+
+  // ── Persist topic filters in sessionStorage (event-specific) ────────────
+  useEffect(() => {
+    try {
+      if (activeFilters.length > 0) {
+        sessionStorage.setItem(`eventFilters:${slug}`, JSON.stringify(activeFilters));
+      } else {
+        sessionStorage.removeItem(`eventFilters:${slug}`);
+      }
+    } catch { /* ignore */ }
+  }, [activeFilters, slug]);
 
   // ── Deep-link: pre-select sponsor + mode from URL query params ────────────
   const hasAppliedDeepLink = useRef(false);
@@ -820,6 +836,10 @@ export default function EventPage() {
             const hasMore = allOptions.length > SHOW_LIMIT;
             return (
               <div className="mb-6 space-y-4">
+                <div className="mb-1">
+                  <p className="text-lg font-display font-bold text-foreground">Make the most of your time at the event.</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.</p>
+                </div>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <h2 className="text-2xl font-display font-semibold text-foreground">
                     What are you interested in?

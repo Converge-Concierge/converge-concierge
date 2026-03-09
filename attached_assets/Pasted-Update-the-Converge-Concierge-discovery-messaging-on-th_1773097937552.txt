@@ -1,0 +1,104 @@
+Update the Converge Concierge discovery messaging on the event scheduling page and welcome page.
+
+Important rules:
+- Do not redesign the scheduling flow
+- Do not change the sponsor filtering logic
+- Do not break sponsor cards, sponsor profile links, or scheduling flows
+- Preserve all current working functionality
+- This is a copy / messaging / hierarchy update only
+
+Goal:
+Replace the current concierge message with language that helps attendees make the most of the event without implying that some sponsors are more “worthy” than others.
+
+Use this approved messaging:
+
+Headline:
+Make the most of your time at the event.
+
+Supporting copy:
+Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.
+
+==================================================
+1. EVENT WELCOME PAGE
+==================================================
+
+On the event-specific welcome page:
+
+Replace the current main action message / explanatory copy with:
+
+Make the most of your time at the event.
+
+Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.
+
+Requirements:
+- keep the headline visually prominent
+- keep the supporting copy concise
+- place this directly above the topic chips / discovery section
+- remove any older copy that talks about “recommended solution providers worth meeting”
+
+==================================================
+2. EVENT SCHEDULING PAGE
+==================================================
+
+On the main public event scheduling page:
+
+Use the same message above the topic chips / sponsor discovery section.
+
+Structure should be:
+
+Make the most of your time at the event.
+
+Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.
+
+What are you interested in?
+
+[ topic chips ]
+
+Requirements:
+- do not bring back “Select a Sponsor”
+- do not use “worth meeting”
+- keep “What are you interested in?” as the direct prompt above the chips
+
+==================================================
+3. REMOVE RISKY / JUDGMENTAL WORDING
+==================================================
+
+Remove or replace any copy that implies:
+- some sponsors are more worth meeting than others
+- the system is making quality judgments about sponsors
+
+Do NOT use wording like:
+- recommend solution providers worth meeting
+- best sponsors for you
+- top sponsors
+- highest-value sponsors
+
+Preferred language themes:
+- highlight
+- aligned with your interests
+- participating sponsors
+- topics you're interested in
+
+==================================================
+4. MAINTAIN FILTER FUNCTIONALITY
+==================================================
+
+Do not change the underlying behavior.
+
+The chips should still:
+- filter sponsors dynamically
+- allow one or more selections
+- show sponsors aligned with selected topics
+
+This is a messaging change, not a logic rewrite.
+
+==================================================
+5. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- welcome page uses the new concierge message
+- event scheduling page uses the new concierge message
+- no “worth meeting” language remains
+- the system feels like guided discovery, not sponsor judgment
+- sponsor filter behavior remains unchanged

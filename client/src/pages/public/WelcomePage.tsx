@@ -196,14 +196,18 @@ export default function WelcomePage() {
       {/* ── CTA message ───────────────────────────────────────────────────── */}
       <div className="border-b border-border bg-muted/20">
         <div className="max-w-5xl mx-auto px-6 py-4">
-          <motion.p
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.25, delay: 0.05 }}
-            className="text-xl sm:text-2xl font-display font-bold text-foreground"
           >
-            Schedule meetings to make the most of your event.
-          </motion.p>
+            <p className="text-xl sm:text-2xl font-display font-bold text-foreground">
+              Make the most of your time at the event.
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.
+            </p>
+          </motion.div>
         </div>
       </div>
 

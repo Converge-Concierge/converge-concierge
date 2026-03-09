@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -260,6 +260,18 @@ type AttendeeForm = {
   title: string; email: string; linkedinUrl: string;
 };
 
+// Online meeting time slots: 9:00 AM – 4:00 PM in 30-min increments
+function buildOnlineSlots(): string[] {
+  const slots: string[] = [];
+  let cur = 9 * 60;
+  while (cur <= 16 * 60) {
+    slots.push(`${String(Math.floor(cur / 60)).padStart(2, "0")}:${String(cur % 60).padStart(2, "0")}`);
+    cur += 30;
+  }
+  return slots;
+}
+const ONLINE_TIME_SLOTS = buildOnlineSlots();
+
 // Platform display config
 const TeamsIcon = () => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none">
@@ -307,6 +319,22 @@ export default function EventPage() {
   const [agreeToTerms,  setAgreeToTerms]  = useState(false);
   const [showLinkedIn,  setShowLinkedIn]  = useState(false);
   const [createdMeetingId, setCreatedMeetingId] = useState<string | null>(null);
+
+  // ── Deep-link: pre-select sponsor + mode from URL query params ────────────
+  const hasAppliedDeepLink = useRef(false);
+  useEffect(() => {
+    if (hasAppliedDeepLink.current || sponsors.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const sponsorParam = params.get("sponsor");
+    const modeParam = params.get("mode");
+    if (!sponsorParam) return;
+    const found = sponsors.find((s) => s.id === sponsorParam);
+    if (!found) return;
+    hasAppliedDeepLink.current = true;
+    setSelectedSponsor(found);
+    setMeetingMode(modeParam === "online" ? "online" : "onsite");
+    setStep(1);
+  }, [sponsors]);
 
   const event = events.find((e) => e.slug === slug);
   const eventSponsors = event
@@ -1048,13 +1076,26 @@ export default function EventPage() {
               </p>
 
               {meetingMode === "online" ? (
-                <input
-                  type="time"
-                  value={selectedTime}
-                  onChange={(e) => { setSelectedTime(e.target.value); setError(""); }}
-                  data-testid="input-online-time"
-                  className="block w-full max-w-xs h-11 rounded-xl border-2 border-border px-3 text-sm font-medium bg-card text-foreground focus:outline-none focus:border-primary transition-colors"
-                />
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {ONLINE_TIME_SLOTS.map((t) => {
+                    const active = selectedTime === t;
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => { setSelectedTime(t); setError(""); go(3); }}
+                        data-testid={`time-btn-${t}`}
+                        className={cn(
+                          "py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-150 text-center active:scale-[0.97]",
+                          active
+                            ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25"
+                            : "bg-card text-foreground border-border hover:border-primary/60 hover:bg-muted/60",
+                        )}
+                      >
+                        {fmt12(t)}
+                      </button>
+                    );
+                  })}
+                </div>
               ) : (
                 <>
                   {allBooked && (
@@ -1105,16 +1146,6 @@ export default function EventPage() {
               >
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
               </Button>
-              {meetingMode === "online" && (
-                <Button
-                  type="button"
-                  disabled={!selectedTime}
-                  onClick={() => { setError(""); go(3); }}
-                  data-testid="button-time-continue"
-                >
-                  Continue <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              )}
             </div>
           </motion.div>
         </AnimatePresence>

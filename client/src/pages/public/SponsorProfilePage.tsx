@@ -184,7 +184,7 @@ export default function SponsorProfilePage() {
               <p className="text-xs text-muted-foreground mb-4">Schedule a 30-minute 1-on-1 meeting at the event, or request an online call.</p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
-                  onClick={() => nav(`/event/${slug}`)}
+                  onClick={() => nav(`/event/${slug}?sponsor=${sponsor.id}&mode=onsite`)}
                   className="gap-2 flex-1"
                   data-testid="button-schedule-onsite"
                 >
@@ -194,7 +194,7 @@ export default function SponsorProfilePage() {
                 {(sponsor.allowOnlineMeetings) && (
                   <Button
                     variant="outline"
-                    onClick={() => nav(`/event/${slug}`)}
+                    onClick={() => nav(`/event/${slug}?sponsor=${sponsor.id}&mode=online`)}
                     className="gap-2 flex-1"
                     data-testid="button-request-online"
                   >

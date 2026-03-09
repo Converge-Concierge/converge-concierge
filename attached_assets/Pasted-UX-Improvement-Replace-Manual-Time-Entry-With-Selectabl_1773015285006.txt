@@ -1,0 +1,129 @@
+UX Improvement: Replace Manual Time Entry With Selectable Time Buttons
+
+Goal
+Remove the manual time input field for Online Meeting requests and replace it with selectable time buttons, similar to the onsite meeting UX.
+
+Typing times creates friction and inconsistent formatting. Time buttons will make the process faster and cleaner.
+
+Current Behavior
+The "Preferred Time" step currently shows a text input field:
+
+Preferred Time
+[ __ : __ AM ]
+
+Users must manually type a time.
+
+Desired Behavior
+Replace the text field with selectable time buttons from:
+
+9:00 AM → 4:00 PM
+in 30-minute increments.
+
+Users should be able to click a time button instead of typing.
+
+Time Buttons Should Display
+
+9:00 AM  
+9:30 AM  
+10:00 AM  
+10:30 AM  
+11:00 AM  
+11:30 AM  
+12:00 PM  
+12:30 PM  
+1:00 PM  
+1:30 PM  
+2:00 PM  
+2:30 PM  
+3:00 PM  
+3:30 PM  
+4:00 PM
+
+Implementation
+
+1. Replace Time Input Field
+
+Remove the manual input component.
+
+Current:
+<input type="time">
+
+Replace with a time button grid.
+
+Example structure:
+
+<div class="time-grid">
+  <button class="time-slot">9:00 AM</button>
+  <button class="time-slot">9:30 AM</button>
+  <button class="time-slot">10:00 AM</button>
+  ...
+</div>
+
+2. Use Same Styling as Onsite Time Slots
+
+Reuse the existing time slot button styles used in onsite meeting scheduling:
+
+.time-slot {
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: 1px solid #D1D5DB;
+  background: white;
+  cursor: pointer;
+}
+
+.time-slot.selected {
+  background: #1F2A44;
+  color: white;
+}
+
+3. Grid Layout
+
+Display buttons in rows similar to the onsite scheduling UI.
+
+Example CSS:
+
+.time-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  max-width: 500px;
+}
+
+4. Selection Behavior
+
+When a time button is clicked:
+
+• mark the button as selected
+• store the selected value as preferredTime
+• enable the Continue button
+
+Example:
+
+preferredTime = "2:30 PM"
+
+5. Keep Timezone Display
+
+Retain this line above the time buttons:
+
+Timezone: Central (CT)
+
+This remains informational and does not change.
+
+6. Validation
+
+Ensure Continue cannot proceed unless a time button has been selected.
+
+7. Mobile Behavior
+
+On smaller screens change the grid to:
+
+grid-template-columns: repeat(2, 1fr);
+
+Success Criteria
+
+✔ Users select time by clicking buttons  
+✔ No manual typing required  
+✔ Buttons match onsite scheduling design  
+✔ Selected time stores as preferredTime  
+✔ Continue button activates after selection  
+✔ Mobile layout remains responsive

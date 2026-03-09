@@ -1,0 +1,134 @@
+UI Fix: Align Sponsorship Level Badges With Other Level Buttons
+
+Goal
+Move the Platinum and Gold badges so they appear in the same position as the Silver badge used by other sponsors.
+
+Currently the layout shows:
+
+Level Column
+
+FRC2026
+USBT2026      [Platinum]
+              [Gold]
+
+This makes the column visually inconsistent.
+
+Desired Layout
+
+Level Column
+
+FRC2026      [Platinum]
+USBT2026     [Gold]
+
+Which aligns with:
+
+Quadient     [Silver]
+eGain        [Silver]
+
+So all sponsorship levels appear consistently to the right of the event code.
+
+--------------------------------------------------
+
+Implementation Steps
+
+1. Change Level Column Rendering Structure
+
+Locate the component that renders the Level column in the Admin → Sponsors table.
+
+Currently the structure renders:
+
+[event codes]
+[level badges]
+
+This must be reversed to render per-event rows.
+
+Each event should render as a row containing:
+
+eventCode + levelBadge
+
+Example structure:
+
+<div class="sponsor-level-row">
+  <span class="event-code">FRC2026</span>
+  <span class="level-badge platinum">Platinum</span>
+</div>
+
+<div class="sponsor-level-row">
+  <span class="event-code">USBT2026</span>
+  <span class="level-badge gold">Gold</span>
+</div>
+
+--------------------------------------------------
+
+2. Apply Flex Layout
+
+Ensure each event-level pair is horizontally aligned.
+
+CSS:
+
+.sponsor-level-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.event-code {
+  font-size: 13px;
+  color: #4b5563;
+}
+
+--------------------------------------------------
+
+3. Preserve Badge Styles
+
+Do NOT modify the existing badge styles.
+
+Existing styles should remain:
+
+.platinum
+.gold
+.silver
+.bronze
+
+Only the layout position should change.
+
+--------------------------------------------------
+
+4. Maintain Sorting Behavior
+
+The Level column sorting should still sort by the highest sponsorship level.
+
+Priority order:
+
+Platinum
+Gold
+Silver
+Bronze
+
+--------------------------------------------------
+
+5. Maintain Assigned Events Column
+
+The Assigned Events column should remain unchanged:
+
+FRC2026
+USBT2026
+
+Do not modify that column.
+
+--------------------------------------------------
+
+6. Mobile Responsiveness
+
+Ensure that on small screens the rows still wrap cleanly without breaking the badge alignment.
+
+--------------------------------------------------
+
+Success Criteria
+
+✔ Event code appears to the left of the level badge  
+✔ Platinum / Gold badges align visually with Silver badges  
+✔ Multiple events stack vertically  
+✔ Existing badge styles remain unchanged  
+✔ Table layout remains responsive

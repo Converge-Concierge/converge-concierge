@@ -1,0 +1,134 @@
+Fix the sponsor profile page meeting CTA routing.
+
+Problem:
+On the public sponsor profile page, both meeting buttons:
+- Schedule Onsite Meeting
+- Request Online Meeting
+
+are routing the user back to the generic event scheduling page instead of starting the actual meeting scheduling flow for that sponsor.
+
+This creates friction and breaks the intended booking journey.
+
+Required fix:
+From the sponsor profile page, each CTA must take the attendee directly into the correct scheduling flow for the current sponsor and current event context.
+
+==================================================
+1. ONSITE CTA ROUTING
+==================================================
+
+Button:
+"Schedule Onsite Meeting"
+
+Required behavior:
+- go directly into the onsite scheduling flow
+- preserve:
+  - current event
+  - current sponsor
+- skip the generic sponsor-selection page since the attendee has already chosen the sponsor
+
+Expected result:
+The user lands on the next appropriate onsite scheduling step, typically:
+- date selection
+or
+- time selection if date is already preselected by the flow
+
+Do NOT send the user back to:
+- /event/:eventCode
+or any generic sponsor list page
+
+==================================================
+2. ONLINE CTA ROUTING
+==================================================
+
+Button:
+"Request Online Meeting"
+
+Required behavior:
+- go directly into the online meeting request flow
+- preserve:
+  - current event
+  - current sponsor
+- skip the generic sponsor-selection page
+
+Expected result:
+The user lands on the first step of the online meeting flow after sponsor selection, typically:
+- preferred date
+or the first online-request step in the current flow
+
+Do NOT send the user back to:
+- the event sponsor list
+- the generic event page
+
+==================================================
+3. PASS SPONSOR + EVENT CONTEXT CORRECTLY
+==================================================
+
+The sponsor profile page already knows:
+- sponsorId
+- eventCode (or eventId)
+
+Use that context directly when building the CTA links/routes.
+
+Required:
+- onsite CTA prebinds sponsor + event
+- online CTA prebinds sponsor + event
+
+The scheduling flow should behave as if the user has already completed Step 1: Sponsor.
+
+==================================================
+4. SUMMARY BAR / STEP INDICATOR
+==================================================
+
+When the user lands in the scheduling flow from a sponsor profile page:
+- show the selected sponsor in the summary bar
+- allow Change if the current UX supports it
+- keep the step indicator correct
+
+Example:
+Sponsor step is already complete
+then move user to:
+- Date step for onsite
+- preferred date step for online
+
+==================================================
+5. DO NOT BREAK DIRECT EVENT FLOW
+==================================================
+
+Important:
+Do not break the normal booking flow from the public event page.
+
+The standard event page should still work:
+Event Page -> Choose Sponsor -> Continue Flow
+
+This fix only changes sponsor-profile CTA behavior so it deep-links correctly into the process.
+
+==================================================
+6. ROUTE / LINK TEST CASES
+==================================================
+
+After implementation, test this exact behavior:
+
+A. Sponsor profile -> Schedule Onsite Meeting
+Expected:
+- lands directly in onsite booking flow for that sponsor
+- does NOT return to event sponsor grid
+
+B. Sponsor profile -> Request Online Meeting
+Expected:
+- lands directly in online request flow for that sponsor
+- does NOT return to event sponsor grid
+
+C. Sponsor and event remain correctly selected in the flow
+Expected:
+- no need to reselect sponsor
+
+==================================================
+7. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Schedule Onsite Meeting from sponsor profile deep-links directly into onsite booking
+- Request Online Meeting from sponsor profile deep-links directly into online booking
+- sponsor + event context are preserved
+- generic event sponsor-selection page is skipped
+- normal event-page booking flow still works

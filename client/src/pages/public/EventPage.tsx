@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Event, Sponsor, Meeting, AppBranding } from "@shared/schema";
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
-  AlertCircle, ChevronLeft, ChevronDown, Clock, User, Video, Download, ExternalLink,
+  AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Clock, User, Video, Download, ExternalLink,
   Filter, X, Gem, Linkedin, MonitorPlay,
 } from "lucide-react";
 import { SiZoom, SiGooglemeet } from "react-icons/si";
@@ -259,17 +259,6 @@ type AttendeeForm = {
   firstName: string; lastName: string; company: string;
   title: string; email: string; linkedinUrl: string;
 };
-
-function onlineSlots(): string[] {
-  const slots: string[] = [];
-  let cur = 10 * 60;
-  while (cur < 16 * 60) {
-    slots.push(`${String(Math.floor(cur / 60)).padStart(2, "0")}:${String(cur % 60).padStart(2, "0")}`);
-    cur += 30;
-  }
-  return slots;
-}
-const ONLINE_SLOTS = onlineSlots();
 
 // Platform display config
 const TeamsIcon = () => (
@@ -947,7 +936,7 @@ export default function EventPage() {
     );
   }
 
-  // ── STEP 1: DATE SELECTION (shared for onsite + online) ───────────────────
+  // ── STEP 1: DATE SELECTION (onsite = event date cards | online = free-form) ──
   if (step === 1) {
     const stepLabels = meetingMode === "online" ? ONLINE_STEPS : ONSITE_STEPS;
     return (
@@ -960,31 +949,44 @@ export default function EventPage() {
             <div>
               <h2 className="text-xl font-display font-semibold text-foreground mb-1 flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-accent" style={evAccent ? { color: evAccent } : undefined} />
-                {meetingMode === "online" ? "Choose a Preferred Date" : "Choose a Date"}
+                {meetingMode === "online" ? "Preferred Date" : "Choose a Date"}
               </h2>
               <p className="text-sm text-muted-foreground mb-5">
                 {meetingMode === "online"
-                  ? "Select your preferred day for the online meeting."
+                  ? "Choose any date for your online meeting — it doesn't have to be an event day."
                   : "Select a day to view available time slots."}
               </p>
-              <div className="flex flex-wrap gap-3">
-                {availableDates.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => { setSelectedDate(d); setSelectedTime(""); setSelectedLoc(""); setError(""); go(2); }}
-                    data-testid={`date-btn-${d}`}
-                    className={cn(
-                      "px-5 py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-150 active:scale-[0.97]",
-                      selectedDate === d
-                        ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25"
-                        : "bg-card text-foreground border-border hover:border-primary/60 hover:bg-muted/60",
-                    )}
-                  >
-                    <span className="block text-base font-bold">{format(parseISO(d), "d")}</span>
-                    <span className="block text-[11px] font-medium opacity-80">{format(parseISO(d), "EEE, MMM")}</span>
-                  </button>
-                ))}
-              </div>
+
+              {meetingMode === "online" ? (
+                <div className="space-y-4">
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(""); setError(""); }}
+                    data-testid="input-online-date"
+                    className="block w-full max-w-xs h-11 rounded-xl border-2 border-border px-3 text-sm font-medium bg-card text-foreground focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  {availableDates.map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => { setSelectedDate(d); setSelectedTime(""); setSelectedLoc(""); setError(""); go(2); }}
+                      data-testid={`date-btn-${d}`}
+                      className={cn(
+                        "px-5 py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-150 active:scale-[0.97]",
+                        selectedDate === d
+                          ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25"
+                          : "bg-card text-foreground border-border hover:border-primary/60 hover:bg-muted/60",
+                      )}
+                    >
+                      <span className="block text-base font-bold">{format(parseISO(d), "d")}</span>
+                      <span className="block text-[11px] font-medium opacity-80">{format(parseISO(d), "EEE, MMM")}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Navigation */}
@@ -995,6 +997,16 @@ export default function EventPage() {
               >
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
               </Button>
+              {meetingMode === "online" && (
+                <Button
+                  type="button"
+                  disabled={!selectedDate}
+                  onClick={() => { setError(""); go(2); }}
+                  data-testid="button-date-continue"
+                >
+                  Continue <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              )}
             </div>
           </motion.div>
         </AnimatePresence>
@@ -1002,12 +1014,10 @@ export default function EventPage() {
     );
   }
 
-  // ── STEP 2: TIME SELECTION (shared for onsite + online) ───────────────────
+  // ── STEP 2: TIME SELECTION (onsite = slot cards | online = free-form picker) ─
   if (step === 2) {
     const stepLabels = meetingMode === "online" ? ONLINE_STEPS : ONSITE_STEPS;
-    const slots = meetingMode === "online"
-      ? ONLINE_SLOTS
-      : generateSlots(event.meetingBlocks ?? [], selectedDate);
+    const slots = generateSlots(event.meetingBlocks ?? [], selectedDate);
     const allBooked = meetingMode === "onsite" && slots.length > 0 &&
       slots.every((t) => bookedSlots.has(`${selectedSponsor?.id}|${selectedDate}|${t}`));
 
@@ -1024,7 +1034,7 @@ export default function EventPage() {
             <div>
               <h2 className="text-xl font-display font-semibold text-foreground mb-1 flex items-center gap-2">
                 <Clock className="h-5 w-5 text-accent" style={evAccent ? { color: evAccent } : undefined} />
-                {meetingMode === "online" ? "Choose a Preferred Time" : "Choose a Time"}
+                {meetingMode === "online" ? "Preferred Time" : "Choose a Time"}
               </h2>
               {meetingMode === "online" && (
                 <p className="text-sm text-muted-foreground mb-1">
@@ -1033,45 +1043,57 @@ export default function EventPage() {
               )}
               <p className="text-sm text-muted-foreground mb-5">
                 {meetingMode === "online"
-                  ? "Select your preferred time. The sponsor will confirm the exact time."
+                  ? "Choose any time that works for you. The sponsor will confirm the details."
                   : "30-minute sessions. Strikethrough = already booked."}
               </p>
 
-              {allBooked && (
-                <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 mb-4 text-amber-800 text-sm">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  All time slots for this sponsor on this date are fully booked. Please choose a different date.
-                </div>
-              )}
-
-              {slots.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">No time slots available for this date.</p>
+              {meetingMode === "online" ? (
+                <input
+                  type="time"
+                  value={selectedTime}
+                  onChange={(e) => { setSelectedTime(e.target.value); setError(""); }}
+                  data-testid="input-online-time"
+                  className="block w-full max-w-xs h-11 rounded-xl border-2 border-border px-3 text-sm font-medium bg-card text-foreground focus:outline-none focus:border-primary transition-colors"
+                />
               ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {slots.map((t) => {
-                    const booked = meetingMode === "onsite" && bookedSlots.has(`${selectedSponsor?.id}|${selectedDate}|${t}`);
-                    const active = selectedTime === t;
-                    return (
-                      <button
-                        key={t}
-                        disabled={booked}
-                        onClick={() => { setSelectedTime(t); setSelectedLoc(""); setError(""); go(3); }}
-                        data-testid={`time-btn-${t}`}
-                        title={booked ? "Already booked" : fmt12(t)}
-                        className={cn(
-                          "py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-150 text-center active:scale-[0.97]",
-                          booked
-                            ? "bg-muted/60 text-muted-foreground/30 border-muted cursor-not-allowed line-through"
-                            : active
-                            ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25"
-                            : "bg-card text-foreground border-border hover:border-primary/60 hover:bg-muted/60",
-                        )}
-                      >
-                        {fmt12(t)}
-                      </button>
-                    );
-                  })}
-                </div>
+                <>
+                  {allBooked && (
+                    <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 mb-4 text-amber-800 text-sm">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      All time slots for this sponsor on this date are fully booked. Please choose a different date.
+                    </div>
+                  )}
+
+                  {slots.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">No time slots available for this date.</p>
+                  ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {slots.map((t) => {
+                        const booked = bookedSlots.has(`${selectedSponsor?.id}|${selectedDate}|${t}`);
+                        const active = selectedTime === t;
+                        return (
+                          <button
+                            key={t}
+                            disabled={booked}
+                            onClick={() => { setSelectedTime(t); setSelectedLoc(""); setError(""); go(3); }}
+                            data-testid={`time-btn-${t}`}
+                            title={booked ? "Already booked" : fmt12(t)}
+                            className={cn(
+                              "py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-150 text-center active:scale-[0.97]",
+                              booked
+                                ? "bg-muted/60 text-muted-foreground/30 border-muted cursor-not-allowed line-through"
+                                : active
+                                ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25"
+                                : "bg-card text-foreground border-border hover:border-primary/60 hover:bg-muted/60",
+                            )}
+                          >
+                            {fmt12(t)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -1083,6 +1105,16 @@ export default function EventPage() {
               >
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
               </Button>
+              {meetingMode === "online" && (
+                <Button
+                  type="button"
+                  disabled={!selectedTime}
+                  onClick={() => { setError(""); go(3); }}
+                  data-testid="button-time-continue"
+                >
+                  Continue <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              )}
             </div>
           </motion.div>
         </AnimatePresence>

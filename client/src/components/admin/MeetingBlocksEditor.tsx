@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MeetingTimeBlock, MeetingLocation } from "@shared/schema";
-import { Plus, Trash2, Calendar as CalendarIcon, MapPin, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, MapPin, AlertCircle, Pencil, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MeetingBlocksEditorProps {
@@ -13,11 +13,15 @@ interface MeetingBlocksEditorProps {
   readOnly?: boolean;
   eventStartDate?: Date;
   eventEndDate?: Date;
+  bookedBlockIds?: string[];
 }
 
-export function MeetingBlocksEditor({ blocks, onChange, locations = [], readOnly, eventStartDate, eventEndDate }: MeetingBlocksEditorProps) {
+export function MeetingBlocksEditor({ blocks, onChange, locations = [], readOnly, eventStartDate, eventEndDate, bookedBlockIds = [] }: MeetingBlocksEditorProps) {
   const [newBlock, setNewBlock] = useState({ date: "", startTime: "09:00", endTime: "12:00" });
   const [dateError, setDateError] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ startTime: string; endTime: string }>({ startTime: "", endTime: "" });
+  const [editError, setEditError] = useState("");
 
   const addBlock = () => {
     if (!newBlock.date || !newBlock.startTime || !newBlock.endTime || readOnly) return;
@@ -48,6 +52,31 @@ export function MeetingBlocksEditor({ blocks, onChange, locations = [], readOnly
   const removeBlock = (id: string) => {
     if (readOnly) return;
     onChange(blocks.filter((b) => b.id !== id));
+  };
+
+  const startEdit = (block: MeetingTimeBlock) => {
+    setEditingId(block.id);
+    setEditForm({ startTime: block.startTime, endTime: block.endTime });
+    setEditError("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditError("");
+  };
+
+  const saveEdit = (blockId: string) => {
+    setEditError("");
+    if (!editForm.startTime || !editForm.endTime) {
+      setEditError("Start and end times are required.");
+      return;
+    }
+    if (editForm.startTime >= editForm.endTime) {
+      setEditError("Start time must be before end time.");
+      return;
+    }
+    onChange(blocks.map((b) => b.id === blockId ? { ...b, startTime: editForm.startTime, endTime: editForm.endTime } : b));
+    setEditingId(null);
   };
 
   const toggleLocation = (blockId: string, locationId: string) => {
@@ -100,20 +129,74 @@ export function MeetingBlocksEditor({ blocks, onChange, locations = [], readOnly
         {blocks.map((block) => {
           const blockLocIds = block.locationIds ?? [];
           const allSelected = locations.length > 0 && blockLocIds.length === 0;
+          const isEditing = editingId === block.id;
+          const hasBookings = bookedBlockIds.includes(block.id);
+
           return (
             <div key={block.id} className="rounded-lg border bg-card p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
                   <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="font-medium">{block.date}</span>
-                  <span className="text-muted-foreground text-xs">{block.startTime} – {block.endTime}</span>
+                  {isEditing ? (
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="time"
+                        value={editForm.startTime}
+                        onChange={(e) => { setEditError(""); setEditForm({ ...editForm, startTime: e.target.value }); }}
+                        className="h-7 w-28 text-xs px-2"
+                        data-testid={`edit-start-${block.id}`}
+                      />
+                      <span className="text-muted-foreground text-xs">–</span>
+                      <Input
+                        type="time"
+                        value={editForm.endTime}
+                        onChange={(e) => { setEditError(""); setEditForm({ ...editForm, endTime: e.target.value }); }}
+                        className="h-7 w-28 text-xs px-2"
+                        data-testid={`edit-end-${block.id}`}
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground text-xs">{block.startTime} – {block.endTime}</span>
+                  )}
                 </div>
                 {!readOnly && (
-                  <Button type="button" onClick={() => removeBlock(block.id)} size="icon" variant="ghost" className="h-7 w-7 text-destructive shrink-0">
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    {isEditing ? (
+                      <>
+                        <Button type="button" onClick={() => saveEdit(block.id)} size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:text-green-700 shrink-0" data-testid={`btn-save-block-${block.id}`}>
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button type="button" onClick={cancelEdit} size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground shrink-0" data-testid={`btn-cancel-edit-${block.id}`}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button type="button" onClick={() => startEdit(block)} size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0" data-testid={`btn-edit-block-${block.id}`}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button type="button" onClick={() => removeBlock(block.id)} size="icon" variant="ghost" className="h-7 w-7 text-destructive shrink-0" data-testid={`btn-delete-block-${block.id}`}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
+
+              {isEditing && editError && (
+                <div className="flex items-center gap-1.5 text-xs text-destructive">
+                  <AlertCircle className="h-3 w-3 shrink-0" /> {editError}
+                </div>
+              )}
+
+              {isEditing && hasBookings && (
+                <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  Some meetings are already scheduled in this block. Changes apply only to future availability.
+                </div>
+              )}
 
               {locations.length > 0 && (
                 <div className="space-y-1">

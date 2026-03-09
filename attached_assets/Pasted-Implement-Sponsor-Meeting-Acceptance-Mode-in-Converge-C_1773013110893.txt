@@ -1,0 +1,264 @@
+Implement Sponsor Meeting Acceptance Mode in Converge Concierge.
+
+Important rules:
+- Do not redesign the app
+- Do not break existing onsite scheduling, online meeting requests, sponsor dashboards, reports, notifications, legal pages, or admin workflows
+- Preserve all current working functionality
+- Make additive changes only
+
+Goal:
+Allow sponsors to review, accept, decline, cancel, complete, and reschedule meeting requests while preserving a full audit trail.
+Meetings must never be deleted.
+
+==================================================
+1. MEETING STATUS MODEL
+==================================================
+
+Update/normalize the meeting status model to support:
+
+- Requested
+- Confirmed
+- Completed
+- Cancelled
+- Declined
+- NoShow (optional)
+- Rescheduled (optional status OR use history log only)
+
+Recommended behavior:
+- attendee submits request -> Requested
+- sponsor accepts -> Confirmed
+- sponsor declines -> Declined
+- sponsor cancels later -> Cancelled
+- sponsor marks done -> Completed
+
+If the current app uses Scheduled for onsite meetings:
+- keep Scheduled if needed for existing logic
+- but map the sponsor workflow clearly so it is not confusing
+- acceptable approach:
+  - onsite direct booking -> Scheduled
+  - online request -> Requested
+  - accepted online request -> Confirmed
+
+==================================================
+2. CHANGE DEFAULT REQUEST FLOW
+==================================================
+
+For sponsor-controlled approval mode:
+
+Online meeting requests:
+- attendee submits request
+- meeting status starts as Requested
+- sponsor must review and act
+
+Optional:
+If practical, support a future per-sponsor setting:
+- Auto Confirm
+- Manual Approval
+
+For now:
+- apply manual approval mode to online meeting requests first
+
+==================================================
+3. SPONSOR DASHBOARD ACTIONS
+==================================================
+
+In Sponsor Portal -> Your Meetings table, add action controls based on meeting type/status.
+
+A. If status = Requested
+Show:
+- Accept
+- Decline
+- Reschedule
+
+B. If status = Confirmed or Scheduled
+Show:
+- Mark Completed
+- Reschedule
+- Cancel
+
+C. If status = Completed / Cancelled / Declined
+Show no destructive actions
+Optionally show View History
+
+Important:
+- remove any Delete behavior
+- sponsors must never be able to delete meetings/requests
+
+==================================================
+4. ACCEPT FLOW
+==================================================
+
+When sponsor clicks Accept:
+- update status to Confirmed
+- save acceptedAt timestamp
+- write audit/history log entry
+- trigger attendee notification if notification/email system exists
+- refresh sponsor dashboard metrics and meeting row immediately
+
+Attendee-facing wording example:
+"Your meeting with [Sponsor] has been confirmed."
+
+==================================================
+5. DECLINE FLOW
+==================================================
+
+When sponsor clicks Decline:
+- open a small modal
+- optional field: declineReason
+- update status to Declined
+- save declinedAt timestamp
+- write audit/history log entry
+- trigger attendee notification if available
+
+Do not delete the meeting record.
+
+==================================================
+6. RESCHEDULE FLOW
+==================================================
+
+Sponsors should be able to change meeting details such as:
+- date
+- time
+- location
+- meeting type (onsite/online) if practical
+- online platform if applicable
+
+But sponsors must NOT be able to edit:
+- attendee identity fields
+- sponsor identity
+- event identity
+
+Implementation:
+- add a Reschedule / Edit Meeting action
+- open a modal or step flow using existing scheduling components where possible
+- allow sponsor to select a new valid date/time/location
+
+Validation rules:
+- no double booking
+- no scheduling outside the event window
+- no invalid location based on sponsor tier/location rules
+- no booking after event shutoff/end rules
+- preserve event-specific sponsor eligibility logic
+
+On save:
+- update the existing meeting record
+- do NOT create a brand-new standalone record unless your current architecture requires it
+- write a history entry showing old vs new values
+
+Recommended fields to track:
+- previousDate
+- previousTime
+- previousLocation
+- previousMeetingType
+- rescheduledAt
+- rescheduledBy
+
+Alternative acceptable approach:
+- keep current record and rely on detailed history log only
+
+==================================================
+7. CANCELLATION RULE
+==================================================
+
+Sponsors may cancel a meeting/request, but not delete it.
+
+When sponsor clicks Cancel:
+- set status = Cancelled
+- save cancelledAt timestamp
+- write audit/history log entry
+- trigger attendee notification if available
+
+Meeting remains visible in reporting/history.
+
+==================================================
+8. AUDIT / HISTORY LOG (CRITICAL)
+==================================================
+
+Add a meeting history log.
+
+For every important action, record:
+- timestamp
+- actorType (attendee / sponsor / admin / system)
+- actorId if available
+- action
+- oldValue / newValue where useful
+- notes / reason if provided
+
+Example history:
+- Meeting requested
+- Accepted by sponsor
+- Rescheduled from Sep 23 11:00 AM to Sep 23 1:00 PM
+- Location changed from Online to VIP Lounge
+- Cancelled by sponsor
+
+This is critical for reporting integrity and dispute prevention.
+
+==================================================
+9. NOTIFICATIONS / EMAILS
+==================================================
+
+If the app already supports sponsor/attendee notifications, update it for:
+- request accepted
+- request declined
+- meeting rescheduled
+- meeting cancelled
+- meeting completed (optional)
+
+Minimum requirement:
+- persist the status/history changes even if outbound email is not fully configured
+
+If email exists:
+send attendee notifications with updated details.
+
+==================================================
+10. SPONSOR DASHBOARD METRICS
+==================================================
+
+Update KPI cards and charts so sponsor actions are reflected immediately.
+
+At minimum ensure correct counts for:
+- Total Meetings / Requests
+- Confirmed
+- Completed
+- Pending / Requested
+- Cancelled / Declined
+
+If charts exist:
+- update Meeting Status donut/bar chart to include the new status mix cleanly
+
+==================================================
+11. ADMIN CONSISTENCY
+==================================================
+
+Status and reschedule changes made by sponsors must immediately flow through to:
+- Admin Meetings table
+- Admin Reports
+- Sponsor Performance Report
+- CSV/PDF exports
+- Sponsor dashboard charts/KPIs
+
+==================================================
+12. NO DELETION
+==================================================
+
+Critical rule:
+Meetings and meeting requests must never be deleted by sponsors.
+
+If a delete action currently exists anywhere in the sponsor portal:
+- remove it
+- replace with Cancel where appropriate
+
+Admins may retain broader control if needed, but for reporting integrity the record itself should remain.
+
+==================================================
+13. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- online meeting requests start in Requested status
+- sponsors can Accept / Decline / Reschedule requested meetings
+- sponsors can Reschedule / Cancel / Mark Completed confirmed meetings
+- sponsors cannot delete meeting requests
+- all changes are logged in meeting history
+- sponsor dashboard metrics update correctly
+- admin/reports reflect sponsor actions correctly

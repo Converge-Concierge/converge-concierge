@@ -1,0 +1,116 @@
+UI Adjustment: Display Multi-Event Sponsorship Levels to the Right of Event Tags
+
+Goal
+Improve readability of sponsors assigned to multiple events by displaying the event codes first, followed by the sponsorship level badges to the right of them.
+
+Current Layout
+The table currently shows:
+
+Sponsor | Level
+---------------------------
+Winnow  | FRC2026   Platinum
+        | USBT2026  Gold
+
+The event code text is appearing to the left of the level badge, which makes the structure unclear.
+
+Desired Layout
+
+Sponsor | Level
+---------------------------------------------
+Winnow  | FRC2026   [Platinum]
+        | USBT2026  [Gold]
+
+The event code should appear first, followed by the level badge on the right.
+
+Implementation Steps
+
+1. Update the Sponsor Table Rendering Logic
+
+Locate the component that renders the sponsor rows in the Admin → Sponsors table.
+
+This component currently outputs:
+
+eventCode
+levelBadge
+
+Change the order to:
+
+eventCode + spacing + levelBadge
+
+Example structure:
+
+<div class="event-level-row">
+  <span class="event-code">FRC2026</span>
+  <span class="level-badge platinum">Platinum</span>
+</div>
+
+Repeat for each assigned event.
+
+2. Add Flex Layout for Alignment
+
+Wrap each event/level pair in a flex container so the badge sits to the right.
+
+Example CSS:
+
+.event-level-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.event-code {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.level-badge {
+  white-space: nowrap;
+}
+
+3. Maintain Existing Badge Styling
+
+Do NOT change the current badge styles for:
+
+Platinum
+Gold
+Silver
+Bronze
+
+Only change layout positioning.
+
+4. Ensure Multiple Events Stack Vertically
+
+If a sponsor has multiple event assignments, render them as stacked rows within the Level column.
+
+Example:
+
+Level Column
+
+FRC2026   [Platinum]
+USBT2026  [Gold]
+
+Do not render them inline on a single line.
+
+5. Ensure Sorting Still Works
+
+The Level column sorting should continue to sort by the highest sponsorship level assigned to the sponsor.
+
+Example priority:
+
+Platinum
+Gold
+Silver
+Bronze
+
+6. Preserve Mobile Responsiveness
+
+Ensure that on smaller screens the event/level rows still wrap cleanly without breaking the badge layout.
+
+Success Criteria
+
+✔ Event codes appear before level badges  
+✔ Level badges are visually aligned to the right of the event code  
+✔ Multiple event assignments stack vertically  
+✔ Existing badge colors and styles remain unchanged  
+✔ Table layout remains responsive

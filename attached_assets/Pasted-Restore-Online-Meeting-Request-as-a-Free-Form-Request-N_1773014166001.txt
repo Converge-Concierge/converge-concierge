@@ -1,0 +1,198 @@
+Restore Online Meeting Request as a Free-Form Request (Not Slot-Based)
+Problem
+
+The online meeting request flow was changed to mirror onsite scheduling, forcing the attendee to:
+
+choose a specific event date
+
+choose a specific time slot
+
+This breaks the intended purpose of online meetings.
+
+Online meetings are meant to be flexible requests that can occur:
+
+before the event
+
+after the event
+
+outside official event hours
+
+Correct Behavior
+
+Online meeting requests should NOT use the event schedule or time slot system.
+
+Instead they should return to a request-based flow.
+
+Online Meeting Steps
+
+1️⃣ Sponsor
+2️⃣ Preferred Date
+3️⃣ Preferred Time
+4️⃣ Platform
+5️⃣ Your Details
+6️⃣ Submit Request
+
+Step 2 — Preferred Date
+
+Replace the event date selector cards with:
+
+Preferred Date
+[ Date Picker ]
+
+Allow any date.
+
+Do not restrict to event days.
+
+Step 3 — Preferred Time
+
+Replace slot selection with:
+
+Preferred Time
+[ Time Picker ]
+
+This should be a free-form time selector, not pre-generated time slots.
+
+Step 4 — Platform
+
+Keep the new card selector:
+
+Zoom
+Microsoft Teams
+Google Meet
+No Preference
+
+Store as:
+
+meetingPlatform
+Remove This Behavior
+
+Online meetings must not:
+
+load event time slots
+
+load event meeting blocks
+
+enforce event hours
+
+require event locations
+
+Those rules apply only to onsite meetings.
+
+Data Model
+
+Online meetings should store:
+
+meetingType: "online"
+preferredDate
+preferredTime
+meetingPlatform
+status: Requested
+Attendee Message
+
+Submission screen should read:
+
+Meeting Request Sent
+
+Your request has been sent to the sponsor.
+They will confirm the meeting time shortly.
+2. Fix Event Block Editing
+Problem
+
+Meeting blocks created in Event Setup currently cannot be edited.
+
+Example:
+
+2026-05-18  04:00 – 18:00
+Locations: Booth / Work Lounge / VIP Lounge
+
+The UI only shows delete, not edit.
+
+This makes event configuration extremely painful.
+
+Correct Behavior
+
+Each meeting block must allow:
+
+edit time
+
+edit available locations
+
+delete block
+
+Required UI Changes
+
+Add an Edit icon next to the delete icon.
+
+Example:
+
+[ Edit ] [ Delete ]
+Edit Modal Fields
+
+Opening edit should allow modifying:
+
+Start Time
+End Time
+Available Locations
+
+Locations should use the existing location selector:
+
+Booth
+Work Lounge
+VIP Lounge
+Hotel Bar
+Validation Rules
+
+Maintain existing scheduling rules:
+
+• block cannot overlap another block
+• start must be before end
+• location must exist in meeting locations
+
+Database Behavior
+
+Editing a block should:
+
+update meetingBlock
+
+not:
+
+delete + recreate
+
+This prevents breaking existing bookings.
+
+Important Edge Case
+
+If meetings already exist inside that block:
+
+Allow editing time range and locations, but:
+
+do not invalidate existing meetings
+
+warn if changes affect booked slots
+
+Example message:
+
+Some meetings are already scheduled in this block.
+Changes will apply only to future availability.
+3. Expected Final Behavior
+Online Meeting Requests
+
+✔ Free-form date
+✔ Free-form time
+✔ Not tied to event schedule
+✔ Platform selection
+✔ Sponsor approval workflow
+
+Onsite Meetings
+
+✔ Date cards
+✔ Time slot cards
+✔ Event schedule blocks
+✔ Location filtering
+✔ Sponsor location eligibility
+
+Event Setup
+
+✔ Meeting blocks can be edited
+✔ Meeting blocks can be deleted
+✔ Existing meetings are preserved

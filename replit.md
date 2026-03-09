@@ -50,8 +50,8 @@ The platform uses a modern web stack with a clear separation between frontend an
 
 ### Feature Specifications
 
-- **Public Scheduling Flow**: A 5-step wizard (`/event/:slug`) for sponsor selection, date/time booking, attendee details, and confirmation. Includes real-time slot availability and conflict checks.
-- **Admin Panel**: Comprehensive CRUD operations for all entities (Events, Sponsors, Attendees, Meetings, Users). Includes specialized pages for reports, bulk actions, and system configuration.
+- **Public Scheduling Flow**: Two distinct flows at `/event/:slug`. **Onsite** (5 steps): sponsor → event date cards → time slot cards → attendee info → confirm. **Online request** (6 steps): sponsor → free-form date picker (any date, not restricted to event days) → free-form time picker → platform selection (Zoom/Teams/Google Meet/No Preference) → attendee info → confirm. Online requests are stored with status "Pending" and must be confirmed/declined by the sponsor in the Sponsor Dashboard.
+- **Admin Panel**: Comprehensive CRUD operations for all entities (Events, Sponsors, Attendees, Meetings, Users). Includes specialized pages for reports, bulk actions, and system configuration. Meeting blocks in the Event editor support add, edit (inline — changes start/end time without deleting+recreating, preserving existing bookings), and delete operations via the `MeetingBlocksEditor` component.
 - **Sponsor Features**: Sponsor profile pages (`/event/:slug/sponsor/:sponsorId`), sponsor dashboard with notifications, meeting status updates, lead contact management, and CSV export.
 - **Reporting**: Detailed meeting statistics, breakdowns, and filterable tables with CSV export capabilities for various datasets (sponsor summary, attendee summary, all meetings).
 - **Calendar Integration**: ICS file generation and Google Calendar integration for booked meetings.

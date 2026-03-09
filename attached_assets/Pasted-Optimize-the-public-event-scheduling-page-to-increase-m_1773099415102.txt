@@ -1,0 +1,166 @@
+Optimize the public event scheduling page to increase meeting conversion.
+
+Important rules:
+- Do not redesign the app
+- Do not break sponsor filtering, sponsor cards, sponsor profile links, or scheduling flows
+- Preserve all current working functionality
+- Do not change sponsor tier naming/badge language in this task
+- Exclude any sponsor-badge copy changes from this update
+
+Goal:
+Improve meeting conversion on the event page with stronger but sponsor-neutral messaging, clearer section hierarchy, and easier browsing.
+
+==================================================
+1. ADD SOFT SCARCITY LANGUAGE
+==================================================
+
+Below the main concierge message, add this line:
+
+"Sponsors are offering a limited number of private meeting slots during the event."
+
+Requirements:
+- keep the tone soft and truthful
+- do not imply fake scarcity
+- do not imply some sponsors are more important than others
+- place this directly below the existing intro copy
+
+Approved top copy block should read:
+
+Make the most of your time at the event by scheduling meetings with participating sponsors.
+
+Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.
+
+Sponsors are offering a limited number of private meeting slots during the event.
+
+==================================================
+2. ADD A DYNAMIC SUBHEADING ABOVE SPONSOR CARDS
+==================================================
+
+Above the sponsor cards, add a sponsor-results label.
+
+Default state:
+"Sponsors Available for Meetings"
+
+When one or more topic chips are selected:
+"Available Sponsors Matching Your Interests"
+
+Requirements:
+- this should sit directly above the sponsor card grid
+- keep styling simple and consistent with the page
+- do not use wording like "Top Sponsors" or "Recommended Sponsors"
+
+==================================================
+3. ADD A MICRO-TRUST STATEMENT
+==================================================
+
+Directly below the topic chips, add:
+
+"All meetings are private 30-minute conversations with sponsor representatives during the event."
+
+Purpose:
+- reduce hesitation
+- clarify what the meeting actually is
+- reassure attendees before they click
+
+Keep this line small, clean, and easy to scan.
+
+==================================================
+4. ADD A “SHOW ALL SPONSORS” OPTION
+==================================================
+
+Below or beside the topic chips, add a small text link or subtle button:
+
+"Show All Sponsors"
+
+Behavior:
+- clears all selected topics
+- restores the full sponsor list for that event
+- does not break existing chip filtering logic
+
+This is for attendees who prefer browsing rather than filtering first.
+
+==================================================
+5. TIGHTEN SECTION SPACING
+==================================================
+
+Improve visual scanning by adding a little more spacing between:
+
+- the main concierge message block
+- the "What are you interested in?" heading
+- the sponsor results label
+- the sponsor card grid
+
+Suggested adjustment:
+- add approximately 12px–16px of additional vertical spacing where needed
+- do not make the page taller than necessary
+- maintain above-the-fold friendliness where possible
+
+==================================================
+6. PRESERVE SPONSOR-NEUTRAL LANGUAGE
+==================================================
+
+Do NOT add wording like:
+- Top sponsors
+- Best sponsors
+- Recommended sponsors
+- Worth meeting
+- Ranking numbers
+
+Use only neutral language such as:
+- participating sponsors
+- sponsors available for meetings
+- sponsors matching your interests
+
+==================================================
+7. KEEP CURRENT SPONSOR SORTING
+==================================================
+
+Do not change the current sponsor sorting logic in this task.
+
+If multiple sponsors match the selected topics, keep the existing tier-priority ordering:
+- Platinum
+- Gold
+- Silver
+- Bronze
+
+This remains in place, but do not call attention to it in the UI.
+
+==================================================
+8. FINAL TARGET LAYOUT
+==================================================
+
+The page should read in this order:
+
+EVENT HEADER
+
+Make the most of your time at the event by scheduling meetings with participating sponsors.
+
+Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.
+
+Sponsors are offering a limited number of private meeting slots during the event.
+
+What are you interested in?
+
+[ topic chips ]
+[ Show All Sponsors ]
+
+All meetings are private 30-minute conversations with sponsor representatives during the event.
+
+Sponsors Available for Meetings
+or
+Available Sponsors Matching Your Interests
+
+[ sponsor cards ]
+
+==================================================
+9. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- soft scarcity language is added
+- sponsor results label appears above the cards
+- trust statement appears below the chips
+- Show All Sponsors clears filters
+- page spacing feels cleaner and easier to scan
+- no sponsor-judgment language is introduced
+- sponsor filtering and scheduling continue to work normally

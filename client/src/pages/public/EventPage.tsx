@@ -836,60 +836,68 @@ export default function EventPage() {
             const hasMore = allOptions.length > SHOW_LIMIT;
             return (
               <div className="mb-6 space-y-4">
-                <div className="mb-1">
-                  <p className="text-lg font-display font-bold text-foreground">Make the most of your time at the event.</p>
-                  <p className="text-sm text-muted-foreground mt-0.5">Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.</p>
+                <div className="mb-2 space-y-1">
+                  <p className="text-lg font-display font-bold text-foreground">Make the most of your time at the event by scheduling meetings with participating sponsors.</p>
+                  <p className="text-sm text-muted-foreground">Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.</p>
+                  <p className="text-sm text-muted-foreground/80 italic">Sponsors are offering a limited number of private meeting slots during the event.</p>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <h2 className="text-2xl font-display font-semibold text-foreground">
+                <div className="pt-2">
+                  <h2 className="text-2xl font-display font-semibold text-foreground mb-3">
                     What are you interested in?
                   </h2>
-                  {eventSponsors.length > 0 && (
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {filteredSponsors.length} of {eventSponsors.length} sponsor{eventSponsors.length !== 1 ? "s" : ""}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-1.5 items-center">
-                  {visibleOptions.map((attr) => {
-                    const active = activeFilters.some((f) => f.toLowerCase() === attr.toLowerCase());
-                    return (
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    {visibleOptions.map((attr) => {
+                      const active = activeFilters.some((f) => f.toLowerCase() === attr.toLowerCase());
+                      return (
+                        <button
+                          key={attr}
+                          onClick={() => setActiveFilters((prev) =>
+                            active ? prev.filter((f) => f.toLowerCase() !== attr.toLowerCase()) : [...prev, attr]
+                          )}
+                          data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
+                          className={cn(
+                            "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
+                            active
+                              ? "bg-accent text-accent-foreground border-accent"
+                              : "bg-card text-foreground/70 border-border hover:border-accent/60 hover:text-foreground hover:bg-accent/5",
+                          )}
+                          style={(active && evAccent) ? { backgroundColor: evAccent, color: "#fff", borderColor: evAccent } : undefined}
+                        >
+                          {attr}
+                        </button>
+                      );
+                    })}
+                    {hasMore && (
                       <button
-                        key={attr}
-                        onClick={() => setActiveFilters((prev) =>
-                          active ? prev.filter((f) => f.toLowerCase() !== attr.toLowerCase()) : [...prev, attr]
-                        )}
-                        data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
-                        className={cn(
-                          "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
-                          active
-                            ? "bg-accent text-accent-foreground border-accent"
-                            : "bg-card text-foreground/70 border-border hover:border-accent/60 hover:text-foreground hover:bg-accent/5",
-                        )}
-                        style={(active && evAccent) ? { backgroundColor: evAccent, color: "#fff", borderColor: evAccent } : undefined}
+                        onClick={() => setShowAllFilters((v) => !v)}
+                        className="px-3 py-1.5 rounded-full text-sm font-medium text-accent border border-accent/40 hover:bg-accent/10 transition-all"
+                        data-testid="filter-show-more"
                       >
-                        {attr}
+                        {showAllFilters ? "Show Less" : `+${allOptions.length - SHOW_LIMIT} More`}
                       </button>
-                    );
-                  })}
-                  {hasMore && (
-                    <button
-                      onClick={() => setShowAllFilters((v) => !v)}
-                      className="px-3 py-1.5 rounded-full text-sm font-medium text-accent border border-accent/40 hover:bg-accent/10 transition-all"
-                      data-testid="filter-show-more"
-                    >
-                      {showAllFilters ? "Show Less" : `+${allOptions.length - SHOW_LIMIT} More`}
-                    </button>
-                  )}
+                    )}
+                    {activeFilters.length > 0 && (
+                      <button
+                        onClick={() => setActiveFilters([])}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-sm text-muted-foreground hover:text-destructive transition-colors"
+                        data-testid="filter-clear"
+                      >
+                        <X className="h-3.5 w-3.5" /> Clear
+                      </button>
+                    )}
+                  </div>
                   {activeFilters.length > 0 && (
                     <button
                       onClick={() => setActiveFilters([])}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-sm text-muted-foreground hover:text-destructive transition-colors"
-                      data-testid="filter-clear"
+                      className="mt-2 text-xs text-accent hover:underline underline-offset-2 transition-colors"
+                      data-testid="filter-show-all"
                     >
-                      <X className="h-3.5 w-3.5" /> Clear
+                      Show All Sponsors
                     </button>
                   )}
+                  <p className="mt-3 text-xs text-muted-foreground/70">
+                    All meetings are private 30-minute conversations with sponsor representatives during the event.
+                  </p>
                 </div>
               </div>
             );
@@ -908,11 +916,19 @@ export default function EventPage() {
             </div>
           ) : (
             <>
-              {activeFilters.length > 0 && (
-                <p className="text-xs font-medium text-muted-foreground mb-3" data-testid="text-filtered-label">
-                  Sponsors matching your interests
-                </p>
-              )}
+              <div className="flex items-end justify-between mb-4">
+                <h3
+                  className="text-base font-display font-semibold text-foreground"
+                  data-testid="text-sponsor-results-label"
+                >
+                  {activeFilters.length > 0 ? "Available Sponsors Matching Your Interests" : "Sponsors Available for Meetings"}
+                </h3>
+                {eventSponsors.length > 0 && (
+                  <span className="text-xs text-muted-foreground shrink-0 ml-3">
+                    {filteredSponsors.length} of {eventSponsors.length} sponsor{eventSponsors.length !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredSponsors.map((sponsor, i) => (
                 <motion.div

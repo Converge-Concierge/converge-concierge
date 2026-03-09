@@ -13,6 +13,7 @@ import SponsorLoginPage from "@/pages/public/SponsorLoginPage";
 import SponsorDashboardPage from "@/pages/public/SponsorDashboardPage";
 import SponsorAutoLoginPage from "@/pages/public/SponsorAutoLoginPage";
 import SponsorProfilePage from "@/pages/public/SponsorProfilePage";
+import WelcomePage from "@/pages/public/WelcomePage";
 import ResetPasswordPage from "@/pages/public/ResetPasswordPage";
 import HelpCenterPage from "@/pages/public/HelpCenterPage";
 import TermsPage from "@/pages/TermsPage";
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/terms" component={TermsPage} />
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/event/:slug/sponsor/:sponsorId" component={SponsorProfilePage} />
+      <Route path="/event/:slug/welcome" component={WelcomePage} />
       <Route path="/event/:slug" component={EventPage} />
       <Route path="/sponsor/login" component={SponsorLoginPage} />
       <Route path="/sponsor/dashboard" component={SponsorDashboardPage} />

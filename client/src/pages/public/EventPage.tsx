@@ -809,28 +809,19 @@ export default function EventPage() {
             )}
           </div>
 
-          {/* Solution Types filter bar */}
+          {/* Interest filter */}
           {attributesInUse.length > 0 && (() => {
             const allOptions = attributesInUse;
             const SHOW_LIMIT = 7;
             const visibleOptions = showAllFilters ? allOptions : allOptions.slice(0, SHOW_LIMIT);
             const hasMore = allOptions.length > SHOW_LIMIT;
             return (
-              <div className="mb-5 space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-xs font-medium text-muted-foreground">Solution Types:</span>
-                  {activeFilters.length > 0 && (
-                    <button
-                      onClick={() => setActiveFilters([])}
-                      className="flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground hover:text-destructive transition-colors"
-                      data-testid="filter-clear"
-                    >
-                      <X className="h-3 w-3" /> Clear All
-                    </button>
-                  )}
+              <div className="mb-5 space-y-2.5">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-0.5">What are you interested in?</h3>
+                  <p className="text-xs text-muted-foreground">Select one or more topics to narrow down the sponsors you may want to meet with.</p>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5 items-center">
                   {visibleOptions.map((attr) => {
                     const active = activeFilters.some((f) => f.toLowerCase() === attr.toLowerCase());
                     return (
@@ -861,6 +852,15 @@ export default function EventPage() {
                       {showAllFilters ? "Show Less" : `+${allOptions.length - SHOW_LIMIT} More`}
                     </button>
                   )}
+                  {activeFilters.length > 0 && (
+                    <button
+                      onClick={() => setActiveFilters([])}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground hover:text-destructive transition-colors"
+                      data-testid="filter-clear"
+                    >
+                      <X className="h-3 w-3" /> Clear
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -878,6 +878,12 @@ export default function EventPage() {
               <button onClick={() => setActiveFilters([])} className="text-xs text-accent underline underline-offset-2">Clear filters</button>
             </div>
           ) : (
+            <>
+              {activeFilters.length > 0 && (
+                <p className="text-xs font-medium text-muted-foreground mb-3" data-testid="text-filtered-label">
+                  Sponsors matching your interests
+                </p>
+              )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredSponsors.map((sponsor, i) => (
                 <motion.div
@@ -958,6 +964,7 @@ export default function EventPage() {
                 </motion.div>
               ))}
             </div>
+            </>
           )}
         </motion.div>
       </Shell>

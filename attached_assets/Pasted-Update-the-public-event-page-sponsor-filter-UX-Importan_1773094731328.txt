@@ -1,0 +1,100 @@
+Update the public event page sponsor filter UX.
+
+Important rules:
+- Do not redesign the entire event page
+- Do not break sponsor filtering logic
+- Do not break sponsor cards, sponsor profile links, or scheduling flows
+- Preserve all current working functionality
+- Make this a UX copy / presentation improvement only
+
+Goal:
+Reposition the current "Solution Types" filter as a more attendee-friendly guided discovery prompt.
+
+Current label:
+Solution Types
+
+New label:
+What are you interested in?
+
+Optional supporting text:
+Select one or more topics to narrow down the sponsors you may want to meet with.
+
+==================================================
+1. CHANGE FILTER HEADING
+==================================================
+
+On the public event sponsor-selection page:
+
+Replace:
+Solution Types
+
+With:
+What are you interested in?
+
+If there is a smaller field label above the chips, remove or simplify it so the new heading reads naturally.
+
+==================================================
+2. ADD SHORT GUIDING MICROCOPY
+==================================================
+
+Directly below the new heading, add one short line of helper text:
+
+Preferred version:
+Select one or more topics to narrow down the sponsors you may want to meet with.
+
+Alternative acceptable version:
+Choose topics to find sponsors relevant to your interests.
+
+Keep the tone simple, attendee-friendly, and action-oriented.
+
+==================================================
+3. KEEP EXISTING FILTER FUNCTIONALITY
+==================================================
+
+Do not change the underlying logic.
+
+The filter should still:
+- use the sponsor's assigned solution types
+- allow one or more selections
+- instantly narrow the sponsor cards shown on the page
+
+This is a re-marketing / UX framing update, not a logic rewrite.
+
+==================================================
+4. MAINTAIN CHIP-BASED INTERACTION
+==================================================
+
+Keep the topic chips/buttons, but make sure they visually feel like interest selections rather than a technical admin filter.
+
+Examples of current chip values:
+- Compliance
+- Legal
+- Regulatory
+- AI
+- Customer Service
+
+Keep them clickable and filter sponsors instantly.
+
+==================================================
+5. OPTIONAL SMALL UX IMPROVEMENT
+==================================================
+
+If practical, add a small subheading above the sponsor cards after a selection is made:
+
+Examples:
+Sponsors matching your interests
+or
+Sponsors related to your interests
+
+Only show this if it fits cleanly without clutter.
+
+==================================================
+6. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- "Solution Types" is replaced with "What are you interested in?"
+- helper text explains that the selection narrows sponsors
+- chips still work exactly as filters
+- sponsor cards update dynamically based on selected interests
+- overall experience feels more like guided sponsor discovery than technical filtering

@@ -1,0 +1,265 @@
+Build a custom post-registration welcome page in Converge Concierge for each event.
+
+Important rules:
+- Do not redesign the whole public app
+- Do not break existing event pages, sponsor pages, onsite scheduling, or online meeting requests
+- Preserve current working functionality
+- Make this an additive feature
+- This page should work as the redirect destination from Eventzilla after registration
+
+Goal:
+Create a custom event-specific welcome page that acts as a meeting conversion funnel.
+
+Primary use case:
+Eventzilla registration complete
+-> redirect attendee to Converge Concierge event welcome page
+-> attendee sees “You’re Registered — Now Schedule Meetings”
+-> attendee can immediately browse sponsors and begin scheduling
+
+This page should NOT be the generic homepage.
+It should be event-specific.
+
+==================================================
+1. CREATE EVENT-SPECIFIC WELCOME ROUTE
+==================================================
+
+Create a new public route pattern for each event, for example:
+
+/event/:eventCode/welcome
+
+Example:
+- /event/FRC2026/welcome
+- /event/TLS2026/welcome
+- /event/USBT2026/welcome
+- /event/CUGI2027/welcome
+
+This page will be used as the post-registration redirect target from Eventzilla.
+
+==================================================
+2. PAGE PURPOSE / POSITIONING
+==================================================
+
+This page should not feel like a generic thank-you page.
+
+It should feel like:
+“You’re Registered — Now Schedule Meetings”
+
+The page should be designed to convert newly registered attendees into meeting requests immediately.
+
+==================================================
+3. PAGE STRUCTURE
+==================================================
+
+SECTION A — REGISTRATION CONFIRMATION
+
+Headline:
+You’re Registered for [Event Name]
+
+Example:
+You’re Registered for The 2026 Fintech Risk & Compliance Forum
+
+Subtext:
+Your registration is confirmed.
+You can now schedule private 1-on-1 meetings with event sponsors.
+
+Show:
+- event logo
+- event name
+- event dates
+- event location
+
+If available, include a small “Event Website” link.
+
+--------------------------------------------------
+SECTION B — WHY SCHEDULE NOW
+--------------------------------------------------
+
+Headline:
+Schedule Meetings Before the Event
+
+Body copy:
+Sponsors are offering private 1-on-1 meetings with attendees.
+Use Converge Concierge to request meetings and reserve time with solution providers before or during the event.
+
+Keep this concise and action-oriented.
+
+--------------------------------------------------
+SECTION C — TOPIC / INTEREST FILTER
+--------------------------------------------------
+
+Use the same attendee-friendly filter framing already planned for the event page:
+
+Heading:
+What are you interested in?
+
+Microcopy:
+Select one or more topics to narrow down the sponsors you may want to meet with.
+
+Use the sponsor solution types / topics as filter chips.
+
+Examples:
+- Compliance
+- Regulatory
+- AI
+- Customer Service
+- Risk
+- Fraud
+etc.
+
+Filtering should update sponsor cards dynamically.
+
+Do NOT use the technical label “Solution Types” on this page.
+
+--------------------------------------------------
+SECTION D — SPONSOR GRID (CRITICAL)
+--------------------------------------------------
+
+Show sponsor cards immediately on the page.
+
+Each card should include:
+- sponsor logo
+- sponsor name
+- short description if available
+- sponsorship level badge
+- View Profile
+- Schedule Onsite Meeting
+- Request Online Meeting (only if enabled)
+
+Requirements:
+- use the same sponsor card system already used on the event page
+- only show sponsors valid for that event
+- apply interest/topic filtering
+- preserve event + sponsor context in all CTA links
+
+If an event has many sponsors:
+- show the filter section above the cards
+- keep the page easy to scan
+
+--------------------------------------------------
+SECTION E — OPTIONAL EMAIL REMINDER CAPTURE
+--------------------------------------------------
+
+If practical, add a small optional section:
+
+Heading:
+Get meeting reminders
+
+Body:
+Want a reminder to schedule sponsor meetings later?
+Enter your email and we’ll send you a link back to this page.
+
+This should be optional and non-blocking.
+
+If this is too much for now, skip it.
+
+--------------------------------------------------
+SECTION F — CONTINUE EXPLORING
+--------------------------------------------------
+
+At the bottom, include a small text link:
+
+Return to event website
+
+This should link to the event website URL if one exists.
+
+==================================================
+4. EVENT-SPECIFIC CONTENT
+==================================================
+
+The page should load all content dynamically from the event context:
+- event logo
+- event name
+- event dates
+- event location
+- event website
+- sponsors assigned to that event
+- interest/topic filters from sponsors assigned to that event
+
+Do not hardcode this page only for FRC.
+It should work across the portfolio.
+
+==================================================
+5. CTA / FLOW BEHAVIOR
+==================================================
+
+From this welcome page:
+- View Profile should go to the sponsor profile for that event
+- Schedule Onsite Meeting should deep-link directly into the onsite scheduling flow for that sponsor/event
+- Request Online Meeting should deep-link directly into the online meeting request flow for that sponsor/event
+
+Do not send the attendee back to the generic event homepage first.
+
+==================================================
+6. WORDING / UX
+==================================================
+
+This page should feel like the natural next step after registration.
+
+It should answer:
+“Now that I’m registered, what should I do next?”
+
+Use clear language like:
+- You’re Registered
+- Now Schedule Meetings
+- Meet With Our Sponsors
+- What are you interested in?
+
+Keep the tone premium, simple, and action-oriented.
+
+==================================================
+7. EVENTZILLA REDIRECT READINESS
+==================================================
+
+Make this page ready to use as an Eventzilla redirect destination.
+
+Requirements:
+- stable public URL
+- no login required
+- event-specific
+- mobile-friendly
+- fast loading
+
+Example redirect target:
+https://[concierge-domain]/event/FRC2026/welcome
+
+==================================================
+8. OPTIONAL ENHANCEMENT — RECOMMENDED SPONSORS
+==================================================
+
+If practical, add a section:
+
+Recommended Sponsors
+
+Behavior:
+- if the attendee selects one or more interests/topics,
+  optionally surface a “Recommended Sponsors” header above the filtered grid
+
+Example:
+Recommended Sponsors Based on Your Interests
+
+This is optional for now, but structure the page so it can be added later.
+
+==================================================
+9. DO NOT BREAK EXISTING PAGES
+==================================================
+
+Do not replace:
+- existing event sponsor-selection page
+- existing homepage
+- sponsor profile pages
+- scheduling flow
+
+This new page should be an additional entry point into the existing scheduling system.
+
+==================================================
+10. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- each event has a custom /event/:eventCode/welcome page
+- the page clearly says the attendee is registered
+- it invites them to schedule meetings immediately
+- sponsors for that event are visible right away
+- topic/interest filters narrow sponsor cards
+- sponsor CTAs deep-link directly into scheduling
+- the page is suitable for Eventzilla post-registration redirect use

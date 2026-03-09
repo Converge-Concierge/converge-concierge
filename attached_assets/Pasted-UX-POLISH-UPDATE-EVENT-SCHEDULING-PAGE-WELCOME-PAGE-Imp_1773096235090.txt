@@ -1,0 +1,272 @@
+UX POLISH UPDATE — EVENT SCHEDULING PAGE + WELCOME PAGE
+
+Important:
+Do not redesign the system.
+Do not change any meeting scheduling logic.
+This task is purely UI/UX hierarchy and formatting improvements.
+
+------------------------------------------------------------
+PART 1 — EVENT SCHEDULING PAGE
+------------------------------------------------------------
+
+Goal:
+Replace "Select a Sponsor" with the new interest-based discovery model.
+
+1. REMOVE CURRENT HEADER
+
+Remove the section header:
+
+Select a Sponsor
+
+Also remove the supporting text:
+
+Choose who you'd like to meet with. Each 1-on-1 is a private 30-minute strategy session.
+
+This language no longer reflects the discovery flow.
+
+2. PROMOTE "WHAT ARE YOU INTERESTED IN?"
+
+The heading:
+
+What are you interested in?
+
+Should become the primary section header.
+
+Apply the same styling that was previously used for:
+
+Select a Sponsor
+
+This means:
+
+• Same font size  
+• Same font weight  
+• Same spacing  
+• Same visual prominence  
+
+3. REMOVE THE HELPER TEXT
+
+Delete the sentence under the filters:
+
+Select one or more topics to narrow down the sponsors you may want to meet with.
+
+Reason:
+The chips themselves make the function obvious.
+
+4. FINAL LAYOUT STRUCTURE
+
+The page should now appear in this order:
+
+EVENT HEADER
+
+Event logo  
+Event name  
+Event date/location  
+
+↓
+
+What are you interested in?
+
+[ Compliance ]  
+[ Legal ]  
+[ Regulatory ]  
+[ AI ]  
+[ Customer Service ]
+
+↓
+
+Sponsor cards
+
+This creates a **guided discovery flow** instead of forcing users to choose a sponsor first.
+
+------------------------------------------------------------
+PART 2 — WELCOME PAGE LAYOUT FIX
+------------------------------------------------------------
+
+The welcome page currently has layout and visual hierarchy issues.
+
+We will clean this up.
+
+------------------------------------------------------------
+1. FIX EVENT LOGO DISPLAY
+------------------------------------------------------------
+
+The white square at the top is currently a placeholder.
+
+Replace this with the actual event logo.
+
+Logic:
+
+If event.logo exists  
+→ display event logo
+
+If event logo has transparency issues  
+→ place logo inside a white container
+
+Recommended container styling:
+
+background: white  
+padding: 12–16px  
+border-radius: 8px
+
+This ensures logos display correctly even if they are not transparent.
+
+------------------------------------------------------------
+2. HERO BACKGROUND COLOR
+------------------------------------------------------------
+
+The dark blue hero background causes problems with non-transparent logos.
+
+Change the hero background to:
+
+White
+
+or
+
+Very light neutral (light gray).
+
+Reason:
+
+• improves logo compatibility
+• improves readability
+• aligns with the main event pages
+
+------------------------------------------------------------
+3. HERO CONTENT STRUCTURE
+------------------------------------------------------------
+
+Hero should contain:
+
+EVENT LOGO
+
+↓
+
+Badge
+Registration Confirmed
+
+↓
+
+Headline
+You're Registered for
+[Event Name]
+
+↓
+
+Subtext
+Your registration is confirmed.
+You can now schedule private 1-on-1 meetings with event sponsors.
+
+↓
+
+Event details
+Date
+Location
+Event Website
+
+Keep this section visually centered and clean.
+
+------------------------------------------------------------
+4. REMOVE OR REDUCE THE MIDDLE SECTION
+------------------------------------------------------------
+
+Current section:
+
+Schedule Meetings Before the Event
+Sponsors are offering private 1-on-1 meetings...
+
+This section is redundant.
+
+Option A (preferred):
+Remove it completely.
+
+Option B:
+Reduce to a single short line above sponsor section:
+
+Schedule meetings with participating sponsors below.
+
+Keep the page focused on action.
+
+------------------------------------------------------------
+5. MAKE THE DISCOVERY SECTION MORE PROMINENT
+------------------------------------------------------------
+
+The section:
+
+What are you interested in?
+
+should be visually emphasized.
+
+Apply:
+
+• Larger font size  
+• More vertical spacing  
+• Slightly bolder text  
+
+This should feel like the **main interaction point of the page**.
+
+------------------------------------------------------------
+6. FILTER CHIP VISUAL EMPHASIS
+------------------------------------------------------------
+
+Improve visibility of the topic chips.
+
+Recommended styling:
+
+• slightly larger padding  
+• stronger border contrast  
+• hover effect  
+• clear selected state
+
+Example:
+
+Default:
+light border
+
+Selected:
+filled background or darker border
+
+Goal:
+Make these feel like **interactive interest selections**, not small filters.
+
+------------------------------------------------------------
+7. PAGE FLOW AFTER UPDATE
+------------------------------------------------------------
+
+Final welcome page structure:
+
+EVENT HERO
+
+Event logo  
+Registration Confirmed  
+You're Registered for [Event Name]  
+Event details  
+
+↓
+
+What are you interested in?
+
+[ AI ]  
+[ Compliance ]  
+[ Customer Service ]  
+[ Legal ]  
+[ Regulatory ]
+
+↓
+
+Meet With Our Sponsors
+
+Sponsor cards
+
+------------------------------------------------------------
+SUCCESS CRITERIA
+------------------------------------------------------------
+
+After implementation:
+
+• "Select a Sponsor" is removed
+• "What are you interested in?" is the primary section header
+• Helper filter text is removed
+• Event logo displays correctly on welcome page
+• Hero background no longer breaks logos
+• Middle explanatory block is removed or minimized
+• Interest chips are more visually prominent
+• Sponsor discovery feels guided and intuitive

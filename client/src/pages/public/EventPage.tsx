@@ -787,39 +787,49 @@ export default function EventPage() {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
-            <div>
-              <h2 className="text-2xl font-display font-semibold text-foreground mb-1">
-                {(eventEnded || schedulingDisabled) ? "Event Sponsors" : "Select a Sponsor"}
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                {eventEnded
-                  ? "This event has concluded. Browse the sponsors who participated."
-                  : showExternalHandoff
-                    ? "Browse the sponsors participating in this event."
-                    : schedulingDisabled
-                      ? "Concierge scheduling is currently unavailable for this event."
-                      : "Choose who you'd like to meet with. Each 1-on-1 is a private 30-minute strategy session."}
-              </p>
+          {/* Primary section header */}
+          {(eventEnded || schedulingDisabled || attributesInUse.length === 0) && (
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+              <div>
+                <h2 className="text-2xl font-display font-semibold text-foreground mb-1">
+                  {(eventEnded || schedulingDisabled) ? "Event Sponsors" : showExternalHandoff ? "Event Sponsors" : "Select a Sponsor"}
+                </h2>
+                {(eventEnded || schedulingDisabled) && (
+                  <p className="text-muted-foreground text-sm">
+                    {eventEnded
+                      ? "This event has concluded. Browse the sponsors who participated."
+                      : "Concierge scheduling is currently unavailable for this event."}
+                  </p>
+                )}
+                {showExternalHandoff && !eventEnded && !schedulingDisabled && (
+                  <p className="text-muted-foreground text-sm">Browse the sponsors participating in this event.</p>
+                )}
+              </div>
+              {eventSponsors.length > 0 && (
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {filteredSponsors.length} of {eventSponsors.length} sponsor{eventSponsors.length !== 1 ? "s" : ""}
+                </span>
+              )}
             </div>
-            {eventSponsors.length > 0 && (
-              <span className="text-xs text-muted-foreground shrink-0">
-                {filteredSponsors.length} of {eventSponsors.length} sponsor{eventSponsors.length !== 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
+          )}
 
-          {/* Interest filter */}
+          {/* Interest filter — becomes the primary heading when scheduling is active */}
           {attributesInUse.length > 0 && (() => {
             const allOptions = attributesInUse;
             const SHOW_LIMIT = 7;
             const visibleOptions = showAllFilters ? allOptions : allOptions.slice(0, SHOW_LIMIT);
             const hasMore = allOptions.length > SHOW_LIMIT;
             return (
-              <div className="mb-5 space-y-2.5">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground mb-0.5">What are you interested in?</h3>
-                  <p className="text-xs text-muted-foreground">Select one or more topics to narrow down the sponsors you may want to meet with.</p>
+              <div className="mb-6 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <h2 className="text-2xl font-display font-semibold text-foreground">
+                    What are you interested in?
+                  </h2>
+                  {eventSponsors.length > 0 && (
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {filteredSponsors.length} of {eventSponsors.length} sponsor{eventSponsors.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-1.5 items-center">
                   {visibleOptions.map((attr) => {
@@ -832,10 +842,10 @@ export default function EventPage() {
                         )}
                         data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
                         className={cn(
-                          "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                          "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
                           active
                             ? "bg-accent text-accent-foreground border-accent"
-                            : "bg-card text-muted-foreground border-border hover:border-accent/50 hover:text-foreground",
+                            : "bg-card text-foreground/70 border-border hover:border-accent/60 hover:text-foreground hover:bg-accent/5",
                         )}
                         style={(active && evAccent) ? { backgroundColor: evAccent, color: "#fff", borderColor: evAccent } : undefined}
                       >
@@ -846,7 +856,7 @@ export default function EventPage() {
                   {hasMore && (
                     <button
                       onClick={() => setShowAllFilters((v) => !v)}
-                      className="px-2.5 py-1 rounded-full text-xs font-medium text-accent border border-accent/30 hover:bg-accent/10 transition-all"
+                      className="px-3 py-1.5 rounded-full text-sm font-medium text-accent border border-accent/40 hover:bg-accent/10 transition-all"
                       data-testid="filter-show-more"
                     >
                       {showAllFilters ? "Show Less" : `+${allOptions.length - SHOW_LIMIT} More`}
@@ -855,10 +865,10 @@ export default function EventPage() {
                   {activeFilters.length > 0 && (
                     <button
                       onClick={() => setActiveFilters([])}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground hover:text-destructive transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-sm text-muted-foreground hover:text-destructive transition-colors"
                       data-testid="filter-clear"
                     >
-                      <X className="h-3 w-3" /> Clear
+                      <X className="h-3.5 w-3.5" /> Clear
                     </button>
                   )}
                 </div>

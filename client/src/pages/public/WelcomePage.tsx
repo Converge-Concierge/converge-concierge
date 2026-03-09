@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Event, Sponsor } from "@shared/schema";
 import {
   Calendar, MapPin, ExternalLink, Building2, CheckCircle,
-  Video, Gem, X, ChevronRight, Users,
+  Video, Gem, X,
 } from "lucide-react";
 import { Link } from "wouter";
 import { format, parseISO } from "date-fns";
@@ -137,47 +137,48 @@ export default function WelcomePage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Hero / Confirmation Banner ─────────────────────────────────────── */}
-      <div className="bg-primary text-primary-foreground">
+      <div className="bg-white border-b border-border">
         <div className="max-w-5xl mx-auto px-6 py-10 sm:py-14">
           <motion.div {...slide} className="flex flex-col items-center text-center gap-5">
-            {event.logoUrl && (
-              <img
-                src={event.logoUrl}
-                alt={event.name}
-                className="h-16 sm:h-20 max-w-[240px] object-contain brightness-0 invert"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                data-testid="img-event-logo-welcome"
-              />
-            )}
+            {event.logoUrl ? (
+              <div className="bg-white rounded-lg p-3 sm:p-4 border border-border/60 shadow-sm" data-testid="img-event-logo-welcome">
+                <img
+                  src={event.logoUrl}
+                  alt={event.name}
+                  className="h-14 sm:h-18 max-w-[220px] object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = "none"; }}
+                />
+              </div>
+            ) : null}
 
-            <div className="flex items-center gap-2 bg-white/10 text-white text-xs font-semibold px-3 py-1.5 rounded-full" data-testid="badge-registered">
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-300" />
+            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1.5 rounded-full" data-testid="badge-registered">
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
               Registration Confirmed
             </div>
 
             <div>
-              <h1 className="text-3xl sm:text-4xl font-display font-bold leading-tight mb-2" data-testid="heading-event-name">
+              <h1 className="text-3xl sm:text-4xl font-display font-bold text-foreground leading-tight mb-2" data-testid="heading-event-name">
                 You're Registered for<br />{event.name}
               </h1>
-              <p className="text-white/70 text-sm sm:text-base max-w-lg mx-auto">
+              <p className="text-muted-foreground text-sm sm:text-base max-w-lg mx-auto">
                 Your registration is confirmed. You can now schedule private 1-on-1 meetings with event sponsors.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-4 text-white/70 text-sm">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-muted-foreground text-sm">
               <span className="flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-white/50" />
+                <Calendar className="h-3.5 w-3.5 text-accent" />
                 {startFmt} – {endFmt}
               </span>
               <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-white/50" />
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground/60" />
                 {event.location}
               </span>
               {eventWebsite && (
                 <a
                   href={eventWebsite}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-white/80 hover:text-white transition-colors font-medium"
+                  className="flex items-center gap-1.5 text-accent hover:opacity-80 transition-opacity font-medium"
                   data-testid="link-event-website-hero"
                 >
                   <ExternalLink className="h-3.5 w-3.5" /> Event Website
@@ -188,55 +189,20 @@ export default function WelcomePage() {
         </div>
       </div>
 
-      {/* ── Why Schedule Now ──────────────────────────────────────────────── */}
-      <div className="border-b border-border bg-muted/30">
-        <div className="max-w-5xl mx-auto px-6 py-8 sm:py-10">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-8"
-          >
-            <div className="flex-shrink-0 h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center">
-              <Users className="h-6 w-6 text-accent" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-display font-semibold text-foreground mb-1">
-                Schedule Meetings Before the Event
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Sponsors are offering private 1-on-1 meetings with attendees. Use Converge Concierge to request meetings and reserve time with solution providers — before or during the event.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                const el = document.getElementById("sponsor-grid");
-                el?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-              className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-colors"
-              data-testid="button-view-sponsors"
-            >
-              View Sponsors <ChevronRight className="h-4 w-4" />
-            </button>
-          </motion.div>
-        </div>
-      </div>
-
       {/* ── Sponsor Discovery ─────────────────────────────────────────────── */}
       <div id="sponsor-grid" className="flex-1 max-w-5xl mx-auto w-full px-6 py-8 sm:py-10">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.15 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
         >
-          {/* Interest filter */}
+          {/* Interest filter — primary discovery heading */}
           {attributesInUse.length > 0 && (
-            <div className="mb-6 space-y-2.5">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-0.5">What are you interested in?</h3>
-                <p className="text-xs text-muted-foreground">Select one or more topics to narrow down the sponsors you may want to meet with.</p>
-              </div>
-              <div className="flex flex-wrap gap-1.5 items-center">
+            <div className="mb-8 space-y-4">
+              <h2 className="text-2xl font-display font-semibold text-foreground">
+                What are you interested in?
+              </h2>
+              <div className="flex flex-wrap gap-2 items-center">
                 {visibleFilters.map((attr) => {
                   const active = activeFilters.some((f) => f.toLowerCase() === attr.toLowerCase());
                   return (
@@ -247,10 +213,10 @@ export default function WelcomePage() {
                       )}
                       data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
                       className={cn(
-                        "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                        "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
                         active
-                          ? "bg-accent text-white border-accent"
-                          : "bg-card text-muted-foreground border-border hover:border-accent/50 hover:text-foreground",
+                          ? "bg-accent text-white border-accent shadow-sm"
+                          : "bg-white text-foreground/70 border-border hover:border-accent/60 hover:text-foreground hover:bg-accent/5",
                       )}
                     >
                       {attr}
@@ -260,7 +226,7 @@ export default function WelcomePage() {
                 {hasMoreFilters && (
                   <button
                     onClick={() => setShowAllFilters((v) => !v)}
-                    className="px-2.5 py-1 rounded-full text-xs font-medium text-accent border border-accent/30 hover:bg-accent/10 transition-all"
+                    className="px-3 py-1.5 rounded-full text-sm font-medium text-accent border border-accent/40 hover:bg-accent/10 transition-all"
                     data-testid="filter-show-more"
                   >
                     {showAllFilters ? "Show Less" : `+${attributesInUse.length - FILTER_LIMIT} More`}
@@ -269,10 +235,10 @@ export default function WelcomePage() {
                 {activeFilters.length > 0 && (
                   <button
                     onClick={() => setActiveFilters([])}
-                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground hover:text-destructive transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm text-muted-foreground hover:text-destructive transition-colors"
                     data-testid="filter-clear"
                   >
-                    <X className="h-3 w-3" /> Clear
+                    <X className="h-3.5 w-3.5" /> Clear
                   </button>
                 )}
               </div>

@@ -4,11 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Event, Sponsor } from "@shared/schema";
 import {
-  Calendar, MapPin, ExternalLink, Building2, CheckCircle,
-  Video, Gem, X,
+  ExternalLink, Building2, CheckCircle, Video, Gem, X,
 } from "lucide-react";
 import { Link } from "wouter";
-import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import PublicFooter from "@/components/PublicFooter";
 
@@ -30,6 +28,21 @@ function getEventWebsite(slug: string, storedUrl?: string | null): string | null
 function getSponsorEventLevel(sponsor: Sponsor, eventId: string): string {
   const ae = (sponsor.assignedEvents ?? []).find((e) => e.eventId === eventId);
   return (ae?.sponsorshipLevel && ae.sponsorshipLevel !== "None") ? ae.sponsorshipLevel : "";
+}
+
+const levelPriority: Record<string, number> = {
+  Platinum: 4,
+  Gold:     3,
+  Silver:   2,
+  Bronze:   1,
+};
+
+function sortByLevel(list: Sponsor[], eventId: string): Sponsor[] {
+  return [...list].sort((a, b) => {
+    const la = levelPriority[getSponsorEventLevel(a, eventId)] ?? 0;
+    const lb = levelPriority[getSponsorEventLevel(b, eventId)] ?? 0;
+    return lb - la;
+  });
 }
 
 const levelBorder: Record<string, string> = {
@@ -57,12 +70,6 @@ const levelAccentSecondary: Record<string, string> = {
   Bronze:   "border-orange-300 text-orange-700 bg-orange-50/60 hover:bg-orange-100",
 };
 
-const slide = {
-  initial:  { opacity: 0, y: 16 },
-  animate:  { opacity: 1, y: 0 },
-  transition: { duration: 0.3 },
-};
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function WelcomePage() {
@@ -75,16 +82,17 @@ export default function WelcomePage() {
   const [activeFilters,  setActiveFilters]  = useState<string[]>([]);
   const [showAllFilters, setShowAllFilters] = useState(false);
 
-  const FILTER_LIMIT = 8;
+  const FILTER_LIMIT = 10;
 
   const event = events.find((e) => e.slug === slug);
 
   const eventSponsors = useMemo(() => {
     if (!event) return [];
-    return sponsors.filter((s) =>
+    const base = sponsors.filter((s) =>
       s.archiveState === "active" &&
       (s.assignedEvents ?? []).some((ae) => ae.eventId === event.id && ae.archiveState === "active")
     );
+    return sortByLevel(base, event.id);
   }, [event, sponsors]);
 
   const attributesInUse = useMemo(() => {
@@ -100,9 +108,10 @@ export default function WelcomePage() {
   const filteredSponsors = useMemo(() => {
     if (activeFilters.length === 0) return eventSponsors;
     const fk = activeFilters.map((f) => f.toLowerCase());
-    return eventSponsors.filter((s) =>
+    const filtered = eventSponsors.filter((s) =>
       fk.some((k) => (s.attributes ?? []).some((a) => a.trim().toLowerCase() === k))
     );
+    return filtered;
   }, [eventSponsors, activeFilters]);
 
   if (evL || spL) {
@@ -128,77 +137,86 @@ export default function WelcomePage() {
   }
 
   const eventWebsite = getEventWebsite(event.slug, event.websiteUrl);
-  const startFmt = format(parseISO(event.startDate as unknown as string), "MMMM d");
-  const endFmt   = format(parseISO(event.endDate   as unknown as string), "MMMM d, yyyy");
-
   const visibleFilters = showAllFilters ? attributesInUse : attributesInUse.slice(0, FILTER_LIMIT);
   const hasMoreFilters = attributesInUse.length > FILTER_LIMIT;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* ── Hero / Confirmation Banner ─────────────────────────────────────── */}
+
+      {/* ── Hero — horizontal layout ──────────────────────────────────────── */}
       <div className="bg-white border-b border-border">
-        <div className="max-w-5xl mx-auto px-6 py-10 sm:py-14">
-          <motion.div {...slide} className="flex flex-col items-center text-center gap-5">
+        <div className="max-w-5xl mx-auto px-6 py-5 sm:py-6">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-6 sm:gap-8"
+          >
             {event.logoUrl ? (
-              <div className="bg-white rounded-lg p-3 sm:p-4 border border-border/60 shadow-sm" data-testid="img-event-logo-welcome">
+              <div
+                className="flex-shrink-0 bg-white rounded-lg p-3 border border-border/60 shadow-sm"
+                data-testid="img-event-logo-welcome"
+              >
                 <img
                   src={event.logoUrl}
                   alt={event.name}
-                  className="h-14 sm:h-18 max-w-[220px] object-contain"
-                  onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = "none"; }}
+                  className="h-28 sm:h-32 max-w-[260px] object-contain"
+                  onError={(e) => {
+                    const parent = (e.target as HTMLImageElement).parentElement;
+                    if (parent) parent.style.display = "none";
+                  }}
                 />
               </div>
-            ) : null}
+            ) : (
+              <div className="flex-shrink-0 h-20 w-20 rounded-xl bg-muted flex items-center justify-center" data-testid="img-event-logo-welcome">
+                <Building2 className="h-8 w-8 text-muted-foreground/40" />
+              </div>
+            )}
 
-            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1.5 rounded-full" data-testid="badge-registered">
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-              Registration Confirmed
-            </div>
-
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-display font-bold text-foreground leading-tight mb-2" data-testid="heading-event-name">
-                You're Registered for<br />{event.name}
+            <div className="min-w-0 flex-1">
+              <div
+                className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1 rounded-full mb-3"
+                data-testid="badge-registered"
+              >
+                <CheckCircle className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                Registration Confirmation
+              </div>
+              <h1
+                className="text-2xl sm:text-3xl font-display font-bold text-foreground leading-tight"
+                data-testid="heading-event-name"
+              >
+                You're Registered for<br className="hidden sm:block" />{" "}
+                <span className="text-foreground">{event.name}!</span>
               </h1>
-              <p className="text-muted-foreground text-sm sm:text-base max-w-lg mx-auto">
-                Your registration is confirmed. You can now schedule private 1-on-1 meetings with event sponsors.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-4 text-muted-foreground text-sm">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-accent" />
-                {startFmt} – {endFmt}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-muted-foreground/60" />
-                {event.location}
-              </span>
-              {eventWebsite && (
-                <a
-                  href={eventWebsite}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-accent hover:opacity-80 transition-opacity font-medium"
-                  data-testid="link-event-website-hero"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" /> Event Website
-                </a>
-              )}
             </div>
           </motion.div>
         </div>
       </div>
 
+      {/* ── CTA message ───────────────────────────────────────────────────── */}
+      <div className="border-b border-border bg-muted/20">
+        <div className="max-w-5xl mx-auto px-6 py-4">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25, delay: 0.05 }}
+            className="text-xl sm:text-2xl font-display font-bold text-foreground"
+          >
+            Schedule meetings to make the most of your event.
+          </motion.p>
+        </div>
+      </div>
+
       {/* ── Sponsor Discovery ─────────────────────────────────────────────── */}
-      <div id="sponsor-grid" className="flex-1 max-w-5xl mx-auto w-full px-6 py-8 sm:py-10">
+      <div id="sponsor-grid" className="flex-1 max-w-5xl mx-auto w-full px-6 py-5 sm:py-6">
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
+          transition={{ duration: 0.25, delay: 0.08 }}
         >
-          {/* Interest filter — primary discovery heading */}
+          {/* Interest filter */}
           {attributesInUse.length > 0 && (
-            <div className="mb-8 space-y-4">
+            <div className="mb-6 space-y-3">
               <h2 className="text-2xl font-display font-semibold text-foreground">
                 What are you interested in?
               </h2>
@@ -246,7 +264,7 @@ export default function WelcomePage() {
           )}
 
           {/* Grid header */}
-          <div className="flex items-end justify-between mb-4">
+          <div className="flex items-end justify-between mb-3">
             <div>
               <h2 className="text-xl font-display font-semibold text-foreground">
                 {activeFilters.length > 0 ? "Sponsors Matching Your Interests" : "Meet With Our Sponsors"}
@@ -280,9 +298,9 @@ export default function WelcomePage() {
                 return (
                   <motion.div
                     key={sponsor.id}
-                    initial={{ opacity: 0, y: 14 }}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.4) }}
+                    transition={{ duration: 0.22, delay: Math.min(i * 0.04, 0.35) }}
                     className={cn(
                       "flex flex-col rounded-xl border-2 shadow-sm overflow-hidden",
                       "hover:shadow-md hover:-translate-y-0.5 transition-all duration-200",
@@ -355,11 +373,11 @@ export default function WelcomePage() {
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}
       {eventWebsite && (
-        <div className="border-t border-border py-6 text-center">
+        <div className="border-t border-border py-5 text-center">
           <a
             href={eventWebsite}
             target="_blank" rel="noopener noreferrer"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 justify-center"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
             data-testid="link-event-website-footer"
           >
             <ExternalLink className="h-3.5 w-3.5" /> Return to event website

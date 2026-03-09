@@ -1,0 +1,300 @@
+WELCOME PAGE UX UPDATE — HIGH CONVERSION VERSION
+
+Important:
+Do not change the scheduling engine.
+Do not break sponsor cards or scheduling links.
+Do not modify sponsor data models.
+
+This task focuses on:
+• layout improvements
+• visual hierarchy
+• sponsor prioritization
+• above-the-fold conversion
+
+Goal:
+Turn the welcome page into a high-conversion meeting scheduling entry point.
+
+The primary goal is:
+Show sponsor cards ABOVE THE FOLD.
+
+------------------------------------------------------------
+PART 1 — HERO HEADER REDESIGN
+------------------------------------------------------------
+
+Current hero layout centers the logo and wastes vertical space.
+
+Replace the centered layout with a horizontal layout.
+
+New layout structure:
+
+------------------------------------------------
+
+[ EVENT LOGO ]   Registration Confirmation
+                 You're Registered for
+                 The 2026 Fintech Risk & Compliance Forum!
+
+------------------------------------------------
+
+1. EVENT LOGO
+
+Increase logo size to 200% of current size.
+
+Left-justify the logo.
+
+Recommended styling:
+
+max-height: 120–140px
+
+If the logo contains transparency issues:
+wrap it in a white container.
+
+Example styling:
+
+background: white
+padding: 12px
+border-radius: 8px
+
+2. TEXT BLOCK
+
+Place text to the right of the logo.
+
+Stacked text:
+
+Line 1 (small badge style):
+Registration Confirmation
+
+Line 2 (large headline):
+You're Registered for
+The 2026 Fintech Risk & Compliance Forum!
+
+3. REMOVE UNNECESSARY INFO
+
+Remove the following from the hero:
+
+• event date
+• event location
+• event website
+
+Reason:
+Attendees already know this from registration.
+
+This frees vertical space.
+
+------------------------------------------------------------
+PART 2 — MAIN ACTION MESSAGE
+------------------------------------------------------------
+
+Directly below the hero header add a large call-to-action message.
+
+Text:
+
+Schedule meetings to make the most of your event.
+
+Alternative acceptable text:
+
+Schedule meetings with participating sponsors to maximize your event experience.
+
+Typography:
+
+• Large font
+• Bold
+• Center or left aligned
+• Clear visual separation from header
+
+Goal:
+Immediately tell the attendee what to do next.
+
+------------------------------------------------------------
+PART 3 — REMOVE THE CURRENT MIDDLE SECTION
+------------------------------------------------------------
+
+Remove this section entirely:
+
+"Schedule Meetings Before the Event"
+
+Sponsors are offering private 1-on-1 meetings...
+
+This section wastes vertical space and delays the primary action.
+
+------------------------------------------------------------
+PART 4 — SPONSOR DISCOVERY SECTION
+------------------------------------------------------------
+
+Immediately below the CTA show the discovery interface.
+
+Structure:
+
+What are you interested in?
+
+[ AI ]
+[ Compliance ]
+[ Customer Service ]
+[ Legal ]
+[ Regulatory ]
+
+These chips should be clearly visible and interactive.
+
+Then immediately below:
+
+Meet With Our Sponsors
+
+Sponsor cards grid.
+
+------------------------------------------------------------
+PART 5 — ABOVE THE FOLD REQUIREMENT
+------------------------------------------------------------
+
+The page must be structured so that:
+
+At least the FIRST ROW of sponsor cards is visible
+without scrolling on desktop screens.
+
+Implementation tips:
+
+Reduce hero height.
+
+Reduce vertical padding between sections.
+
+Keep header compact.
+
+Goal:
+
+User sees:
+
+Registration confirmation
+↓
+
+Schedule meetings
+↓
+
+Sponsor cards
+
+without scrolling.
+
+------------------------------------------------------------
+PART 6 — SPONSOR PRIORITIZATION LOGIC
+------------------------------------------------------------
+
+When sponsor cards are displayed or filtered:
+
+Sort them by sponsorship level priority.
+
+Priority order:
+
+1. Platinum
+2. Gold
+3. Silver
+4. Bronze
+
+Example:
+
+If filter returns:
+
+Gold sponsor
+Platinum sponsor
+Bronze sponsor
+
+The display order should be:
+
+Platinum
+Gold
+Bronze
+
+Implementation rule:
+
+Sort sponsor results by:
+
+sponsorship_level_priority DESC
+
+Then apply any existing ordering.
+
+------------------------------------------------------------
+PART 7 — FILTER BEHAVIOR
+------------------------------------------------------------
+
+When a user selects topic filters:
+
+Filter sponsors normally
+BUT still apply the sponsorship priority sorting.
+
+Example:
+
+Filter: AI
+
+Matching sponsors:
+
+Silver sponsor
+Platinum sponsor
+Gold sponsor
+
+Display order:
+
+Platinum
+Gold
+Silver
+
+This ensures higher-tier sponsors receive priority visibility.
+
+------------------------------------------------------------
+PART 8 — SPONSOR CARD ROWS
+------------------------------------------------------------
+
+Ensure the grid is responsive.
+
+Desktop target:
+
+3–4 cards per row.
+
+Tablet:
+
+2–3 cards.
+
+Mobile:
+
+1–2 cards.
+
+But maintain priority ordering.
+
+------------------------------------------------------------
+PART 9 — FINAL PAGE STRUCTURE
+------------------------------------------------------------
+
+Final layout should appear like this:
+
+HEADER ROW
+
+[Large Event Logo]   Registration Confirmation
+                     You're Registered for
+                     The 2026 Fintech Risk & Compliance Forum!
+
+↓
+
+Schedule meetings to make the most of your event.
+
+↓
+
+What are you interested in?
+
+[ AI ] [ Compliance ] [ Legal ] [ Regulatory ]
+
+↓
+
+Meet With Our Sponsors
+
+Sponsor cards (sorted by sponsor level)
+
+------------------------------------------------------------
+SUCCESS CRITERIA
+------------------------------------------------------------
+
+After implementation:
+
+• Event logo is 200% larger
+• Logo is left aligned
+• Header text appears beside logo
+• Event date/location/website are removed
+• Page clearly prompts meeting scheduling
+• First row of sponsor cards appears above the fold
+• Filtered sponsor results prioritize sponsor level
+• Platinum sponsors always appear first
+• Page feels like a meeting marketplace, not a confirmation page

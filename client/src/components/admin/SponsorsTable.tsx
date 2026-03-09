@@ -141,15 +141,15 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
                       }
                       // Multiple events with different levels → show per-event breakdown
                       return (
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1.5">
                           {activeLinks.map((ae) => {
                             const ev = events.find((e) => e.id === ae.eventId);
                             const lvl = ae.sponsorshipLevel ?? "";
                             return ev ? (
-                              <div key={ae.eventId} className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-mono text-muted-foreground w-20 shrink-0">{ev.slug}</span>
+                              <div key={ae.eventId} className="flex items-center justify-between gap-3 min-w-0">
+                                <span className="text-xs font-mono font-medium text-foreground/70 shrink-0">{ev.slug}</span>
                                 {lvl ? (
-                                  <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2 py-0 text-[10px] font-semibold", levelColors[lvl] ?? "")}>
+                                  <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap", levelColors[lvl] ?? "")}>
                                     {lvl === "Platinum" && <Gem className="h-2.5 w-2.5" />}
                                     {lvl}
                                   </span>

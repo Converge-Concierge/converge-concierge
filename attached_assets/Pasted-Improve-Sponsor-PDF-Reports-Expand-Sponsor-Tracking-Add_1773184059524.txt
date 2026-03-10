@@ -1,0 +1,701 @@
+Improve Sponsor PDF Reports, Expand Sponsor Tracking, Add Admin Risk Monitoring, Fix Attendee Profile Details, and Add Information Requests to Reports
+
+Implement the following upgrades across Concierge.
+
+These changes are intended to improve:
+
+sponsor reporting quality
+
+sponsor dashboard usefulness
+
+admin operational oversight
+
+attendee record completeness
+
+reporting completeness
+
+1. Improve the Sponsor Performance PDF Report
+
+The current sponsor PDF report needs significant improvement.
+
+Issues currently visible:
+
+weak visual formatting
+
+no strong event branding
+
+no clear Converge Events branding treatment
+
+date formatting is raw and unattractive
+
+extra blank pages are being generated
+
+overall layout feels more like raw export output than a polished sponsor-facing report 
+
+Winnow_FRC2026_Report-8
+
+1A. Primary goal
+
+The sponsor PDF should feel like a professional sponsor performance report that Converge Events can confidently send to sponsors after or during an event.
+
+It should look branded, intentional, concise, and executive-friendly.
+
+1B. Required branding improvements
+
+Add the following to the PDF header area:
+
+Converge Events / Converge Concierge branding
+
+event logo
+
+event name
+
+sponsor name
+
+sponsor level
+
+generated date in clean human-readable format
+
+Branding requirement
+
+The PDF should clearly feel like a Converge Events document, not just a system export.
+
+Use:
+
+event branding
+
+Converge Concierge / Converge Events branding
+
+consistent header/footer styling
+
+1C. Fix PDF date formatting
+
+Do not render raw JavaScript/UTC strings like:
+
+Mon May 18 2026 17:00:00 GMT+0000 ...
+
+Replace with clean formatting such as:
+
+May 18–20, 2026
+
+If single dates are shown elsewhere, use a clean format like:
+
+March 10, 2026
+
+1D. Remove blank pages
+
+The current PDF appears to generate extra blank pages. 
+
+Winnow_FRC2026_Report-8
+
+Required behavior
+
+the report should generate only the pages containing content
+
+remove orphaned footer-only / blank pages
+
+fix page break logic in the PDF generation template
+
+Check:
+
+page height calculations
+
+print CSS
+
+forced page breaks
+
+extra empty containers at the end of the template
+
+1E. Improve report structure
+
+Use a cleaner structure like:
+
+Page header
+
+Converge Concierge / Converge Events branding
+
+Event logo
+
+Event name
+
+Sponsor name
+
+Sponsor level
+
+Report title
+
+Generated date
+
+Section 1: Event + Sponsor Overview
+
+Event code
+
+Event name
+
+Dates
+
+Location
+
+Sponsor name
+
+Sponsorship level
+
+Section 2: Performance Summary
+
+Use strong KPI cards or compact summary blocks:
+
+Meetings Scheduled
+
+Meetings Completed
+
+Information Requests
+
+Unique Companies Engaged
+
+Total Leads Captured
+
+Onsite Meetings
+
+Online Meetings
+
+Pending Follow-Ups
+
+Profile Views
+
+Card Clicks
+
+Meeting CTA Clicks
+
+Only show metrics that are truly available.
+
+Section 3: Top Companies Engaged
+
+company name
+
+meetings count
+
+info requests count if useful
+
+Section 4: Lead Contacts
+
+Clean table with:
+
+Name
+
+Title
+
+Company
+
+Email
+
+Engagement Type
+
+Date
+
+Status
+
+Section 5: Information Requests
+
+Separate table or section:
+
+Name
+
+Company
+
+Email
+
+Status
+
+Source
+
+Date
+
+Notes / message preview if useful
+
+Footer
+
+Converge Events branding
+
+page number
+
+optional confidentiality line
+
+1F. Make the PDF visually cleaner
+
+Use:
+
+consistent margins
+
+aligned sections
+
+cleaner typography hierarchy
+
+better spacing between sections
+
+stronger section headers
+
+fewer raw table dumps
+
+The PDF should feel like a sponsor-facing report, not an internal debug export.
+
+2. Sponsor Dashboard and Sponsor Report Should Track All Sponsor Exposure / Engagement Metrics
+
+The sponsor dashboard and sponsor report should track all of the exposure and engagement metrics previously recommended.
+
+Required metrics to track
+
+Add support for these sponsor exposure metrics wherever possible:
+
+Profile Views
+
+Sponsor Card Clicks
+
+Meeting Button Clicks
+
+Information Request Count
+
+Unique Attendee Engagement
+
+Meetings Scheduled
+
+Meetings Completed
+
+This should apply to:
+
+Sponsor Dashboard
+
+Sponsor PDF Report
+
+Sponsor Performance reporting where appropriate
+
+2A. Metric definitions
+Profile Views
+
+Count how many times a sponsor detail/profile view is opened.
+
+Sponsor Card Clicks
+
+Count when attendees click into the sponsor from a sponsor list/grid.
+
+Meeting Button Clicks
+
+Track clicks on:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+This is useful even if the meeting is not completed.
+
+Information Request Count
+
+Count submitted information requests.
+
+Unique Attendee Engagement
+
+Count distinct attendees who engaged with that sponsor through:
+
+meetings
+
+information requests
+
+profile clicks if you want broader engagement later
+
+Meetings Scheduled
+
+Count confirmed/scheduled meetings.
+
+Meetings Completed
+
+Count meetings marked completed.
+
+2B. Where these metrics should appear
+Sponsor Dashboard
+
+Add these as either:
+
+KPI cards
+
+secondary performance metrics
+
+sponsor performance section
+
+Sponsor PDF Report
+
+Include them in the summary section.
+
+Reports → Sponsor Performance
+
+Add them to sponsor analytics where possible.
+
+2C. Data collection note
+
+If some of these are not yet tracked, implement event logging now so they can be recorded going forward.
+
+At minimum, add event tracking for:
+
+sponsor profile view
+
+sponsor card click
+
+onsite meeting button click
+
+online meeting button click
+
+info request submit
+
+3. Admin Dashboard: Add “Potential Problems” / Operational Monitoring Section
+
+The Admin Dashboard should include a section dedicated to identifying issues that may require manual attention.
+
+This should help ensure smooth operations across events and sponsors.
+
+3A. New section title
+
+Use something like:
+
+Potential Problems
+or
+Needs Attention
+
+Preferred:
+Needs Attention
+
+3B. Purpose
+
+This section should flag conditions that may indicate operational risk, neglected sponsor engagement, or workflow breakdowns.
+
+3C. Include monitoring for these items
+Information Requests not addressed
+
+Examples:
+
+requests still marked Open after X days
+
+requests with no sponsor response
+
+requests not updated since creation
+
+Sponsor dashboards not visited / last visited
+
+Examples:
+
+sponsor has not visited dashboard
+
+last dashboard visit older than X days
+
+sponsor has not engaged before the event start
+
+Sponsors with zero meetings
+
+Helpful for identifying underperforming sponsors.
+
+Sponsors with no information requests
+
+Useful as another under-engagement signal.
+
+Sponsors with enabled meeting functionality but no configured blocks
+
+Important operational issue.
+
+Attendees with pending meetings and incomplete data
+
+If applicable.
+
+Meetings approaching soon but still pending / unconfirmed
+
+Example:
+
+meeting within 48 hours but not confirmed
+
+Events with low engagement
+
+Examples:
+
+registrations high, but very few sponsor actions
+
+no sponsor interaction activity
+
+Unread notifications / unresolved admin tasks
+
+If notification framework supports it.
+
+3D. Suggested layout
+
+Use a compact alert/queue list with severity emphasis:
+
+Warning / needs attention icon
+
+issue title
+
+short explanation
+
+CTA link
+
+Example:
+
+7 open information requests older than 3 days → View Requests
+
+3 sponsors have not visited their dashboard → View Sponsors
+
+2 sponsors have zero meeting blocks assigned → Open Sponsor Setup
+
+3E. Goal
+
+The admin dashboard should help the team proactively prevent issues, not just summarize activity.
+
+4. Attendee Profile Details: Fix Interests & Topics and Notes
+
+The attendee profile details modal/page currently appears to have two broken or incomplete sections:
+
+Interests & Topics
+
+Notes
+
+4A. Interests & Topics are not appearing
+
+If attendee interests are being collected through:
+
+registration flow
+
+event page topic selection
+
+sponsor interaction forms
+
+imports
+
+admin entry
+
+then these should render correctly in the attendee profile.
+
+Required behavior
+
+Display attendee interests/topics when available.
+
+If interests exist, show them as:
+
+pills / tags
+
+or structured text
+
+Examples:
+
+AI
+
+Compliance
+
+Regulatory
+
+Legal
+
+Customer Service
+
+4B. If no interests exist
+
+Show a clear empty state:
+
+No interests recorded yet.
+
+But only if there is truly no data.
+
+If the data exists but is not displaying, fix the binding/query/rendering issue.
+
+4C. Notes does not work
+
+Fix the Notes section so it actually supports admin notes.
+
+Required behavior
+
+Admins should be able to:
+
+view notes
+
+add notes
+
+edit notes if allowed
+
+save notes persistently
+
+reopen attendee profile and still see them
+
+If multiple notes are supported, render them clearly with timestamps and author if available.
+
+If only one internal notes field is supported, make that work reliably and clearly label it as internal.
+
+4D. Meeting Activity should remain intact
+
+Do not break the meeting activity section while fixing attendee details.
+
+5. Add Information Requests to the Reports Section
+
+The Reports section should include a dedicated Information Requests component.
+
+Right now the reporting model is too meeting-heavy.
+
+Information Requests are now a meaningful sponsor engagement object and should be reported on accordingly.
+
+5A. Add Information Requests to Reports navigation / structure
+
+The current Reports area already has:
+
+Event Overview
+
+Sponsor Performance
+
+Meeting Data
+
+Add Information Requests reporting in one of these ways:
+
+Preferred option
+
+Add a new tab:
+
+Event Overview
+
+Sponsor Performance
+
+Meeting Data
+
+Information Requests
+
+This is the cleanest option.
+
+5B. Information Requests report contents
+
+The Information Requests reporting tab/section should support:
+
+Summary metrics
+
+Total Information Requests
+
+Open
+
+Email Sent
+
+Meeting Scheduled
+
+Closed
+
+Not Qualified
+
+Filters
+
+Event
+
+Sponsor
+
+Status
+
+Source
+
+Date range
+
+Search
+
+Table columns
+
+Event
+
+Sponsor
+
+Name
+
+Company
+
+Email
+
+Source
+
+Status
+
+Submitted Date
+
+Last Updated
+
+Message preview if helpful
+
+Export
+
+Export Information Requests CSV
+
+5C. Sponsor Performance tie-in
+
+Where appropriate, Information Requests should also be incorporated into:
+
+Sponsor Performance tab
+
+Sponsor PDF reports
+
+Sponsor dashboard metrics
+
+They are a real sponsor outcome and should not be siloed.
+
+6. Implementation Priorities
+
+Implement in this order:
+
+Phase 1
+
+fix sponsor PDF formatting
+
+remove blank pages
+
+add event + Converge branding
+
+fix date formatting
+
+Phase 2
+
+add sponsor exposure metrics tracking
+
+surface metrics in sponsor dashboard and report
+
+Phase 3
+
+add Admin Dashboard “Needs Attention” section
+
+include operational risk monitoring items
+
+Phase 4
+
+fix attendee profile Interests & Topics rendering
+
+fix attendee Notes persistence/editing
+
+Phase 5
+
+add Information Requests section/tab in Reports
+
+add filters, summary metrics, and export
+
+This order gets the most visible quality improvements first.
+
+7. Definition of Done
+
+This update is complete when:
+
+sponsor PDF reports are branded, clean, and no longer generate blank pages
+
+sponsor dashboards and sponsor reports include the full sponsor exposure / engagement metrics set
+
+Admin Dashboard includes a clear operational monitoring / needs attention section
+
+attendee profile correctly displays Interests & Topics
+
+attendee Notes can be viewed and edited reliably
+
+Reports includes a dedicated Information Requests reporting area
+
+8. Success Standard
+
+After this update:
+
+sponsors should receive a polished and credible performance report
+
+Converge Events should be able to measure sponsor visibility and engagement, not just meetings
+
+admins should be alerted to operational issues before they become problems
+
+attendee records should be more useful and complete
+
+Information Requests should be treated as a first-class reporting object

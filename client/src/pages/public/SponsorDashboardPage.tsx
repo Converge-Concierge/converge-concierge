@@ -7,7 +7,7 @@ import {
   CheckCircle2, Clock, Handshake, Linkedin, LogOut,
   Bell, BellOff, Download, ExternalLink, Video, Mail,
   UserCheck, AlertCircle, ChevronDown, ChevronUp, FileDown,
-  BarChart3, Monitor, TrendingUp, Link2, X as XIcon, Gem, MessageSquare,
+  BarChart3, Monitor, TrendingUp, Link2, X as XIcon, Gem, MessageSquare, Eye, MousePointerClick,
   CalendarX,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
@@ -66,6 +66,7 @@ interface DashboardData {
   stats: { total: number; scheduled: number; completed: number; cancelled: number; pendingOnline: number; companies: number };
   meetings: SponsorMeeting[];
   notifications: SponsorNotification[];
+  analytics?: { profileViews: number; meetingCtaClicks: number };
 }
 
 interface AppBranding {
@@ -289,7 +290,7 @@ export default function SponsorDashboardPage() {
     );
   }
 
-  const { sponsor, event, stats, meetings, notifications } = data;
+  const { sponsor, event, stats, meetings, notifications, analytics } = data;
 
   // Unique attendees (leads)
   const leadsMap = new Map<string, SponsorMeeting["attendee"] & { meetings: number }>();
@@ -618,6 +619,45 @@ export default function SponsorDashboardPage() {
             <StatCard label="Leads Captured"      value={leads.length}       icon={UserCheck}      sub="unique contacts"       onClick={() => leadsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
             <StatCard label="Information Requests" value={infoRequests.length} icon={MessageSquare} sub="follow-ups"           onClick={() => infoRequestsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
           </div>
+
+          {/* Exposure Metrics */}
+          {analytics && (analytics.profileViews > 0 || analytics.meetingCtaClicks > 0) && (
+            <div className="bg-card/60 rounded-2xl border border-border/60 p-5">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+                <TrendingUp className="h-3.5 w-3.5" />
+                Exposure Metrics
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+                  <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                    <Eye className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-display font-bold text-foreground">{analytics.profileViews}</p>
+                    <p className="text-xs text-muted-foreground">Profile Views</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+                  <div className="h-8 w-8 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
+                    <MousePointerClick className="h-4 w-4 text-teal-600" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-display font-bold text-foreground">{analytics.meetingCtaClicks}</p>
+                    <p className="text-xs text-muted-foreground">Meeting CTA Clicks</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+                  <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
+                    <MessageSquare className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-display font-bold text-foreground">{infoRequests.length}</p>
+                    <p className="text-xs text-muted-foreground">Info Requests</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Charts — only shown when there's data */}
           {stats.total > 0 && (() => {

@@ -495,7 +495,19 @@ export default function EventPage() {
     }
   }
 
+  function trackSponsorEvent(sponsorId: string, eventId: string, eventType: string) {
+    fetch("/api/analytics/sponsor-event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sponsorId, eventId, eventType }),
+    }).catch(() => {});
+  }
+
   function pickSponsor(s: Sponsor) {
+    if (event) {
+      trackSponsorEvent(s.id, event.id, "profile_view");
+      trackSponsorEvent(s.id, event.id, "meeting_cta_click");
+    }
     setSelectedSponsor(s);
     setMeetingMode("onsite");
     setSelectedDate(""); setSelectedTime(""); setSelectedLoc(""); setError("");
@@ -503,6 +515,10 @@ export default function EventPage() {
   }
 
   function pickOnlineMeeting(s: Sponsor) {
+    if (event) {
+      trackSponsorEvent(s.id, event.id, "profile_view");
+      trackSponsorEvent(s.id, event.id, "meeting_cta_click");
+    }
     setSelectedSponsor(s);
     setMeetingMode("online");
     setSelectedDate(""); setSelectedTime(""); setSelectedPlatform("");

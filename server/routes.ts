@@ -869,7 +869,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     );
 
     const uniqueCompanies = new Set(meetingsWithAttendees.map((m) => m.attendee.company).filter((c) => c !== "—"));
-    const notifications = await storage.getNotificationsForSponsorEvent(tokenRecord.sponsorId, tokenRecord.eventId);
+    const [notifications, analyticsData] = await Promise.all([
+      storage.getNotificationsForSponsorEvent(tokenRecord.sponsorId, tokenRecord.eventId),
+      storage.getAnalyticsSummary(tokenRecord.sponsorId, tokenRecord.eventId),
+    ]);
 
     const eventLink = (sponsor.assignedEvents ?? []).find((ae) => ae.eventId === tokenRecord.eventId);
     const sponsorLevel = eventLink?.sponsorshipLevel ?? sponsor.level ?? "";
@@ -901,6 +904,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         eventName: n.eventName, date: n.date, time: n.time, isRead: n.isRead,
         createdAt: n.createdAt.toISOString(),
       })),
+      analytics: analyticsData,
     });
   });
 
@@ -1025,12 +1029,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ── Sponsor Report PDF helpers ─────────────────────────────────────────────
 
+  function fmtReportDate(d: Date | string): string {
+    return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date(d));
+  }
+
+  function fmtDateRange(start: Date | string, end: Date | string): string {
+    const s = new Date(start);
+    const e = new Date(end);
+    const sMonth = s.toLocaleString("en-US", { month: "long" });
+    const eMonth = e.toLocaleString("en-US", { month: "long" });
+    const sDay = s.getDate();
+    const eDay = e.getDate();
+    const year = e.getFullYear();
+    if (sMonth === eMonth) return `${sMonth} ${sDay}–${eDay}, ${year}`;
+    return `${sMonth} ${sDay} – ${eMonth} ${eDay}, ${year}`;
+  }
+
   async function buildReportData(sponsorId: string, eventId: string) {
-    const [sponsor, event, allMeetings, allAttendees] = await Promise.all([
+    const [sponsor, event, allMeetings, allAttendees, infoRequestsList, analyticsData] = await Promise.all([
       storage.getSponsor(sponsorId),
       storage.getEvent(eventId),
       storage.getMeetings(),
       storage.getAttendees(),
+      storage.listInformationRequests({ sponsorId, eventId }),
+      storage.getAnalyticsSummary(sponsorId, eventId),
     ]);
     if (!sponsor || !event) return null;
 
@@ -1056,19 +1078,47 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       };
     });
 
+    const infoRequests = infoRequestsList.map((r) => ({
+      id:                 r.id,
+      attendeeFirstName:  r.attendeeFirstName,
+      attendeeLastName:   r.attendeeLastName,
+      attendeeEmail:      r.attendeeEmail,
+      attendeeCompany:    r.attendeeCompany,
+      attendeeTitle:      r.attendeeTitle,
+      source:             r.source,
+      status:             r.status,
+      message:            r.message,
+      createdAt:          r.createdAt.toISOString(),
+    }));
+
     return {
       generatedAt: new Date(),
       event: {
         name:      event.name,
         slug:      event.slug,
         location:  event.location,
-        startDate: event.startDate,
-        endDate:   event.endDate,
+        startDate: fmtReportDate(event.startDate),
+        endDate:   fmtReportDate(event.endDate),
+        dateRange: fmtDateRange(event.startDate, event.endDate),
       },
       sponsor: { name: sponsor.name, level: ((sponsor.assignedEvents ?? []).find((ae) => ae.eventId === eventId)?.sponsorshipLevel ?? sponsor.level ?? "") },
       meetings,
+      infoRequests,
+      analytics: analyticsData,
     };
   }
+
+  // Public: record a sponsor analytics event (fire-and-forget from frontend)
+  app.post("/api/analytics/sponsor-event", async (req, res) => {
+    const { sponsorId, eventId, eventType } = req.body ?? {};
+    if (!sponsorId || !eventId || !eventType) return res.status(400).json({ error: "Missing fields" });
+    try {
+      await storage.createAnalyticsEvent({ sponsorId, eventId, eventType });
+    } catch (_e) {
+      // Silently fail — analytics should never break the user experience
+    }
+    res.status(204).end();
+  });
 
   // Token-gated: sponsor downloads their own report
   app.get("/api/sponsor-report/pdf", async (req, res) => {

@@ -561,6 +561,23 @@ export const insertInformationRequestSchema = createInsertSchema(informationRequ
 export type InsertInformationRequest = z.infer<typeof insertInformationRequestSchema>;
 export type InformationRequest = typeof informationRequests.$inferSelect;
 
+// ── Sponsor Analytics ─────────────────────────────────────────────────────────
+
+export const SPONSOR_ANALYTICS_EVENT_TYPES = ["profile_view", "meeting_cta_click"] as const;
+export type SponsorAnalyticsEventType = typeof SPONSOR_ANALYTICS_EVENT_TYPES[number];
+
+export const sponsorAnalytics = pgTable("sponsor_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sponsorId: varchar("sponsor_id").notNull(),
+  eventId: varchar("event_id").notNull(),
+  eventType: varchar("event_type").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertSponsorAnalyticsSchema = createInsertSchema(sponsorAnalytics).omit({ id: true, createdAt: true });
+export type InsertSponsorAnalytics = z.infer<typeof insertSponsorAnalyticsSchema>;
+export type SponsorAnalytics = typeof sponsorAnalytics.$inferSelect;
+
 // ── Password Reset Tokens ─────────────────────────────────────────────────────
 
 export const passwordResetTokens = pgTable("password_reset_tokens", {

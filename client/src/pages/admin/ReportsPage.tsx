@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Event, Sponsor, Attendee, Meeting } from "@shared/schema";
+import { Event, Sponsor, Attendee, Meeting, InformationRequest, INFORMATION_REQUEST_STATUSES } from "@shared/schema";
 import {
   BarChart3, Download, Calendar, Building2, Users,
   Clock, CheckCircle2, XCircle, AlertCircle, Handshake, Search,
   TrendingUp, ArrowUpDown, ExternalLink, User, Globe, Shield,
-  Monitor, Video, FileDown,
+  Monitor, Video, FileDown, MessageSquare,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -191,7 +191,7 @@ const REPORT_THEAD = (
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const [mainTab, setMainTab] = useState<"overview" | "sponsor-perf" | "meeting-data">("overview");
+  const [mainTab, setMainTab] = useState<"overview" | "sponsor-perf" | "meeting-data" | "info-requests">("overview");
   const [globalEventId, setGlobalEventId] = useState("");
   const [tab, setTab] = useState<ReportTab>("all");
   const [reportEventId, setReportEventId] = useState("");
@@ -206,10 +206,17 @@ export default function ReportsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [pdfDownloading, setPdfDownloading] = useState(false);
 
+  const [irEventId, setIrEventId] = useState("");
+  const [irSponsorId, setIrSponsorId] = useState("");
+  const [irStatus, setIrStatus] = useState("");
+  const [irSource, setIrSource] = useState("");
+  const [irSearch, setIrSearch] = useState("");
+
   const { data: events    = [] } = useQuery<Event[]>   ({ queryKey: ["/api/events"]    });
   const { data: sponsors  = [] } = useQuery<Sponsor[]> ({ queryKey: ["/api/sponsors"]  });
   const { data: attendees = [] } = useQuery<Attendee[]>({ queryKey: ["/api/attendees"] });
   const { data: meetings  = [], isLoading } = useQuery<Meeting[]>({ queryKey: ["/api/meetings"] });
+  const { data: allInfoRequests = [] } = useQuery<InformationRequest[]>({ queryKey: ["/api/admin/information-requests"] });
 
   const getEventSlug    = (id: string) => events.find((e) => e.id === id)?.slug ?? "—";
   const getSponsorName  = (id: string) => sponsors.find((s) => s.id === id)?.name ?? "—";
@@ -531,9 +538,10 @@ export default function ReportsPage() {
       {/* Main Tabs */}
       <div className="flex gap-1 p-1 bg-muted/60 rounded-xl border border-border/40 w-fit">
         {[
-          { key: "overview",     label: "Event Overview" },
-          { key: "sponsor-perf", label: "Sponsor Performance" },
-          { key: "meeting-data", label: "Meeting Data" },
+          { key: "overview",       label: "Event Overview" },
+          { key: "sponsor-perf",   label: "Sponsor Performance" },
+          { key: "meeting-data",   label: "Meeting Data" },
+          { key: "info-requests",  label: "Information Requests" },
         ].map((t) => (
           <button
             key={t.key}
@@ -983,6 +991,176 @@ export default function ReportsPage() {
           </div>
         </div>
       )}
+      {/* ── Info Requests Tab ───────────────────────────────────────────── */}
+      {mainTab === "info-requests" && (() => {
+        const irStatusColors: Record<string, string> = {
+          New: "bg-blue-100 text-blue-700 border-blue-200",
+          Open: "bg-blue-100 text-blue-700 border-blue-200",
+          Contacted: "bg-amber-100 text-amber-700 border-amber-200",
+          "Email Sent": "bg-amber-100 text-amber-700 border-amber-200",
+          "Meeting Scheduled": "bg-teal-100 text-teal-700 border-teal-200",
+          "Not Qualified": "bg-orange-100 text-orange-700 border-orange-200",
+          Closed: "bg-gray-100 text-gray-600 border-gray-200",
+        };
+
+        const filteredIR = allInfoRequests.filter((r) => {
+          if (irEventId && r.eventId !== irEventId) return false;
+          if (irSponsorId && r.sponsorId !== irSponsorId) return false;
+          if (irStatus && r.status !== irStatus) return false;
+          if (irSource && r.source !== irSource) return false;
+          if (irSearch) {
+            const q = irSearch.toLowerCase();
+            const name = `${r.attendeeFirstName} ${r.attendeeLastName}`.toLowerCase();
+            if (!name.includes(q) && !r.attendeeEmail.toLowerCase().includes(q) && !r.attendeeCompany.toLowerCase().includes(q)) return false;
+          }
+          return true;
+        });
+
+        const irSources = Array.from(new Set(allInfoRequests.map((r) => r.source).filter(Boolean)));
+
+        const irSummary = INFORMATION_REQUEST_STATUSES.reduce((acc, s) => {
+          acc[s] = filteredIR.filter((r) => r.status === s).length;
+          return acc;
+        }, {} as Record<string, number>);
+
+        function exportIRCSV() {
+          const headers = ["Event", "Sponsor", "First Name", "Last Name", "Company", "Email", "Title", "Source", "Status", "Submitted", "Last Updated", "Message"];
+          const rows = filteredIR.map((r) => [
+            events.find((e) => e.id === r.eventId)?.slug ?? "",
+            sponsors.find((s) => s.id === r.sponsorId)?.name ?? "",
+            r.attendeeFirstName, r.attendeeLastName, r.attendeeCompany, r.attendeeEmail, r.attendeeTitle,
+            r.source, r.status,
+            new Date(r.createdAt).toLocaleDateString("en-US"),
+            new Date(r.updatedAt).toLocaleDateString("en-US"),
+            (r.message ?? "").replace(/\n/g, " "),
+          ]);
+          const csv = [headers, ...rows].map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+          const blob = new Blob([csv], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a"); a.href = url; a.download = "information_requests.csv"; a.click();
+          URL.revokeObjectURL(url);
+        }
+
+        const selectClass = "h-8 text-sm rounded-lg border border-border/60 bg-background px-3 focus:outline-none focus:ring-1 focus:ring-accent/40";
+
+        return (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {/* Summary Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+              <div className="rounded-xl border border-border/60 bg-card p-4 col-span-2 sm:col-span-1">
+                <p className="text-2xl font-display font-bold text-foreground">{filteredIR.length}</p>
+                <p className="text-xs font-medium text-muted-foreground mt-1">Total</p>
+              </div>
+              {(["New", "Open", "Email Sent", "Meeting Scheduled", "Closed", "Not Qualified"] as const).map((s) => (
+                <div key={s} className={cn("rounded-xl border p-4", irStatusColors[s] ?? "bg-card border-border/60")}>
+                  <p className="text-2xl font-display font-bold leading-none">{irSummary[s] ?? 0}</p>
+                  <p className="text-xs font-medium mt-1 opacity-80">{s}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Filters + Export */}
+            <div className="flex flex-wrap gap-3 items-center">
+              <select className={selectClass} value={irEventId} onChange={(e) => setIrEventId(e.target.value)} data-testid="ir-filter-event">
+                <option value="">All Events</option>
+                {events.map((e) => <option key={e.id} value={e.id}>{e.slug}</option>)}
+              </select>
+              <select className={selectClass} value={irSponsorId} onChange={(e) => setIrSponsorId(e.target.value)} data-testid="ir-filter-sponsor">
+                <option value="">All Sponsors</option>
+                {sponsors.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <select className={selectClass} value={irStatus} onChange={(e) => setIrStatus(e.target.value)} data-testid="ir-filter-status">
+                <option value="">All Statuses</option>
+                {INFORMATION_REQUEST_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select className={selectClass} value={irSource} onChange={(e) => setIrSource(e.target.value)} data-testid="ir-filter-source">
+                <option value="">All Sources</option>
+                {irSources.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search name, company, email…"
+                  value={irSearch}
+                  onChange={(e) => setIrSearch(e.target.value)}
+                  className="pl-8 h-8 text-sm"
+                  data-testid="ir-search"
+                />
+              </div>
+              <button
+                onClick={exportIRCSV}
+                className="flex items-center gap-2 h-8 px-3 rounded-lg border border-border/60 bg-card text-sm font-medium hover:bg-muted/50 transition-colors"
+                data-testid="button-export-ir-csv"
+              >
+                <FileDown className="h-3.5 w-3.5" /> Export CSV
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-border/50 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-accent" />
+                <span className="text-sm font-semibold text-foreground">
+                  {filteredIR.length} information request{filteredIR.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border/50 bg-muted/30">
+                      {["Event", "Sponsor", "Name", "Company", "Email", "Source", "Status", "Submitted", "Updated", "Message"].map((h) => (
+                        <th key={h} className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredIR.length === 0 ? (
+                      <tr><td colSpan={10} className="text-center py-12 text-muted-foreground italic text-sm">No information requests match the current filters.</td></tr>
+                    ) : (
+                      filteredIR.map((r, i) => (
+                        <tr key={r.id} className={cn("border-b border-border/30 hover:bg-muted/30 transition-colors", i % 2 === 1 && "bg-muted/10")} data-testid={`ir-row-${r.id}`}>
+                          <td className="px-4 py-3">
+                            <span className="font-mono text-xs font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded">
+                              {events.find((e) => e.id === r.eventId)?.slug ?? "—"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
+                            {sponsors.find((s) => s.id === r.sponsorId)?.name ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">{r.attendeeFirstName} {r.attendeeLastName}</td>
+                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.attendeeCompany}</td>
+                          <td className="px-4 py-3 text-muted-foreground text-xs font-mono whitespace-nowrap">{r.attendeeEmail}</td>
+                          <td className="px-4 py-3">
+                            <span className="text-xs text-muted-foreground">{r.source}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full border", irStatusColors[r.status] ?? "bg-muted text-muted-foreground border-border")}>
+                              {r.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(r.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </td>
+                          <td className="px-4 py-3 max-w-[200px]">
+                            {r.message ? (
+                              <span className="text-xs text-muted-foreground truncate block" title={r.message}>
+                                {r.message.slice(0, 60)}{r.message.length > 60 ? "…" : ""}
+                              </span>
+                            ) : <span className="text-xs text-muted-foreground/50">—</span>}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </motion.div>
   );
 }

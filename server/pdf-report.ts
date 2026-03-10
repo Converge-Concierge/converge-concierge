@@ -15,6 +15,19 @@ export interface ReportMeeting {
   attendeeLinkedin: string;
 }
 
+export interface ReportInfoRequest {
+  id: string;
+  attendeeFirstName: string;
+  attendeeLastName: string;
+  attendeeEmail: string;
+  attendeeCompany: string;
+  attendeeTitle: string;
+  source: string;
+  status: string;
+  message: string | null;
+  createdAt: string;
+}
+
 export interface SponsorReportData {
   generatedAt: Date;
   event: {
@@ -23,12 +36,18 @@ export interface SponsorReportData {
     location: string;
     startDate: string;
     endDate: string;
+    dateRange: string;
   };
   sponsor: {
     name: string;
     level: string;
   };
   meetings: ReportMeeting[];
+  infoRequests: ReportInfoRequest[];
+  analytics: {
+    profileViews: number;
+    meetingCtaClicks: number;
+  };
 }
 
 // ── Color palette ─────────────────────────────────────────────────────────────
@@ -37,6 +56,7 @@ const C = {
   navy:     "#0D1E3A",
   teal:     "#0D9488",
   tealDark: "#0B7A71",
+  tealLight:"#CCFBF1",
   slate:    "#64748B",
   border:   "#E2E8F0",
   rowAlt:   "#F8FAFC",
@@ -48,6 +68,7 @@ const C = {
   yellow:   "#F59E0B",
   text:     "#1E293B",
   textMid:  "#475569",
+  headerSub:"#94A3B8",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -65,17 +86,36 @@ function statusColor(s: string) {
   return C.blue;
 }
 
+function infoStatusColor(s: string) {
+  if (s === "Closed") return C.slate;
+  if (s === "Meeting Scheduled") return C.teal;
+  if (s === "Not Qualified") return C.yellow;
+  if (s === "Email Sent" || s === "Contacted") return C.yellow;
+  return C.blue;
+}
+
+// ── Section heading helper (defined outside builder so it can be used as closure) ──
+function drawSectionHeading(doc: any, y: number, lm: number, cw: number, label: string): number {
+  doc.rect(lm, y, cw, 24).fill(C.navy);
+  doc.rect(lm, y + 24, cw, 3).fill(C.teal);
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(C.white).text(label, lm + 10, y + 8);
+  return y + 32;
+}
+
 // ── PDF Builder ───────────────────────────────────────────────────────────────
 
 export function buildSponsorReportPDF(data: SponsorReportData): Readable {
-  const doc = new PDFDocument({ size: "LETTER", margin: 50, autoFirstPage: true });
+  const doc = new PDFDocument({ size: "LETTER", margin: 50, autoFirstPage: true, bufferPages: true });
   const pw  = doc.page.width;   // 612
-  const lm  = 50;               // left margin
-  const rm  = 50;               // right margin
-  const cw  = pw - lm - rm;     // content width: 512
+  const ph  = doc.page.height;  // 792
+  const lm  = 50;
+  const rm  = 50;
+  const cw  = pw - lm - rm;     // 512
+  const footerH = 34;
+  const contentBottom = ph - footerH - 10;
 
-  // ── Derived stats ───────────────────────────────────────────────────────────
-  const { meetings } = data;
+  // ── Derived stats ──────────────────────────────────────────────────────────
+  const { meetings, infoRequests, analytics } = data;
   const total      = meetings.length;
   const completed  = meetings.filter((m) => m.status === "Completed").length;
   const pending    = meetings.filter((m) => m.status === "Pending").length;
@@ -97,158 +137,235 @@ export function buildSponsorReportPDF(data: SponsorReportData): Readable {
   }
   const totalLeads = leadMap.size;
 
-  // ── Header bar ──────────────────────────────────────────────────────────────
-  doc.rect(0, 0, pw, 80).fill(C.navy);
-  doc.fontSize(22).font("Helvetica-Bold").fillColor(C.white).text("Converge Concierge", lm, 22);
-  doc.fontSize(10).font("Helvetica").fillColor("#94A3B8").text("Sponsor Performance Report", lm, 48);
-  doc.fontSize(9).fillColor("#94A3B8").text(`Generated: ${data.generatedAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, lm, 62);
+  // ── Page 1: Header ─────────────────────────────────────────────────────────
 
-  let y = 104;
+  // Navy header band
+  doc.rect(0, 0, pw, 92).fill(C.navy);
+  // Teal accent strip
+  doc.rect(0, 92, pw, 4).fill(C.teal);
 
-  // ── Two-column info block ────────────────────────────────────────────────────
+  // Left: Converge Events branding
+  doc.fontSize(8).font("Helvetica").fillColor(C.headerSub)
+    .text("CONVERGE EVENTS  ·  CONVERGE CONCIERGE", lm, 18, { characterSpacing: 0.5 });
+  doc.fontSize(20).font("Helvetica-Bold").fillColor(C.white)
+    .text("Sponsor Performance Report", lm, 34);
+  doc.fontSize(9).font("Helvetica").fillColor(C.headerSub)
+    .text(
+      `${data.sponsor.name}  ·  ${data.sponsor.level}  ·  ${data.event.slug}`,
+      lm, 62,
+    );
+  // Right: generated date
+  doc.fontSize(8).font("Helvetica").fillColor(C.headerSub)
+    .text(
+      `Generated: ${data.generatedAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
+      0, 75,
+      { align: "right", width: pw - rm },
+    );
+
+  let y = 110;
+
+  // ── Section 1: Overview ────────────────────────────────────────────────────
+  y = drawSectionHeading(doc, y, lm, cw, "SECTION 1  ·  EVENT & SPONSOR OVERVIEW");
+
   const colW = (cw - 16) / 2;
 
   // Event block
-  doc.rect(lm, y, colW, 90).fill(C.rowAlt).stroke(C.border);
-  doc.fontSize(7).font("Helvetica-Bold").fillColor(C.teal).text("EVENT INFORMATION", lm + 12, y + 12);
-  doc.fontSize(11).font("Helvetica-Bold").fillColor(C.text).text(data.event.name, lm + 12, y + 26, { width: colW - 24, lineBreak: false });
-  doc.fontSize(9).font("Helvetica").fillColor(C.textMid)
-    .text(`Code: ${data.event.slug}`, lm + 12, y + 44)
-    .text(`Location: ${data.event.location}`, lm + 12, y + 58)
-    .text(`Dates: ${data.event.startDate} – ${data.event.endDate}`, lm + 12, y + 72);
+  doc.rect(lm, y, colW, 88).fill(C.rowAlt).stroke(C.border);
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(C.teal).text("EVENT", lm + 12, y + 10);
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(C.text)
+    .text(data.event.name, lm + 12, y + 23, { width: colW - 24, lineBreak: false });
+  doc.fontSize(8.5).font("Helvetica").fillColor(C.textMid)
+    .text(`Code: ${data.event.slug}`, lm + 12, y + 41)
+    .text(`Dates: ${data.event.dateRange}`, lm + 12, y + 55)
+    .text(`Location: ${data.event.location}`, lm + 12, y + 69);
 
   // Sponsor block
   const sx = lm + colW + 16;
-  doc.rect(sx, y, colW, 90).fill(C.rowAlt).stroke(C.border);
-  doc.fontSize(7).font("Helvetica-Bold").fillColor(C.teal).text("SPONSOR INFORMATION", sx + 12, y + 12);
-  doc.fontSize(11).font("Helvetica-Bold").fillColor(C.text).text(data.sponsor.name, sx + 12, y + 26, { width: colW - 24 });
-  doc.fontSize(9).font("Helvetica").fillColor(C.textMid).text(`Sponsorship Level: ${data.sponsor.level}`, sx + 12, y + 44);
+  doc.rect(sx, y, colW, 88).fill(C.rowAlt).stroke(C.border);
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(C.teal).text("SPONSOR", sx + 12, y + 10);
+  doc.fontSize(10).font("Helvetica-Bold").fillColor(C.text)
+    .text(data.sponsor.name, sx + 12, y + 23, { width: colW - 24, lineBreak: false });
+  doc.fontSize(8.5).font("Helvetica").fillColor(C.textMid)
+    .text(`Sponsorship Level: ${data.sponsor.level}`, sx + 12, y + 41);
 
-  y += 106;
+  y += 104;
 
-  // ── Section heading helper ────────────────────────────────────────────────────
-  function sectionHeading(label: string) {
-    doc.rect(lm, y, cw, 26).fill(C.navy);
-    doc.fontSize(9).font("Helvetica-Bold").fillColor(C.white).text(label, lm + 10, y + 8);
-    y += 32;
-  }
+  // ── Section 2: Performance Summary ────────────────────────────────────────
+  y = drawSectionHeading(doc, y, lm, cw, "SECTION 2  ·  PERFORMANCE SUMMARY");
 
-  // ── Meeting Summary ──────────────────────────────────────────────────────────
-  sectionHeading("MEETING SUMMARY");
-
-  const metrics = [
-    ["Total Meetings",          String(total)],
-    ["Completed",               String(completed)],
-    ["Pending Online Requests", String(pending)],
-    ["Cancelled / No-Show",     String(cancelled)],
-    ["Onsite Meetings",         String(onsite)],
-    ["Online Meetings",         String(online)],
-    ["Unique Companies Met",    String(uniqueCompanies)],
-    ["Total Leads Captured",    String(totalLeads)],
+  const metrics: [string, string | number][] = [
+    ["Meetings Scheduled",    total],
+    ["Meetings Completed",    completed],
+    ["Pending Online Req.",   pending],
+    ["Cancelled / No-Show",   cancelled],
+    ["Onsite Meetings",       onsite],
+    ["Online Meetings",       online],
+    ["Unique Companies Met",  uniqueCompanies],
+    ["Total Leads Captured",  totalLeads],
+    ["Info Requests",         infoRequests.length],
+    ["Profile Views",         analytics.profileViews],
+    ["Meeting CTA Clicks",    analytics.meetingCtaClicks],
+    ["Unique Attendees",      totalLeads],
   ];
 
-  const mColW = cw / 4;
+  const mColCount = 4;
+  const mColW = cw / mColCount;
+  const mRowH = 50;
+  const totalMetricRows = Math.ceil(metrics.length / mColCount);
+
   metrics.forEach(([label, val], i) => {
-    const col = i % 4;
-    const row = Math.floor(i / 4);
+    const col = i % mColCount;
+    const row = Math.floor(i / mColCount);
     const mx  = lm + col * mColW;
-    const my  = y + row * 52;
+    const my  = y + row * mRowH;
     const isAlt = (row + col) % 2 === 1;
-    doc.rect(mx, my, mColW, 50).fill(isAlt ? C.rowAlt : C.white).stroke(C.border);
-    doc.fontSize(16).font("Helvetica-Bold").fillColor(C.teal).text(val, mx + 8, my + 8);
-    doc.fontSize(7.5).font("Helvetica").fillColor(C.textMid).text(label, mx + 8, my + 33, { width: mColW - 16 });
+    doc.rect(mx, my, mColW, mRowH - 2).fill(isAlt ? C.rowAlt : C.white).stroke(C.border);
+    doc.fontSize(16).font("Helvetica-Bold").fillColor(C.teal).text(String(val), mx + 8, my + 8);
+    doc.fontSize(7.5).font("Helvetica").fillColor(C.textMid).text(label, mx + 8, my + 32, { width: mColW - 16, lineBreak: false });
   });
 
-  y += Math.ceil(metrics.length / 4) * 52 + 16;
+  y += totalMetricRows * mRowH + 14;
 
-  // ── Top Companies ────────────────────────────────────────────────────────────
+  // ── Section 3: Top Companies ───────────────────────────────────────────────
   if (topCompanies.length > 0) {
-    sectionHeading("TOP COMPANIES MET");
+    if (y + 40 + topCompanies.length * 22 > contentBottom) { doc.addPage(); y = 50; }
+    y = drawSectionHeading(doc, y, lm, cw, "SECTION 3  ·  TOP COMPANIES ENGAGED");
     topCompanies.forEach(([company, count], i) => {
       const rowY = y + i * 22;
       doc.rect(lm, rowY, cw, 20).fill(i % 2 === 0 ? C.white : C.rowAlt).stroke(C.border);
-      doc.fontSize(9).font("Helvetica").fillColor(C.text).text(`${i + 1}. ${company}`, lm + 10, rowY + 5);
-      doc.font("Helvetica-Bold").fillColor(C.teal).text(`${count} meeting${count !== 1 ? "s" : ""}`, lm + 10, rowY + 5, { align: "right", width: cw - 20 });
+      doc.fontSize(9).font("Helvetica").fillColor(C.text).text(`${i + 1}.  ${company}`, lm + 10, rowY + 5);
+      doc.font("Helvetica-Bold").fillColor(C.teal)
+        .text(`${count} meeting${count !== 1 ? "s" : ""}`, lm + 10, rowY + 5, { align: "right", width: cw - 20 });
     });
-    y += topCompanies.length * 22 + 16;
+    y += topCompanies.length * 22 + 14;
   }
 
-  // ── Lead Contacts table ───────────────────────────────────────────────────────
-  if (y + 80 > doc.page.height - 80) { doc.addPage(); y = 50; }
+  // ── Section 4: Lead Contacts table ────────────────────────────────────────
+  if (y + 80 > contentBottom) { doc.addPage(); y = 50; }
+  y = drawSectionHeading(doc, y, lm, cw, "SECTION 4  ·  LEAD CONTACTS");
 
-  sectionHeading("LEAD CONTACTS");
-
-  const cols = [
-    { label: "Name",         w: 90 },
-    { label: "Title",        w: 70 },
-    { label: "Company",      w: 90 },
-    { label: "Email",        w: 110 },
-    { label: "Type",         w: 50 },
-    { label: "Date",         w: 60 },
-    { label: "Status",       w: 52 },
-  ];
-  const totalCols = cols.reduce((s, c) => s + c.w, 0);
-  const scale = cw / totalCols;
-  const scaled = cols.map((c) => ({ ...c, w: c.w * scale }));
-
-  // Table header
-  doc.rect(lm, y, cw, 18).fill(C.teal);
-  let cx = lm;
-  scaled.forEach(({ label, w }) => {
-    doc.fontSize(7.5).font("Helvetica-Bold").fillColor(C.white).text(label, cx + 4, y + 5, { width: w - 8, lineBreak: false });
-    cx += w;
-  });
-  y += 18;
-
-  // Table rows
-  const sortedMeetings = [...meetings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-  const ROW_H = 20;
-  sortedMeetings.forEach((m, i) => {
-    if (y + ROW_H > doc.page.height - 50) {
-      doc.addPage();
-      y = 50;
-      // Re-draw header
-      doc.rect(lm, y, cw, 18).fill(C.teal);
-      let hx = lm;
-      scaled.forEach(({ label, w: hw }) => {
-        doc.fontSize(7.5).font("Helvetica-Bold").fillColor(C.white).text(label, hx + 4, y + 5, { width: hw - 8, lineBreak: false });
-        hx += hw;
-      });
-      y += 18;
-    }
-
-    const isAlt = i % 2 === 1;
-    doc.rect(lm, y, cw, ROW_H).fill(isAlt ? C.rowAlt : C.white).stroke(C.border);
-    cx = lm;
-    const isOnline = m.meetingType === "online_request";
-    const rowData = [
-      m.attendeeName,
-      m.attendeeTitle,
-      m.attendeeCompany,
-      m.attendeeEmail,
-      isOnline ? "Online" : "Onsite",
-      m.date,
-      m.status,
+  if (meetings.length === 0) {
+    doc.fontSize(9).font("Helvetica").fillColor(C.textMid).text("No meeting contacts recorded.", lm, y + 6);
+    y += 24;
+  } else {
+    const cols = [
+      { label: "Name",    w: 88 },
+      { label: "Title",   w: 68 },
+      { label: "Company", w: 90 },
+      { label: "Email",   w: 110 },
+      { label: "Type",    w: 48 },
+      { label: "Date",    w: 56 },
+      { label: "Status",  w: 52 },
     ];
-    rowData.forEach((val, j) => {
-      const w = scaled[j].w;
-      const color = j === 6 ? statusColor(val) : j === 4 && isOnline ? C.violet : C.text;
-      doc.fontSize(7.5).font(j === 6 ? "Helvetica-Bold" : "Helvetica").fillColor(color)
-        .text(val, cx + 4, y + 6, { width: w - 8, lineBreak: false });
-      cx += w;
-    });
-    y += ROW_H;
-  });
+    const totalCols = cols.reduce((s, c) => s + c.w, 0);
+    const scale = cw / totalCols;
+    const scaled = cols.map((c) => ({ ...c, w: c.w * scale }));
 
-  // ── Footer ────────────────────────────────────────────────────────────────────
-  const pages = doc.bufferedPageRange();
-  for (let p = 0; p < pages.count; p++) {
+    const drawLeadHeader = (startY: number) => {
+      doc.rect(lm, startY, cw, 18).fill(C.teal);
+      let hx = lm;
+      scaled.forEach(({ label, w }) => {
+        doc.fontSize(7).font("Helvetica-Bold").fillColor(C.white).text(label, hx + 4, startY + 5, { width: w - 8, lineBreak: false });
+        hx += w;
+      });
+      return startY + 18;
+    };
+
+    y = drawLeadHeader(y);
+
+    const sortedMeetings = [...meetings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    const ROW_H = 20;
+    sortedMeetings.forEach((m, i) => {
+      if (y + ROW_H > contentBottom) {
+        doc.addPage();
+        y = 50;
+        y = drawLeadHeader(y);
+      }
+      doc.rect(lm, y, cw, ROW_H).fill(i % 2 === 1 ? C.rowAlt : C.white).stroke(C.border);
+      let cx = lm;
+      const isOnline = m.meetingType === "online_request";
+      const rowData = [
+        m.attendeeName, m.attendeeTitle, m.attendeeCompany, m.attendeeEmail,
+        isOnline ? "Online" : "Onsite", m.date, m.status,
+      ];
+      rowData.forEach((val, j) => {
+        const w = scaled[j].w;
+        const color = j === 6 ? statusColor(val) : j === 4 && isOnline ? C.violet : C.text;
+        doc.fontSize(7.5).font(j === 6 ? "Helvetica-Bold" : "Helvetica").fillColor(color)
+          .text(val, cx + 4, y + 6, { width: w - 8, lineBreak: false });
+        cx += w;
+      });
+      y += ROW_H;
+    });
+    y += 14;
+  }
+
+  // ── Section 5: Information Requests ───────────────────────────────────────
+  if (infoRequests.length > 0) {
+    if (y + 80 > contentBottom) { doc.addPage(); y = 50; }
+    y = drawSectionHeading(doc, y, lm, cw, "SECTION 5  ·  INFORMATION REQUESTS");
+
+    const irCols = [
+      { label: "Name",    w: 100 },
+      { label: "Company", w: 100 },
+      { label: "Email",   w: 120 },
+      { label: "Source",  w: 60 },
+      { label: "Status",  w: 72 },
+      { label: "Date",    w: 60 },
+    ];
+    const irTotal = irCols.reduce((s, c) => s + c.w, 0);
+    const irScale = cw / irTotal;
+    const irScaled = irCols.map((c) => ({ ...c, w: c.w * irScale }));
+
+    const drawIrHeader = (startY: number) => {
+      doc.rect(lm, startY, cw, 18).fill(C.teal);
+      let hx = lm;
+      irScaled.forEach(({ label, w }) => {
+        doc.fontSize(7).font("Helvetica-Bold").fillColor(C.white).text(label, hx + 4, startY + 5, { width: w - 8, lineBreak: false });
+        hx += w;
+      });
+      return startY + 18;
+    };
+
+    y = drawIrHeader(y);
+
+    const ROW_H = 20;
+    infoRequests.forEach((req, i) => {
+      if (y + ROW_H > contentBottom) {
+        doc.addPage();
+        y = 50;
+        y = drawIrHeader(y);
+      }
+      doc.rect(lm, y, cw, ROW_H).fill(i % 2 === 1 ? C.rowAlt : C.white).stroke(C.border);
+      let cx = lm;
+      const fullName = `${req.attendeeFirstName} ${req.attendeeLastName}`.trim();
+      const dateStr = new Date(req.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const rowData = [fullName, req.attendeeCompany, req.attendeeEmail, req.source, req.status, dateStr];
+      rowData.forEach((val, j) => {
+        const w = irScaled[j].w;
+        const color = j === 4 ? infoStatusColor(val) : C.text;
+        doc.fontSize(7.5).font(j === 4 ? "Helvetica-Bold" : "Helvetica").fillColor(color)
+          .text(val, cx + 4, y + 6, { width: w - 8, lineBreak: false });
+        cx += w;
+      });
+      y += ROW_H;
+    });
+    y += 14;
+  }
+
+  // ── Footer on every page ───────────────────────────────────────────────────
+  const range = doc.bufferedPageRange();
+  for (let p = 0; p < range.count; p++) {
     doc.switchToPage(p);
-    doc.rect(0, doc.page.height - 36, pw, 36).fill(C.navy);
-    doc.fontSize(8).font("Helvetica").fillColor("#94A3B8")
-      .text("Converge Concierge — Confidential Sponsor Report", lm, doc.page.height - 24);
-    doc.fillColor("#94A3B8")
-      .text(`Page ${p + 1} of ${pages.count}`, 0, doc.page.height - 24, { align: "right", width: pw - rm });
+    doc.rect(0, ph - footerH, pw, footerH).fill(C.navy);
+    doc.fontSize(7.5).font("Helvetica").fillColor(C.headerSub)
+      .text(
+        `Converge Events  ·  Confidential — Prepared for ${data.sponsor.name}`,
+        lm, ph - footerH + 11,
+        { lineBreak: false },
+      );
+    doc.fillColor(C.headerSub)
+      .text(`Page ${p + 1} of ${range.count}`, 0, ph - footerH + 11, { align: "right", width: pw - rm });
   }
 
   doc.end();

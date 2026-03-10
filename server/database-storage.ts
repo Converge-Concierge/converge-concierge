@@ -4,7 +4,7 @@ import { db } from "./db";
 import {
   users, events, sponsors, attendees, meetings,
   sponsorTokens, sponsorNotifications, passwordResetTokens, appConfig, dataExchangeLogs,
-  userPermissions, permissionAuditLogs, informationRequests,
+  userPermissions, permissionAuditLogs, informationRequests, sponsorAnalytics,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -722,5 +722,26 @@ export class DatabaseStorage implements IStorage {
       .where(eq(informationRequests.id, id))
       .returning();
     return updated ?? undefined;
+  }
+
+  async createAnalyticsEvent(data: { sponsorId: string; eventId: string; eventType: string }): Promise<void> {
+    await db.insert(sponsorAnalytics).values({
+      id: randomUUID(),
+      sponsorId: data.sponsorId,
+      eventId: data.eventId,
+      eventType: data.eventType,
+      createdAt: new Date(),
+    });
+  }
+
+  async getAnalyticsSummary(sponsorId: string, eventId: string): Promise<{ profileViews: number; meetingCtaClicks: number }> {
+    const rows = await db
+      .select()
+      .from(sponsorAnalytics)
+      .where(and(eq(sponsorAnalytics.sponsorId, sponsorId), eq(sponsorAnalytics.eventId, eventId)));
+    return {
+      profileViews: rows.filter((r) => r.eventType === "profile_view").length,
+      meetingCtaClicks: rows.filter((r) => r.eventType === "meeting_cta_click").length,
+    };
   }
 }

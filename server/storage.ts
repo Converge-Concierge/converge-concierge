@@ -169,6 +169,10 @@ export interface IStorage {
   getInformationRequest(id: string): Promise<InformationRequest | undefined>;
   listInformationRequests(filters?: { eventId?: string; sponsorId?: string; status?: InformationRequestStatus }): Promise<InformationRequest[]>;
   updateInformationRequestStatus(id: string, status: InformationRequestStatus): Promise<InformationRequest | undefined>;
+
+  // Sponsor analytics
+  createAnalyticsEvent(data: { sponsorId: string; eventId: string; eventType: string }): Promise<void>;
+  getAnalyticsSummary(sponsorId: string, eventId: string): Promise<{ profileViews: number; meetingCtaClicks: number }>;
 }
 
 export class MemStorage implements IStorage {
@@ -713,6 +717,12 @@ export class MemStorage implements IStorage {
     const updated = { ...existing, status, updatedAt: new Date() };
     this.informationRequests.set(id, updated);
     return updated;
+  }
+
+  async createAnalyticsEvent(_data: { sponsorId: string; eventId: string; eventType: string }): Promise<void> {}
+
+  async getAnalyticsSummary(_sponsorId: string, _eventId: string): Promise<{ profileViews: number; meetingCtaClicks: number }> {
+    return { profileViews: 0, meetingCtaClicks: 0 };
   }
 }
 

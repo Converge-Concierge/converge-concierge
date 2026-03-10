@@ -6,7 +6,7 @@ import { Event, Sponsor, Attendee, Meeting, InformationRequest } from "@shared/s
 import {
   CalendarDays, Building2, Users, Handshake, TrendingUp,
   ArrowRight, Clock, CheckCircle2, XCircle, AlertCircle,
-  MessageSquare, FileText,
+  MessageSquare, FileText, AlertTriangle, ShieldAlert,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -110,6 +110,64 @@ export default function DashboardPage() {
       .slice(0, 6);
   }, [meetings, sponsors]);
 
+  const needsAttentionItems = useMemo(() => {
+    const items: Array<{
+      severity: "error" | "warning" | "info";
+      title: string;
+      desc: string;
+      link: string;
+      linkText: string;
+    }> = [];
+
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const stale = infoRequests.filter(
+      (r) => (r.status === "New" || r.status === "Open") && new Date(r.createdAt) < threeDaysAgo,
+    );
+    if (stale.length > 0) {
+      items.push({
+        severity: "warning",
+        title: `${stale.length} open info request${stale.length !== 1 ? "s" : ""} older than 3 days`,
+        desc: "These requests haven't been addressed and may need follow-up.",
+        link: "/admin/information-requests",
+        linkText: "View Requests",
+      });
+    }
+
+    const sponsorMeetingCounts: Record<string, number> = {};
+    meetings.forEach((m) => { sponsorMeetingCounts[m.sponsorId] = (sponsorMeetingCounts[m.sponsorId] ?? 0) + 1; });
+    const zeroMeetingSponsors = activeSponsors.filter((s) => !sponsorMeetingCounts[s.id]);
+    if (zeroMeetingSponsors.length > 0) {
+      items.push({
+        severity: "info",
+        title: `${zeroMeetingSponsors.length} sponsor${zeroMeetingSponsors.length !== 1 ? "s" : ""} with no meetings`,
+        desc: "These sponsors have no meetings scheduled across any event.",
+        link: "/admin/sponsors",
+        linkText: "View Sponsors",
+      });
+    }
+
+    const now = new Date();
+    const fortyEightHoursFromNow = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    const urgentPending = meetings.filter((m) => {
+      if (m.status !== "Pending") return false;
+      try {
+        const dt = new Date(`${m.date}T${m.time}`);
+        return dt >= now && dt <= fortyEightHoursFromNow;
+      } catch { return false; }
+    });
+    if (urgentPending.length > 0) {
+      items.push({
+        severity: "error",
+        title: `${urgentPending.length} pending meeting${urgentPending.length !== 1 ? "s" : ""} within 48 hours`,
+        desc: "These meetings are approaching but haven't been confirmed or completed.",
+        link: "/admin/meetings",
+        linkText: "View Meetings",
+      });
+    }
+
+    return items;
+  }, [infoRequests, meetings, activeSponsors]);
+
   function getSponsorName(id: string) { return sponsors.find((s) => s.id === id)?.name ?? "—"; }
   function getAttendeeName(id: string) { return attendees.find((a) => a.id === id)?.name ?? "—"; }
   function getEventSlug(id: string) { return events.find((e) => e.id === id)?.slug ?? "—"; }
@@ -172,6 +230,65 @@ export default function DashboardPage() {
           accent="bg-blue-100"
           onClick={() => nav("/admin/information-requests")}
         />
+      </div>
+
+      {/* Needs Attention */}
+      <div className={cn(
+        "rounded-2xl border shadow-sm p-6",
+        needsAttentionItems.length > 0 ? "bg-card border-amber-200" : "bg-green-50 dark:bg-green-950/30 border-green-200",
+      )}>
+        <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          {needsAttentionItems.length > 0
+            ? <ShieldAlert className="h-4 w-4 text-amber-500" />
+            : <CheckCircle2 className="h-4 w-4 text-green-500" />
+          }
+          Needs Attention
+        </h2>
+        {needsAttentionItems.length === 0 ? (
+          <p className="text-sm text-green-700 dark:text-green-400 font-medium">All clear — no issues detected.</p>
+        ) : (
+          <div className="space-y-3">
+            {needsAttentionItems.map((item, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "flex items-start gap-3 p-3 rounded-xl border",
+                  item.severity === "error" && "bg-red-50 border-red-200 dark:bg-red-950/30",
+                  item.severity === "warning" && "bg-amber-50 border-amber-200 dark:bg-amber-950/30",
+                  item.severity === "info" && "bg-blue-50 border-blue-200 dark:bg-blue-950/30",
+                )}
+                data-testid={`needs-attention-item-${i}`}
+              >
+                <div className="mt-0.5 shrink-0">
+                  {item.severity === "error" && <AlertCircle className="h-4 w-4 text-red-500" />}
+                  {item.severity === "warning" && <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                  {item.severity === "info" && <AlertCircle className="h-4 w-4 text-blue-500" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={cn(
+                    "text-sm font-semibold",
+                    item.severity === "error" && "text-red-700 dark:text-red-400",
+                    item.severity === "warning" && "text-amber-700 dark:text-amber-400",
+                    item.severity === "info" && "text-blue-700 dark:text-blue-400",
+                  )}>{item.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                </div>
+                <button
+                  onClick={() => nav(item.link)}
+                  className={cn(
+                    "shrink-0 text-xs font-medium flex items-center gap-1 hover:underline underline-offset-2",
+                    item.severity === "error" && "text-red-600",
+                    item.severity === "warning" && "text-amber-600",
+                    item.severity === "info" && "text-blue-600",
+                  )}
+                  data-testid={`needs-attention-link-${i}`}
+                >
+                  {item.linkText} <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Status breakdown */}

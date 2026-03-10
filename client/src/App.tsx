@@ -1,9 +1,11 @@
 import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
+import { useEffect } from "react";
+import type { AppBranding } from "@shared/schema";
 
 import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
@@ -19,6 +21,32 @@ import HelpCenterPage from "@/pages/public/HelpCenterPage";
 import TermsPage from "@/pages/TermsPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
+
+function FaviconUpdater() {
+  const { data: branding } = useQuery<AppBranding>({
+    queryKey: ["/api/branding-public"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    const logoUrl = branding?.appLogoUrl;
+    let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    if (logoUrl) {
+      link.type = "image/png";
+      link.href = `${logoUrl}?v=${Date.now()}`;
+    } else {
+      link.type = "image/svg+xml";
+      link.href = "/favicon.svg";
+    }
+  }, [branding?.appLogoUrl]);
+
+  return null;
+}
 
 function Router() {
   return (
@@ -50,6 +78,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
+          <FaviconUpdater />
           <Toaster />
           <Router />
         </TooltipProvider>

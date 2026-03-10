@@ -1,0 +1,131 @@
+Use Branding App Logo as the Platform Favicon
+
+Update the Converge Concierge platform so the favicon displayed in the browser tab uses the App Logo configured in the Branding settings.
+
+The favicon should dynamically reflect the logo stored in the Branding configuration instead of using a static favicon file.
+
+Functional Goal
+
+When an admin uploads or changes the App Logo in:
+
+Configuration → Branding → App Logo
+
+The same logo should automatically appear as the browser tab favicon across the platform.
+
+Implementation Requirements
+1. Retrieve Logo From Branding Settings
+
+The favicon should use the App Logo stored in the Branding configuration record.
+
+Current branding fields include:
+
+App Name
+
+App Logo
+
+Primary Color
+
+Secondary Color
+
+Accent Color
+
+Use the App Logo URL/path as the favicon source.
+
+2. Update the HTML Head
+
+In the global layout template (typically index.html, layout.tsx, root.html, or equivalent depending on the framework), add the favicon link:
+
+<link rel="icon" type="image/png" href="{{branding.appLogoUrl}}">
+
+If the system uses server-side rendering or templating, bind the logo dynamically.
+
+Example:
+
+<link rel="icon" type="image/png" href="<%= branding.appLogoUrl %>">
+
+or
+
+<link rel="icon" href={branding.appLogoUrl} />
+
+depending on framework.
+
+3. Fallback Behavior
+
+If no App Logo exists, fallback to a default favicon.
+
+Example:
+
+/public/favicon.png
+
+Implementation example:
+
+<link rel="icon" href="{{branding.appLogoUrl || '/favicon.png'}}">
+4. Favicon Image Handling
+
+Because favicons render best at smaller sizes, the system should:
+
+Prefer a square logo
+
+If the uploaded logo is large, the browser will automatically scale it.
+
+Optional improvement (not required initially):
+
+Generate favicon sizes:
+
+16x16
+
+32x32
+
+48x48
+
+But modern browsers typically scale automatically.
+
+5. Cache Refresh
+
+Browsers aggressively cache favicons.
+
+To force refresh when the logo changes, append a version query parameter.
+
+Example:
+
+<link rel="icon" href="{{branding.appLogoUrl}}?v={{branding.updatedAt}}">
+
+This ensures the favicon refreshes when branding updates.
+
+6. Scope
+
+This favicon should appear on all platform pages, including:
+
+Dashboard
+
+Events
+
+Sponsors
+
+Attendees
+
+Meetings
+
+Reports
+
+Configuration pages
+
+Expected Result
+
+When the App Logo is set to the Converge Concierge logo:
+
+The browser tab should display that logo as the favicon.
+
+Example tab appearance:
+
+[ Concierge Logo ] Converge Concierge
+Optional Enhancement (Future)
+
+Automatically generate favicon variants when a logo is uploaded:
+
+favicon-16.png
+favicon-32.png
+favicon-48.png
+apple-touch-icon.png
+
+But this is not required for the current implementation.

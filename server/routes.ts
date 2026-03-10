@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType } from "@shared/schema";
+import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS } from "@shared/schema";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
 import multer from "multer";
@@ -1420,6 +1420,140 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     await storage.createDataExchangeLog({ category: "meetings", operation: "import", adminUser, fileName, totalRows: rows.length, importedCount, updatedCount: 0, rejectedCount: rejected.length });
     res.json({ totalRows: rows.length, importedCount, updatedCount: 0, rejectedCount: rejected.length, rejected });
+  });
+
+  // ── Nunify Meeting Export (mark as exported + create log) ──────────────────
+  app.post("/api/admin/data-exchange/export/nunify-meetings", requireAdmin, async (req, res) => {
+    const user = (req as any).user;
+    const adminUser: string = user?.name || user?.username || "admin";
+    const { meetingIds, eventId, eventCode, fileName, totalRows } = req.body;
+    if (!Array.isArray(meetingIds) || !eventId) {
+      return res.status(400).json({ error: "meetingIds (array) and eventId are required" });
+    }
+    await storage.markMeetingsNunifyExported(meetingIds, adminUser);
+    await storage.createDataExchangeLog({
+      category: "nunify-meetings",
+      operation: "export",
+      adminUser,
+      fileName: fileName || "nunify_export.csv",
+      eventId,
+      eventCode: eventCode || "",
+      totalRows: totalRows || meetingIds.length,
+      importedCount: 0,
+      updatedCount: 0,
+      rejectedCount: 0,
+    });
+    res.json({ success: true, exported: meetingIds.length });
+  });
+
+  // ── Nunify Meeting Import ──────────────────────────────────────────────────
+  app.post("/api/admin/data-exchange/import/nunify-meetings", requireAdmin, async (req, res) => {
+    const user = (req as any).user;
+    const adminUser: string = user?.name || user?.username || "admin";
+    const { rows, eventId, fileName } = req.body;
+    if (!Array.isArray(rows) || !eventId) {
+      return res.status(400).json({ error: "rows (array) and eventId are required" });
+    }
+    const events = await storage.getEvents();
+    const event = events.find(e => e.id === eventId);
+    if (!event) return res.status(400).json({ error: "Event not found" });
+
+    let importedCount = 0;
+    let updatedCount = 0;
+    const rejected: { row: number; data: any; error: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      try {
+        if (row.mode === "update" && row.existingMeetingId) {
+          await storage.updateMeeting(row.existingMeetingId, {
+            status: row.status || "Scheduled",
+            nunifyExternalId: row.nunifyExternalId || undefined,
+          });
+          updatedCount++;
+        } else {
+          await storage.createMeeting({
+            eventId: row.eventId,
+            sponsorId: row.sponsorId,
+            attendeeId: row.attendeeId,
+            meetingType: row.meetingType || "onsite",
+            date: row.date,
+            time: row.time,
+            location: row.location,
+            status: row.status || "Scheduled",
+            source: "admin",
+            notes: row.notes || null,
+            archiveState: "active",
+            archiveSource: null,
+            nunifyExternalId: row.nunifyExternalId || null,
+          });
+          importedCount++;
+        }
+      } catch (err: any) {
+        rejected.push({ row: i + 1, data: row, error: err?.message || "Failed to save meeting" });
+      }
+    }
+
+    await storage.createDataExchangeLog({
+      category: "nunify-meetings",
+      operation: "import",
+      adminUser,
+      fileName: fileName || "nunify_import.csv",
+      eventId,
+      eventCode: event.slug,
+      totalRows: rows.length,
+      importedCount,
+      updatedCount,
+      rejectedCount: rejected.length,
+    });
+    res.json({ totalRows: rows.length, importedCount, updatedCount, rejectedCount: rejected.length, rejected });
+  });
+
+  // ── User Permissions (Admin Only) ─────────────────────────────────────────
+
+  app.get("/api/auth/me/permissions", requireAuth, async (req, res) => {
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+    if (user.role === "admin") {
+      return res.json({ permissions: ADMIN_PERMISSIONS, isAdmin: true });
+    }
+    const record = await storage.getUserPermissions(user.id);
+    const permissions = (record?.permissions as UserPermissions) ?? DEFAULT_USER_PERMISSIONS;
+    res.json({ permissions, isAdmin: false });
+  });
+
+  app.get("/api/admin/users/:id/permissions", requireAdmin, async (req, res) => {
+    const record = await storage.getUserPermissions(req.params.id);
+    const permissions = (record?.permissions as UserPermissions) ?? DEFAULT_USER_PERMISSIONS;
+    res.json({ permissions, updatedAt: record?.updatedAt ?? null, updatedBy: record?.updatedBy ?? null });
+  });
+
+  app.put("/api/admin/users/:id/permissions", requireAdmin, async (req, res) => {
+    const adminUser = (req as any).user;
+    const changedBy = adminUser?.name || adminUser?.username || "admin";
+    const targetUser = await storage.getUser(req.params.id);
+    if (!targetUser) return res.status(404).json({ error: "User not found" });
+    if (targetUser.role === "admin") {
+      return res.status(400).json({ error: "Cannot modify permissions for admin users" });
+    }
+    const newPermissions = req.body as UserPermissions;
+    // Fetch existing to build audit log
+    const existing = await storage.getUserPermissions(req.params.id);
+    const prev = existing?.permissions as UserPermissions | undefined;
+    const record = await storage.upsertUserPermissions(
+      req.params.id,
+      { ...DEFAULT_USER_PERMISSIONS, ...newPermissions },
+      changedBy,
+      targetUser.name || targetUser.username,
+      prev
+    );
+    res.json({ permissions: record.permissions, updatedAt: record.updatedAt, updatedBy: record.updatedBy });
+  });
+
+  app.get("/api/admin/permission-audit-logs", requireAdmin, async (req, res) => {
+    const userId = req.query.userId as string | undefined;
+    const logs = await storage.getPermissionAuditLogs(userId);
+    res.json(logs);
   });
 
   return httpServer;

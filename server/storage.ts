@@ -9,7 +9,8 @@ import {
   type AppSettings, type AppBranding,
   type PasswordResetToken,
   type DataExchangeLog,
-  DEFAULT_SETTINGS, DEFAULT_BRANDING,
+  type UserPermissions, type UserPermissionRecord, type PermissionAuditLog,
+  DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
 export interface AttendeeDetailMeeting {
@@ -35,14 +36,29 @@ export interface AttendeeDetail extends Attendee {
 }
 
 export interface DataExchangeLogInsert {
-  category: "sponsors" | "attendees" | "meetings";
+  category: "sponsors" | "attendees" | "meetings" | "nunify-meetings";
   operation: "import" | "export";
   adminUser: string;
   fileName?: string;
+  eventId?: string;
+  eventCode?: string;
   totalRows: number;
   importedCount: number;
   updatedCount: number;
   rejectedCount: number;
+}
+
+export interface NunifyMeetingRow {
+  Id?: string;
+  Title: string;
+  Attendees: string;
+  "Attendees Emails": string;
+  Date: string;
+  "Start Time": string;
+  "End Time": string;
+  "Meeting Room": string;
+  Description: string;
+  Status: string;
 }
 import { randomUUID, randomBytes } from "crypto";
 import { DatabaseStorage } from "./database-storage";
@@ -138,6 +154,14 @@ export interface IStorage {
   // Data exchange logs
   createDataExchangeLog(data: DataExchangeLogInsert): Promise<DataExchangeLog>;
   getDataExchangeLogs(): Promise<DataExchangeLog[]>;
+
+  // Nunify meeting sync
+  markMeetingsNunifyExported(meetingIds: string[], adminUser: string): Promise<void>;
+
+  // User permissions
+  getUserPermissions(userId: string): Promise<UserPermissionRecord | undefined>;
+  upsertUserPermissions(userId: string, permissions: UserPermissions, changedBy: string, targetUserName: string, previousPermissions?: UserPermissions): Promise<UserPermissionRecord>;
+  getPermissionAuditLogs(userId?: string): Promise<PermissionAuditLog[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -619,11 +643,31 @@ export class MemStorage implements IStorage {
 
   async createDataExchangeLog(data: DataExchangeLogInsert): Promise<DataExchangeLog> {
     const id = randomUUID();
-    const log: DataExchangeLog = { id, ...data, fileName: data.fileName ?? null, createdAt: new Date() };
+    const log: DataExchangeLog = {
+      id, ...data,
+      fileName: data.fileName ?? null,
+      eventId: data.eventId ?? null,
+      eventCode: data.eventCode ?? null,
+      createdAt: new Date()
+    };
     return log;
   }
 
   async getDataExchangeLogs(): Promise<DataExchangeLog[]> {
+    return [];
+  }
+
+  async markMeetingsNunifyExported(_meetingIds: string[], _adminUser: string): Promise<void> {}
+
+  async getUserPermissions(_userId: string): Promise<UserPermissionRecord | undefined> {
+    return undefined;
+  }
+
+  async upsertUserPermissions(userId: string, permissions: UserPermissions, changedBy: string, targetUserName: string): Promise<UserPermissionRecord> {
+    return { userId, permissions, updatedAt: new Date(), updatedBy: changedBy };
+  }
+
+  async getPermissionAuditLogs(_userId?: string): Promise<PermissionAuditLog[]> {
     return [];
   }
 }

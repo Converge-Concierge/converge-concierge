@@ -19,7 +19,11 @@ import {
   Monitor,
   Video,
   Globe,
-  Shield
+  Shield,
+  Zap,
+  Network,
+  Filter,
+  AlertTriangle
 } from "lucide-react";
 import { 
   Card, 
@@ -53,6 +57,8 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
@@ -535,6 +541,502 @@ function CategorySection({
   );
 }
 
+function NunifySection({ 
+  events, 
+  sponsors, 
+  attendees, 
+  meetings,
+  logs
+}: { 
+  events: Event[]; 
+  sponsors: Sponsor[]; 
+  attendees: Attendee[]; 
+  meetings: Meeting[]; 
+  logs: DataExchangeLog[];
+}) {
+  const { toast } = useToast();
+  const [selectedEventId, setSelectedEventId] = useState<string>("");
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<PreviewRow[] | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [pushToNunifyReady, setPushToNunifyReady] = useState(false);
+
+  const nunifyHeaders = ["Id", "Title", "Attendees", "Attendees Emails", "Date", "Start Time", "End Time", "Meeting Room", "Description", "Status"];
+
+  const handleDownloadSample = () => {
+    const sampleRows = [
+      ["", "EVENT123 - Microsoft / John Doe", "John Doe; Sarah Smith", "john@example.com;sarah@microsoft.com", "2024-10-15", "10:00", "10:20", "Booth 101", "Private Converge meeting\nSponsor: Microsoft\nAttendee: John Doe\nCompany: Acme Corp\nType: Onsite\nEvent: The 2024 Summit", "Scheduled"]
+    ];
+    
+    const csvContent = [
+      nunifyHeaders.join(","),
+      ...sampleRows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+    
+    downloadCSV(`nunify_meetings_sample.csv`, csvContent);
+  };
+
+  const handleExport = async () => {
+    if (!selectedEventId) return;
+    const event = events.find(e => e.id === selectedEventId);
+    if (!event) return;
+
+    try {
+      const res = await apiRequest("POST", "/api/admin/data-exchange/export/nunify-meetings", {
+        eventId: selectedEventId,
+        filters: { pushToNunifyReady }
+      });
+      
+      const { meetings: meetingsToExport, warnings } = await res.json();
+      
+      if (warnings > 0) {
+        toast({ 
+          title: "Export Warnings", 
+          description: `${warnings} meetings missing sponsor contact emails. They were still exported.`,
+          variant: "destructive"
+        });
+      }
+
+      const csvRows = meetingsToExport.map((m: any) => {
+        const attendee = attendees.find(a => a.id === m.attendeeId);
+        const sponsor = sponsors.find(s => s.id === m.sponsorId);
+        
+        // Mapping as per specs
+        const title = `${event.slug} - ${sponsor?.name || "Unknown"} / ${attendee?.name || "Unknown"}`;
+        const attendeeList = sponsor?.contactName ? `${attendee?.name || ""}; ${sponsor.contactName}` : (attendee?.name || "");
+        const emailList = sponsor?.contactEmail ? `${attendee?.email || ""};${sponsor.contactEmail}` : (attendee?.email || "");
+        
+        // Time calculations
+        const startTime = m.time;
+        const [h, min] = startTime.split(":").map(Number);
+        const endMin = (min + 20) % 60;
+        const endH = h + Math.floor((min + 20) / 60);
+        const endTime = `${endH.toString().padStart(2, "0")}:${endMin.toString().padStart(2, "0")}`;
+
+        const description = `Private Converge meeting\nSponsor: ${sponsor?.name || "N/A"}\nAttendee: ${attendee?.name || "N/A"}\nCompany: ${attendee?.company || "N/A"}\nType: ${m.meetingType === "onsite" ? "Onsite" : "Online"}\nEvent: ${event.name}`;
+
+        const statusMap: Record<string, string> = {
+          Scheduled: "Scheduled",
+          Confirmed: "Confirmed",
+          Completed: "Completed",
+          Cancelled: "Cancelled",
+          Pending: "Pending",
+          NoShow: "No Show",
+          Declined: "Cancelled"
+        };
+
+        return [
+          "", // Id (blank for new import mode)
+          title,
+          attendeeList,
+          emailList,
+          m.date,
+          startTime,
+          endTime,
+          m.location,
+          description,
+          statusMap[m.status] || m.status
+        ];
+      });
+
+      const csvContent = [
+        nunifyHeaders.join(","),
+        ...csvRows.map((row: any[]) => row.map(cell => `"${(cell || "").toString().replace(/"/g, '""').replace(/\n/g, '\\n')}"`).join(","))
+      ].join("\n");
+
+      downloadCSV(`nunify_meetings_${event.slug}_${new Date().toISOString().split('T')[0]}.csv`, csvContent);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/data-exchange/logs"] });
+      toast({ title: "Export Complete", description: "Meetings exported in Nunify format." });
+    } catch (error) {
+      toast({ title: "Export Failed", description: "Could not export meetings.", variant: "destructive" });
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+    setFile(selectedFile);
+    setImportResult(null);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
+      if (lines.length < 1) return;
+
+      // Simple CSV parser that handles quotes
+      const parseCSVLine = (line: string) => {
+        const result = [];
+        let cur = "";
+        let inQuote = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') inQuote = !inQuote;
+          else if (char === ',' && !inQuote) {
+            result.push(cur.trim());
+            cur = "";
+          } else cur += char;
+        }
+        result.push(cur.trim());
+        return result;
+      };
+
+      const headers = parseCSVLine(lines[0]);
+      const rows: PreviewRow[] = lines.slice(1).map((line, idx) => {
+        const values = parseCSVLine(line);
+        const rowData: any = {};
+        headers.forEach((h, i) => { rowData[h] = values[i]; });
+
+        const errors: string[] = [];
+        if (!rowData.Title) errors.push("Title is required (for sponsor matching)");
+        if (!rowData["Attendees Emails"]) errors.push("Attendees Emails required");
+        if (!rowData.Date) errors.push("Date is required");
+        if (!rowData["Start Time"]) errors.push("Start Time is required");
+
+        return {
+          index: idx + 1,
+          data: rowData,
+          isValid: errors.length === 0,
+          errors
+        };
+      });
+
+      setPreview(rows);
+    };
+    reader.readAsText(selectedFile);
+  };
+
+  const handleImport = async () => {
+    if (!preview || !selectedEventId || isImporting) return;
+    setIsImporting(true);
+    
+    try {
+      const validRows = preview.filter(r => r.isValid).map(r => r.data);
+      const res = await apiRequest("POST", "/api/admin/data-exchange/import/nunify-meetings", {
+        eventId: selectedEventId,
+        rows: validRows,
+        fileName: file?.name
+      });
+      const result = await res.json();
+      setImportResult(result);
+      queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/data-exchange/logs"] });
+      toast({ title: "Import Finished", description: `Synced ${result.importedCount + result.updatedCount} meetings from Nunify.` });
+    } catch (error) {
+      toast({ title: "Import Failed", description: "Sync failed.", variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleDownloadRejections = () => {
+    if (!importResult || importResult.rejections.length === 0) return;
+    const headers = [...nunifyHeaders, "Error"];
+    const csvContent = [
+      headers.join(","),
+      ...importResult.rejections.map(r => [
+        ...nunifyHeaders.map(h => `"${(r.data[h] || "").toString().replace(/"/g, '""')}"`),
+        `"${r.error.replace(/"/g, '""')}"`
+      ].join(","))
+    ].join("\n");
+    downloadCSV(`nunify_rejections.csv`, csvContent);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-lg border">
+        <div className="space-y-1 flex-1">
+          <Label className="text-sm font-semibold">Step 1: Select Event</Label>
+          <p className="text-xs text-muted-foreground">Nunify exports and imports are event-specific.</p>
+        </div>
+        <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+          <SelectTrigger className="w-[300px]" data-testid="select-nunify-event">
+            <SelectValue placeholder="Select an event..." />
+          </SelectTrigger>
+          <SelectContent>
+            {events.map(e => (
+              <SelectItem key={e.id} value={e.id}>{e.name} ({e.slug})</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {!selectedEventId && (
+        <Card className="border-dashed">
+          <CardContent className="py-10 text-center space-y-2">
+            <Info className="h-10 w-10 text-muted-foreground mx-auto opacity-50" />
+            <p className="text-muted-foreground">Please select an event to enable Nunify Import/Export tools.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedEventId && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Export Section */}
+          <Card className="hover-elevate flex flex-col">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileDown className="h-5 w-5 text-blue-500" />
+                Export to Nunify
+              </CardTitle>
+              <CardDescription>
+                Export meetings in Nunify-compatible format.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 flex-1">
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/10">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <Filter className="h-4 w-4" /> Export Filters
+                </h4>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Push to Nunify Ready</Label>
+                      <p className="text-xs text-muted-foreground">Only export meetings ready for Nunify</p>
+                    </div>
+                    <Switch 
+                      checked={pushToNunifyReady} 
+                      onCheckedChange={setPushToNunifyReady}
+                      data-testid="switch-nunify-ready"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border rounded-lg bg-blue-50/30 border-blue-100">
+                <h4 className="text-xs font-bold uppercase text-blue-700 mb-2">Nunify Format Requirements</h4>
+                <ul className="text-xs space-y-1 text-blue-800 list-disc pl-4">
+                  <li>Title: Code - Sponsor / Attendee</li>
+                  <li>Attendees: Name; Contact</li>
+                  <li>Time: HH:mm (20min duration)</li>
+                </ul>
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-2">
+              <Button 
+                variant="outline" 
+                className="w-full gap-2" 
+                onClick={handleDownloadSample}
+                data-testid="button-nunify-sample"
+              >
+                <Download className="h-4 w-4" /> Download Sample CSV
+              </Button>
+              <Button 
+                className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white" 
+                onClick={handleExport}
+                data-testid="button-nunify-export"
+              >
+                <FileDown className="h-4 w-4" /> Export for Nunify
+              </Button>
+            </CardFooter>
+          </Card>
+
+          {/* Import Section */}
+          <Card className="hover-elevate flex flex-col">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Upload className="h-5 w-5 text-green-500" />
+                Import from Nunify
+              </CardTitle>
+              <CardDescription>
+                Sync meetings back from Nunify to Concierge.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 flex-1">
+              <div 
+                className={cn(
+                  "border-2 border-dashed border-border rounded-lg p-8 text-center transition-colors relative cursor-pointer",
+                  file ? "bg-green-50/20 border-green-200" : "hover:border-accent/50"
+                )}
+              >
+                <Input 
+                  type="file" 
+                  accept=".csv" 
+                  className="absolute inset-0 opacity-0 cursor-pointer" 
+                  onChange={handleFileChange}
+                  data-testid="input-nunify-import-file"
+                />
+                <div className="space-y-2">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
+                    <Upload className="h-6 w-6 text-accent" />
+                  </div>
+                  <div className="text-sm">
+                    {file ? <span className="font-medium text-foreground">{file.name}</span> : <span>Click to upload Nunify CSV</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Supports updates by Nunify ID or meeting details</p>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button 
+                className="w-full gap-2 bg-accent hover:bg-accent/90 text-accent-foreground" 
+                disabled={!preview || isImporting} 
+                onClick={handleImport}
+                data-testid="button-nunify-import"
+              >
+                {isImporting ? "Importing..." : "Start Import"}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
+
+      {/* Preview and Results sections similar to CategorySection */}
+      {preview && !importResult && (
+        <Card className="border-accent/20 bg-accent/5">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Import Preview</CardTitle>
+              <CardDescription>Review Nunify data before finalizing.</CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
+                {preview.filter(r => r.isValid).length} Valid Rows
+              </Badge>
+              {preview.some(r => !r.isValid) && (
+                <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">
+                  {preview.filter(r => !r.isValid).length} Invalid Rows
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="max-height-[400px] overflow-auto border rounded-lg bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12 text-center">Row</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Start Time</TableHead>
+                    <TableHead>Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preview.slice(0, 50).map((row) => (
+                    <TableRow key={row.index}>
+                      <TableCell className="text-center font-mono text-xs">{row.index}</TableCell>
+                      <TableCell>
+                        {row.isValid ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-red-500" />
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs truncate max-w-[200px]">{row.data.Title}</TableCell>
+                      <TableCell className="text-xs">{row.data.Date}</TableCell>
+                      <TableCell className="text-xs">{row.data["Start Time"]}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {row.isValid ? "Ready to import" : row.errors.join(", ")}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {importResult && (
+        <Card className="border-green-200 bg-green-50/30">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              Nunify Sync Completed
+            </CardTitle>
+            <CardDescription>Import summary from Nunify CSV.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-card p-4 rounded-xl border border-border/50 text-center">
+                <p className="text-2xl font-bold">{importResult.totalRows}</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Total Rows</p>
+              </div>
+              <div className="bg-card p-4 rounded-xl border border-border/50 text-center">
+                <p className="text-2xl font-bold text-green-600">{importResult.importedCount}</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Imported</p>
+              </div>
+              <div className="bg-card p-4 rounded-xl border border-border/50 text-center">
+                <p className="text-2xl font-bold text-blue-600">{importResult.updatedCount}</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Updated</p>
+              </div>
+              <div className="bg-card p-4 rounded-xl border border-border/50 text-center">
+                <p className="text-2xl font-bold text-red-600">{importResult.rejectedCount}</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Rejected</p>
+              </div>
+            </div>
+
+            {importResult.rejectedCount > 0 && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleDownloadRejections} data-testid="button-download-nunify-rejections">
+                <Download className="h-3 w-3" /> Download Rejections CSV
+              </Button>
+            )}
+          </CardContent>
+          <CardFooter>
+            <Button variant="outline" className="w-full" onClick={() => { setFile(null); setPreview(null); setImportResult(null); }}>
+              Done / Start New Sync
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+
+      {/* Audit Logs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Nunify Sync History
+          </CardTitle>
+          <CardDescription>Recent Nunify import and export operations.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Operation</TableHead>
+                <TableHead>Event</TableHead>
+                <TableHead>Admin</TableHead>
+                <TableHead className="text-right">Rows</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs.filter(l => l.category === "nunify-meetings").slice(0, 10).map(log => (
+                <TableRow key={log.id}>
+                  <TableCell className="text-xs">{new Date(log.createdAt).toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn(
+                      "capitalize",
+                      log.operation === "import" ? "bg-green-50 text-green-700" : "bg-blue-50 text-blue-700"
+                    )}>
+                      {log.operation}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs">{log.eventCode || "N/A"}</TableCell>
+                  <TableCell className="text-xs">{log.adminUser}</TableCell>
+                  <TableCell className="text-right text-xs font-mono">
+                    {log.importedCount + log.updatedCount}/{log.totalRows}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {logs.filter(l => l.category === "nunify-meetings").length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground italic">
+                    No sync history found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function DataExchangePage() {
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
@@ -565,6 +1067,9 @@ export default function DataExchangePage() {
           <TabsTrigger value="meetings" className="gap-2" data-testid="tab-exchange-meetings">
             <Handshake className="h-4 w-4" /> Meetings
           </TabsTrigger>
+          <TabsTrigger value="nunify" className="gap-2" data-testid="tab-exchange-nunify">
+            <Zap className="h-4 w-4" /> Nunify Meetings
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="sponsors">
@@ -592,6 +1097,15 @@ export default function DataExchangePage() {
             sponsors={sponsors} 
             attendees={attendees} 
             meetings={meetings} 
+          />
+        </TabsContent>
+        <TabsContent value="nunify">
+          <NunifySection 
+            events={events} 
+            sponsors={sponsors} 
+            attendees={attendees} 
+            meetings={meetings}
+            logs={logs}
           />
         </TabsContent>
       </Tabs>
@@ -630,7 +1144,7 @@ export default function DataExchangePage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  logs.map((log) => (
+                  logs.filter(l => l.category !== "nunify-meetings").map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="text-xs font-medium">
                         {new Date(log.createdAt).toLocaleString()}

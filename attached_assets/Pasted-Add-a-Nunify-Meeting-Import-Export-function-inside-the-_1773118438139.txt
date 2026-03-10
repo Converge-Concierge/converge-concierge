@@ -1,0 +1,361 @@
+Add a Nunify Meeting Import / Export function inside the Admin -> Data Exchange module.
+
+Important rules:
+- Do not redesign the whole admin app
+- Do not break existing Meetings, Sponsors, Attendees, Reports, or CSV import/export workflows
+- Preserve all current working functionality
+- This is an additive Data Exchange feature
+- Nunify meeting data exchange should be admin-only
+
+Goal:
+Allow Converge Concierge to import and export meeting data in a Nunify-compatible CSV format with:
+- validation
+- duplicate avoidance
+- row-level rejection reporting
+- downloadable sample CSV template
+
+Important meeting rule:
+Concierge meetings are in 20-minute intervals, not 30 minutes.
+
+==================================================
+1. ADD NUNIFY MEETING DATA EXCHANGE SECTION
+==================================================
+
+Inside Admin -> Data Exchange, add a dedicated subsection or tab:
+
+Nunify Meetings
+
+This section should support:
+- Download Sample CSV
+- Export Nunify CSV
+- Import Nunify CSV
+
+Keep this separate from the generic Meetings CSV import/export if practical.
+
+==================================================
+2. NUNIFY CSV FORMAT
+==================================================
+
+Support this exact Nunify meeting format:
+
+- Id
+- Title
+- Attendees
+- Attendees Emails
+- Date
+- Start Time
+- End Time
+- Meeting Room
+- Description
+- Status
+
+The sample CSV template must use exactly these column headers in this order.
+
+==================================================
+3. DOWNLOADABLE SAMPLE CSV TEMPLATE
+==================================================
+
+Provide a downloadable sample CSV template for Nunify Meetings.
+
+The sample template should include:
+- exact Nunify headers
+- optionally 1 example row
+
+Example row concept:
+Id,Title,Attendees,Attendees Emails,Date,Start Time,End Time,Meeting Room,Description,Status
+
+Important:
+If the supported Nunify format changes later, the sample CSV template must be updated too.
+
+==================================================
+4. EXPORT NUNIFY CSV
+==================================================
+
+Add an export function that generates a Nunify-compatible CSV from Concierge meetings.
+
+Required export filters:
+- Event
+- Sponsor
+- Attendee
+- Meeting Type
+- Status
+- Date Range
+
+At minimum, support:
+- Event
+- Sponsor
+- Date Range
+- Status
+
+Export only matching records.
+
+==================================================
+5. NUNIFY EXPORT FIELD MAPPING
+==================================================
+
+Map Concierge meeting data to Nunify CSV columns as follows:
+
+A. Id
+- Use Concierge meeting ID if available
+- If Nunify requires blank for new imports, allow an export mode that leaves Id blank
+- Preferred: support both modes if practical:
+  1. New Import Mode -> blank Id
+  2. Sync/Update Mode -> existing external Nunify Id if stored
+
+B. Title
+Generate a clear meeting title.
+
+Recommended format:
+[Event Code] - [Sponsor Name] / [Attendee Full Name]
+
+Example:
+FRC2026 - Winnow / Dan Carmody
+
+C. Attendees
+Use attendee full name and sponsor representative name if available.
+
+Recommended format examples:
+Dan Carmody; Chris Hilliard
+
+If sponsor representative name is not available, attendee name alone is acceptable.
+
+D. Attendees Emails
+Use semicolon-separated email addresses.
+
+Recommended:
+attendeeEmail;sponsorContactEmail
+
+If sponsor contact email is missing:
+- export attendee email only
+OR
+- reject row depending on admin setting
+
+Preferred: export attendee email only if sponsor email is missing, but flag it in warnings if practical.
+
+E. Date
+Export in a Nunify-compatible date format.
+Preferred:
+YYYY-MM-DD
+
+F. Start Time
+Export meeting start time in the expected format.
+Use the same format consistently across all rows.
+
+G. End Time
+If Concierge stores end time, use it.
+If not, calculate:
+End Time = Start Time + 20 minutes
+
+Important:
+Concierge meetings are 20-minute intervals.
+
+H. Meeting Room
+Map from Concierge location/platform field.
+
+Examples:
+- Booth
+- Work Lounge
+- VIP Lounge
+- Hotel Bar
+- Zoom
+- Teams
+
+I. Description
+Generate a useful meeting description.
+
+Recommended format:
+Private Converge meeting
+Sponsor: [Sponsor Name]
+Attendee: [Attendee Name]
+Company: [Company]
+Type: [Onsite/Online]
+Event: [Event Name or Event Code]
+
+J. Status
+Map Concierge status to Nunify-compatible values.
+
+Use clear status mapping rules.
+At minimum support:
+- Requested
+- Confirmed
+- Scheduled
+- Completed
+- Cancelled
+- Declined
+
+If Nunify expects a smaller set of statuses, map accordingly and document the mapping.
+
+==================================================
+6. IMPORT NUNIFY CSV
+==================================================
+
+Add an import function for Nunify meeting CSV files.
+
+Flow:
+1. Upload Nunify CSV
+2. Validate headers
+3. Parse rows
+4. Preview results
+5. Show valid / invalid rows
+6. Confirm import
+7. Show final import summary
+
+Do not import blindly without validation.
+
+==================================================
+7. IMPORT MATCHING / DUPLICATE AVOIDANCE
+==================================================
+
+Use duplicate-safe logic.
+
+Preferred unique matching rule:
+eventCode + sponsorName + attendeeEmail + date + startTime + type
+
+If type is not present in Nunify CSV, use:
+event + attendeeEmail + date + startTime + meetingRoom
+
+If a likely duplicate already exists:
+- do not create a duplicate meeting record
+- either update the existing record or reject the row based on import mode
+
+Preferred implementation:
+Support 2 import modes:
+1. Create Missing Only
+2. Update Existing When Matched
+
+Default mode:
+Create Missing Only
+
+==================================================
+8. IMPORT VALIDATION RULES
+==================================================
+
+Validate each row before import.
+
+Examples:
+- missing Title
+- missing Attendees Emails
+- missing Date
+- missing Start Time
+- missing End Time
+- missing Meeting Room if required
+- invalid date format
+- invalid time format
+- invalid status
+- unknown attendee email
+- unknown sponsor if sponsor name can be derived from title/description
+- duplicate meeting detected
+- impossible end time before start time
+
+If a row fails:
+- do not silently skip it
+- report the row and the exact rejection reason
+
+==================================================
+9. ATTENDEE / SPONSOR MATCHING ON IMPORT
+==================================================
+
+When importing Nunify meetings, try to match the meeting to existing Concierge records.
+
+Preferred matching:
+- attendee by email
+- sponsor by sponsor name if available in title/description or stored Nunify metadata
+- event by selected import event context or event code if present
+
+If the Nunify CSV does not contain enough information to safely match a sponsor:
+- require the admin to select the event and optionally sponsor context before import
+OR
+- reject rows that cannot be confidently matched
+
+Do not create orphan meetings without a valid attendee and event relationship.
+
+==================================================
+10. ADMIN IMPORT OPTIONS
+==================================================
+
+For Nunify Meeting Import, provide these admin options if practical:
+- Select Event
+- Import Mode:
+  - Create Missing Only
+  - Update Existing When Matched
+- Duplicate Handling:
+  - Reject duplicates
+  - Update duplicates
+
+If both options are too much for now, implement:
+- Select Event
+- Reject duplicates by default
+
+==================================================
+11. RESULTS SUMMARY + REJECTION REPORTING
+==================================================
+
+After import, show a clear summary:
+
+Example:
+- 120 rows processed
+- 92 imported
+- 18 updated
+- 10 rejected
+
+Also show row-level rejection detail:
+- row number
+- title or attendee email
+- rejection reason
+
+Examples:
+- Unknown attendee email
+- Duplicate meeting detected
+- Invalid date format
+- Missing Meeting Room
+- Could not match sponsor
+- End Time earlier than Start Time
+
+If practical, allow admins to download rejected rows as CSV with an added:
+errorReason
+
+==================================================
+12. AUDIT LOG / HISTORY
+==================================================
+
+Log each Nunify import/export action with:
+- admin user
+- timestamp
+- action type (Nunify Export / Nunify Import)
+- event
+- file name
+- total rows
+- imported count
+- updated count
+- rejected count
+
+If a Data Exchange history view already exists or is being built, include Nunify actions there.
+
+==================================================
+13. DO NOT BREAK EXISTING MEETINGS MODULE
+==================================================
+
+This Nunify function must not change the current public or admin meeting scheduling logic.
+
+It is a data exchange utility only.
+
+Do not alter:
+- meeting booking UX
+- sponsor dashboard logic
+- attendee scheduling flow
+- meeting statuses unless needed for mapping
+
+==================================================
+14. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Admin -> Data Exchange includes Nunify Meetings
+- admins can download a Nunify meeting sample CSV
+- admins can export Concierge meetings in Nunify-compatible CSV format
+- Concierge calculates End Time correctly using 20-minute meeting intervals when needed
+- admins can import Nunify meeting CSV files
+- imports validate data before saving
+- duplicate meetings are prevented or safely updated based on import mode
+- rejected rows are clearly identified with reasons
+- all Nunify import/export activity is logged

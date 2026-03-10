@@ -12,6 +12,7 @@ import {
   LogOut,
   UserCog,
   ArrowLeftRight,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -94,6 +95,20 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
                   </SidebarMenuItem>
                 );
               })}
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/admin/access-control"}
+                    className="transition-all duration-200"
+                  >
+                    <Link href="/admin/access-control">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Access Control</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

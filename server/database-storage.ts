@@ -1,9 +1,10 @@
-import { eq, and, ne, sql, desc } from "drizzle-orm";
-import { randomBytes } from "crypto";
+import { eq, and, ne, sql, desc, inArray } from "drizzle-orm";
+import { randomBytes, randomUUID } from "crypto";
 import { db } from "./db";
 import {
   users, events, sponsors, attendees, meetings,
   sponsorTokens, sponsorNotifications, passwordResetTokens, appConfig, dataExchangeLogs,
+  userPermissions, permissionAuditLogs,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -12,7 +13,8 @@ import {
   type SponsorToken, type SponsorNotification, type SponsorNotificationType,
   type AppSettings, type AppBranding, type PasswordResetToken,
   type DataExchangeLog,
-  DEFAULT_SETTINGS, DEFAULT_BRANDING,
+  type UserPermissions, type UserPermissionRecord, type PermissionAuditLog,
+  DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
 
@@ -586,6 +588,8 @@ export class DatabaseStorage implements IStorage {
         operation: data.operation,
         adminUser: data.adminUser,
         fileName: data.fileName ?? null,
+        eventId: data.eventId ?? null,
+        eventCode: data.eventCode ?? null,
         totalRows: data.totalRows,
         importedCount: data.importedCount,
         updatedCount: data.updatedCount,
@@ -597,5 +601,81 @@ export class DatabaseStorage implements IStorage {
 
   async getDataExchangeLogs(): Promise<DataExchangeLog[]> {
     return db.select().from(dataExchangeLogs).orderBy(desc(dataExchangeLogs.createdAt));
+  }
+
+  // ── Nunify Meeting Sync ────────────────────────────────────────────────────
+
+  async markMeetingsNunifyExported(meetingIds: string[], adminUser: string): Promise<void> {
+    if (meetingIds.length === 0) return;
+    await db
+      .update(meetings)
+      .set({ nunifyExportedAt: new Date(), nunifyExportedBy: adminUser })
+      .where(inArray(meetings.id, meetingIds));
+  }
+
+  // ── User Permissions ──────────────────────────────────────────────────────
+
+  async getUserPermissions(userId: string): Promise<UserPermissionRecord | undefined> {
+    const [row] = await db
+      .select()
+      .from(userPermissions)
+      .where(eq(userPermissions.userId, userId))
+      .limit(1);
+    return row ?? undefined;
+  }
+
+  async upsertUserPermissions(
+    userId: string,
+    permissions: UserPermissions,
+    changedBy: string,
+    targetUserName: string,
+    previousPermissions?: UserPermissions
+  ): Promise<UserPermissionRecord> {
+    // Write audit log entries for changed fields
+    const prev = previousPermissions ?? DEFAULT_USER_PERMISSIONS;
+    const auditEntries: typeof permissionAuditLogs.$inferInsert[] = [];
+    for (const key of Object.keys(permissions) as (keyof UserPermissions)[]) {
+      if (prev[key] !== permissions[key]) {
+        auditEntries.push({
+          id: randomUUID(),
+          targetUserId: userId,
+          targetUserName,
+          changedBy,
+          field: key,
+          oldValue: String(prev[key]),
+          newValue: String(permissions[key]),
+          changedAt: new Date(),
+        });
+      }
+    }
+    if (auditEntries.length > 0) {
+      await db.insert(permissionAuditLogs).values(auditEntries);
+    }
+
+    const [upserted] = await db
+      .insert(userPermissions)
+      .values({ userId, permissions, updatedAt: new Date(), updatedBy: changedBy })
+      .onConflictDoUpdate({
+        target: userPermissions.userId,
+        set: { permissions, updatedAt: new Date(), updatedBy: changedBy },
+      })
+      .returning();
+    return upserted;
+  }
+
+  async getPermissionAuditLogs(userId?: string): Promise<PermissionAuditLog[]> {
+    if (userId) {
+      return db
+        .select()
+        .from(permissionAuditLogs)
+        .where(eq(permissionAuditLogs.targetUserId, userId))
+        .orderBy(desc(permissionAuditLogs.changedAt))
+        .limit(500);
+    }
+    return db
+      .select()
+      .from(permissionAuditLogs)
+      .orderBy(desc(permissionAuditLogs.changedAt))
+      .limit(500);
   }
 }

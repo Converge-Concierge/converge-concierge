@@ -1,0 +1,426 @@
+Add an event-specific Nunify Meeting Import / Export function inside Admin -> Data Exchange.
+
+Important rules:
+- Do not redesign the whole admin app
+- Do not break existing Meetings, Sponsors, Attendees, Reports, webhook, or CSV import/export workflows
+- Preserve all current working functionality
+- This is an additive Data Exchange feature
+- Nunify meeting data exchange is ADMIN-ONLY
+- Nunify import/export must always be EVENT-SPECIFIC, never cross-event
+
+Goal:
+Allow Converge Concierge to import and export meeting data for a single selected event in a Nunify-compatible CSV format with:
+- event-specific scope
+- validation
+- duplicate avoidance
+- row-level rejection reporting
+- downloadable sample CSV template
+- a “Push to Nunify Ready” filter by event
+
+Important meeting rule:
+Concierge meetings are in 20-minute intervals, not 30 minutes.
+
+==================================================
+1. ADD EVENT-SPECIFIC NUNIFY SECTION
+==================================================
+
+Inside Admin -> Data Exchange, add a dedicated subsection or tab:
+
+Nunify Meetings
+
+This section should support:
+- Select Event
+- Download Sample CSV
+- Export Nunify CSV
+- Import Nunify CSV
+
+Critical rule:
+The admin must select an event first.
+All Nunify import/export actions must be scoped to that one event only.
+
+Do not allow:
+- all-event Nunify exports
+- all-event Nunify imports
+- mixed-event Nunify files
+
+==================================================
+2. REQUIRE EVENT SELECTION FIRST
+==================================================
+
+Before any Nunify import/export action is available, require:
+- Event selection
+
+Behavior:
+- if no event is selected, disable import/export buttons
+- show message:
+  "Select an event to import or export Nunify meeting data."
+
+All processing, validation, matching, and duplicate checks must occur within the selected event context.
+
+==================================================
+3. NUNIFY CSV FORMAT
+==================================================
+
+Support this exact Nunify meeting format:
+
+- Id
+- Title
+- Attendees
+- Attendees Emails
+- Date
+- Start Time
+- End Time
+- Meeting Room
+- Description
+- Status
+
+The sample CSV template must use exactly these column headers in this order.
+
+==================================================
+4. DOWNLOADABLE SAMPLE CSV TEMPLATE
+==================================================
+
+Provide a downloadable sample CSV template for Nunify Meetings.
+
+The sample template should include:
+- exact Nunify headers
+- optionally 1 example row
+
+Example headers:
+Id,Title,Attendees,Attendees Emails,Date,Start Time,End Time,Meeting Room,Description,Status
+
+Important:
+- this sample template is for the selected event’s Nunify meeting workflow
+- if the supported format changes later, the sample CSV must be updated too
+
+==================================================
+5. EXPORT NUNIFY CSV (EVENT-SPECIFIC ONLY)
+==================================================
+
+Add an export function that generates a Nunify-compatible CSV from Concierge meetings for the selected event only.
+
+Required export filters:
+- Event (required)
+- Sponsor
+- Attendee
+- Meeting Type
+- Status
+- Date Range
+- Push to Nunify Ready
+
+At minimum, support:
+- Event (required)
+- Sponsor
+- Status
+- Date Range
+- Push to Nunify Ready
+
+Do not export meetings from any other event.
+
+==================================================
+6. NUNIFY EXPORT FIELD MAPPING
+==================================================
+
+Map Concierge meeting data to Nunify CSV columns as follows:
+
+A. Id
+- if exporting brand-new records for Nunify import, allow blank Id
+- if a Nunify external ID is already stored, export that value when appropriate
+- if practical, support:
+  1. New Import Mode -> blank Id
+  2. Update/Sync Mode -> existing Nunify Id
+
+B. Title
+Generate a clear meeting title.
+
+Recommended format:
+[Event Code] - [Sponsor Name] / [Attendee Full Name]
+
+Example:
+FRC2026 - Winnow / Dan Carmody
+
+C. Attendees
+Use attendee full name and sponsor representative name if available.
+
+Example:
+Dan Carmody; Chris Hilliard
+
+If sponsor rep name is unavailable, attendee name alone is acceptable.
+
+D. Attendees Emails
+Use semicolon-separated email addresses.
+
+Recommended:
+attendeeEmail;sponsorContactEmail
+
+If sponsor contact email is missing:
+- export attendee email only
+OR
+- warn the admin in validation/export summary
+
+Preferred:
+Export attendee email only, but flag the row in warnings if sponsor email is missing.
+
+E. Date
+Export in a Nunify-compatible format:
+YYYY-MM-DD
+
+F. Start Time
+Export meeting start time consistently in the format Nunify expects.
+
+G. End Time
+If Concierge stores end time, use it.
+If not, calculate:
+End Time = Start Time + 20 minutes
+
+H. Meeting Room
+Map from Concierge location/platform field.
+
+Examples:
+- Booth
+- Work Lounge
+- VIP Lounge
+- Hotel Bar
+- Zoom
+- Teams
+
+I. Description
+Generate a useful description.
+
+Recommended format:
+Private Converge meeting
+Sponsor: [Sponsor Name]
+Attendee: [Attendee Name]
+Company: [Company]
+Type: [Onsite/Online]
+Event: [Event Name or Event Code]
+
+J. Status
+Map Concierge status to Nunify-compatible values.
+
+Support current Concierge meeting statuses cleanly.
+If Nunify expects fewer statuses, define and document the mapping.
+
+==================================================
+7. ADD "PUSH TO NUNIFY READY" FILTER
+==================================================
+
+Add a new meeting filter and export state:
+
+Push to Nunify Ready
+
+This filter must be available:
+- in Admin -> Meetings
+- in Admin -> Data Exchange -> Nunify Meetings export controls
+
+Definition:
+A meeting is "Push to Nunify Ready" only if all required Nunify fields are present and valid for the selected event.
+
+Required checks:
+- event matches selected event
+- attendee email exists
+- attendee full name exists
+- date exists
+- start time exists
+- end time exists or can be calculated
+- meeting room exists
+- sponsor can be resolved for title/description generation
+- meeting is not already marked as exported to Nunify, unless admin explicitly chooses re-export mode
+
+Behavior:
+- filter by event + Push to Nunify Ready
+- allow admin to export only ready records for that selected event
+- show non-ready records separately if practical
+
+==================================================
+8. TRACK NUNIFY EXPORT STATE
+==================================================
+
+Add meeting-level fields if needed:
+
+- nunifyReady (computed or stored)
+- nunifyExportedAt
+- nunifyExportedBy
+- nunifyExternalId (optional if later syncing back)
+- nunifySyncStatus (optional)
+
+Preferred behavior:
+- readiness can be computed dynamically
+- export timestamp should be stored after successful export action
+- allow future filtering for:
+  - Not Yet Exported
+  - Exported to Nunify
+  - Push to Nunify Ready
+
+==================================================
+9. IMPORT NUNIFY CSV (EVENT-SPECIFIC ONLY)
+==================================================
+
+Add an import function for Nunify meeting CSV files.
+
+Critical rule:
+Import must be scoped to one selected event.
+
+Flow:
+1. Admin selects event
+2. Upload Nunify CSV
+3. Validate headers
+4. Parse rows
+5. Validate rows against selected event context
+6. Preview results
+7. Show valid / invalid rows
+8. Confirm import
+9. Show final summary
+
+Do not allow mixed-event imports.
+
+==================================================
+10. IMPORT MATCHING / DUPLICATE AVOIDANCE
+==================================================
+
+Use duplicate-safe logic within the selected event only.
+
+Preferred unique matching rule:
+selectedEvent + attendeeEmail + date + startTime + meetingRoom + sponsor
+
+If sponsor is not directly present in the Nunify file, use the best safe matching rule available from title/description and selected event context.
+
+Support 2 import modes if practical:
+1. Create Missing Only
+2. Update Existing When Matched
+
+Default:
+Create Missing Only
+
+Do not create duplicate meetings inside the same event.
+
+==================================================
+11. IMPORT VALIDATION RULES
+==================================================
+
+Validate each row before import.
+
+Examples:
+- missing Title
+- missing Attendees Emails
+- missing Date
+- missing Start Time
+- missing End Time
+- missing Meeting Room
+- invalid date format
+- invalid time format
+- invalid status
+- unknown attendee email for the selected event
+- could not match sponsor for selected event
+- duplicate meeting detected within selected event
+- row appears to belong to a different event than selected context
+
+If a row fails:
+- do not silently skip it
+- report the row and the exact rejection reason
+
+==================================================
+12. ATTENDEE / SPONSOR MATCHING ON IMPORT
+==================================================
+
+When importing Nunify meetings, match everything inside the selected event context.
+
+Preferred matching:
+- attendee by email within selected event
+- sponsor by sponsor name parsed from title/description and validated against selected event assignments
+- meeting room against allowed values if practical
+
+Do not create orphan meetings without:
+- valid attendee
+- valid selected event
+- safe sponsor resolution if sponsor linkage is required
+
+==================================================
+13. IMPORT RESULTS / REJECTION REPORTING
+==================================================
+
+After import, show a clear summary:
+
+Example:
+- Event: FRC2026
+- 120 rows processed
+- 92 imported
+- 18 updated
+- 10 rejected
+
+Show row-level rejection detail:
+- row number
+- title or attendee email
+- rejection reason
+
+Examples:
+- Unknown attendee email for selected event
+- Duplicate meeting detected
+- Invalid date format
+- Missing Meeting Room
+- Could not match sponsor in selected event
+- End Time earlier than Start Time
+- Row does not match selected event context
+
+If practical, allow admins to download rejected rows as CSV with:
+errorReason
+
+==================================================
+14. AUDIT LOG / HISTORY
+==================================================
+
+Log each Nunify import/export action with:
+- admin user
+- timestamp
+- action type (Nunify Export / Nunify Import)
+- selected event
+- file name
+- total rows
+- imported count
+- updated count
+- rejected count
+
+If Data Exchange history already exists or is being built, include Nunify actions there.
+
+==================================================
+15. ADMIN MEETINGS PAGE FILTERS
+==================================================
+
+In Admin -> Meetings, add filters for:
+- Event
+- Push to Nunify Ready
+- Exported to Nunify (if practical)
+
+Behavior:
+- when event is selected, Push to Nunify Ready should only evaluate within that event
+- admins should be able to quickly identify which meetings for that event are ready to move into Nunify
+
+==================================================
+16. DO NOT BREAK EXISTING MEETING LOGIC
+==================================================
+
+This Nunify function is a data exchange utility only.
+
+Do not alter:
+- meeting booking UX
+- sponsor dashboard logic
+- attendee scheduling flow
+- public scheduling pages
+
+==================================================
+17. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Admin -> Data Exchange includes Nunify Meetings
+- all Nunify import/export actions are event-specific
+- admin must select an event before importing/exporting
+- admins can download a Nunify meeting sample CSV
+- admins can export selected-event meetings in Nunify-compatible CSV format
+- End Time is correctly calculated using 20-minute meeting intervals when needed
+- admins can import Nunify meeting CSV files into a selected event context
+- imports validate data before saving
+- duplicates are prevented within the selected event
+- rejected rows are clearly identified with reasons
+- a Push to Nunify Ready filter exists by event
+- Nunify import/export activity is logged

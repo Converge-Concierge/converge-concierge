@@ -262,6 +262,10 @@ export const meetings = pgTable("meetings", {
   meetingLink: varchar("meeting_link"),
   archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
   archiveSource: text("archive_source", { enum: ["event", "manual"] }),
+  // Nunify sync fields
+  nunifyExternalId: text("nunify_external_id"),
+  nunifyExportedAt: timestamp("nunify_exported_at"),
+  nunifyExportedBy: text("nunify_exported_by"),
 });
 
 export const insertMeetingSchema = createInsertSchema(meetings).extend({
@@ -361,10 +365,12 @@ export const sponsorNotifications = pgTable("sponsor_notifications", {
 
 export const dataExchangeLogs = pgTable("data_exchange_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  category: text("category", { enum: ["sponsors", "attendees", "meetings"] }).notNull(),
+  category: text("category", { enum: ["sponsors", "attendees", "meetings", "nunify-meetings"] }).notNull(),
   operation: text("operation", { enum: ["import", "export"] }).notNull(),
   adminUser: text("admin_user").notNull(),
   fileName: text("file_name"),
+  eventId: varchar("event_id"),
+  eventCode: text("event_code"),
   totalRows: integer("total_rows").notNull().default(0),
   importedCount: integer("imported_count").notNull().default(0),
   updatedCount: integer("updated_count").notNull().default(0),
@@ -373,6 +379,142 @@ export const dataExchangeLogs = pgTable("data_exchange_logs", {
 });
 
 export type DataExchangeLog = typeof dataExchangeLogs.$inferSelect;
+
+// ── User Permissions ─────────────────────────────────────────────────────────
+
+export interface UserPermissions {
+  // Module-level access (controls nav visibility)
+  mod_dashboard: boolean;
+  mod_events: boolean;
+  mod_sponsors: boolean;
+  mod_attendees: boolean;
+  mod_meetings: boolean;
+  mod_reports: boolean;
+  mod_dataExchange: boolean;
+  mod_branding: boolean;
+  mod_settings: boolean;
+  mod_users: boolean;
+  // Events actions
+  ev_create: boolean;
+  ev_edit: boolean;
+  ev_archive: boolean;
+  ev_delete: boolean;
+  ev_copy: boolean;
+  ev_editBranding: boolean;
+  ev_editMeetingBlocks: boolean;
+  ev_toggleScheduling: boolean;
+  // Sponsors actions
+  sp_create: boolean;
+  sp_edit: boolean;
+  sp_archive: boolean;
+  sp_delete: boolean;
+  sp_copy: boolean;
+  sp_export: boolean;
+  sp_import: boolean;
+  // Attendees actions
+  at_create: boolean;
+  at_edit: boolean;
+  at_archive: boolean;
+  at_delete: boolean;
+  at_export: boolean;
+  at_import: boolean;
+  at_viewDetail: boolean;
+  at_viewContacts: boolean;
+  at_viewInterests: boolean;
+  // Meetings actions
+  mt_create: boolean;
+  mt_edit: boolean;
+  mt_cancel: boolean;
+  mt_delete: boolean;
+  mt_export: boolean;
+  mt_import: boolean;
+  mt_approvePending: boolean;
+  mt_nunifySync: boolean;
+  // Reports
+  rp_view: boolean;
+  rp_export: boolean;
+  rp_viewContactData: boolean;
+  // Data Exchange
+  de_exportSponsors: boolean;
+  de_exportAttendees: boolean;
+  de_exportMeetings: boolean;
+  de_importSponsors: boolean;
+  de_importAttendees: boolean;
+  de_importMeetings: boolean;
+  de_nunify: boolean;
+  de_viewHistory: boolean;
+  // Branding
+  br_edit: boolean;
+  // Settings
+  st_edit: boolean;
+  // Users
+  us_create: boolean;
+  us_edit: boolean;
+  us_deactivate: boolean;
+  us_resetPassword: boolean;
+  us_managePermissions: boolean;
+  // Sensitive data
+  data_viewAttendeeEmails: boolean;
+  data_viewAttendeePhones: boolean;
+  data_viewSponsorContacts: boolean;
+  data_exportContacts: boolean;
+  // Account controls
+  account_canSignIn: boolean;
+  account_requirePasswordReset: boolean;
+}
+
+export const DEFAULT_USER_PERMISSIONS: UserPermissions = {
+  mod_dashboard: false, mod_events: false, mod_sponsors: false, mod_attendees: false,
+  mod_meetings: false, mod_reports: false, mod_dataExchange: false, mod_branding: false,
+  mod_settings: false, mod_users: false,
+  ev_create: false, ev_edit: false, ev_archive: false, ev_delete: false, ev_copy: false,
+  ev_editBranding: false, ev_editMeetingBlocks: false, ev_toggleScheduling: false,
+  sp_create: false, sp_edit: false, sp_archive: false, sp_delete: false, sp_copy: false,
+  sp_export: false, sp_import: false,
+  at_create: false, at_edit: false, at_archive: false, at_delete: false, at_export: false,
+  at_import: false, at_viewDetail: false, at_viewContacts: false, at_viewInterests: false,
+  mt_create: false, mt_edit: false, mt_cancel: false, mt_delete: false, mt_export: false,
+  mt_import: false, mt_approvePending: false, mt_nunifySync: false,
+  rp_view: false, rp_export: false, rp_viewContactData: false,
+  de_exportSponsors: false, de_exportAttendees: false, de_exportMeetings: false,
+  de_importSponsors: false, de_importAttendees: false, de_importMeetings: false,
+  de_nunify: false, de_viewHistory: false,
+  br_edit: false, st_edit: false,
+  us_create: false, us_edit: false, us_deactivate: false, us_resetPassword: false,
+  us_managePermissions: false,
+  data_viewAttendeeEmails: false, data_viewAttendeePhones: false,
+  data_viewSponsorContacts: false, data_exportContacts: false,
+  account_canSignIn: true, account_requirePasswordReset: false,
+};
+
+export const ADMIN_PERMISSIONS: UserPermissions = Object.keys(DEFAULT_USER_PERMISSIONS).reduce(
+  (acc, key) => ({ ...acc, [key]: true }),
+  {} as UserPermissions
+);
+
+export const userPermissions = pgTable("user_permissions", {
+  userId: varchar("user_id").primaryKey(),
+  permissions: jsonb("permissions").$type<UserPermissions>().notNull().default(DEFAULT_USER_PERMISSIONS as any),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: text("updated_by"),
+});
+
+export type UserPermissionRecord = typeof userPermissions.$inferSelect;
+
+// ── Permission Audit Logs ─────────────────────────────────────────────────────
+
+export const permissionAuditLogs = pgTable("permission_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  targetUserId: text("target_user_id").notNull(),
+  targetUserName: text("target_user_name").notNull(),
+  changedBy: text("changed_by").notNull(),
+  changedAt: timestamp("changed_at").notNull().defaultNow(),
+  field: text("field").notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+});
+
+export type PermissionAuditLog = typeof permissionAuditLogs.$inferSelect;
 
 // ── Password Reset Tokens ─────────────────────────────────────────────────────
 

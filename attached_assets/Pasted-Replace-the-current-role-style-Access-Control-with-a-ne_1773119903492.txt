@@ -1,0 +1,376 @@
+Replace the current role-style Access Control with a new ADMIN-ONLY user-permission system inside the admin app.
+
+Important rules:
+- Do not redesign the whole admin app
+- Do not break existing users, login, data exchange, meetings, attendees, sponsors, reports, branding, or settings workflows
+- Preserve all current working functionality
+- This is a permission-system enhancement
+- Access Control must be available to Admin users only
+- Permissions should be assigned PER USER, not broadly by role, except for Admin
+
+Goal:
+Move Access Control into its own admin section under Data Exchange and manage permissions at the individual user level so Converge can control exactly who can do what in Concierge.
+
+==================================================
+1. NEW NAVIGATION LOCATION
+==================================================
+
+Add a new admin section under MANAGEMENT:
+
+Access Control
+
+Place it directly below:
+- Data Exchange
+
+Do not leave Access Control inside Settings.
+
+This section must be visible to Admin users only.
+
+Non-admin users must not see the Access Control navigation item at all.
+
+==================================================
+2. PER-USER ACCESS MODEL
+==================================================
+
+Replace the current role-style manager toggles with a PER-USER permission model.
+
+Required model:
+- Admin remains a special top-level user type with full system access
+- All non-admin users should be managed individually by user
+- Do not rely on broad role groups like "Manager" for permission assignment
+
+Example:
+Each user should have a permission profile with specific toggles.
+
+Admin behavior:
+- Admin users automatically have full access
+- Admin does not need individual toggles unless useful for display
+- Admin cannot accidentally lock themselves out of Access Control
+
+==================================================
+3. ACCESS CONTROL PAGE STRUCTURE
+==================================================
+
+Create an Access Control admin page with:
+
+A. User list
+- Name
+- Email
+- Status
+- User type (Admin / Standard)
+- Last login (if available)
+- Quick access to edit permissions
+
+B. User permission detail panel/page
+For each non-admin user, show all available permission controls.
+
+Preferred UX:
+- select a user from the list
+- open detailed permission controls for that specific user
+
+==================================================
+4. CORE USER MANAGEMENT CONTROLS
+==================================================
+
+For each non-admin user, include these baseline controls:
+
+A. Account Status
+- Active
+- Inactive / Suspended
+
+B. Can Sign In
+- Yes / No
+
+C. Can Reset Own Password
+- Yes / No
+
+D. Require Password Reset On Next Login
+- Yes / No
+
+E. Last Login Display
+- read-only if available
+
+F. MFA / 2FA Ready Flag (if practical for future)
+- not required to fully implement MFA now
+- but structure the system so MFA can be added later
+
+==================================================
+5. MODULE-LEVEL ACCESS CONTROLS
+==================================================
+
+For each non-admin user, allow access by module.
+
+Toggles should include at minimum:
+
+- Dashboard Access
+- Events Access
+- Sponsors Access
+- Attendees Access
+- Meetings Access
+- Reports Access
+- Data Exchange Access
+- Branding Access
+- Settings Access
+- Users Access
+- Access Control Access (default No for non-admin)
+
+Rules:
+- Access Control should remain Admin-only unless you explicitly want a future super-admin/delegate model
+- Users module should usually be tightly restricted
+
+==================================================
+6. ACTION-LEVEL PERMISSIONS
+==================================================
+
+For each major module, split permissions beyond simple view access.
+
+Use action-level controls such as:
+
+A. View
+B. Create
+C. Edit
+D. Archive
+E. Delete
+F. Export
+G. Import
+
+Apply these where relevant.
+
+==================================================
+7. RECOMMENDED PERMISSIONS BY MODULE
+==================================================
+
+A. EVENTS
+- View Events
+- Create Events
+- Edit Events
+- Archive Events
+- Delete Events
+- Copy Events
+- Edit Meeting Blocks
+- Edit Event Color Scheme / Website / Branding
+- Turn Off Scheduling / Nunify Redirect Controls
+
+B. SPONSORS
+- View Sponsors
+- Create Sponsors
+- Edit Sponsors
+- Archive Sponsors
+- Delete Sponsors
+- Copy Sponsors
+- Edit Sponsor Event Assignments
+- Edit Sponsor Contact Data
+- Export Sponsors
+- Import Sponsors
+
+C. ATTENDEES
+- View Attendees
+- Create Attendees
+- Edit Attendees
+- Archive Attendees
+- Delete Attendees
+- Export Attendees
+- Import Attendees
+- View Full Attendee Detail
+- View Attendee Contact Information
+- View Attendee Interests
+- View Attendee Meeting History
+
+D. MEETINGS
+- View Meetings
+- Create Meetings
+- Edit Meetings
+- Cancel Meetings
+- Reschedule Meetings
+- Mark Meetings Completed
+- Delete Meetings (recommended default No; ideally disabled broadly)
+- Export Meetings
+- Import Meetings
+- Push to Nunify Ready Export
+- Nunify Import / Export
+
+E. REPORTS
+- View Reports
+- Export Reports
+- Generate Sponsor Performance Reports
+- View Lead Contact Data
+- View Company/Title Analytics
+
+F. DATA EXCHANGE
+- Access Data Exchange
+- Download Sample CSV Templates
+- Export Sponsors
+- Export Attendees
+- Export Meetings
+- Import Sponsors
+- Import Attendees
+- Import Meetings
+- Nunify Import / Export
+- View Import / Export History
+
+G. BRANDING
+- View Branding
+- Edit Branding
+- Upload Logos
+- Edit Footer / Public Links
+- Edit Global Appearance
+
+H. SETTINGS
+- View Settings
+- Edit Settings
+- Edit Scheduling Defaults
+- Edit System Rules
+- Edit Access Defaults
+- Edit Integration Settings
+- Edit Email / Webhook Settings
+
+I. USERS
+- View Users
+- Create Users
+- Edit Users
+- Deactivate Users
+- Reset Other User Passwords
+- Manage Per-User Permissions
+
+==================================================
+8. DATA-SENSITIVITY CONTROLS
+==================================================
+
+Because Concierge handles attendee and sponsor data, add a specific group of sensitive-data permissions.
+
+Include separate toggles for:
+
+- View attendee email addresses
+- View attendee phone numbers
+- View sponsor contact emails
+- View sponsor contact phone numbers
+- Export attendee contact information
+- Export sponsor contact information
+- View lead/contact details in reports
+- View non-scheduled attendee contact data
+- Send sponsor invitations to attendees
+- Access limited attendee information lists
+
+This is important for privacy, sponsor package controls, and data minimization.
+
+==================================================
+9. MEETINGS-INDUSTRY BEST-PRACTICE CONTROLS
+==================================================
+
+Add permissions tied to meeting operations and event execution best practices.
+
+Include:
+
+- Can approve online meeting requests
+- Can reschedule attendee meetings
+- Can modify meeting locations
+- Can override sponsor location restrictions
+- Can see meeting notes/internal notes
+- Can export meeting lists for sponsors
+- Can mark meetings synced to Nunify
+- Can view sync errors / data exchange logs
+
+==================================================
+10. SECURITY BEST-PRACTICE CONTROLS
+==================================================
+
+Add security-minded controls and logging behavior.
+
+At minimum:
+- Log every permission change
+- Log which admin changed permissions
+- Timestamp each permission update
+- Show last updated by / last updated at on each user permission profile
+
+Recommended extra controls:
+- Force password reset
+- Suspend login without deleting user
+- Disable import/export for specific users
+- Disable access to sensitive contact data separately from general module access
+
+Do not allow non-admin users to escalate their own permissions.
+
+==================================================
+11. PERMISSION INHERITANCE RULES
+==================================================
+
+Use simple rules:
+
+- Admin = full access automatically
+- Non-admin = only what is explicitly granted
+- No hidden inheritance from “manager” role
+- If a user lacks module access, they should not see that module in navigation
+- If a user has view access but not edit access, hide or disable edit/delete/import/export actions accordingly
+
+==================================================
+12. UI / UX REQUIREMENTS
+==================================================
+
+The Access Control page should be easy to use because the number of users is small.
+
+Recommended layout:
+- left: user list
+- right: permission groups with toggles
+
+Group permissions by category:
+- General Access
+- Events
+- Sponsors
+- Attendees
+- Meetings
+- Reports
+- Data Exchange
+- Branding
+- Settings
+- Users
+- Sensitive Data
+
+Add:
+- Save Changes button
+- Reset to No Access button for non-admin users
+- Optional “Clone Permissions From User” action if practical
+
+Because the user count is small, clarity is more important than bulk role tools.
+
+==================================================
+13. AUDIT TRAIL
+==================================================
+
+Every permission change must be logged.
+
+Store:
+- target user
+- changed by admin user
+- timestamp
+- fields changed
+- old value
+- new value
+
+If practical, add a small permission history view per user.
+
+==================================================
+14. DO NOT BREAK CURRENT ADMINS
+==================================================
+
+Existing Admin users must retain full access automatically.
+
+Do not create a migration that accidentally removes admin access to:
+- Access Control
+- Users
+- Data Exchange
+- Settings
+
+==================================================
+15. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Access Control appears as a new admin section under MANAGEMENT below Data Exchange
+- only Admin users can access it
+- permissions are managed per user, not by broad manager role
+- Admin remains a special full-access user type
+- non-admin users can be granted highly specific module/action permissions
+- sensitive data access is controlled separately
+- import/export rights are controlled separately
+- permission changes are audited
+- users only see modules/actions they are allowed to access

@@ -482,6 +482,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.sendStatus(204);
   });
 
+  app.get("/api/attendees/:id/detail", requireAuth, async (req, res) => {
+    const detail = await storage.getAttendeeWithDetail(req.params.id);
+    if (!detail) return res.status(404).json({ message: "Attendee not found" });
+    res.json(detail);
+  });
+
   // ── Meetings ─────────────────────────────────────────────────────────────
   app.get("/api/meetings", async (_req, res) => {
     res.json(await storage.getMeetings());
@@ -611,6 +617,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
 
     const meeting = await storage.createMeeting(parsed.data);
+
+    // Capture attendee interests if provided (T004)
+    const selectedInterests: string[] = Array.isArray(req.body.selectedInterests) ? req.body.selectedInterests : [];
+    if (selectedInterests.length > 0) {
+      storage.mergeAttendeeInterests(meeting.attendeeId, selectedInterests).catch(() => {});
+    }
 
     // Fire notification
     const notifType: SponsorNotificationType =
@@ -1102,6 +1114,312 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     });
     console.log(`[eventzilla] created attendee ${created.id} for ${email} / ${eventCode}`);
     return res.status(201).json({ ok: true, action: "created", attendeeId: created.id, eventCode });
+  });
+
+  // ── Data Exchange ─────────────────────────────────────────────────────────
+
+  app.get("/api/admin/data-exchange/logs", requireAuth, async (_req, res) => {
+    res.json(await storage.getDataExchangeLogs());
+  });
+
+  // Import attendees — expects JSON body: { rows: object[], fileName: string }
+  app.post("/api/admin/data-exchange/import/attendees", requireAuth, async (req, res) => {
+    const { rows = [], fileName = "upload.csv" } = req.body;
+    const adminUser = (req as any).user?.name ?? "admin";
+    const allEvents = await storage.getEvents();
+
+    let importedCount = 0;
+    let updatedCount = 0;
+    const rejected: { row: number; identifier: string; reason: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 1;
+
+      // Validate required fields
+      if (!row.email || !row.eventCode || !row.firstName || !row.lastName) {
+        rejected.push({ row: rowNum, identifier: row.email || `row ${rowNum}`, reason: "Missing required fields: eventCode, firstName, lastName, email" });
+        continue;
+      }
+
+      // Validate email format
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+        rejected.push({ row: rowNum, identifier: row.email, reason: "Invalid email format" });
+        continue;
+      }
+
+      // Resolve event
+      const event = allEvents.find((e) => e.slug.toLowerCase() === String(row.eventCode).toLowerCase());
+      if (!event) {
+        rejected.push({ row: rowNum, identifier: row.email, reason: `Unknown eventCode: ${row.eventCode}` });
+        continue;
+      }
+
+      // Validate status if provided
+      const validStatuses = ["active", "archived"];
+      if (row.status && !validStatuses.includes(row.status.toLowerCase())) {
+        rejected.push({ row: rowNum, identifier: row.email, reason: `Invalid status: ${row.status}` });
+        continue;
+      }
+
+      const email = String(row.email).toLowerCase();
+
+      // Check for existing active attendee
+      const existing = await storage.getAttendeeByEmailAndEvent(email, event.id);
+      if (existing) {
+        await storage.updateAttendee(existing.id, {
+          firstName: row.firstName ?? existing.firstName,
+          lastName: row.lastName ?? existing.lastName,
+          company: row.company ?? existing.company,
+          title: row.title ?? existing.title,
+          phone: row.phone ?? existing.phone,
+          externalSource: row.source ? String(row.source) : (existing.externalSource ?? "csv"),
+          externalRegistrationId: row.externalRegistrationId ? String(row.externalRegistrationId) : existing.externalRegistrationId,
+        });
+        updatedCount++;
+        continue;
+      }
+
+      // Check archived
+      const archived = await storage.getArchivedAttendeeByEmailAndEvent(email, event.id);
+      if (archived) {
+        await storage.updateAttendee(archived.id, {
+          firstName: row.firstName ?? archived.firstName,
+          lastName: row.lastName ?? archived.lastName,
+          company: row.company ?? archived.company,
+          title: row.title ?? archived.title,
+          phone: row.phone ?? archived.phone,
+          archiveState: "active",
+          archiveSource: null,
+          externalSource: row.source ? String(row.source) : (archived.externalSource ?? "csv"),
+        });
+        updatedCount++;
+        continue;
+      }
+
+      // Create new
+      await storage.createAttendee({
+        firstName: String(row.firstName),
+        lastName: String(row.lastName),
+        name: `${row.firstName} ${row.lastName}`.trim(),
+        email,
+        company: row.company ? String(row.company) : "",
+        title: row.title ? String(row.title) : "",
+        phone: row.phone ? String(row.phone) : undefined,
+        assignedEvent: event.id,
+        archiveState: "active",
+        archiveSource: null,
+        externalSource: row.source ? String(row.source) : "csv",
+        externalRegistrationId: row.externalRegistrationId ? String(row.externalRegistrationId) : undefined,
+      });
+      importedCount++;
+    }
+
+    await storage.createDataExchangeLog({
+      category: "attendees",
+      operation: "import",
+      adminUser,
+      fileName,
+      totalRows: rows.length,
+      importedCount,
+      updatedCount,
+      rejectedCount: rejected.length,
+    });
+
+    res.json({ totalRows: rows.length, importedCount, updatedCount, rejectedCount: rejected.length, rejected });
+  });
+
+  // Import sponsors
+  app.post("/api/admin/data-exchange/import/sponsors", requireAuth, async (req, res) => {
+    const { rows = [], fileName = "upload.csv" } = req.body;
+    const adminUser = (req as any).user?.name ?? "admin";
+    const allEvents = await storage.getEvents();
+    const allSponsors = await storage.getSponsors();
+
+    let importedCount = 0;
+    let updatedCount = 0;
+    const rejected: { row: number; identifier: string; reason: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 1;
+
+      if (!row.sponsorName) {
+        rejected.push({ row: rowNum, identifier: `row ${rowNum}`, reason: "Missing required field: sponsorName" });
+        continue;
+      }
+
+      const validLevels = ["Platinum", "Gold", "Silver", "Bronze"];
+      if (row.sponsorshipLevel && !validLevels.includes(row.sponsorshipLevel)) {
+        rejected.push({ row: rowNum, identifier: row.sponsorName, reason: `Invalid sponsorship level: ${row.sponsorshipLevel}` });
+        continue;
+      }
+
+      // Resolve event if eventCode provided
+      let event = null;
+      if (row.eventCode) {
+        event = allEvents.find((e) => e.slug.toLowerCase() === String(row.eventCode).toLowerCase());
+        if (!event) {
+          rejected.push({ row: rowNum, identifier: row.sponsorName, reason: `Unknown eventCode: ${row.eventCode}` });
+          continue;
+        }
+      }
+
+      // Find existing sponsor by name (case-insensitive)
+      const existing = allSponsors.find((s) => s.name.toLowerCase() === String(row.sponsorName).toLowerCase());
+
+      const solutionTypes = [row.solutionType1, row.solutionType2, row.solutionType3].filter(Boolean);
+
+      if (existing) {
+        // Update sponsor master fields
+        const updates: any = {};
+        if (row.logoUrl) updates.logoUrl = row.logoUrl;
+        if (row.status === "archived") { updates.archiveState = "archived"; updates.archiveSource = "manual"; }
+        else if (row.status === "active") { updates.archiveState = "active"; updates.archiveSource = null; }
+        if (row.shortDescription) updates.shortDescription = row.shortDescription;
+        if (row.websiteUrl) updates.websiteUrl = row.websiteUrl;
+        if (row.linkedinUrl) updates.linkedinUrl = row.linkedinUrl;
+        if (row.contactName) updates.contactName = row.contactName;
+        if (row.contactEmail) updates.contactEmail = row.contactEmail;
+        if (row.contactPhone) updates.contactPhone = row.contactPhone;
+        if (solutionTypes.length > 0) updates.attributes = solutionTypes;
+
+        // Update event assignment if event provided
+        if (event && row.sponsorshipLevel) {
+          const links = existing.assignedEvents ?? [];
+          const existingLink = links.find((ae) => ae.eventId === event!.id);
+          if (existingLink) {
+            updates.assignedEvents = links.map((ae) =>
+              ae.eventId === event!.id ? { ...ae, sponsorshipLevel: row.sponsorshipLevel as any } : ae
+            );
+          } else {
+            updates.assignedEvents = [...links, { eventId: event.id, sponsorshipLevel: row.sponsorshipLevel as any, archiveState: "active" as const, archiveSource: null }];
+          }
+        }
+
+        await storage.updateSponsor(existing.id, updates);
+        updatedCount++;
+        // Refresh sponsor list for subsequent rows
+        const idx = allSponsors.findIndex((s) => s.id === existing.id);
+        if (idx >= 0) allSponsors[idx] = { ...allSponsors[idx], ...updates };
+      } else {
+        // Create new sponsor
+        const assignedEvents = event && row.sponsorshipLevel
+          ? [{ eventId: event.id, sponsorshipLevel: row.sponsorshipLevel as any, archiveState: "active" as const, archiveSource: null }]
+          : [];
+        const created = await storage.createSponsor({
+          name: String(row.sponsorName),
+          logoUrl: row.logoUrl || undefined,
+          archiveState: row.status === "archived" ? "archived" : "active",
+          archiveSource: null,
+          shortDescription: row.shortDescription || undefined,
+          websiteUrl: row.websiteUrl || undefined,
+          linkedinUrl: row.linkedinUrl || undefined,
+          contactName: row.contactName || undefined,
+          contactEmail: row.contactEmail || undefined,
+          contactPhone: row.contactPhone || undefined,
+          assignedEvents,
+          allowOnlineMeetings: false,
+          attributes: solutionTypes.length > 0 ? solutionTypes : [],
+        });
+        allSponsors.push(created);
+        importedCount++;
+      }
+    }
+
+    await storage.createDataExchangeLog({ category: "sponsors", operation: "import", adminUser, fileName, totalRows: rows.length, importedCount, updatedCount, rejectedCount: rejected.length });
+    res.json({ totalRows: rows.length, importedCount, updatedCount, rejectedCount: rejected.length, rejected });
+  });
+
+  // Import meetings
+  app.post("/api/admin/data-exchange/import/meetings", requireAuth, async (req, res) => {
+    const { rows = [], fileName = "upload.csv" } = req.body;
+    const adminUser = (req as any).user?.name ?? "admin";
+    const allEvents = await storage.getEvents();
+    const allSponsors = await storage.getSponsors();
+
+    let importedCount = 0;
+    const rejected: { row: number; identifier: string; reason: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 1;
+      const identifier = `${row.sponsorName} / ${row.attendeeEmail} / ${row.date}`;
+
+      if (!row.eventCode || !row.sponsorName || !row.attendeeEmail || !row.attendeeFirstName || !row.attendeeLastName || !row.date || !row.time) {
+        rejected.push({ row: rowNum, identifier, reason: "Missing required fields: eventCode, sponsorName, attendeeEmail, attendeeFirstName, attendeeLastName, date, time" });
+        continue;
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.attendeeEmail)) {
+        rejected.push({ row: rowNum, identifier, reason: "Invalid attendeeEmail format" });
+        continue;
+      }
+
+      const event = allEvents.find((e) => e.slug.toLowerCase() === String(row.eventCode).toLowerCase());
+      if (!event) {
+        rejected.push({ row: rowNum, identifier, reason: `Unknown eventCode: ${row.eventCode}` });
+        continue;
+      }
+
+      const sponsor = allSponsors.find((s) => s.name.toLowerCase() === String(row.sponsorName).toLowerCase());
+      if (!sponsor) {
+        rejected.push({ row: rowNum, identifier, reason: `Unknown sponsor: ${row.sponsorName}` });
+        continue;
+      }
+
+      const validTypes = ["onsite", "online_request"];
+      const meetingType = row.type && validTypes.includes(row.type) ? row.type : "onsite";
+
+      const validStatuses = ["Scheduled", "Completed", "Cancelled", "NoShow", "Pending", "Confirmed", "Declined"];
+      if (row.status && !validStatuses.includes(row.status)) {
+        rejected.push({ row: rowNum, identifier, reason: `Invalid status: ${row.status}` });
+        continue;
+      }
+
+      // Resolve attendee
+      const email = String(row.attendeeEmail).toLowerCase();
+      let attendeeId: string;
+      const existingAttendee = await storage.getAttendeeByEmailAndEvent(email, event.id);
+      if (existingAttendee) {
+        attendeeId = existingAttendee.id;
+      } else {
+        const created = await storage.createAttendee({
+          firstName: String(row.attendeeFirstName),
+          lastName: String(row.attendeeLastName),
+          name: `${row.attendeeFirstName} ${row.attendeeLastName}`.trim(),
+          email,
+          company: row.company ? String(row.company) : "",
+          title: row.title ? String(row.title) : "",
+          assignedEvent: event.id,
+          archiveState: "active",
+          archiveSource: null,
+          externalSource: "csv",
+        });
+        attendeeId = created.id;
+      }
+
+      await storage.createMeeting({
+        eventId: event.id,
+        sponsorId: sponsor.id,
+        attendeeId,
+        meetingType: meetingType as any,
+        date: String(row.date),
+        time: String(row.time),
+        location: row.locationOrPlatform ? String(row.locationOrPlatform) : (meetingType === "online_request" ? "Online" : "TBD"),
+        platform: row.locationOrPlatform && meetingType === "online_request" ? String(row.locationOrPlatform) : null,
+        preferredTimezone: row.timezone ? String(row.timezone) : null,
+        status: row.status ? String(row.status) as any : "Scheduled",
+        source: row.source === "public" ? "public" : "admin",
+        notes: row.notes ? String(row.notes) : null,
+        archiveState: "active",
+        archiveSource: null,
+      });
+      importedCount++;
+    }
+
+    await storage.createDataExchangeLog({ category: "meetings", operation: "import", adminUser, fileName, totalRows: rows.length, importedCount, updatedCount: 0, rejectedCount: rejected.length });
+    res.json({ totalRows: rows.length, importedCount, updatedCount: 0, rejectedCount: rejected.length, rejected });
   });
 
   return httpServer;

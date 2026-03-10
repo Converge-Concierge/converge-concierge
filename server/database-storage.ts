@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { db } from "./db";
 import {
   users, events, sponsors, attendees, meetings,
-  sponsorTokens, sponsorNotifications, passwordResetTokens, appConfig,
+  sponsorTokens, sponsorNotifications, passwordResetTokens, appConfig, dataExchangeLogs,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -11,9 +11,10 @@ import {
   type Meeting, type InsertMeeting,
   type SponsorToken, type SponsorNotification, type SponsorNotificationType,
   type AppSettings, type AppBranding, type PasswordResetToken,
+  type DataExchangeLog,
   DEFAULT_SETTINGS, DEFAULT_BRANDING,
 } from "@shared/schema";
-import type { IStorage, UpdateUser } from "./storage";
+import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
 
 function buildFullName(firstName?: string, lastName?: string, fallback?: string): string {
   const first = (firstName ?? "").trim();
@@ -251,7 +252,7 @@ export class DatabaseStorage implements IStorage {
 
     const [updated] = await db
       .update(attendees)
-      .set(updates)
+      .set({ ...updates, updatedAt: new Date() })
       .where(eq(attendees.id, id))
       .returning();
     return updated;
@@ -259,6 +260,53 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAttendee(id: string): Promise<void> {
     await db.delete(attendees).where(eq(attendees.id, id));
+  }
+
+  async getAttendeeWithDetail(id: string): Promise<AttendeeDetail | undefined> {
+    const attendee = await this.getAttendee(id);
+    if (!attendee) return undefined;
+
+    const event = await this.getEvent(attendee.assignedEvent);
+    const allMeetings = await db.select().from(meetings).where(eq(meetings.attendeeId, id));
+
+    const meetingsList = await Promise.all(
+      allMeetings.map(async (m) => {
+        const [sponsor] = await db.select().from(sponsors).where(eq(sponsors.id, m.sponsorId)).limit(1);
+        const [ev] = await db.select().from(events).where(eq(events.id, m.eventId)).limit(1);
+        return {
+          id: m.id,
+          sponsorId: m.sponsorId,
+          sponsorName: sponsor?.name ?? "Unknown",
+          eventId: m.eventId,
+          eventName: ev?.name ?? "",
+          eventSlug: ev?.slug ?? "",
+          date: m.date,
+          time: m.time,
+          meetingType: m.meetingType,
+          status: m.status,
+          location: m.location,
+          platform: m.platform ?? null,
+          source: m.source,
+        };
+      })
+    );
+
+    return {
+      ...attendee,
+      eventName: event?.name ?? "",
+      eventSlug: event?.slug ?? "",
+      meetingsList,
+    };
+  }
+
+  async mergeAttendeeInterests(id: string, newInterests: string[]): Promise<void> {
+    const existing = await this.getAttendee(id);
+    if (!existing || newInterests.length === 0) return;
+    const merged = Array.from(new Set([...(existing.interests ?? []), ...newInterests]));
+    await db
+      .update(attendees)
+      .set({ interests: merged, updatedAt: new Date() })
+      .where(eq(attendees.id, id));
   }
 
   // ── Meetings ──────────────────────────────────────────────────────────────
@@ -526,5 +574,28 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserPassword(userId: string, newPassword: string): Promise<void> {
     await db.update(users).set({ password: newPassword }).where(eq(users.id, userId));
+  }
+
+  // ── Data Exchange Logs ────────────────────────────────────────────────────
+
+  async createDataExchangeLog(data: DataExchangeLogInsert): Promise<DataExchangeLog> {
+    const [created] = await db
+      .insert(dataExchangeLogs)
+      .values({
+        category: data.category,
+        operation: data.operation,
+        adminUser: data.adminUser,
+        fileName: data.fileName ?? null,
+        totalRows: data.totalRows,
+        importedCount: data.importedCount,
+        updatedCount: data.updatedCount,
+        rejectedCount: data.rejectedCount,
+      })
+      .returning();
+    return created;
+  }
+
+  async getDataExchangeLogs(): Promise<DataExchangeLog[]> {
+    return db.select().from(dataExchangeLogs).orderBy(desc(dataExchangeLogs.createdAt));
   }
 }

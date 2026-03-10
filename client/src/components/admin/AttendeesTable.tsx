@@ -6,6 +6,7 @@ import { Edit, Trash2, Linkedin, Archive, RotateCcw, Eye } from "lucide-react";
 import { Attendee, Event } from "@shared/schema";
 import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface AttendeesTableProps {
   attendees: Attendee[];
@@ -20,11 +21,11 @@ interface AttendeesTableProps {
 }
 
 export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete }: AttendeesTableProps) {
-  const { sort, toggle } = useSortState("lastName");
+  const { sort, toggle } = useSortState("added", "desc");
 
   const getEvent = (id: string) => events.find((e) => e.id === id);
 
-  const getValue = (a: Attendee, key: string): string => {
+  const getValue = (a: Attendee, key: string): string | number => {
     if (key === "lastName") return a.lastName || a.name?.split(" ").slice(1).join(" ") || "";
     if (key === "firstName") return a.firstName || a.name?.split(" ")[0] || "";
     if (key === "name") return a.name;
@@ -32,6 +33,7 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
     if (key === "title") return a.title;
     if (key === "email") return a.email;
     if (key === "event") return getEvent(a.assignedEvent)?.slug ?? "";
+    if (key === "added") return new Date(a.createdAt).getTime();
     return "";
   };
 
@@ -48,6 +50,7 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
             <SortHead sortKey="title" sort={sort} onSort={toggle}>Title</SortHead>
             <SortHead sortKey="email" sort={sort} onSort={toggle}>Email</SortHead>
             <SortHead sortKey="event" sort={sort} onSort={toggle}>Assigned Event</SortHead>
+            <SortHead sortKey="added" sort={sort} onSort={toggle}>Added</SortHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -83,10 +86,16 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
                   <span className="text-muted-foreground italic text-xs">Unknown</span>
                 )}
               </TableCell>
+              <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                {format(new Date(attendee.createdAt), "MMM d, yyyy")}
+              </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
                   {tab === "active" ? (
                     <>
+                      <Button variant="ghost" size="icon" title="View attendee details" onClick={() => onView(attendee)} data-testid={`view-attendee-${attendee.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" title="Edit attendee" onClick={() => onEdit(attendee)} data-testid={`edit-attendee-${attendee.id}`}>
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -122,7 +131,7 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
           ))}
           {sorted.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                 {tab === "active" ? "No active attendees." : "No archived attendees."}
               </TableCell>
             </TableRow>

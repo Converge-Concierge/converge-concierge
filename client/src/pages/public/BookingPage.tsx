@@ -133,6 +133,7 @@ export default function BookingPage() {
         date: selectedDate,
         time: selectedTime,
         location: selectedLocation,
+        selectedInterests: [],
         status: "Scheduled",
         manualAttendee: {
           firstName: attendee.firstName,

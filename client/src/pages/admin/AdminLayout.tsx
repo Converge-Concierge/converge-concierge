@@ -13,6 +13,7 @@ import ReportsPage from "./ReportsPage";
 import UsersPage from "./UsersPage";
 import SettingsPage from "./SettingsPage";
 import BrandingPage from "./BrandingPage";
+import DataExchangePage from "./DataExchangePage";
 
 function AccessDenied() {
   return (
@@ -99,6 +100,7 @@ export default function AdminLayout() {
               <Route path="/admin/users" component={() => isAdmin ? <UsersPage /> : <AccessDenied />} />
               <Route path="/admin/branding" component={BrandingPage} />
               <Route path="/admin/settings" component={SettingsPage} />
+              <Route path="/admin/data-exchange" component={DataExchangePage} />
             </Switch>
           </main>
         </div>

@@ -1,0 +1,347 @@
+Add a new Admin module under MANAGEMENT called: Data Exchange
+
+Important rules:
+- Do not redesign the whole admin app
+- Do not break existing Sponsors, Attendees, Meetings, Reports, webhook, or CSV import/export workflows
+- Preserve all current working functionality
+- This is a new admin utility module for importing/exporting data in CSV format
+
+Goal:
+Create a centralized Data Exchange section for:
+- Sponsors
+- Attendees
+- Meetings
+
+This section must support:
+- CSV export
+- CSV import
+- downloadable sample CSV templates
+- filters on export
+- validation on import
+- duplicate prevention
+- row-level rejection reporting
+
+==================================================
+1. ADD NEW ADMIN NAVIGATION ITEM
+==================================================
+
+Under MANAGEMENT in the left admin navigation, add:
+
+Data Exchange
+
+Place it near:
+- Attendees
+- Meetings
+- Reports
+
+Do not place it under Configuration.
+
+==================================================
+2. CREATE DATA EXCHANGE PAGE
+==================================================
+
+Create a new admin page:
+Data Exchange
+
+This page should have 3 tabs or cards:
+
+- Sponsors
+- Attendees
+- Meetings
+
+Each section should support:
+A. Download Sample CSV
+B. Export Data
+C. Import CSV
+
+Keep the UX clean and admin-focused.
+
+==================================================
+3. SAMPLE CSV FILES
+==================================================
+
+For each category:
+- Sponsors
+- Attendees
+- Meetings
+
+Provide a downloadable sample CSV template.
+
+Required:
+- each template must reflect the current supported import format exactly
+- if the table/schema format changes later, the sample CSV must be updated too
+- templates should include column headers only, plus optionally 1 example row
+
+Use these sample template concepts:
+
+--------------------------------------------------
+A. ATTENDEE SAMPLE CSV
+--------------------------------------------------
+
+Supported columns:
+- eventCode
+- firstName
+- lastName
+- email
+- company
+- title
+- phone
+- status
+
+Optional:
+- source
+- externalRegistrationId
+
+--------------------------------------------------
+B. SPONSOR SAMPLE CSV
+--------------------------------------------------
+
+Supported columns:
+- sponsorName
+- logoUrl
+- status
+- shortDescription
+- websiteUrl
+- linkedinUrl
+- contactName
+- contactEmail
+- contactPhone
+- eventCode
+- sponsorshipLevel
+- solutionType1
+- solutionType2
+- solutionType3
+
+Important:
+Support event-specific sponsorship assignments.
+A sponsor may appear in multiple rows for different events if the sponsorship level differs by event.
+
+--------------------------------------------------
+C. MEETING SAMPLE CSV
+--------------------------------------------------
+
+Supported columns:
+- eventCode
+- sponsorName
+- attendeeEmail
+- attendeeFirstName
+- attendeeLastName
+- type
+- status
+- date
+- time
+- timezone
+- locationOrPlatform
+- source
+
+Optional:
+- company
+- title
+- notes
+
+==================================================
+4. EXPORT FUNCTIONALITY
+==================================================
+
+Each category must support CSV export with useful filters.
+
+--------------------------------------------------
+A. SPONSOR EXPORT FILTERS
+--------------------------------------------------
+
+Include filters such as:
+- Event
+- Sponsorship Level
+- Status
+- Solution Type (if practical)
+
+Export should include event-specific sponsorship assignment data.
+
+--------------------------------------------------
+B. ATTENDEE EXPORT FILTERS
+--------------------------------------------------
+
+Include filters such as:
+- Event
+- Status
+- Source (manual / Eventzilla / CSV / public)
+- Date added/imported range (if practical)
+
+--------------------------------------------------
+C. MEETING EXPORT FILTERS
+--------------------------------------------------
+
+Include filters such as:
+- Event
+- Sponsor
+- Attendee
+- Meeting Type
+- Status
+- Date range
+- Source
+
+Exports should only include records matching the selected filters.
+
+==================================================
+5. IMPORT FUNCTIONALITY
+==================================================
+
+Each category must support CSV upload/import.
+
+Flow:
+1. Upload CSV
+2. Parse file
+3. Validate headers
+4. Preview import summary
+5. Show valid rows / invalid rows
+6. Confirm import
+7. Show final results
+
+Do NOT directly import without validation.
+
+==================================================
+6. DUPLICATE PREVENTION / UPSERT RULES
+==================================================
+
+Use validation and duplicate-safe logic.
+
+--------------------------------------------------
+A. ATTENDEE IMPORT
+--------------------------------------------------
+
+Primary duplicate rule:
+email + eventCode
+
+Behavior:
+- if attendee already exists for that event -> update existing record
+- if not found -> create new attendee
+
+Do not create duplicate attendee records for the same email/event combination.
+
+--------------------------------------------------
+B. SPONSOR IMPORT
+--------------------------------------------------
+
+Primary duplicate rules:
+- sponsorName for sponsor entity
+- sponsorName + eventCode for event-specific sponsorship assignment
+
+Behavior:
+- if sponsor exists -> update sponsor master fields
+- if sponsor/event assignment exists -> update that event assignment
+- if not found -> create new sponsor or sponsor-event assignment
+
+--------------------------------------------------
+C. MEETING IMPORT
+--------------------------------------------------
+
+Use a reasonable unique matching rule such as:
+eventCode + sponsorName + attendeeEmail + date + time + type
+
+Behavior:
+- if meeting already exists -> reject or update depending on implementation choice
+Preferred:
+- reject duplicates unless there is a clear update mode
+
+==================================================
+7. VALIDATION RULES
+==================================================
+
+Validate before import.
+
+Examples:
+- required columns missing
+- unknown eventCode
+- unknown sponsorName for meeting import
+- invalid email format
+- invalid date/time format
+- invalid meeting type
+- invalid status
+- invalid sponsorship level
+- missing attendee email for attendee/meeting import
+
+If any row fails validation:
+- do not silently ignore it
+- report the row and the reason
+
+==================================================
+8. IMPORT RESULTS / ERROR REPORTING
+==================================================
+
+After import, show a clear summary:
+
+Example:
+- 84 rows processed
+- 71 imported
+- 9 updated
+- 4 rejected
+
+Also provide a row-level rejection list with:
+- row number
+- key identifier (email, sponsor name, etc.)
+- rejection reason
+
+Examples:
+- Unknown eventCode: XYZ2026
+- Duplicate attendee for email + event
+- Missing required field: email
+- Invalid sponsorship level: DiamondPlus
+- Unknown sponsor for meeting row
+
+If practical, allow admins to download rejected rows as CSV with an added "errorReason" column.
+
+==================================================
+9. SAMPLE CSV SYNCHRONIZATION REQUIREMENT
+==================================================
+
+Important:
+The downloadable sample CSV files must stay aligned with the current supported schema.
+
+If the import format changes later:
+- update the sample CSV automatically if possible
+OR
+- ensure the templates are maintained alongside the import parser definitions
+
+Do not let sample templates become outdated.
+
+==================================================
+10. SOURCE / AUDIT LOGGING
+==================================================
+
+Log imports and exports.
+
+For each import/export, store:
+- category (Sponsors / Attendees / Meetings)
+- admin user
+- timestamp
+- file name
+- total rows
+- imported count
+- updated count
+- rejected count
+
+This should be visible in a small Data Exchange history section if practical.
+
+==================================================
+11. DO NOT EXPOSE PUBLICLY
+==================================================
+
+This module is admin-only.
+
+No public access.
+No sponsor-portal access.
+No attendee access.
+
+==================================================
+12. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- a new Data Exchange category appears under MANAGEMENT
+- admins can download sample CSV files for Sponsors, Attendees, and Meetings
+- admins can export filtered CSVs for Sponsors, Attendees, and Meetings
+- admins can upload CSVs for Sponsors, Attendees, and Meetings
+- imports validate data before saving
+- duplicates are prevented using category-specific rules
+- rejected records are clearly identified with reasons
+- sample CSV templates stay aligned with supported import schema

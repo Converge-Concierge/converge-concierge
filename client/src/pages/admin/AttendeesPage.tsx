@@ -9,6 +9,7 @@ import { Attendee, InsertAttendee, Event } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { AttendeesTable } from "@/components/admin/AttendeesTable";
 import { AttendeeFormModal } from "@/components/admin/AttendeeFormModal";
+import { AttendeeDetailDrawer } from "@/components/admin/AttendeeDetailDrawer";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -27,7 +28,7 @@ export default function AttendeesPage() {
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAttendee, setEditingAttendee] = useState<Attendee | undefined>();
-  const [viewingAttendee, setViewingAttendee] = useState<Attendee | undefined>();
+  const [viewingDetailAttendee, setViewingDetailAttendee] = useState<Attendee | null>(null);
   const [deletingAttendee, setDeletingAttendee] = useState<Attendee | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
@@ -164,7 +165,7 @@ export default function AttendeesPage() {
           tab={tab}
           isAdmin={isAdmin}
           onEdit={(a) => { setEditingAttendee(a); setIsModalOpen(true); }}
-          onView={setViewingAttendee}
+          onView={setViewingDetailAttendee}
           onArchive={handleArchive}
           onReactivate={handleReactivate}
           onDelete={setDeletingAttendee}
@@ -179,16 +180,11 @@ export default function AttendeesPage() {
         events={events}
       />
 
-      {viewingAttendee && (
-        <AttendeeFormModal
-          isOpen={true}
-          onClose={() => setViewingAttendee(undefined)}
-          onSubmit={() => {}}
-          attendee={viewingAttendee}
-          events={events}
-          readOnly
-        />
-      )}
+      <AttendeeDetailDrawer
+        attendeeId={viewingDetailAttendee?.id || null}
+        open={!!viewingDetailAttendee}
+        onClose={() => setViewingDetailAttendee(null)}
+      />
 
       <AlertDialog open={!!deletingAttendee} onOpenChange={(open) => !open && setDeletingAttendee(null)}>
         <AlertDialogContent>

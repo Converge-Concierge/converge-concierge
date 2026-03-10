@@ -11,6 +11,7 @@ import {
   Hexagon,
   LogOut,
   UserCog,
+  ArrowLeftRight,
 } from "lucide-react";
 import {
   Sidebar,
@@ -34,6 +35,7 @@ const mainItems = [
   { title: "Attendees", url: "/admin/attendees", icon: Users },
   { title: "Meetings", url: "/admin/meetings", icon: Handshake },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
+  { title: "Data Exchange", url: "/admin/data-exchange", icon: ArrowLeftRight },
 ];
 
 const configItems = [

@@ -1,0 +1,228 @@
+Enhance the Attendees module in Converge Concierge so each attendee record is clickable, shows all related data, tracks meeting activity and interests, and sorts newest imports/adds first by default.
+
+Important rules:
+- Do not redesign the whole admin app
+- Do not break existing attendee, sponsor, meeting, webhook, import, or reporting workflows
+- Preserve all current working functionality
+- This is an enhancement to the existing Attendees module
+
+Goal:
+Make attendee records much more useful operationally by:
+- allowing admins to click into a full attendee profile
+- tracking meeting activity and attendee interests inside the record
+- showing when the attendee was added/imported
+- sorting the attendee list from newest to oldest by default
+
+==================================================
+1. MAKE EACH ATTENDEE RECORD CLICKABLE
+==================================================
+
+In the Admin -> Attendees table:
+
+Make each attendee row clickable, or add a clear "View" action, so admins can open a detailed attendee record page or side panel.
+
+Acceptable approaches:
+- click anywhere on the row to open attendee details
+OR
+- add a new view/details icon in Actions
+OR
+- open a right-side drawer/panel from the row
+
+Preferred:
+Keep the existing edit/delete icons, but also add an easy "View Details" behavior.
+
+Do not remove the current edit action.
+
+==================================================
+2. CREATE AN ATTENDEE DETAIL VIEW
+==================================================
+
+Create a detailed attendee profile view for each attendee.
+
+The attendee detail view should include these sections:
+
+A. BASIC PROFILE
+- First Name
+- Last Name
+- Full Name
+- Email
+- Company
+- Title
+- Phone
+- Assigned Event
+- Status
+- External Source (if available, e.g. Eventzilla / manual / CSV)
+- External Registration ID (if available)
+
+B. TIMESTAMPS
+- Added / Imported Date
+- Last Updated Date
+
+C. MEETING ACTIVITY
+- Total Meetings
+- Confirmed Meetings
+- Requested / Pending Meetings
+- Cancelled Meetings
+- Completed Meetings
+- No Show (if supported)
+
+D. MEETING LIST
+Show all meetings tied to this attendee across the assigned event, including:
+- Sponsor
+- Event
+- Date
+- Time
+- Type (Onsite / Online)
+- Location / Platform
+- Status
+
+E. INTERESTS / TOPICS
+Track and display attendee interests/topics if available.
+
+Examples:
+- AI
+- Compliance
+- Regulatory
+- Customer Service
+- Fraud
+etc.
+
+F. NOTES / INTERNAL ADMIN NOTES (optional if easy)
+A small internal note field for team use only.
+
+==================================================
+3. TRACK ATTENDEE INTERESTS WHEN THEY SCHEDULE A MEETING
+==================================================
+
+If an attendee schedules a meeting after selecting one or more interest/topic chips on the public event page or welcome page:
+
+Capture that interest context inside the attendee record.
+
+Requirements:
+- if the attendee already has interests stored, update/merge intelligently
+- avoid duplicate topic entries
+- if no interests are selected, do not fail scheduling
+- interests should be visible in the attendee detail view
+
+At minimum:
+Store the topics selected at the time of scheduling or request creation.
+
+If practical:
+Also store a simple timestamp or "last selected interests" value.
+
+==================================================
+4. ADD IMPORT / ADD DATE TO ATTENDEE RECORDS
+==================================================
+
+Add a timestamp field for when the attendee record was created/imported.
+
+Recommended field names:
+- createdAt
+or
+- importedAt
+or both if your schema supports both cleanly
+
+Behavior:
+- for manually added attendees, set Added Date when record is created
+- for webhook/imported attendees, set Import Date when record is first created
+- preserve this original created/imported timestamp on later updates
+
+Also display this value in the attendee detail view.
+
+==================================================
+5. DEFAULT SORT ORDER IN ATTENDEES LIST
+==================================================
+
+Update the Admin -> Attendees list so the default sort order is:
+
+Newest added/imported attendee at the top
+Oldest at the bottom
+
+Use:
+- createdAt descending
+or
+- importedAt descending
+depending on your schema
+
+This default should apply especially after:
+- webhook imports
+- CSV imports
+- manual add attendee
+
+The newest records should appear first automatically.
+
+==================================================
+6. OPTIONAL LIST COLUMN
+==================================================
+
+If it fits cleanly, add a column in the attendee table for:
+
+Added
+or
+Imported
+
+This should show a short date like:
+- Mar 9, 2026
+or
+- 2026-03-09
+
+Only add this if the table still remains readable.
+
+If not, it is acceptable to keep the timestamp only in the attendee detail view while still using it for default sorting.
+
+==================================================
+7. MEETING DATA RELATIONSHIP
+==================================================
+
+The attendee detail view should pull meeting records related to that attendee.
+
+Use the attendee as the source of truth for the meeting relationship.
+
+Include:
+- sponsor name
+- sponsor company if useful
+- event code
+- event name if available
+- date/time
+- status
+- type
+- location/platform
+
+Do not create duplicate meeting records just for display.
+
+==================================================
+8. SOURCE LABELING
+==================================================
+
+If practical, display how the attendee entered the system:
+
+Examples:
+- Eventzilla
+- CSV Import
+- Manual Add
+- Zapier/Webhook
+
+This helps Julie/Sean/admins troubleshoot data quality and imports.
+
+==================================================
+9. PRESERVE DATA SAFETY
+==================================================
+
+Do not expose this detail view publicly.
+This is admin-only.
+
+Keep all attendee data handling consistent with the app’s existing admin permissions and limited attendee information model.
+
+==================================================
+10. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- attendee rows are clickable or have a clear details action
+- each attendee has a detailed record view
+- the record shows full attendee profile data
+- the record shows meeting history/activity
+- attendee interests are captured when they schedule meetings and shown in the record
+- added/imported date is stored and displayed
+- attendee list defaults to newest first after imports/adds
+- existing edit/delete actions still work

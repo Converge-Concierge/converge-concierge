@@ -491,6 +491,7 @@ export default function EventPage() {
           location:          "Online",
           platform:          selectedPlatform || null,
           preferredTimezone: timezone,
+          selectedInterests: activeFilters,
           status:            "Pending",
           source:            "public",
           manualAttendee: {
@@ -530,6 +531,7 @@ export default function EventPage() {
           date:      selectedDate,
           time:      selectedTime,
           location:  selectedLoc || (event.meetingLocations?.[0]?.name ?? "TBD"),
+          selectedInterests: activeFilters,
           status:    "Scheduled",
           source:    "public",
           manualAttendee: {

@@ -8,8 +8,42 @@ import {
   type SponsorNotification, type SponsorNotificationType,
   type AppSettings, type AppBranding,
   type PasswordResetToken,
+  type DataExchangeLog,
   DEFAULT_SETTINGS, DEFAULT_BRANDING,
 } from "@shared/schema";
+
+export interface AttendeeDetailMeeting {
+  id: string;
+  sponsorId: string;
+  sponsorName: string;
+  eventId: string;
+  eventName: string;
+  eventSlug: string;
+  date: string;
+  time: string;
+  meetingType: string;
+  status: string;
+  location: string;
+  platform: string | null;
+  source: string;
+}
+
+export interface AttendeeDetail extends Attendee {
+  eventName: string;
+  eventSlug: string;
+  meetingsList: AttendeeDetailMeeting[];
+}
+
+export interface DataExchangeLogInsert {
+  category: "sponsors" | "attendees" | "meetings";
+  operation: "import" | "export";
+  adminUser: string;
+  fileName?: string;
+  totalRows: number;
+  importedCount: number;
+  updatedCount: number;
+  rejectedCount: number;
+}
 import { randomUUID, randomBytes } from "crypto";
 import { DatabaseStorage } from "./database-storage";
 
@@ -55,12 +89,14 @@ export interface IStorage {
   // Attendees
   getAttendees(): Promise<Attendee[]>;
   getAttendee(id: string): Promise<Attendee | undefined>;
+  getAttendeeWithDetail(id: string): Promise<AttendeeDetail | undefined>;
   getAttendeeByEmail(email: string): Promise<Attendee | undefined>;
   getAttendeeByEmailAndEvent(email: string, eventId: string): Promise<Attendee | undefined>;
   getArchivedAttendeeByEmailAndEvent(email: string, eventId: string): Promise<Attendee | undefined>;
   createAttendee(attendee: InsertAttendee): Promise<Attendee>;
   updateAttendee(id: string, updates: Partial<InsertAttendee>): Promise<Attendee | undefined>;
   deleteAttendee(id: string): Promise<void>;
+  mergeAttendeeInterests(id: string, newInterests: string[]): Promise<void>;
 
   // Meetings
   getMeetings(): Promise<Meeting[]>;
@@ -98,6 +134,10 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
   markResetTokenUsed(token: string): Promise<void>;
   updateUserPassword(userId: string, newPassword: string): Promise<void>;
+
+  // Data exchange logs
+  createDataExchangeLog(data: DataExchangeLogInsert): Promise<DataExchangeLog>;
+  getDataExchangeLogs(): Promise<DataExchangeLog[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -313,6 +353,41 @@ export class MemStorage implements IStorage {
 
   async deleteAttendee(id: string): Promise<void> {
     this.attendees.delete(id);
+  }
+
+  async getAttendeeWithDetail(id: string): Promise<AttendeeDetail | undefined> {
+    const attendee = this.attendees.get(id);
+    if (!attendee) return undefined;
+    const event = this.events.get(attendee.assignedEvent);
+    const meetingsList = Array.from(this.meetings.values())
+      .filter((m) => m.attendeeId === id)
+      .map((m) => {
+        const sponsor = this.sponsors.get(m.sponsorId);
+        const ev = this.events.get(m.eventId);
+        return {
+          id: m.id,
+          sponsorId: m.sponsorId,
+          sponsorName: sponsor?.name ?? "Unknown",
+          eventId: m.eventId,
+          eventName: ev?.name ?? "",
+          eventSlug: ev?.slug ?? "",
+          date: m.date,
+          time: m.time,
+          meetingType: m.meetingType,
+          status: m.status,
+          location: m.location,
+          platform: m.platform ?? null,
+          source: m.source,
+        };
+      });
+    return { ...attendee, eventName: event?.name ?? "", eventSlug: event?.slug ?? "", meetingsList };
+  }
+
+  async mergeAttendeeInterests(id: string, newInterests: string[]): Promise<void> {
+    const existing = this.attendees.get(id);
+    if (!existing) return;
+    const merged = Array.from(new Set([...(existing.interests ?? []), ...newInterests]));
+    this.attendees.set(id, { ...existing, interests: merged, updatedAt: new Date() });
   }
 
   // Meetings
@@ -540,6 +615,16 @@ export class MemStorage implements IStorage {
   async updateUserPassword(userId: string, newPassword: string): Promise<void> {
     const user = this.users.get(userId);
     if (user) this.users.set(userId, { ...user, password: newPassword });
+  }
+
+  async createDataExchangeLog(data: DataExchangeLogInsert): Promise<DataExchangeLog> {
+    const id = randomUUID();
+    const log: DataExchangeLog = { id, ...data, fileName: data.fileName ?? null, createdAt: new Date() };
+    return log;
+  }
+
+  async getDataExchangeLogs(): Promise<DataExchangeLog[]> {
+    return [];
   }
 }
 

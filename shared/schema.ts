@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, jsonb, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, jsonb, bigint, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -165,12 +165,18 @@ export const attendees = pgTable("attendees", {
   archiveSource: text("archive_source", { enum: ["event", "manual"] }),
   externalSource: text("external_source"),
   externalRegistrationId: text("external_registration_id"),
+  interests: text("interests").array(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const insertAttendeeSchema = createInsertSchema(attendees).extend({
   firstName: z.string().default(""),
   lastName: z.string().default(""),
   archiveSource: z.enum(["event", "manual"]).nullable().optional(),
+  interests: z.array(z.string()).nullable().optional(),
+  notes: z.string().nullable().optional(),
 });
 export type Attendee = typeof attendees.$inferSelect;
 export type InsertAttendee = z.infer<typeof insertAttendeeSchema>;
@@ -350,6 +356,23 @@ export const sponsorNotifications = pgTable("sponsor_notifications", {
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// ── Data Exchange Logs ────────────────────────────────────────────────────────
+
+export const dataExchangeLogs = pgTable("data_exchange_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  category: text("category", { enum: ["sponsors", "attendees", "meetings"] }).notNull(),
+  operation: text("operation", { enum: ["import", "export"] }).notNull(),
+  adminUser: text("admin_user").notNull(),
+  fileName: text("file_name"),
+  totalRows: integer("total_rows").notNull().default(0),
+  importedCount: integer("imported_count").notNull().default(0),
+  updatedCount: integer("updated_count").notNull().default(0),
+  rejectedCount: integer("rejected_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type DataExchangeLog = typeof dataExchangeLogs.$inferSelect;
 
 // ── Password Reset Tokens ─────────────────────────────────────────────────────
 

@@ -1,0 +1,584 @@
+Reorganize and Optimize the Reports Section in Converge Concierge
+
+The current Reports section contains valuable data, but the page feels disorganized because it mixes multiple reporting purposes into one long scrolling view.
+
+Right now the page combines:
+
+overall event KPIs
+
+meetings by event
+
+sponsor performance analytics
+
+sponsor breakdown table
+
+sponsor PDF report generation
+
+event reports table
+
+meeting log table
+
+This makes the page harder to scan and harder to use.
+
+The goal of this update is to restructure the Reports section so it feels clean, intentional, and easier to use operationally, while keeping the underlying data and existing reporting functionality intact wherever possible.
+
+Primary Goal
+
+Reorganize the Reports page around three clear reporting modes:
+
+Event Overview
+
+Sponsor Performance
+
+Meeting Data
+
+This should be done primarily through better information architecture, cleaner grouping, and removal of duplicate reporting views, not by rebuilding the reporting system from scratch.
+
+Scope Rules
+Do build
+
+tabbed report navigation inside Reports
+
+cleaner section hierarchy
+
+global event filter
+
+grouped sponsor analytics
+
+one consolidated meeting data table
+
+clearer report generation placement
+
+cleaner export structure
+
+Do not build
+
+brand-new analytics engines
+
+new backend metrics that require major data-model changes
+
+CRM integrations
+
+predictive analytics
+
+unnecessary new chart types unless trivial
+
+This is a Reports IA and UX optimization release.
+
+1. Create Three Report Tabs
+
+Inside the Reports page, add a tabbed sub-navigation at the top of the content area.
+
+Tabs
+
+Event Overview
+
+Sponsor Performance
+
+Meeting Data
+
+These tabs should switch the visible report content without leaving the Reports module.
+
+Use the existing design language for tabs already used elsewhere in the app where possible.
+
+2. Add a Global Event Filter
+
+At the top of the Reports page, above the tabs, add a global filter:
+
+Event: [All Events ▼]
+
+This should control data shown across the currently selected tab wherever applicable.
+
+Behavior
+
+When “All Events” is selected:
+
+show aggregate reporting across all events
+
+When a specific event is selected:
+
+update KPIs
+
+update charts
+
+update sponsor analytics
+
+update meeting data table
+
+update sponsor report generation dropdown defaults if applicable
+
+This should be the primary contextual filter for the Reports section.
+
+3. Tab 1: Event Overview
+
+This tab should answer the question:
+
+How is the event performing overall?
+
+Move the following elements into this tab.
+
+3A. KPI Summary Cards
+
+Keep the overall KPI cards, but organize them into a cleaner hierarchy.
+
+Row 1
+
+Total Meetings
+
+Scheduled
+
+Completed
+
+Cancelled / No-Show
+
+Row 2
+
+Unique Attendees
+
+Unique Companies
+
+Avg Meetings per Sponsor
+
+If all seven fit cleanly in a responsive grid, keep them visible at once.
+
+Do not split metrics into confusing, uneven groupings.
+
+3B. Meetings by Event Chart
+
+Keep the current “Meetings by Event” chart in this tab.
+
+Rename it to:
+
+Total Meetings by Event
+
+Add short helper text under the title if useful:
+
+Compare total scheduled meeting volume across events.
+
+If a specific event is selected in the global filter, this chart can either:
+
+collapse to just that event, or
+
+still show all events with the selected event highlighted
+
+Choose the simpler implementation that feels consistent.
+
+3C. Optional small improvements
+
+If easy and already supported by the dataset, add one small contextual line above or below the charts such as:
+
+Showing data for: All Events
+
+Showing data for: FRC2026
+
+This helps anchor the user.
+
+4. Tab 2: Sponsor Performance
+
+This tab should answer the question:
+
+How are sponsors performing?
+
+Move all sponsor-specific analytics here and group them tightly.
+
+4A. Sponsor Performance Chart
+
+Keep the current sponsor chart, but rename it clearly:
+
+Total Meetings by Sponsor
+
+If possible, continue showing stacked or segmented values by status only if the visualization remains readable.
+
+If the current chart effectively shows only totals, keep it simple.
+
+Do not overcomplicate.
+
+4B. Sponsor Breakdown Table
+
+Move the existing sponsor breakdown table into this tab.
+
+Reorder columns to prioritize outcome-oriented metrics first.
+
+Recommended column order
+
+Sponsor
+
+Total Meetings
+
+Scheduled
+
+Completed
+
+Cancelled
+
+No-Show
+
+Unique Companies
+
+Onsite
+
+Online
+
+Completion Rate
+
+If Pending is genuinely used in the system and important, place it after Scheduled.
+
+Example:
+
+Sponsor
+
+Total Meetings
+
+Pending
+
+Scheduled
+
+Completed
+
+Cancelled
+
+No-Show
+
+Unique Companies
+
+Onsite
+
+Online
+
+Completion Rate
+
+The key principle is:
+put business outcomes before secondary formatting details.
+
+4C. Sponsor PDF Report Generator
+
+Move the sponsor PDF generation controls into this tab.
+
+This block should sit either:
+
+above the sponsor table, or
+
+below the chart and above the table
+
+Preferred structure:
+
+Section title
+
+Generate Sponsor Report
+
+Controls
+
+Event dropdown
+
+Sponsor dropdown
+
+Download PDF Report button
+
+If a global event filter is already selected, prefill the Event dropdown with that value.
+
+If “All Events” is selected globally, keep the Event dropdown required for PDF generation.
+
+4D. Sponsor report helper text
+
+Add a small line such as:
+
+Generate a detailed sponsor performance report for a selected sponsor and event.
+
+This will make the section much easier to understand.
+
+5. Tab 3: Meeting Data
+
+This tab should answer the question:
+
+What are the details of the individual meetings?
+
+Right now there are multiple overlapping tables in the Reports page. Consolidate them.
+
+5A. Remove Duplicate Meeting Views
+
+The current Reports page appears to contain both:
+
+an event reports meeting table
+
+a meeting log table
+
+These are redundant and visually confusing.
+
+Replace them with one consolidated meeting data table.
+
+Only one detailed meeting table should exist in this tab.
+
+5B. Meeting Data Table Columns
+
+Use a single table with columns like:
+
+Event Code
+
+Sponsor
+
+Attendee
+
+Company
+
+Title
+
+Email
+
+LinkedIn
+
+Date
+
+Time
+
+Location
+
+Type
+
+Status
+
+If LinkedIn data is often blank and clutters the table, it may be acceptable to hide it by default or move it later, but keep the dataset accessible if already in use.
+
+Status should be visible in this table.
+
+5C. Meeting Data Filters
+
+Place all meeting filters above the table in one clean row or two aligned rows.
+
+Use:
+
+Event
+
+Sponsor
+
+Meeting Type
+
+Status
+
+Search
+
+Optional:
+
+Date Range if already easy to support
+
+Keep filters grouped and visually aligned.
+
+Do not separate them into multiple disconnected sections.
+
+5D. Meeting Export
+
+Use one clear export button in this tab:
+
+Export Meeting Data CSV
+
+Do not duplicate export buttons for the same dataset.
+
+If there are multiple export buttons currently tied to similar data, consolidate them into this single action.
+
+6. Improve Report Section Titles and Helper Text
+
+Every section should have a clear title and, where useful, a one-line explanation.
+
+Examples:
+
+Event Overview
+
+Track overall meeting performance across events.
+
+Sponsor Performance
+
+Compare sponsor engagement and meeting outcomes.
+
+Meeting Data
+
+Review and export detailed individual meeting records.
+
+This will make the page feel more polished and professional.
+
+7. Reduce Visual Clutter and Duplicate Controls
+
+Clean up anything that feels repetitive.
+
+Specifically
+
+avoid multiple CSV export buttons for similar meeting data on the same page
+
+avoid showing nearly identical tables in sequence
+
+avoid placing report generation controls far from the section they belong to
+
+avoid mixing sponsor reporting tools into event overview
+
+Group each tool with the data it belongs to.
+
+8. Improve Card and Section Order
+
+Use this overall structure inside the Reports module:
+
+Top
+
+Reports title
+
+Reports description
+
+Global Event filter
+
+Tab navigation
+
+Within each tab
+
+Show only the data relevant to that tab.
+
+This means the page should feel shorter and more intentional.
+
+9. Keep Existing Data Logic Where Possible
+
+This reorganization should preserve existing logic wherever possible.
+
+Examples:
+
+existing metrics calculations
+
+existing sponsor chart query logic
+
+existing meeting table queries
+
+existing CSV export logic
+
+existing PDF generation logic
+
+Do not rewrite backend calculations unless needed to support the cleaner structure.
+
+This should be mostly a layout, organization, and component reuse update.
+
+10. Sorting and Table UX
+
+For tables that already support sorting, keep sorting enabled.
+
+Make sure sort indicators remain clear and consistent.
+
+If the sponsor table or meeting table allows sorting, preserve that functionality after reorganization.
+
+11. Empty State Behavior
+
+Each tab should have a sensible empty state.
+
+Examples:
+
+Event Overview
+
+No meeting activity found for this event.
+
+Sponsor Performance
+
+No sponsor performance data available for the selected filters.
+
+Meeting Data
+
+No meetings match the selected filters.
+
+This is important for newer events with low data volume.
+
+12. Responsiveness / Layout Standards
+
+Maintain the existing visual design system.
+
+Requirements:
+
+clean spacing between sections
+
+responsive grid for KPI cards
+
+no horizontal crowding in tab layout
+
+filters should wrap neatly on smaller screens
+
+tables should remain usable without breaking layout
+
+If horizontal table scrolling is already used for wide tables, that is acceptable.
+
+13. Suggested Final Content by Tab
+Event Overview
+
+KPI cards
+
+Total Meetings by Event chart
+
+Sponsor Performance
+
+Total Meetings by Sponsor chart
+
+Generate Sponsor Report block
+
+Sponsor Breakdown table
+
+Meeting Data
+
+Filters
+
+One consolidated Meeting Data table
+
+Export Meeting Data CSV
+
+That is the core final structure.
+
+14. Recommended Implementation Order
+
+Implement in this order:
+
+Phase 1
+
+add global event filter
+
+add tab navigation
+
+move existing blocks into the correct tabs
+
+Phase 2
+
+remove duplicate meeting tables
+
+consolidate export buttons
+
+move sponsor PDF generator into Sponsor Performance
+
+Phase 3
+
+refine section titles and helper text
+
+improve table column ordering
+
+polish spacing and empty states
+
+This sequence minimizes risk and gets the page organized quickly.
+
+15. Definition of Done
+
+This Reports optimization is complete when:
+
+Reports is split into Event Overview, Sponsor Performance, and Meeting Data
+
+a global Event filter exists and updates reporting context
+
+sponsor analytics are grouped together in one tab
+
+only one detailed meeting data table remains
+
+export actions are clear and not duplicated
+
+sponsor PDF generation is located in the Sponsor Performance tab
+
+the page feels easier to scan and more logically organized
+
+16. Success Standard
+
+An admin should be able to enter Reports and immediately understand:
+
+overall event performance
+
+sponsor performance
+
+detailed meeting records
+
+without having to scroll through mixed reporting blocks that feel unrelated.
+
+That is the standard this redesign should meet.

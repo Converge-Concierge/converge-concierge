@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -8,11 +8,12 @@ import {
   Bell, BellOff, Download, ExternalLink, Video, Mail,
   UserCheck, AlertCircle, ChevronDown, ChevronUp, FileDown,
   BarChart3, Monitor, TrendingUp, Link2, X as XIcon, Gem, MessageSquare,
+  CalendarX,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 import { Button } from "@/components/ui/button";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { downloadICS, googleCalendarUrl } from "@/lib/ics";
 
@@ -85,6 +86,7 @@ const statusColors: Record<string, string> = {
 const notifIcons: Record<string, { icon: React.ElementType; color: string; label: string }> = {
   onsite_booked:            { icon: Handshake,   color: "text-blue-500",   label: "Onsite meeting booked"   },
   online_request_submitted: { icon: Video,        color: "text-violet-500", label: "Online request received" },
+  information_request:      { icon: MessageSquare, color: "text-blue-500",  label: "Information request received" },
   meeting_cancelled:        { icon: AlertCircle,  color: "text-red-500",    label: "Meeting cancelled"       },
   request_confirmed:        { icon: CheckCircle2, color: "text-green-500",  label: "Request confirmed"       },
   request_declined:         { icon: BellOff,      color: "text-orange-500", label: "Request declined"        },
@@ -98,7 +100,7 @@ function fmt12(t: string) {
 
 // ── Stat card ──────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, icon: Icon, accent }: { label: string; value: number | string; icon: React.ElementType; accent?: string }) {
+function StatCard({ label, value, icon: Icon, accent, sub }: { label: string; value: number | string; icon: React.ElementType; accent?: string; sub?: string }) {
   return (
     <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5 flex flex-col gap-3">
       <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center", accent ? `bg-${accent}-100` : "bg-muted")}>
@@ -107,6 +109,7 @@ function StatCard({ label, value, icon: Icon, accent }: { label: string; value: 
       <div>
         <p className="text-2xl font-display font-bold text-foreground" data-testid={`stat-${label.toLowerCase().replace(/\s+/g, "-")}`}>{value}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+        {sub && <p className="text-[10px] text-muted-foreground/70 mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -125,6 +128,7 @@ export default function SponsorDashboardPage() {
   const [infoRequestsOpen, setInfoRequestsOpen] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [linkInput, setLinkInput] = useState("");
+  const notifSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (!token) nav("/sponsor/login"); }, [token]);
 
@@ -320,10 +324,16 @@ export default function SponsorDashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           {unreadCount > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-100 border border-violet-300">
+            <button
+              onClick={() => {
+                setNotifOpen(true);
+                notifSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-100 border border-violet-300 hover-elevate active-elevate-2 transition-colors"
+            >
               <Bell className="h-3.5 w-3.5 text-violet-600" />
               <span className="text-xs font-semibold text-violet-700">{unreadCount} new</span>
-            </div>
+            </button>
           )}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-100 border border-green-300">
             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
@@ -406,6 +416,35 @@ export default function SponsorDashboardPage() {
                     <MapPin className="h-3.5 w-3.5" />{event.location}
                   </span>
                 </div>
+
+                <div className="mt-3">
+                  {(() => {
+                    const today = new Date();
+                    const start = parseISO(event.startDate);
+                    const end = parseISO(event.endDate);
+                    if (today < start) {
+                      const daysUntil = differenceInDays(start, today);
+                      return (
+                        <span className="text-xs font-medium px-2.5 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                          Event starts in {daysUntil} day{daysUntil !== 1 ? 's' : ''}
+                        </span>
+                      );
+                    } else if (today <= end) {
+                      return (
+                        <span className="text-xs font-medium px-2.5 py-0.5 rounded-full border bg-green-50 text-green-700 border-green-200">
+                          Event in progress
+                        </span>
+                      );
+                    } else {
+                      return (
+                        <span className="text-xs font-medium px-2.5 py-0.5 rounded-full border bg-gray-100 text-gray-600 border-gray-200">
+                          Event completed
+                        </span>
+                      );
+                    }
+                  })()}
+                </div>
+
                 {(sponsor.websiteUrl || sponsor.linkedinUrl) && (
                   <div className="flex items-center gap-3 mt-2">
                     {sponsor.websiteUrl && (
@@ -424,13 +463,134 @@ export default function SponsorDashboardPage() {
             </div>
           </div>
 
+          {/* Next Meeting widget */}
+          {(() => {
+            const todayStr = format(new Date(), "yyyy-MM-dd");
+            const nextMeeting = [...meetings]
+              .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+              .find(m => (m.status === "Scheduled" || m.status === "Confirmed" || m.status === "Pending") && m.date >= todayStr);
+
+            return (
+              <div className="rounded-2xl border bg-card shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Calendar className="h-4 w-4 text-primary" />
+                    </div>
+                    <h2 className="text-lg font-display font-bold text-foreground">Next Meeting</h2>
+                  </div>
+                  {nextMeeting && (
+                    <span className={cn("text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border", statusColors[nextMeeting.status])}>
+                      {nextMeeting.status}
+                    </span>
+                  )}
+                </div>
+
+                {nextMeeting ? (
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xl font-bold text-foreground">{nextMeeting.attendee.name}</p>
+                        <span className={cn("text-[10px] px-2 py-0.5 rounded-full border font-medium",
+                          nextMeeting.meetingType === "onsite" ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                        )}>
+                          {nextMeeting.meetingType === "onsite" ? "Onsite" : "Online"}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{nextMeeting.attendee.title} · {nextMeeting.attendee.company}</p>
+                    </div>
+
+                    <div className="flex flex-col md:items-end gap-1 text-sm">
+                      <div className="flex items-center gap-2 text-foreground font-medium">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        {format(parseISO(nextMeeting.date), "EEEE, MMM d")}
+                      </div>
+                      <div className="flex items-center gap-2 text-foreground font-medium">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        {fmt12(nextMeeting.time)}
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        {nextMeeting.meetingType === "onsite" ? nextMeeting.location : (nextMeeting.platform || "Online Platform")}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
+                      {nextMeeting.meetingType === "onsite" && nextMeeting.status === "Scheduled" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadICS({
+                            meetingId:    nextMeeting.id,
+                            sponsorName:  sponsor.name,
+                            attendeeName: nextMeeting.attendee.name,
+                            eventName:    event.name,
+                            eventSlug:    event.slug,
+                            date:         nextMeeting.date,
+                            time:         nextMeeting.time,
+                            location:     nextMeeting.location,
+                            meetingType:  "onsite",
+                          })}
+                          data-testid="btn-next-meeting-ics"
+                        >
+                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                          ICS
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        data-testid="btn-next-meeting-google"
+                      >
+                        <a href={googleCalendarUrl({
+                          meetingId:    nextMeeting.id,
+                          sponsorName:  sponsor.name,
+                          attendeeName: nextMeeting.attendee.name,
+                          eventName:    event.name,
+                          eventSlug:    event.slug,
+                          date:         nextMeeting.date,
+                          time:         nextMeeting.time,
+                          location:     nextMeeting.location,
+                          meetingType:  "onsite",
+                        })} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                          Google
+                        </a>
+                      </Button>
+                      {(nextMeeting.status === "Scheduled" || nextMeeting.status === "Confirmed") && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => updateStatus.mutate({ meetingId: nextMeeting.id, status: "Completed" })}
+                          disabled={updateStatus.isPending}
+                          data-testid="btn-next-meeting-complete"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                          Mark Completed
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+                      <CalendarX className="h-6 w-6 text-muted-foreground/40" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">No upcoming meetings scheduled. New bookings will appear here.</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-            <StatCard label="Total Meetings"      value={stats.total}              icon={Handshake}      />
-            <StatCard label="Completed"           value={stats.completed}          icon={CheckCircle2}   />
-            <StatCard label="Pending Online"      value={stats.pendingOnline}      icon={Video}          />
-            <StatCard label="Companies Met"       value={stats.companies}          icon={Users}          />
-            <StatCard label="Info Requests"       value={infoRequests.length}      icon={MessageSquare}  />
+            <StatCard label="Meetings Scheduled"  value={stats.scheduled}           icon={Calendar}       sub="confirmed upcoming meetings" />
+            <StatCard label="Meetings Completed"  value={stats.completed}           icon={CheckCircle2}   sub="successfully held" />
+            <StatCard label="Companies Engaged"   value={stats.companies}           icon={Building2}      sub="distinct organizations" />
+            <StatCard label="Leads Captured"      value={leads.length}              icon={UserCheck}      sub="unique contacts met" />
+            <StatCard label="Information Requests" value={infoRequests.length}      icon={MessageSquare}  sub="pending follow-ups" />
           </div>
 
           {/* Charts — only shown when there's data */}
@@ -522,74 +682,74 @@ export default function SponsorDashboardPage() {
           })()}
 
           {/* Notifications */}
-          {notifications.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-              <button
-                onClick={() => setNotifOpen((v) => !v)}
-                className="w-full px-6 py-4 border-b border-border/50 flex items-center justify-between hover:bg-muted/30 transition-colors"
-                data-testid="toggle-notifications"
-              >
-                <div className="flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-accent" />
-                  <span className="text-sm font-semibold text-foreground">Notifications</span>
-                  {unreadCount > 0 && (
-                    <span className="text-xs font-bold bg-violet-500 text-white rounded-full px-2 py-0.5">{unreadCount}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  {unreadCount > 0 && (
-                    <span
-                      className="text-xs text-accent underline underline-offset-2 hover:opacity-80"
-                      onClick={(e) => { e.stopPropagation(); markAllRead.mutate(); }}
-                      data-testid="btn-mark-all-read"
-                    >
-                      Mark all read
-                    </span>
-                  )}
-                  {notifOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                </div>
-              </button>
+          <div
+            ref={notifSectionRef}
+            className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden"
+          >
+            <button
+              onClick={() => setNotifOpen((v) => !v)}
+              className="w-full px-6 py-4 border-b border-border/50 flex items-center justify-between hover:bg-muted/30 transition-colors"
+              data-testid="toggle-notifications"
+            >
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-accent" />
+                <span className="text-sm font-semibold text-foreground">Notifications</span>
+                {unreadCount > 0 && (
+                  <span className="text-xs font-bold bg-violet-500 text-white rounded-full px-2 py-0.5">{unreadCount}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {unreadCount > 0 && (
+                  <span
+                    className="text-xs text-accent underline underline-offset-2 hover:opacity-80"
+                    onClick={(e) => { e.stopPropagation(); markAllRead.mutate(); }}
+                    data-testid="btn-mark-all-read"
+                  >
+                    Mark all read
+                  </span>
+                )}
+                {notifOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </div>
+            </button>
 
-              {notifOpen && (
-                <div className="divide-y divide-border/40">
+            {notifOpen && (
+              notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-2">
+                  <BellOff className="h-8 w-8 opacity-20" />
+                  <p className="text-sm">No notifications yet.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/40 max-h-[400px] overflow-y-auto">
                   {notifications.map((n) => {
-                    const meta = notifIcons[n.type] ?? { icon: Bell, color: "text-muted-foreground", label: n.type };
-                    const Icon = meta.icon;
+                    const icon = notifIcons[n.type] || { icon: Bell, color: "text-muted-foreground", label: "Notification" };
                     return (
                       <div
                         key={n.id}
-                        className={cn(
-                          "px-6 py-4 flex items-start gap-4 transition-colors cursor-pointer",
-                          n.isRead ? "opacity-60 hover:opacity-80" : "bg-violet-50/40 hover:bg-violet-50/60",
-                        )}
+                        className={cn("px-6 py-4 flex items-start gap-4 hover:bg-muted/20 transition-colors cursor-pointer relative", !n.isRead && "bg-violet-50/30")}
                         onClick={() => !n.isRead && markRead.mutate(n.id)}
-                        data-testid={`notif-${n.id}`}
+                        data-testid={`notif-row-${n.id}`}
                       >
-                        <div className={cn("h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0", !n.isRead && "bg-violet-100")}>
-                          <Icon className={cn("h-4 w-4", meta.color)} />
+                        {!n.isRead && <div className="absolute left-0 top-0 bottom-0 w-1 bg-violet-500" />}
+                        <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border border-border/40 bg-white", icon.color)}>
+                          <icon.icon className="h-5 w-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-semibold text-foreground">{meta.label}</span>
-                            {!n.isRead && <span className="h-2 w-2 rounded-full bg-violet-500 shrink-0" />}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {n.attendeeName} · {n.attendeeCompany}
+                          <p className="text-sm font-semibold text-foreground">{icon.label}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                            {n.attendeeName} from <span className="font-medium text-foreground">{n.attendeeCompany}</span>
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {n.date} at {fmt12(n.time)}
-                          </p>
+                          <p className="text-xs text-muted-foreground">{n.eventName} · {n.date} at {fmt12(n.time)}</p>
                         </div>
-                        <span className="text-[11px] text-muted-foreground shrink-0">
-                          {format(new Date(n.createdAt), "MMM d")}
+                        <span className="text-[10px] font-medium text-muted-foreground/60 whitespace-nowrap mt-1">
+                          {format(parseISO(n.createdAt), "MMM d, h:mm a")}
                         </span>
                       </div>
                     );
                   })}
                 </div>
-              )}
-            </div>
-          )}
+              )
+            )}
+          </div>
 
           {/* Meeting list */}
           <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">

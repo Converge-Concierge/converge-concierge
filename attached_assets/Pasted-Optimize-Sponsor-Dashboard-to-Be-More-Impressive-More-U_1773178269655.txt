@@ -1,0 +1,712 @@
+Optimize Sponsor Dashboard to Be More Impressive, More Useful, and Fix Notifications
+
+Update the current Converge Concierge Sponsor Dashboard so it feels more like a premium sponsor ROI and lead-management portal, not just a meeting summary page.
+
+The current dashboard already includes:
+
+sponsor identity header
+
+KPI cards
+
+meeting status chart
+
+meeting type chart
+
+notifications section
+
+meetings table
+
+lead contacts section
+
+information requests section
+
+sponsor performance report
+
+export buttons
+
+This release should improve the dashboard in two ways:
+
+Fix broken notification behavior
+
+Upgrade the dashboard UX and utility so sponsors immediately understand their event ROI and next actions
+
+Primary Goals
+Goal 1
+
+Fix the “2 new” notification pill in the top header so it performs a useful action when clicked.
+
+Goal 2
+
+Improve the Sponsor Dashboard so it better helps sponsors:
+
+understand current results
+
+prepare for upcoming meetings
+
+manage follow-up
+
+see lead value
+
+feel that Concierge is a serious business tool
+
+Scope Rules
+Do build
+
+functional notification pill behavior
+
+stronger top-level KPI framing
+
+Next Meeting widget
+
+more actionable Notifications behavior
+
+better lead and follow-up visibility
+
+clearer sponsor performance reporting
+
+cleaner information hierarchy
+
+Do not build yet
+
+recommended attendees engine
+
+sponsor invitation workflow
+
+AI scoring
+
+tier-based feature differences
+
+CRM integrations
+
+complex new backend scoring models unless trivial
+
+This phase is a dashboard optimization release, not a new product module build.
+
+1. Fix the Top “2 New” Notification Button
+
+The purple notification pill in the top header currently does nothing when clicked.
+
+Required behavior
+
+When the user clicks the notification pill:
+
+scroll to the Notifications section on the dashboard
+
+expand the Notifications panel if it is collapsed
+
+visually highlight unread notifications
+
+optionally set focus on the panel heading
+
+If smooth scrolling is already used in the app, use it here.
+
+Better behavior if easy to support
+
+If straightforward, make the top notification pill open a small dropdown preview containing the latest unread notifications, with a link such as:
+
+View all notifications
+
+If this is more effort than desired, use the scroll-to-panel behavior for now.
+
+Notification interaction improvements
+
+Each notification row should become clickable.
+
+Clicking a notification should open the most relevant related destination, for example:
+
+related meeting
+
+related information request
+
+related sponsor action area
+
+At minimum, clicking a notification should:
+
+mark it read
+
+visually remove the unread dot or unread emphasis
+
+2. Improve Dashboard Information Hierarchy
+
+The current page is good structurally, but it needs clearer prioritization.
+
+Reorganize the dashboard so the sponsor immediately sees:
+
+who they are / event context
+
+next action
+
+key performance metrics
+
+notifications
+
+meetings
+
+leads and follow-up
+
+performance summary
+
+3. Add a “Next Meeting” Widget
+
+Add a new high-visibility card near the top of the dashboard.
+
+This should be one of the most prominent blocks on the page.
+
+Purpose
+
+Show the sponsor exactly what is next on their schedule.
+
+Card content
+
+attendee full name
+
+title
+
+company
+
+date
+
+time
+
+meeting type
+
+location or platform
+
+meeting status
+
+Actions
+
+Include one or more of these actions if already supported:
+
+View Meeting
+
+Add to Calendar
+
+Open Zoom / platform link if online
+
+Mark Completed when applicable
+
+Empty state
+
+If the sponsor has no upcoming meetings, show:
+
+No upcoming meetings yet
+
+Optional helper text:
+New meetings and requests will appear here when scheduled.
+
+4. Update KPI Cards to Reflect Sponsor ROI
+
+The current metrics are useful but should be labeled and ordered more clearly around sponsor outcomes.
+
+Recommended KPI set
+
+Use these cards in this order:
+
+Meetings Scheduled
+
+Meetings Completed
+
+Companies Engaged
+
+Leads Captured
+
+Information Requests
+
+If there is strong reason to keep “Pending Online,” move it to a secondary area instead of the main row.
+
+Metric definitions
+
+Meetings Scheduled = total current meetings
+
+Meetings Completed = completed meetings only
+
+Companies Engaged = distinct companies represented by attendees met or scheduled
+
+Leads Captured = count of unique lead contacts or engaged attendee records
+
+Information Requests = total information requests submitted to this sponsor
+
+Visual requirement
+
+Cards should show:
+
+metric number
+
+label
+
+optional small helper text or icon
+
+clean, premium styling consistent with the rest of the platform
+
+If trend deltas are not available, do not fake them.
+
+5. Make Notifications More Actionable
+
+The Notifications section currently acts more like a passive feed.
+
+Convert it into an operational activity center.
+
+Required improvements
+
+Each notification should display:
+
+event type
+
+attendee name
+
+company
+
+date/time
+
+notification date
+
+read/unread state
+
+Notification types may include
+
+Request confirmed
+
+Online request received
+
+Onsite meeting booked
+
+Information request received
+
+Meeting cancelled
+
+Meeting updated
+
+Notification actions
+
+Where relevant, include inline action links or buttons such as:
+
+View Meeting
+
+View Request
+
+Mark Read
+
+If inline actions make the UI too crowded, make the entire row clickable and add a kebab or secondary action.
+
+Mark all read
+
+Keep Mark all read, but ensure it actually updates notification state immediately in the UI and in persistent storage.
+
+6. Improve the Meetings Section
+
+The current meetings table is solid, but it should support sponsor workflow better.
+
+Keep existing basics
+
+date/time
+
+attendee
+
+company
+
+type
+
+location
+
+status
+
+actions
+
+Improve usability
+
+Add or improve:
+
+clearer attendee name hierarchy
+
+title under attendee name
+
+email under title
+
+better spacing and row readability
+
+clearer online vs onsite styling
+
+more visually distinct status badges
+
+Optional additions if easy
+
+Add a small secondary link or action for:
+
+Add to Calendar
+
+Copy email
+
+View attendee details
+
+Do not overcomplicate the first release.
+
+7. Add a Follow-Up Tracker
+
+Sponsors need to know not only who they met, but who still needs follow-up.
+
+Add a new section or enhance the current Lead Contacts section so it functions like follow-up management.
+
+Recommended section title
+
+Lead Contacts
+
+or
+
+Follow-Up Tracker
+
+If keeping Lead Contacts, add follow-up context to it.
+
+Required fields per row
+
+attendee name
+
+company
+
+title
+
+email
+
+source of lead if available
+
+last interaction date
+
+follow-up status
+
+Suggested follow-up statuses
+
+New
+
+Follow-Up Needed
+
+Contacted
+
+Closed
+
+If there is no backend follow-up model yet, start simple:
+
+add a lightweight front-end/back-end status field for sponsor use
+
+Actions
+
+Mark Contacted
+
+Mark Closed
+
+Export CSV
+
+This will make the dashboard feel much more sales-oriented.
+
+8. Improve Information Requests Presentation
+
+The Information Requests section exists and should remain separate from meetings.
+
+Improve it so it feels useful and visible.
+
+Section improvements
+
+Show:
+
+requester name
+
+company
+
+title
+
+email
+
+submitted date
+
+status
+
+message preview
+
+Actions
+
+View
+
+Mark Contacted
+
+Mark Closed
+
+Summary count
+
+Keep a visible count in the dashboard KPI area and in the section header.
+
+9. Upgrade Sponsor Performance Report
+
+The Sponsor Performance Report is a strong feature and should feel like a real event ROI summary.
+
+Recommended report metrics
+
+Meetings Scheduled
+
+Meetings Completed
+
+Cancelled / No-Show
+
+Unique Companies Met
+
+Total Leads Captured
+
+Onsite Meetings
+
+Online Meetings
+
+Information Requests
+
+Only show metrics that are truly available from the data.
+
+Top Companies Met
+
+Keep this section, but make it easier to read visually.
+
+Display:
+
+company name
+
+number of meetings
+
+horizontal bars
+
+descending order
+
+If only a few companies exist, that is fine.
+
+CTA buttons
+
+Keep:
+
+Download PDF Report
+
+Export Leads CSV
+
+Ensure both buttons work reliably.
+
+10. Add an Event Countdown / Context Card
+
+Add a small contextual card or header element that reinforces event timing.
+
+Display
+
+event date range
+
+location
+
+days until event, if upcoming
+
+Example:
+Event starts in 48 days
+
+If the event is live:
+Event is in progress
+
+If the event is over:
+Event completed
+
+This adds energy and urgency.
+
+11. Improve Header Utility
+
+The sponsor header already shows sponsor identity and event info.
+
+Enhance it slightly by making the following easy to see:
+
+sponsor level
+
+event code
+
+event name
+
+event date
+
+event location
+
+website
+
+LinkedIn
+
+If easy, add a small secondary CTA:
+
+View Sponsor Profile
+
+Do not clutter the header.
+
+12. Better Empty States
+
+Every section should have useful empty states.
+
+Examples
+No meetings
+
+No meetings scheduled yet
+Add helper text:
+New scheduled meetings will appear here.
+
+No information requests
+
+No information requests yet
+Helper:
+Requests from attendees will appear here when submitted.
+
+No lead contacts
+
+No lead contacts yet
+Helper:
+Lead contacts will populate as attendees engage with your company.
+
+This makes the dashboard feel polished even with sparse data.
+
+13. Visual / UX Standards
+
+Keep the existing design language, but make the sponsor dashboard feel more premium.
+
+Requirements
+
+stronger spacing hierarchy
+
+more consistent section headers
+
+reduce visual dead space where possible
+
+prioritize most useful items above the fold
+
+keep charts, but make sure charts are not more prominent than actionable content
+
+ensure mobile and tablet layouts remain usable if already supported
+
+14. Suggested Layout Order
+
+Use this recommended page order:
+
+Above the fold
+
+Sponsor header
+
+Event context
+
+Next Meeting card
+
+KPI row
+
+Middle
+
+Notifications
+
+Meetings
+
+Lower
+
+Lead Contacts / Follow-Up Tracker
+
+Information Requests
+
+Sponsor Performance Report
+
+This creates a more practical workflow.
+
+15. Notification Data Behavior
+
+Notifications should support:
+
+unread/read state
+
+created_at timestamp
+
+optional related object link
+
+mark single read
+
+mark all read
+
+If notification data model already exists, extend it instead of rebuilding it.
+
+If no read state exists, add it now.
+
+16. Access / Permissions
+
+Ensure sponsors can only view:
+
+their own dashboard
+
+their own meetings
+
+their own notifications
+
+their own leads
+
+their own information requests
+
+their own performance report
+
+No sponsor should see data for other sponsors.
+
+17. Recommended Delivery Order
+
+Implement in this order:
+
+Phase 1
+
+fix top notification pill
+
+make Notifications section actionable
+
+ensure mark read / mark all read works
+
+Phase 2
+
+add Next Meeting widget
+
+relabel / reorganize KPI cards
+
+Phase 3
+
+improve Meetings section readability
+
+improve Information Requests section
+
+Phase 4
+
+enhance Lead Contacts into follow-up tracker
+
+refine Sponsor Performance Report
+
+Phase 5
+
+add event countdown / contextual enhancements
+
+polish empty states and layout
+
+This order gets visible value quickly.
+
+18. Definition of Done
+
+This dashboard optimization is complete when:
+
+clicking the top notification pill performs a clear action
+
+unread notifications can be read and marked read
+
+the dashboard includes a Next Meeting widget
+
+KPI cards clearly reflect sponsor ROI
+
+meetings, leads, and information requests are more actionable
+
+sponsor performance reporting feels polished and useful
+
+the page feels more like a sponsor sales/ROI portal than a simple meeting summary
+
+19. Success Standard
+
+The sponsor should be able to open the dashboard and immediately understand:
+
+what is happening next
+
+how many leads they have
+
+what needs follow-up
+
+what value they are getting from the event
+
+That is the standard this redesign should meet.

@@ -10,6 +10,7 @@ import {
   type PasswordResetToken,
   type DataExchangeLog,
   type UserPermissions, type UserPermissionRecord, type PermissionAuditLog,
+  type InformationRequest, type InsertInformationRequest, type InformationRequestStatus,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -162,6 +163,12 @@ export interface IStorage {
   getUserPermissions(userId: string): Promise<UserPermissionRecord | undefined>;
   upsertUserPermissions(userId: string, permissions: UserPermissions, changedBy: string, targetUserName: string, previousPermissions?: UserPermissions): Promise<UserPermissionRecord>;
   getPermissionAuditLogs(userId?: string): Promise<PermissionAuditLog[]>;
+
+  // Information Requests
+  createInformationRequest(data: InsertInformationRequest): Promise<InformationRequest>;
+  getInformationRequest(id: string): Promise<InformationRequest | undefined>;
+  listInformationRequests(filters?: { eventId?: string; sponsorId?: string; status?: InformationRequestStatus }): Promise<InformationRequest[]>;
+  updateInformationRequestStatus(id: string, status: InformationRequestStatus): Promise<InformationRequest | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -669,6 +676,43 @@ export class MemStorage implements IStorage {
 
   async getPermissionAuditLogs(_userId?: string): Promise<PermissionAuditLog[]> {
     return [];
+  }
+
+  private informationRequests: Map<string, InformationRequest> = new Map();
+
+  async createInformationRequest(data: InsertInformationRequest): Promise<InformationRequest> {
+    const id = randomUUID();
+    const record: InformationRequest = {
+      ...data,
+      id,
+      eventId: data.eventId ?? null,
+      attendeeId: data.attendeeId ?? null,
+      message: data.message ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.informationRequests.set(id, record);
+    return record;
+  }
+
+  async getInformationRequest(id: string): Promise<InformationRequest | undefined> {
+    return this.informationRequests.get(id);
+  }
+
+  async listInformationRequests(filters?: { eventId?: string; sponsorId?: string; status?: InformationRequestStatus }): Promise<InformationRequest[]> {
+    let results = Array.from(this.informationRequests.values());
+    if (filters?.eventId) results = results.filter(r => r.eventId === filters.eventId);
+    if (filters?.sponsorId) results = results.filter(r => r.sponsorId === filters.sponsorId);
+    if (filters?.status) results = results.filter(r => r.status === filters.status);
+    return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async updateInformationRequestStatus(id: string, status: InformationRequestStatus): Promise<InformationRequest | undefined> {
+    const existing = this.informationRequests.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, status, updatedAt: new Date() };
+    this.informationRequests.set(id, updated);
+    return updated;
   }
 }
 

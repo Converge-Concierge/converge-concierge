@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS } from "@shared/schema";
+import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS } from "@shared/schema";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
 import multer from "multer";
@@ -1554,6 +1554,122 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const userId = req.query.userId as string | undefined;
     const logs = await storage.getPermissionAuditLogs(userId);
     res.json(logs);
+  });
+
+  // ── Information Requests ──────────────────────────────────────────────────
+
+  // Public: anyone can submit an information request
+  app.post("/api/information-requests", async (req, res) => {
+    const parsed = insertInformationRequestSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
+
+    const sponsor = await storage.getSponsor(parsed.data.sponsorId);
+    if (!sponsor) return res.status(404).json({ error: "Sponsor not found" });
+
+    const record = await storage.createInformationRequest(parsed.data);
+
+    // Notify sponsor by email (logged to console — connect an email service to send for real)
+    const eventName = parsed.data.eventId ? (await storage.getEvent(parsed.data.eventId))?.name ?? "an event" : "an event";
+    const contactEmail = sponsor.contactEmail ?? null;
+    const msgBody = [
+      `New information request received.`,
+      ``,
+      `Sponsor: ${sponsor.name}`,
+      `Event: ${eventName}`,
+      ``,
+      `From: ${parsed.data.attendeeFirstName} ${parsed.data.attendeeLastName}`,
+      `Title: ${parsed.data.attendeeTitle}`,
+      `Company: ${parsed.data.attendeeCompany}`,
+      `Email: ${parsed.data.attendeeEmail}`,
+      parsed.data.message ? `Message: ${parsed.data.message}` : null,
+      ``,
+      `Submitted: ${new Date().toISOString()}`,
+      ``,
+      `Please follow up with this attendee directly by email.`,
+    ].filter(Boolean).join("\n");
+
+    if (contactEmail) {
+      console.log(`[INFO REQUEST EMAIL] To: ${contactEmail}\nSubject: New information request from an event attendee\n\n${msgBody}`);
+    } else {
+      console.warn(`[INFO REQUEST] Sponsor "${sponsor.name}" has no contact email — request ${record.id} stored but no email sent.`);
+    }
+
+    res.status(201).json(record);
+  });
+
+  // Admin: list all information requests with optional filters
+  app.get("/api/admin/information-requests", requireAuth, async (req, res) => {
+    const { eventId, sponsorId, status } = req.query as Record<string, string | undefined>;
+    const filters: { eventId?: string; sponsorId?: string; status?: InformationRequestStatus } = {};
+    if (eventId) filters.eventId = eventId;
+    if (sponsorId) filters.sponsorId = sponsorId;
+    if (status && (INFORMATION_REQUEST_STATUSES as readonly string[]).includes(status)) {
+      filters.status = status as InformationRequestStatus;
+    }
+    const requests = await storage.listInformationRequests(filters);
+    res.json(requests);
+  });
+
+  // Admin: get single information request
+  app.get("/api/admin/information-requests/:id", requireAuth, async (req, res) => {
+    const record = await storage.getInformationRequest(req.params.id);
+    if (!record) return res.status(404).json({ error: "Not found" });
+    res.json(record);
+  });
+
+  // Admin: update status
+  app.patch("/api/admin/information-requests/:id/status", requireAuth, async (req, res) => {
+    const { status } = req.body;
+    if (!status || !(INFORMATION_REQUEST_STATUSES as readonly string[]).includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+    const updated = await storage.updateInformationRequestStatus(req.params.id, status as InformationRequestStatus);
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    res.json(updated);
+  });
+
+  // Sponsor dashboard: list information requests for this sponsor/event
+  app.get("/api/sponsor-dashboard/information-requests", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const requests = await storage.listInformationRequests({ sponsorId: tokenRecord.sponsorId, eventId: tokenRecord.eventId });
+    res.json(requests);
+  });
+
+  // Sponsor dashboard: update status
+  app.patch("/api/sponsor-dashboard/information-requests/:id/status", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const { status } = req.body;
+    if (!status || !(INFORMATION_REQUEST_STATUSES as readonly string[]).includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+    const existing = await storage.getInformationRequest(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    // Sponsor may only update requests belonging to their own sponsor+event
+    if (existing.sponsorId !== tokenRecord.sponsorId || existing.eventId !== tokenRecord.eventId) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    const updated = await storage.updateInformationRequestStatus(req.params.id, status as InformationRequestStatus);
+    res.json(updated);
+  });
+
+  // Data Exchange: export information requests as JSON (frontend will convert to CSV)
+  app.get("/api/admin/data-exchange/export/information-requests", requireAuth, async (req, res) => {
+    const { eventId, sponsorId } = req.query as Record<string, string | undefined>;
+    const filters: { eventId?: string; sponsorId?: string } = {};
+    if (eventId) filters.eventId = eventId;
+    if (sponsorId) filters.sponsorId = sponsorId;
+    const requests = await storage.listInformationRequests(filters);
+    res.json(requests);
   });
 
   return httpServer;

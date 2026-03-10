@@ -516,6 +516,43 @@ export const permissionAuditLogs = pgTable("permission_audit_logs", {
 
 export type PermissionAuditLog = typeof permissionAuditLogs.$inferSelect;
 
+// ── Information Requests ──────────────────────────────────────────────────────
+
+export const INFORMATION_REQUEST_STATUSES = ["New", "Contacted", "Closed"] as const;
+export type InformationRequestStatus = typeof INFORMATION_REQUEST_STATUSES[number];
+
+export const informationRequests = pgTable("information_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id"),
+  sponsorId: varchar("sponsor_id").notNull(),
+  attendeeId: varchar("attendee_id"),
+  attendeeFirstName: text("attendee_first_name").notNull(),
+  attendeeLastName: text("attendee_last_name").notNull(),
+  attendeeEmail: text("attendee_email").notNull(),
+  attendeeCompany: text("attendee_company").notNull(),
+  attendeeTitle: text("attendee_title").notNull(),
+  message: text("message"),
+  consentToShareContact: boolean("consent_to_share_contact").notNull().default(false),
+  source: text("source").notNull().default("Public"),
+  status: text("status", { enum: INFORMATION_REQUEST_STATUSES }).notNull().default("New"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertInformationRequestSchema = createInsertSchema(informationRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  attendeeEmail: z.string().email("Valid email required"),
+  consentToShareContact: z.boolean().refine((v) => v === true, {
+    message: "You must consent to sharing your contact information",
+  }),
+});
+
+export type InsertInformationRequest = z.infer<typeof insertInformationRequestSchema>;
+export type InformationRequest = typeof informationRequests.$inferSelect;
+
 // ── Password Reset Tokens ─────────────────────────────────────────────────────
 
 export const passwordResetTokens = pgTable("password_reset_tokens", {

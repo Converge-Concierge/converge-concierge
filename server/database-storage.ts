@@ -4,7 +4,7 @@ import { db } from "./db";
 import {
   users, events, sponsors, attendees, meetings,
   sponsorTokens, sponsorNotifications, passwordResetTokens, appConfig, dataExchangeLogs,
-  userPermissions, permissionAuditLogs,
+  userPermissions, permissionAuditLogs, informationRequests,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -14,6 +14,7 @@ import {
   type AppSettings, type AppBranding, type PasswordResetToken,
   type DataExchangeLog,
   type UserPermissions, type UserPermissionRecord, type PermissionAuditLog,
+  type InformationRequest, type InsertInformationRequest, type InformationRequestStatus,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -677,5 +678,49 @@ export class DatabaseStorage implements IStorage {
       .from(permissionAuditLogs)
       .orderBy(desc(permissionAuditLogs.changedAt))
       .limit(500);
+  }
+
+  async createInformationRequest(data: InsertInformationRequest): Promise<InformationRequest> {
+    const [record] = await db
+      .insert(informationRequests)
+      .values({
+        ...data,
+        id: randomUUID(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return record;
+  }
+
+  async getInformationRequest(id: string): Promise<InformationRequest | undefined> {
+    const [row] = await db
+      .select()
+      .from(informationRequests)
+      .where(eq(informationRequests.id, id))
+      .limit(1);
+    return row ?? undefined;
+  }
+
+  async listInformationRequests(filters?: { eventId?: string; sponsorId?: string; status?: InformationRequestStatus }): Promise<InformationRequest[]> {
+    const conditions = [];
+    if (filters?.eventId) conditions.push(eq(informationRequests.eventId, filters.eventId));
+    if (filters?.sponsorId) conditions.push(eq(informationRequests.sponsorId, filters.sponsorId));
+    if (filters?.status) conditions.push(eq(informationRequests.status, filters.status));
+
+    const query = db.select().from(informationRequests);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions)).orderBy(desc(informationRequests.createdAt));
+    }
+    return query.orderBy(desc(informationRequests.createdAt));
+  }
+
+  async updateInformationRequestStatus(id: string, status: InformationRequestStatus): Promise<InformationRequest | undefined> {
+    const [updated] = await db
+      .update(informationRequests)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(informationRequests.id, id))
+      .returning();
+    return updated ?? undefined;
   }
 }

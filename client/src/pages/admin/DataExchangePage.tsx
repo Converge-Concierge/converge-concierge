@@ -23,7 +23,8 @@ import {
   Zap,
   Network,
   Filter,
-  AlertTriangle
+  AlertTriangle,
+  MessageSquare
 } from "lucide-react";
 import { 
   Card, 
@@ -1088,6 +1089,119 @@ function NunifySection({
   );
 }
 
+// ── InfoRequestsExportSection ─────────────────────────────────────────────────
+
+function InfoRequestsExportSection({ events, sponsors }: { events: Event[]; sponsors: Sponsor[] }) {
+  const { toast } = useToast();
+  const [selectedEventId, setSelectedEventId] = useState<string>("all");
+  const [selectedSponsorId, setSelectedSponsorId] = useState<string>("all");
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (selectedEventId !== "all") params.set("eventId", selectedEventId);
+      if (selectedSponsorId !== "all") params.set("sponsorId", selectedSponsorId);
+      const res = await fetch(`/api/admin/data-exchange/export/information-requests?${params.toString()}`);
+      if (!res.ok) throw new Error("Export failed");
+      const data: any[] = await res.json();
+      const headers = ["Event", "Sponsor", "FirstName", "LastName", "Email", "Company", "Title", "Message", "ConsentToShare", "Status", "Source", "CreatedAt", "UpdatedAt"];
+      const rows = data.map((r) => {
+        const event = events.find((e) => e.id === r.eventId);
+        const sponsor = sponsors.find((s) => s.id === r.sponsorId);
+        return [
+          event?.name ?? "",
+          sponsor?.name ?? "",
+          r.attendeeFirstName,
+          r.attendeeLastName,
+          r.attendeeEmail,
+          r.attendeeCompany,
+          r.attendeeTitle,
+          r.message ?? "",
+          r.consentToShareContact ? "Yes" : "No",
+          r.status,
+          r.source,
+          r.createdAt ? new Date(r.createdAt).toISOString() : "",
+          r.updatedAt ? new Date(r.updatedAt).toISOString() : "",
+        ];
+      });
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${(cell ?? "").toString().replace(/"/g, '""')}"`).join(",")),
+      ].join("\n");
+      downloadCSV("information_requests_export.csv", csvContent);
+      toast({ title: "Export Complete", description: `${data.length} information request(s) exported.` });
+    } catch {
+      toast({ title: "Export Failed", description: "Something went wrong during export.", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-accent" /> Export Information Requests
+          </CardTitle>
+          <CardDescription>Download information requests submitted by attendees as a CSV file.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Filter by Event</Label>
+              <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                <SelectTrigger data-testid="select-export-ir-event">
+                  <SelectValue placeholder="All Events" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Events</SelectItem>
+                  {events.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Filter by Sponsor</Label>
+              <Select value={selectedSponsorId} onValueChange={setSelectedSponsorId}>
+                <SelectTrigger data-testid="select-export-ir-sponsor">
+                  <SelectValue placeholder="All Sponsors" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sponsors</SelectItem>
+                  {sponsors.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">CSV Columns</p>
+            <div className="flex flex-wrap gap-1.5">
+              {["Event", "Sponsor", "FirstName", "LastName", "Email", "Company", "Title", "Message", "ConsentToShare", "Status", "Source", "CreatedAt", "UpdatedAt"].map((h) => (
+                <span key={h} className="px-2 py-0.5 rounded-md bg-accent/10 text-accent text-xs font-mono border border-accent/20">{h}</span>
+              ))}
+            </div>
+          </div>
+          <Button
+            className="w-full gap-2"
+            onClick={handleExport}
+            disabled={exporting}
+            data-testid="button-export-information-requests"
+          >
+            <Download className="h-4 w-4" />
+            {exporting ? "Exporting…" : "Export as CSV"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function DataExchangePage() {
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
@@ -1117,6 +1231,9 @@ export default function DataExchangePage() {
           </TabsTrigger>
           <TabsTrigger value="meetings" className="gap-2" data-testid="tab-exchange-meetings">
             <Handshake className="h-4 w-4" /> Meetings
+          </TabsTrigger>
+          <TabsTrigger value="information-requests" className="gap-2" data-testid="tab-exchange-information-requests">
+            <MessageSquare className="h-4 w-4" /> Info Requests
           </TabsTrigger>
           <TabsTrigger value="nunify" className="gap-2" data-testid="tab-exchange-nunify">
             <Zap className="h-4 w-4" /> Nunify Meetings
@@ -1148,6 +1265,12 @@ export default function DataExchangePage() {
             sponsors={sponsors} 
             attendees={attendees} 
             meetings={meetings} 
+          />
+        </TabsContent>
+        <TabsContent value="information-requests">
+          <InfoRequestsExportSection
+            events={events}
+            sponsors={sponsors}
           />
         </TabsContent>
         <TabsContent value="nunify">

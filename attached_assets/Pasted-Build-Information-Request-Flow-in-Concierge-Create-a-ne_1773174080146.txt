@@ -1,0 +1,642 @@
+Build Information Request Flow in Concierge
+
+Create a new standalone Information Request workflow in Converge Concierge.
+
+This feature allows an attendee to request follow-up information from a sponsor by email.
+
+This is not a meeting workflow and must remain completely separate from:
+
+Meetings
+
+Nunify export
+
+meeting scheduling logic
+
+sponsorship tier logic
+
+For this first version, apply the feature uniformly to all sponsors.
+
+Primary Goal
+
+Add a Request Information button to sponsor cards and sponsor detail views so attendees can submit a short form requesting follow-up information from a sponsor.
+
+When submitted, the system should:
+
+create an Information Request record
+
+notify the sponsor by email
+
+optionally notify the attendee by confirmation email
+
+make the request visible in:
+
+Admin panel
+
+Sponsor Dashboard
+
+Data Exchange export
+
+Scope Rules
+Do build
+
+Request Information button
+
+attendee request form
+
+information request database object
+
+sponsor notification email
+
+admin Information Requests section
+
+sponsor dashboard Information Requests section
+
+Data Exchange export for Information Requests
+
+Do not build
+
+Meeting Requests
+
+automatic meeting creation
+
+Nunify integration
+
+sponsor-tier-specific behavior
+
+request-to-meeting conversion flow
+
+import for Information Requests unless trivial to support later
+
+This is a standalone sponsor inquiry workflow only.
+
+1. New Database Object
+
+Create a new table / model:
+
+information_requests
+
+Suggested fields:
+
+id
+event_id
+sponsor_id
+attendee_id nullable
+
+attendee_first_name
+attendee_last_name
+attendee_email
+attendee_company
+attendee_title
+
+message nullable
+consent_to_share_contact boolean
+
+source
+status
+
+created_at
+updated_at
+Field Notes
+
+event_id: required if sponsor is associated with a specific event context
+
+sponsor_id: required
+
+attendee_id: nullable in case the user is not tied to a known attendee record
+
+message: optional
+
+consent_to_share_contact: required true before submit succeeds
+
+source: default to Public
+
+status: default to New
+
+2. Status Values
+
+For V1, use only these statuses:
+
+New
+
+Contacted
+
+Closed
+
+Do not add extra complexity yet.
+
+3. Add Request Information Button
+
+Add a Request Information button to all sponsor-facing attendee views.
+
+Include this on:
+
+sponsor cards
+
+sponsor detail page
+
+any attendee-facing sponsor discovery page where sponsor actions are shown
+
+Button label:
+
+Request Information
+
+This should appear for all sponsors equally.
+
+Do not customize by sponsorship level yet.
+
+4. Request Information Modal / Form
+
+When the attendee clicks Request Information, open a modal or slide-out form.
+
+Form fields
+
+Required:
+
+First Name
+
+Last Name
+
+Email
+
+Company
+
+Title
+
+Optional:
+
+Message
+
+Required checkbox:
+
+I consent to sharing my contact information with this sponsor.
+
+Submit button:
+
+Send Request
+
+Cancel button:
+
+Cancel
+
+5. Prefill Behavior
+
+If attendee data is already known from registration or session context, prefill:
+
+First Name
+
+Last Name
+
+Email
+
+Company
+
+Title
+
+The attendee should still be able to edit the values if appropriate.
+
+6. Validation Rules
+
+Before submit:
+
+sponsor must exist
+
+email must be valid
+
+first name required
+
+last name required
+
+company required
+
+title required
+
+consent checkbox must be checked
+
+If any required field is missing, show inline validation.
+
+If consent is not checked, block submission.
+
+7. Submit Behavior
+
+When the form is submitted successfully:
+
+create a new information_requests record
+
+set status = New
+
+set source = Public unless another source is explicitly known
+
+send sponsor notification email
+
+optionally send attendee confirmation email
+
+show success message in UI
+
+Success message:
+
+Your information request has been sent. This sponsor will follow up with you by email.
+
+After success:
+
+close modal
+
+optionally clear form state
+
+8. Sponsor Notification Email
+
+Send an email to the sponsor’s designated contact email.
+
+Use the sponsor contact email already stored on the sponsor record.
+
+Subject
+
+New information request from an event attendee
+
+Body should include
+
+Sponsor name
+
+Event name if available
+
+Attendee full name
+
+Attendee title
+
+Attendee company
+
+Attendee email
+
+Attendee message if provided
+
+Date submitted
+
+Suggested closing:
+Please follow up with this attendee directly by email.
+
+If sponsor contact email is missing:
+
+log the request anyway
+
+surface an admin warning
+
+do not fail the request submission
+
+9. Optional Attendee Confirmation Email
+
+If email infrastructure is already in place, send a confirmation email to the attendee.
+
+Subject
+
+Your request has been sent
+
+Body
+
+Thank them for requesting information and tell them the sponsor will follow up directly.
+
+This is recommended but not required if it slows down delivery.
+
+10. New Admin Module
+
+Add a new page in the admin interface:
+
+Information Requests
+
+Place it under Management in the sidebar.
+
+Recommended placement:
+
+Dashboard
+
+Events
+
+Sponsors
+
+Attendees
+
+Meetings
+
+Information Requests
+
+Reports
+
+Data Exchange
+
+Do not add Meeting Requests.
+
+11. Admin Information Requests Page
+
+Create a table view for all requests.
+
+Recommended columns
+
+Event
+
+Sponsor
+
+Attendee
+
+Company
+
+Email
+
+Status
+
+Source
+
+Submitted Date
+
+Actions
+
+Actions
+
+View
+
+Mark Contacted
+
+Mark Closed
+
+Filters
+
+Event
+
+Sponsor
+
+Status
+
+Date range
+
+Keep the page simple and operational.
+
+12. Request Detail View
+
+When admin clicks View, show a detail panel or page with:
+
+Sponsor
+
+Event
+
+Attendee first name
+
+Attendee last name
+
+Email
+
+Company
+
+Title
+
+Message
+
+Consent value
+
+Source
+
+Status
+
+Created date
+
+Updated date
+
+Admin should be able to update status from this screen.
+
+13. Sponsor Dashboard Section
+
+Add a new section or tab inside Sponsor Dashboard:
+
+Information Requests
+
+This should show requests submitted for that sponsor only.
+
+Recommended columns
+
+Attendee
+
+Company
+
+Title
+
+Email
+
+Message
+
+Submitted Date
+
+Status
+
+Sponsor actions
+
+Mark Contacted
+
+Mark Closed
+
+Do not allow sponsors to edit the attendee’s submitted data.
+
+14. Sponsor Dashboard Metrics
+
+Optional but useful if easy to implement:
+
+Add a metric card:
+
+Information Requests
+
+This should count total requests for the sponsor.
+
+If adding KPI cards is simple, also consider:
+
+New Requests
+
+Contacted Requests
+
+But only if it does not slow down implementation.
+
+15. Data Exchange Integration
+
+Add a new tab in Data Exchange:
+
+Information Requests
+
+Current tabs should become:
+
+Sponsors
+
+Attendees
+
+Meetings
+
+Information Requests
+
+Nunify Meetings
+
+This tab should support export.
+
+For V1, export only. No import required.
+
+16. Information Requests Export
+
+Create CSV export for Information Requests.
+
+Recommended columns
+Event
+Sponsor
+Attendee First Name
+Attendee Last Name
+Email
+Company
+Title
+Message
+Consent To Share Contact
+Status
+Source
+Created At
+Updated At
+
+This export is useful for:
+
+sponsor reporting
+
+admin review
+
+workflow audits
+
+17. Audit Logging
+
+If the system already has activity or audit logging, log these actions:
+
+Information Request submitted
+
+Information Request status changed
+
+Information Requests exported
+
+This should appear consistently with other admin actions if that logging framework already exists.
+
+18. Access Control
+
+If access control already exists, add permissions for the new module.
+
+Suggested permissions:
+
+View Information Requests
+
+Export Information Requests
+
+Edit Information Request Status
+
+For sponsors, access should automatically be restricted to their own requests.
+
+19. UI/UX Requirements
+Attendee-facing UI
+
+Keep the form short
+
+Use clear confirmation language
+
+Avoid making it feel like a meeting request
+
+Do not mention scheduling
+
+Admin UI
+
+Make it easy to scan and triage
+
+Keep statuses simple
+
+Keep filters minimal but useful
+
+Sponsor UI
+
+Present requests as leads requiring follow-up
+
+Do not mix them with meetings
+
+20. Critical Separation Rule
+
+Information Requests must remain fully separate from Meetings.
+
+Do not:
+
+create meeting records
+
+show them in Meetings
+
+include them in meeting counts
+
+include them in Nunify exports
+
+share scheduling statuses or workflow logic
+
+This is a sponsor inquiry workflow only.
+
+21. Recommended Delivery Order
+
+Implement in this order:
+
+Phase 1
+
+database model
+
+attendee-facing button
+
+request modal
+
+validation
+
+request persistence
+
+Phase 2
+
+sponsor notification email
+
+success state
+
+Phase 3
+
+admin Information Requests page
+
+status update actions
+
+Phase 4
+
+sponsor dashboard Information Requests section
+
+Phase 5
+
+Data Exchange export
+
+This order gets the core workflow working first.
+
+22. Expected Final Behavior
+
+An attendee browsing sponsors can click Request Information, fill out a short form, and submit it.
+
+The sponsor receives an email notification.
+
+The request is stored and visible in:
+
+Admin → Information Requests
+
+Sponsor Dashboard → Information Requests
+
+Data Exchange → Information Requests export
+
+The request remains fully separate from all meeting workflows.
+
+23. Definition of Done
+
+This feature is complete when:
+
+Request Information button appears on sponsor views
+
+attendee can submit the form successfully
+
+request record is stored in database
+
+sponsor receives notification email
+
+admin can view request in Information Requests module
+
+sponsor can view request in sponsor dashboard
+
+Information Requests can be exported from Data Exchange
+
+no connection exists to Meetings or Nunify workflows

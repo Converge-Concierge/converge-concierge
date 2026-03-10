@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { downloadICS, googleCalendarUrl } from "@/lib/ics";
 import PublicFooter from "@/components/PublicFooter";
 import LegalAcknowledgment from "@/components/LegalAcknowledgment";
+import { RequestInfoModal } from "@/components/RequestInfoModal";
 
 // ── Event domain mapping ─────────────────────────────────────────────────────
 const eventDomainMap: Record<string, string> = {
@@ -324,6 +325,7 @@ export default function EventPage() {
   const [agreeToTerms,  setAgreeToTerms]  = useState(false);
   const [showLinkedIn,  setShowLinkedIn]  = useState(false);
   const [createdMeetingId, setCreatedMeetingId] = useState<string | null>(null);
+  const [requestInfoSponsor, setRequestInfoSponsor] = useState<Sponsor | null>(null);
 
   // ── Persist topic filters in sessionStorage (event-specific) ────────────
   useEffect(() => {
@@ -738,6 +740,7 @@ export default function EventPage() {
   // ── STEP 0: SPONSOR SELECTION ─────────────────────────────────────────────
   if (step === 0) {
     return (
+      <>
       <Shell style={eventColorStyle}>
         <motion.div {...slide} className="w-full max-w-5xl mx-auto px-6 pt-5 pb-8">
           {/* Event header */}
@@ -1007,6 +1010,13 @@ export default function EventPage() {
                         )}
                       </>
                     )}
+                    <button
+                      onClick={() => setRequestInfoSponsor(sponsor)}
+                      data-testid={`btn-request-info-${sponsor.id}`}
+                      className="w-full py-1.5 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground bg-transparent hover:bg-muted/50 transition-all duration-150 active:scale-[0.98]"
+                    >
+                      Request Information
+                    </button>
                   </div>
                 </motion.div>
               ))}
@@ -1015,6 +1025,21 @@ export default function EventPage() {
           )}
         </motion.div>
       </Shell>
+      <RequestInfoModal
+        open={!!requestInfoSponsor}
+        onClose={() => setRequestInfoSponsor(null)}
+        sponsorId={requestInfoSponsor?.id ?? ""}
+        sponsorName={requestInfoSponsor?.name ?? ""}
+        eventId={event.id}
+        prefill={{
+          firstName: attendee.firstName,
+          lastName: attendee.lastName,
+          email: attendee.email,
+          company: attendee.company,
+          title: attendee.title,
+        }}
+      />
+      </>
     );
   }
 

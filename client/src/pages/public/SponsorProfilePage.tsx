@@ -1,14 +1,16 @@
 import { useParams, useLocation } from "wouter";
+import { useState } from "react";
 import PublicFooter from "@/components/PublicFooter";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Hexagon, Building2, ArrowLeft, Globe, Linkedin, Calendar, Video,
-  FileText, ChevronRight, Tag, Gem,
+  FileText, ChevronRight, Tag, Gem, Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Event, Sponsor } from "@shared/schema";
 import { cn } from "@/lib/utils";
+import { RequestInfoModal } from "@/components/RequestInfoModal";
 
 const levelBadge: Record<string, string> = {
   Platinum: "bg-slate-800 text-white border-slate-700",
@@ -20,6 +22,7 @@ const levelBadge: Record<string, string> = {
 export default function SponsorProfilePage() {
   const { slug, sponsorId } = useParams<{ slug: string; sponsorId: string }>();
   const [, nav] = useLocation();
+  const [requestInfoOpen, setRequestInfoOpen] = useState(false);
 
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: sponsor, isLoading, isError } = useQuery<Sponsor>({
@@ -196,12 +199,23 @@ export default function SponsorProfilePage() {
                     variant="outline"
                     onClick={() => nav(`/event/${slug}?sponsor=${sponsor.id}&mode=online`)}
                     className="gap-2 flex-1"
-                    data-testid="button-request-online"
+                    data-testid="button-request-online-profile"
                   >
                     <Video className="h-4 w-4" />
                     Request Online Meeting
                   </Button>
                 )}
+              </div>
+              <div className="mt-3 pt-3 border-t border-border/40">
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setRequestInfoOpen(true)}
+                  data-testid="button-request-info-profile"
+                >
+                  <Mail className="h-4 w-4" />
+                  Request Information
+                </Button>
               </div>
             </div>
           )}
@@ -246,6 +260,14 @@ export default function SponsorProfilePage() {
       </main>
 
       <PublicFooter />
+
+      <RequestInfoModal
+        open={requestInfoOpen}
+        onClose={() => setRequestInfoOpen(false)}
+        sponsorId={sponsor.id}
+        sponsorName={sponsor.name}
+        eventId={event?.id}
+      />
     </div>
   );
 }

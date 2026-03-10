@@ -7,7 +7,7 @@ import {
   CheckCircle2, Clock, Handshake, Linkedin, LogOut,
   Bell, BellOff, Download, ExternalLink, Video, Mail,
   UserCheck, AlertCircle, ChevronDown, ChevronUp, FileDown,
-  BarChart3, Monitor, TrendingUp, Link2, X as XIcon, Gem,
+  BarChart3, Monitor, TrendingUp, Link2, X as XIcon, Gem, MessageSquare,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
@@ -122,6 +122,7 @@ export default function SponsorDashboardPage() {
   const { toast } = useToast();
   const [notifOpen, setNotifOpen] = useState(true);
   const [leadsOpen, setLeadsOpen] = useState(false);
+  const [infoRequestsOpen, setInfoRequestsOpen] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [linkInput, setLinkInput] = useState("");
 
@@ -174,6 +175,51 @@ export default function SponsorDashboardPage() {
         Declined:  "Request declined.",
       };
       toast({ title: "Status updated", description: labels[variables.status] ?? "Meeting status updated." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  interface InfoRequest {
+    id: string;
+    eventId: string | null;
+    attendeeFirstName: string;
+    attendeeLastName: string;
+    attendeeEmail: string;
+    attendeeCompany: string;
+    attendeeTitle: string;
+    message: string | null;
+    consentToShareContact: boolean;
+    source: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  }
+
+  const { data: infoRequests = [], refetch: refetchInfoRequests } = useQuery<InfoRequest[]>({
+    queryKey: ["/api/sponsor-dashboard/information-requests", token],
+    queryFn: async () => {
+      const res = await fetch(`/api/sponsor-dashboard/information-requests?token=${token}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!token,
+  });
+
+  const updateInfoStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await fetch(`/api/sponsor-dashboard/information-requests/${id}/status?token=${token}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchInfoRequests();
+      toast({ title: "Status updated" });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -379,11 +425,12 @@ export default function SponsorDashboardPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatCard label="Total Meetings"      value={stats.total}         icon={Handshake}   />
-            <StatCard label="Completed"           value={stats.completed}     icon={CheckCircle2} />
-            <StatCard label="Pending Online"      value={stats.pendingOnline} icon={Video}       />
-            <StatCard label="Companies Met"       value={stats.companies}     icon={Users}       />
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <StatCard label="Total Meetings"      value={stats.total}              icon={Handshake}      />
+            <StatCard label="Completed"           value={stats.completed}          icon={CheckCircle2}   />
+            <StatCard label="Pending Online"      value={stats.pendingOnline}      icon={Video}          />
+            <StatCard label="Companies Met"       value={stats.companies}          icon={Users}          />
+            <StatCard label="Info Requests"       value={infoRequests.length}      icon={MessageSquare}  />
           </div>
 
           {/* Charts — only shown when there's data */}
@@ -861,6 +908,100 @@ export default function SponsorDashboardPage() {
               )
             )}
           </div>
+          {/* ── Information Requests section ──────────────────────────────── */}
+          <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+            <button
+              onClick={() => setInfoRequestsOpen((v) => !v)}
+              className="w-full px-6 py-4 border-b border-border/50 flex items-center justify-between hover:bg-muted/30 transition-colors"
+              data-testid="toggle-info-requests"
+            >
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-accent" />
+                Information Requests
+                <span className="text-xs font-normal text-muted-foreground">({infoRequests.length} total)</span>
+              </h2>
+              <div className="flex items-center gap-3">
+                {infoRequestsOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </div>
+            </button>
+
+            {infoRequestsOpen && (
+              infoRequests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-2">
+                  <MessageSquare className="h-8 w-8 opacity-20" />
+                  <p className="text-sm">No information requests yet.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="hidden sm:grid grid-cols-[1fr_140px_160px_120px_100px_160px] gap-3 px-6 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    <span>Name / Title</span>
+                    <span>Company</span>
+                    <span>Email</span>
+                    <span>Status</span>
+                    <span>Source</span>
+                    <span>Actions</span>
+                  </div>
+                  <div className="divide-y divide-border/40">
+                    {[...infoRequests]
+                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .map((req) => {
+                        const statusColor =
+                          req.status === "New"       ? "bg-blue-100 text-blue-700 border-blue-200" :
+                          req.status === "Contacted" ? "bg-amber-100 text-amber-700 border-amber-200" :
+                                                       "bg-gray-100 text-gray-600 border-gray-200";
+                        return (
+                          <div
+                            key={req.id}
+                            className="px-6 py-4 flex flex-col sm:grid sm:grid-cols-[1fr_140px_160px_120px_100px_160px] sm:items-start gap-3 hover:bg-muted/30 transition-colors"
+                            data-testid={`info-req-row-${req.id}`}
+                          >
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">{req.attendeeFirstName} {req.attendeeLastName}</p>
+                              <p className="text-xs text-muted-foreground">{req.attendeeTitle}</p>
+                              {req.message && (
+                                <p className="text-xs text-muted-foreground/70 mt-1 line-clamp-2 italic">"{req.message}"</p>
+                              )}
+                            </div>
+                            <p className="text-sm text-foreground truncate">{req.attendeeCompany}</p>
+                            <p className="text-xs text-muted-foreground truncate">{req.attendeeEmail}</p>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusColor} w-fit`}>
+                              {req.status}
+                            </span>
+                            <p className="text-xs text-muted-foreground">{req.source}</p>
+                            <div className="flex gap-2 flex-wrap">
+                              {req.status === "New" && (
+                                <button
+                                  onClick={() => updateInfoStatus.mutate({ id: req.id, status: "Contacted" })}
+                                  disabled={updateInfoStatus.isPending}
+                                  className="text-xs px-2.5 py-1 rounded-lg border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                                  data-testid={`btn-contacted-${req.id}`}
+                                >
+                                  Mark Contacted
+                                </button>
+                              )}
+                              {req.status !== "Closed" && (
+                                <button
+                                  onClick={() => updateInfoStatus.mutate({ id: req.id, status: "Closed" })}
+                                  disabled={updateInfoStatus.isPending}
+                                  className="text-xs px-2.5 py-1 rounded-lg border border-gray-300 text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                                  data-testid={`btn-close-req-${req.id}`}
+                                >
+                                  Close
+                                </button>
+                              )}
+                              {req.status === "Closed" && (
+                                <span className="text-xs text-muted-foreground/50">Closed</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </>
+              )
+            )}
+          </div>
+
           {/* ── Performance Report section ─────────────────────────────────── */}
           <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">

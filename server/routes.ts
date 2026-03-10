@@ -488,6 +488,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(detail);
   });
 
+  app.post("/api/attendees/prefill-lookup", async (req, res) => {
+    const { eventId, email } = req.body ?? {};
+    if (!eventId || !email || typeof email !== "string") {
+      return res.json({ found: false });
+    }
+    try {
+      const attendee = await storage.getAttendeeByEmailAndEvent(email.toLowerCase().trim(), eventId);
+      if (attendee && (attendee.archiveState ?? "active") === "active") {
+        const firstName = attendee.firstName || attendee.name?.split(" ")[0] || "";
+        const lastName  = attendee.lastName  || attendee.name?.split(" ").slice(1).join(" ") || "";
+        console.log(`[PREFILL LOOKUP] Match: ${attendee.email} → ${firstName} ${lastName} (event ${eventId})`);
+        return res.json({
+          found: true,
+          attendee: {
+            attendeeId: attendee.id,
+            firstName,
+            lastName,
+            email: attendee.email,
+            company: attendee.company ?? "",
+            title: attendee.title ?? "",
+          },
+        });
+      }
+      console.log(`[PREFILL LOOKUP] No match: ${email} (event ${eventId})`);
+      return res.json({ found: false });
+    } catch (err) {
+      console.error("[PREFILL LOOKUP] Error:", err);
+      return res.json({ found: false });
+    }
+  });
+
   // ── Meetings ─────────────────────────────────────────────────────────────
   app.get("/api/meetings", async (_req, res) => {
     res.json(await storage.getMeetings());

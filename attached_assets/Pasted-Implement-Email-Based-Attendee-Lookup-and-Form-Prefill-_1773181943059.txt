@@ -1,0 +1,440 @@
+Implement Email-Based Attendee Lookup and Form Prefill in Concierge
+
+Implement a lightweight attendee lookup flow that allows Concierge to prefill form fields after the user enters their email address.
+
+This should use the attendee records already synced from:
+
+Eventzilla → Zapier → Webhook → Concierge
+
+The goal is to reduce friction in attendee-facing forms without requiring login.
+
+Primary Goal
+
+When a user enters their email address into a Concierge form, the system should:
+
+check whether that email matches an attendee record for the current event
+
+if a match is found, prefill the relevant fields
+
+allow the user to review and edit the prefilled values if appropriate
+
+continue with normal form submission
+
+This should work as a lookup convenience feature, not as an authentication system.
+
+Scope for This Phase
+Do build
+
+email lookup by current event
+
+auto-prefill after email entry
+
+graceful fallback when no match is found
+
+support for attendee-facing forms
+
+Do not build yet
+
+magic link / token system
+
+auto-login behavior
+
+hidden personalized dashboards based only on email
+
+privileged access to attendee history or private records
+
+This is a form convenience feature only.
+
+Forms This Should Support
+
+Implement this lookup/prefill behavior anywhere attendees enter contact information for sponsor engagement.
+
+Minimum required forms
+
+Information Request form
+
+Meeting scheduling form
+
+Recommended additional form
+
+any sponsor interaction form that asks for:
+
+first name
+
+last name
+
+email
+
+company
+
+title
+
+If there are multiple forms using the same attendee info pattern, create a reusable lookup/prefill helper.
+
+Core Behavior
+Step 1
+
+The form should ask for email address first or treat email as the trigger field.
+
+Step 2
+
+When the user finishes entering email, trigger attendee lookup.
+
+Recommended triggers:
+
+on blur of email field
+
+or after short debounce if using live input
+
+or via a small “Find My Registration” helper action
+
+Preferred approach:
+
+trigger on blur
+
+optionally also trigger when user clicks into the next field
+
+Do not run a lookup on every keystroke without debounce.
+
+Step 3
+
+Search the attendee database for a record matching:
+
+current event
+
+email address
+
+Matching rules
+
+Use:
+
+exact email match, case-insensitive
+
+limited to the current event context
+
+Recommended lookup logic:
+
+Find attendee where:
+lower(email) = lower(submitted_email)
+and event_id = current_event_id
+
+If multiple records somehow match, use the most recent active/registered one.
+
+Step 4
+
+If a match is found, prefill these fields:
+
+First Name
+
+Last Name
+
+Email
+
+Company
+
+Title
+
+Optional:
+
+Phone, only if truly useful in that form
+
+Do not prefill unnecessary fields.
+
+Step 5
+
+Show a subtle helper message such as:
+
+We found your registration and prefilled your information.
+
+This reassures the attendee and explains why fields changed.
+
+Step 6
+
+If no match is found:
+
+do not block the user
+
+leave the form usable
+
+allow manual entry
+
+Optional helper message:
+
+We couldn’t find a registration for that email. Please complete the form manually.
+
+Keep this message neutral and non-alarming.
+
+Data Safety Rules
+
+This feature is for convenience only.
+
+Do not expose
+
+internal notes
+
+meeting history
+
+sponsor notes
+
+admin-only fields
+
+private event metadata
+
+any sensitive record information beyond basic attendee identity fields
+
+Only use the matched attendee record to prefill the visible form fields.
+
+Event Scoping Is Required
+
+The lookup must be scoped to the current event.
+
+This is important because the same email address may appear in multiple events.
+
+Required rule
+
+Concierge must only prefill from the attendee record associated with the event page the user is currently on.
+
+Example:
+
+on FRC2026 page, lookup only FRC2026 attendees
+
+on USBT2026 page, lookup only USBT2026 attendees
+
+Do not match globally across all events unless no event context exists and that case is intentionally supported.
+
+UX Recommendations
+Option A: Automatic lookup on email blur
+
+This is the preferred default.
+
+Flow:
+
+user enters email
+
+user tabs out of email field
+
+lookup runs
+
+fields auto-populate if matched
+
+Option B: Add a small helper link or button
+
+If useful, add a small action near the email field:
+
+Find my registration
+
+This can manually trigger lookup if auto-lookup is not preferred everywhere.
+
+You may support both if simple.
+
+Handling User Edits
+
+After prefilling, users should still be able to edit fields like:
+
+first name
+
+last name
+
+company
+
+title
+
+This matters because:
+
+job titles change
+
+company naming may need adjustment
+
+users may want corrections
+
+Do not hard-lock these fields.
+
+Email should remain editable too, unless there is a strong workflow reason not to.
+
+Technical Design Recommendation
+
+Create a reusable service or helper for attendee lookup, rather than implementing separate lookup logic in each form.
+
+Example responsibility
+
+lookupAttendeeByEmailForEvent(email, eventId)
+
+This helper should:
+
+normalize email
+
+query attendee records
+
+return a safe prefill payload only
+
+Example returned fields:
+
+{
+  attendee_id,
+  first_name,
+  last_name,
+  email,
+  company,
+  title
+}
+
+Do not return unnecessary private fields to the client.
+
+Backend Endpoint Recommendation
+
+If lookup happens through an API call, create a lightweight endpoint such as:
+
+POST /api/attendees/prefill-lookup
+
+Request:
+
+{
+  eventId,
+  email
+}
+
+Response on match:
+
+{
+  found: true,
+  attendee: {
+    attendeeId,
+    firstName,
+    lastName,
+    email,
+    company,
+    title
+  }
+}
+
+Response on no match:
+
+{
+  found: false
+}
+
+Keep it minimal and safe.
+
+Forms to Update
+1. Information Request form
+
+When attendee enters email:
+
+lookup attendee for current event
+
+prefill:
+
+first name
+
+last name
+
+company
+
+title
+
+This is likely the highest-value first implementation.
+
+2. Meeting scheduling form
+
+When attendee enters email:
+
+lookup attendee
+
+prefill attendee details
+
+continue meeting workflow normally
+
+This will improve booking conversion.
+
+Error Handling
+
+If the lookup fails due to a system issue:
+
+do not block form submission
+
+show a soft message if needed:
+
+“We couldn’t retrieve your registration details right now. Please complete the form manually.”
+
+This should be treated as a convenience failure, not a blocking error.
+
+Analytics / Logging
+
+If reasonable, log:
+
+successful attendee prefill lookups
+
+unmatched lookups
+
+lookup errors
+
+This can help evaluate how often the feature is working and where matching issues exist.
+
+Do not overbuild logging if it slows implementation.
+
+UI Copy Recommendations
+On match
+
+We found your registration and prefilled your information.
+
+On no match
+
+We couldn’t find a registration for that email. Please complete the form manually.
+
+Optional helper near email field
+
+Enter the email address you used to register.
+
+This improves clarity.
+
+Accessibility / UX Notes
+
+do not surprise the user with aggressive re-rendering
+
+if fields are auto-populated, preserve focus where possible
+
+if values are inserted automatically, ensure labels remain clear
+
+keep the experience smooth on mobile as well as desktop
+
+Implementation Priority
+
+Implement in this order:
+
+Phase 1
+
+create reusable attendee lookup helper
+
+implement backend lookup scoped to event + email
+
+return safe prefill payload
+
+Phase 2
+
+wire lookup into Information Request form
+
+wire lookup into Meeting scheduling form
+
+Phase 3
+
+add helper messaging for match / no match
+
+polish field update behavior
+
+This keeps rollout clean and focused.
+
+Definition of Done
+
+This feature is complete when:
+
+attendee-facing forms can look up a synced attendee by email
+
+lookup is scoped to the current event
+
+matched attendee info prefills basic visible form fields
+
+unmatched users can still complete the form manually
+
+the feature does not expose private or admin-only data
+
+Information Request and Meeting forms both support the behavior

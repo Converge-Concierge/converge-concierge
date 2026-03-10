@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, SendHorizonal, CheckCircle2 } from "lucide-react";
+import { Loader2, SendHorizonal, CheckCircle2, UserCheck, Info } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
+import { useAttendeePrefill } from "@/hooks/use-attendee-prefill";
 
 interface RequestInfoPrefill {
   firstName?: string;
@@ -47,9 +48,25 @@ export function RequestInfoModal({
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  const { status: prefillStatus, lookup: lookupAttendee } = useAttendeePrefill(eventId);
+
   function field(key: keyof typeof form, value: string | boolean) {
     setForm((f) => ({ ...f, [key]: value }));
     if (errors[key]) setErrors((e) => { const n = { ...e }; delete n[key]; return n; });
+  }
+
+  async function handleEmailBlur() {
+    if (!eventId || !form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) return;
+    const found = await lookupAttendee(form.email);
+    if (found) {
+      setForm((f) => ({
+        ...f,
+        firstName: f.firstName.trim() || found.firstName,
+        lastName:  f.lastName.trim()  || found.lastName,
+        company:   f.company.trim()   || found.company,
+        title:     f.title.trim()     || found.title,
+      }));
+    }
   }
 
   function validate() {
@@ -132,6 +149,52 @@ export function RequestInfoModal({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+
+            {/* Email first — triggers lookup on blur */}
+            <div className="space-y-1">
+              <Label htmlFor="req-email">
+                Email <span className="text-destructive">*</span>
+                {eventId && (
+                  <span className="text-muted-foreground font-normal ml-1.5 text-xs">
+                    — enter the email you registered with
+                  </span>
+                )}
+              </Label>
+              <div className="relative">
+                <Input
+                  id="req-email"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => field("email", e.target.value)}
+                  onBlur={handleEmailBlur}
+                  placeholder="jane@acmecorp.com"
+                  className={cn(errors.email ? "border-destructive" : "", "pr-8")}
+                  data-testid="input-req-email"
+                />
+                {prefillStatus === "loading" && (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2" />
+                )}
+                {prefillStatus === "found" && (
+                  <UserCheck className="h-3.5 w-3.5 text-green-600 absolute right-2.5 top-1/2 -translate-y-1/2" />
+                )}
+              </div>
+              {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+            </div>
+
+            {/* Prefill status banner */}
+            {prefillStatus === "found" && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-xs text-green-700" data-testid="banner-prefill-found">
+                <UserCheck className="h-3.5 w-3.5 shrink-0" />
+                We found your registration and prefilled your information.
+              </div>
+            )}
+            {prefillStatus === "not-found" && form.email.trim() && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/60 border border-border/60 text-xs text-muted-foreground" data-testid="banner-prefill-not-found">
+                <Info className="h-3.5 w-3.5 shrink-0" />
+                We couldn't find a registration for that email. Please complete the form manually.
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="req-firstName">First Name <span className="text-destructive">*</span></Label>
@@ -157,20 +220,6 @@ export function RequestInfoModal({
                 />
                 {errors.lastName && <p className="text-xs text-destructive">{errors.lastName}</p>}
               </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="req-email">Email <span className="text-destructive">*</span></Label>
-              <Input
-                id="req-email"
-                type="email"
-                value={form.email}
-                onChange={(e) => field("email", e.target.value)}
-                placeholder="jane@acmecorp.com"
-                className={errors.email ? "border-destructive" : ""}
-                data-testid="input-req-email"
-              />
-              {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">

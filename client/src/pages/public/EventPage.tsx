@@ -7,7 +7,7 @@ import { Event, Sponsor, Meeting, AppBranding, EventSponsorLink } from "@shared/
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
   AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Clock, User, Video, Download, ExternalLink,
-  Filter, X, Gem, Linkedin, MonitorPlay,
+  Filter, X, Gem, Linkedin, MonitorPlay, UserCheck, Info,
 } from "lucide-react";
 import { SiZoom, SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { downloadICS, googleCalendarUrl } from "@/lib/ics";
 import PublicFooter from "@/components/PublicFooter";
 import LegalAcknowledgment from "@/components/LegalAcknowledgment";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
+import { useAttendeePrefill } from "@/hooks/use-attendee-prefill";
 
 // ── Event domain mapping ─────────────────────────────────────────────────────
 const eventDomainMap: Record<string, string> = {
@@ -404,6 +405,8 @@ export default function EventPage() {
     );
   }, [eventSponsors, activeFilters]);
 
+  const { status: prefillStatus, lookup: lookupAttendee } = useAttendeePrefill(event?.id);
+
   const eventColorStyle = useMemo((): React.CSSProperties => {
     if (!event) return {};
     const vars: Record<string, string> = {};
@@ -468,6 +471,20 @@ export default function EventPage() {
   }, [event]);
 
   function go(s: number) { setError(""); setStep(s); }
+
+  async function handleBookingEmailBlur() {
+    if (!attendee.email.trim() || !/\S+@\S+\.\S+/.test(attendee.email)) return;
+    const found = await lookupAttendee(attendee.email);
+    if (found) {
+      setAttendee((a) => ({
+        ...a,
+        firstName: a.firstName.trim() || found.firstName,
+        lastName:  a.lastName.trim()  || found.lastName,
+        company:   a.company.trim()   || found.company,
+        title:     a.title.trim()     || found.title,
+      }));
+    }
+  }
 
   function pickSponsor(s: Sponsor) {
     setSelectedSponsor(s);
@@ -1358,13 +1375,44 @@ export default function EventPage() {
                     Your Info
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Already registered for this event? Enter your email to link to your record.
+                    Enter your registration email to auto-fill your details.
                   </p>
                 </div>
 
                 {error && (
                   <div className="flex items-start gap-2 rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive">
                     <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" /><span>{error}</span>
+                  </div>
+                )}
+
+                {/* Email first — triggers lookup */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="on-email" className="text-xs font-medium">Email</Label>
+                  <div className="relative">
+                    <Input id="on-email" type="email" value={attendee.email}
+                      onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
+                      onBlur={handleBookingEmailBlur}
+                      placeholder="jane@company.com" className={cn("h-9 text-sm", prefillStatus === "loading" ? "pr-8" : "")} data-testid="input-online-email" />
+                    {prefillStatus === "loading" && (
+                      <Info className="h-3.5 w-3.5 animate-pulse text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2" />
+                    )}
+                    {prefillStatus === "found" && (
+                      <UserCheck className="h-3.5 w-3.5 text-green-600 absolute right-2.5 top-1/2 -translate-y-1/2" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Prefill status banner */}
+                {prefillStatus === "found" && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-xs text-green-700" data-testid="banner-booking-prefill-found">
+                    <UserCheck className="h-3.5 w-3.5 shrink-0" />
+                    We found your registration and prefilled your information.
+                  </div>
+                )}
+                {prefillStatus === "not-found" && attendee.email.trim() && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/60 border border-border/60 text-xs text-muted-foreground" data-testid="banner-booking-prefill-not-found">
+                    <Info className="h-3.5 w-3.5 shrink-0" />
+                    We couldn't find a registration for that email. Please complete the form manually.
                   </div>
                 )}
 
@@ -1392,12 +1440,6 @@ export default function EventPage() {
                     <Input id="on-title" value={attendee.title}
                       onChange={(e) => setAttendee({ ...attendee, title: e.target.value })}
                       placeholder="VP of Finance" className="h-9 text-sm" data-testid="input-online-title" />
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label htmlFor="on-email" className="text-xs font-medium">Email</Label>
-                    <Input id="on-email" type="email" value={attendee.email}
-                      onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
-                      placeholder="jane@company.com" className="h-9 text-sm" data-testid="input-online-email" />
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -1617,13 +1659,44 @@ export default function EventPage() {
                   Your Info
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Already registered for this event? Enter your email to link to your record.
+                  Enter your registration email to auto-fill your details.
                 </p>
               </div>
 
               {error && (
                 <div className="flex items-start gap-2 rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" /><span>{error}</span>
+                </div>
+              )}
+
+              {/* Email first — triggers lookup */}
+              <div className="space-y-1.5">
+                <Label htmlFor="pub-email" className="text-xs font-medium">Email</Label>
+                <div className="relative">
+                  <Input id="pub-email" type="email" value={attendee.email}
+                    onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
+                    onBlur={handleBookingEmailBlur}
+                    placeholder="jane@company.com" data-testid="input-pub-email" className={cn("h-9 text-sm", prefillStatus === "loading" ? "pr-8" : "")} />
+                  {prefillStatus === "loading" && (
+                    <Info className="h-3.5 w-3.5 animate-pulse text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2" />
+                  )}
+                  {prefillStatus === "found" && (
+                    <UserCheck className="h-3.5 w-3.5 text-green-600 absolute right-2.5 top-1/2 -translate-y-1/2" />
+                  )}
+                </div>
+              </div>
+
+              {/* Prefill status banner */}
+              {prefillStatus === "found" && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-xs text-green-700" data-testid="banner-pub-prefill-found">
+                  <UserCheck className="h-3.5 w-3.5 shrink-0" />
+                  We found your registration and prefilled your information.
+                </div>
+              )}
+              {prefillStatus === "not-found" && attendee.email.trim() && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/60 border border-border/60 text-xs text-muted-foreground" data-testid="banner-pub-prefill-not-found">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  We couldn't find a registration for that email. Please complete the form manually.
                 </div>
               )}
 
@@ -1651,12 +1724,6 @@ export default function EventPage() {
                   <Input id="pub-title" value={attendee.title}
                     onChange={(e) => setAttendee({ ...attendee, title: e.target.value })}
                     placeholder="VP of Finance" data-testid="input-pub-title" className="h-9 text-sm" />
-                </div>
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label htmlFor="pub-email" className="text-xs font-medium">Email</Label>
-                  <Input id="pub-email" type="email" value={attendee.email}
-                    onChange={(e) => setAttendee({ ...attendee, email: e.target.value })}
-                    placeholder="jane@company.com" data-testid="input-pub-email" className="h-9 text-sm" />
                 </div>
               </div>
 

@@ -404,7 +404,7 @@ export default function SponsorDashboardPage() {
                 </div>
               </div>
             )}
-            <div className="p-6">
+            <div className="p-5">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               {/* Sponsor logo on the left — primary visual */}
               <div className="h-16 w-16 rounded-xl bg-white border border-border/70 flex items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-sponsor-logo-card">
@@ -429,19 +429,13 @@ export default function SponsorDashboardPage() {
                 {sponsor.shortDescription && (
                   <p className="text-sm text-muted-foreground mb-1.5">{sponsor.shortDescription}</p>
                 )}
-                {/* Event label row with optional event logo */}
+                {/* Event label row — slug only; name is shown in the branding strip above */}
                 <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                   <span className="font-mono text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20">
                     {event.slug}
                   </span>
-                  <span className="font-medium text-foreground">{event.name}</span>
-                  {event.logoUrl && (
-                    <div className="h-6 w-6 rounded border border-border/60 bg-white flex items-center justify-center overflow-hidden shrink-0" data-testid="img-event-logo-card">
-                      <img src={event.logoUrl} alt={event.name} className="h-5 w-5 object-contain p-px" />
-                    </div>
-                  )}
                 </div>
-                <div className="flex flex-wrap items-center gap-4 mt-1.5 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-accent" />
                     {format(parseISO(event.startDate), "MMMM d")} – {format(parseISO(event.endDate), "MMMM d, yyyy")}
@@ -449,9 +443,6 @@ export default function SponsorDashboardPage() {
                   <span className="flex items-center gap-1.5">
                     <MapPin className="h-3.5 w-3.5" />{event.location}
                   </span>
-                </div>
-
-                <div className="mt-3">
                   {(() => {
                     const today = new Date();
                     const start = parseISO(event.startDate);
@@ -459,20 +450,20 @@ export default function SponsorDashboardPage() {
                     if (today < start) {
                       const daysUntil = differenceInDays(start, today);
                       return (
-                        <span className="text-xs font-medium px-2.5 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
-                          Event starts in {daysUntil} day{daysUntil !== 1 ? 's' : ''}
+                        <span className="font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                          Starts in {daysUntil}d
                         </span>
                       );
                     } else if (today <= end) {
                       return (
-                        <span className="text-xs font-medium px-2.5 py-0.5 rounded-full border bg-green-50 text-green-700 border-green-200">
-                          Event in progress
+                        <span className="font-medium px-2 py-0.5 rounded-full border bg-green-50 text-green-700 border-green-200">
+                          In progress
                         </span>
                       );
                     } else {
                       return (
-                        <span className="text-xs font-medium px-2.5 py-0.5 rounded-full border bg-gray-100 text-gray-600 border-gray-200">
-                          Event completed
+                        <span className="font-medium px-2 py-0.5 rounded-full border bg-gray-100 text-gray-600 border-gray-200">
+                          Completed
                         </span>
                       );
                     }

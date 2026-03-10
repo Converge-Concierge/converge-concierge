@@ -1,0 +1,506 @@
+Streamline Sponsor Dashboard Header, Fix Sponsor Level Alignment, Add Sponsor-Specific Meeting Block Controls, and Match Event Scheduling Header to Welcome Page
+
+Implement the following UI and configuration improvements across Concierge.
+
+These changes are focused on:
+
+reducing visual clutter
+
+improving hierarchy
+
+improving sponsor configuration flexibility
+
+making attendee-facing event pages more visually consistent
+
+1. Sponsor Dashboard Header: Streamline and Reduce Clutter
+
+The top of the Sponsor Dashboard currently feels too busy and cluttered.
+
+The current header includes too many elements competing for attention:
+
+dashboard branding logo
+
+event logo
+
+sponsor logo
+
+sponsor name
+
+sponsor tier
+
+event code
+
+event name
+
+event date
+
+event location
+
+event countdown
+
+website / LinkedIn links
+
+extra duplicated event identity elements
+
+We need to simplify the header so it feels more premium, cleaner, and easier to scan.
+
+1A. Primary design goal
+
+The Sponsor Dashboard header should communicate only the most important information above the fold:
+
+sponsor identity
+
+event identity
+
+a small amount of context
+
+optional branding, without crowding the content
+
+The top section should feel like a polished hero/header, not a dense info panel.
+
+1B. Recommended header structure
+
+Use a two-part header:
+
+Top branding strip
+
+A slim strip showing:
+
+Sponsor Dashboard / Concierge branding logo
+
+event logo
+
+event name
+
+location
+
+Keep this compact.
+
+Main sponsor header
+
+Main content area showing:
+
+sponsor logo
+
+sponsor name
+
+sponsor level badge
+
+short sponsor description
+
+event code
+
+event date range
+
+website / LinkedIn
+
+optional countdown badge
+
+1C. Remove duplication
+
+Avoid repeating the event logo and event name in too many places.
+
+If the event logo is already shown in the top branding strip, do not repeat it again inside the sponsor content block unless it adds real value.
+
+Likewise, if event name is already clearly visible in the strip, do not make the header feel redundant.
+
+1D. Reduce visual density
+
+Tighten:
+
+excessive vertical padding
+
+duplicated labels
+
+repeated event references
+
+too many inline badges on the same row
+
+Keep the sponsor header visually strong, but cleaner.
+
+1E. Recommended layout hierarchy
+Top strip
+
+Concierge / Sponsor Dashboard logo on left
+
+event logo + event name on right or centered
+
+optional location
+
+Main sponsor panel
+
+Left:
+
+sponsor logo
+
+Center:
+
+sponsor name
+
+level badge
+
+description
+
+small event meta row
+
+website / LinkedIn
+
+Optional right-side accent:
+
+countdown badge such as “Event starts in 68 days”
+
+Keep it balanced and not overloaded.
+
+2. Admin → Sponsors: Fix Vertical Alignment of Sponsorship Pills
+
+In the Admin → Sponsors table, the sponsorship level pills are not aligned cleanly.
+
+Example:
+
+Winnow shows Platinum and Gold
+
+Quadient shows Silver
+
+The pills should align vertically in a cleaner way so the table is easier to scan.
+
+2A. Required behavior
+
+For sponsors with multiple level entries or event-level tier indicators, stack the level pills in a clean vertical arrangement.
+
+Example:
+
+Winnow: Platinum above Gold
+
+Quadient: Silver aligned on the same visual baseline structure
+
+eGain: Bronze aligned consistently
+
+The table should not feel uneven or misaligned row-to-row.
+
+2B. Recommended layout
+
+Inside the Level column:
+
+use a vertical stack container
+
+consistent spacing between pills
+
+consistent minimum height per row if needed
+
+For sponsors with one pill:
+
+vertically center the pill within the same layout pattern
+
+For sponsors with multiple pills:
+
+stack them top-to-bottom with equal spacing
+
+2C. Goal
+
+The level column should feel orderly and visually consistent across all sponsor rows.
+
+Do not let mixed single-pill / multi-pill rows create a jagged layout.
+
+3. Edit Sponsors: Add Sponsor-Specific Meeting Block Customization
+
+The current Onsite Meetings, Online Meetings, and Info Request feature toggles are good, but they are not sufficient.
+
+We also need the ability to customize meeting blocks by sponsor.
+
+This is important because sponsors may need different time inventories depending on:
+
+sponsorship level
+
+custom package terms
+
+repeat sponsor benefits
+
+staffing capacity
+
+onsite presence schedule
+
+3A. Core requirement
+
+Inside Edit Sponsor, for each assigned event, add controls that allow admins to manage the sponsor’s actual meeting block access.
+
+This should work in addition to the feature toggles:
+
+Onsite Meetings
+
+Online Meetings
+
+Info Request
+
+3B. Event still defines global meeting framework
+
+Keep the event as the source of:
+
+valid dates
+
+meeting duration
+
+valid locations
+
+overall available meeting windows
+
+But allow the sponsor to receive only a subset of those blocks.
+
+3C. New sponsor-level block customization capability
+
+For each sponsor-event configuration, admins should be able to:
+
+choose whether the sponsor has access to all event meeting blocks
+
+or assign only selected blocks to that sponsor
+
+3D. Recommended admin UI
+
+Inside Edit Sponsor, under each assigned event, add a section such as:
+
+Meeting Block Access
+
+Controls
+
+Use all default event meeting blocks
+
+Customize sponsor meeting blocks
+
+If Use all default event meeting blocks is selected:
+
+sponsor inherits the standard event block inventory
+
+If Customize sponsor meeting blocks is selected:
+
+show sponsor-specific block assignment UI
+
+3E. Sponsor-specific block editor
+
+If customization is enabled, allow admin to control:
+
+date
+
+start time
+
+end time
+
+meeting type
+
+location/platform
+
+active / inactive
+
+This can be done as:
+
+selectable checkboxes from generated event blocks
+
+or a sponsor-specific block table/editor
+
+Preferred approach:
+Use the event’s generated block inventory and allow admins to assign or remove blocks for the sponsor, rather than manually rebuilding all blocks from scratch.
+
+3F. Minimum viable functionality
+
+At minimum, support:
+
+assign all event blocks
+
+assign only selected sponsor blocks
+
+separate control for onsite vs online blocks if relevant
+
+This is enough for the first useful version.
+
+3G. Validation behavior
+
+Scheduling must respect sponsor-level block assignments.
+
+Do not allow:
+
+onsite booking outside sponsor blocks
+
+online booking outside sponsor blocks
+
+meeting creation in locations not assigned to the sponsor
+
+3H. Recommended data model direction
+
+Use sponsor-event configuration plus sponsor block assignments.
+
+Possible structure:
+
+Sponsor Event Config
+
+sponsor_id
+
+event_id
+
+onsite_meetings_enabled
+
+online_meetings_enabled
+
+information_request_enabled
+
+use_default_event_blocks
+
+Sponsor Meeting Block Assignment
+
+sponsor_id
+
+event_id
+
+block_id or equivalent
+
+enabled
+
+If the current event system already has generated blocks, reuse them.
+
+That is cleaner than duplicating block logic.
+
+4. Make Event Scheduling Page Header Similar to Welcome Page
+
+The event scheduling page should visually align more closely with the welcome / registration confirmation page.
+
+Right now, the welcome page header feels cleaner and stronger.
+
+We want the event scheduling page to use a similar visual pattern.
+
+4A. Goal
+
+Make the event scheduling page header feel like part of the same attendee journey as the welcome page.
+
+The attendee should immediately recognize:
+
+event identity
+
+event logo
+
+event title
+
+clean structured layout
+
+4B. Match the welcome page header style
+
+Use a similar visual pattern to the welcome page header:
+
+event logo on the left
+
+bold event title
+
+concise event details
+
+cleaner spacing
+
+less cluttered intro copy
+
+Do not make the scheduling page header look like a completely different template.
+
+4C. Recommended event scheduling header structure
+Left
+
+event logo
+
+Right
+
+event title
+
+date range
+
+location
+
+optional event website link
+
+Below that:
+
+concise instructional text
+
+Then:
+
+topic filters
+
+sponsor cards
+
+4D. Keep intro copy shorter and clearer
+
+After matching the welcome page layout, keep the instructional copy streamlined.
+
+Recommended style:
+
+one primary sentence
+
+one short supporting sentence
+
+Avoid large blocks of explanatory copy.
+
+4E. Visual consistency requirement
+
+Use the same:
+
+logo sizing behavior
+
+typography hierarchy
+
+spacing rhythm
+
+overall alignment logic
+
+as the welcome page where appropriate.
+
+This should feel like the same product flow.
+
+5. Implementation Priorities
+
+Implement in this order:
+
+Phase 1
+
+streamline Sponsor Dashboard header
+
+remove duplicated event identity clutter
+
+rebalance sponsor/event/logo hierarchy
+
+Phase 2
+
+fix vertical alignment of sponsor level pills in Admin → Sponsors
+
+ensure single-pill and multi-pill rows align cleanly
+
+Phase 3
+
+add sponsor-specific meeting block controls in Edit Sponsor
+
+allow sponsor-event block inheritance or customization
+
+Phase 4
+
+redesign event scheduling page header to match welcome page style
+
+simplify intro structure and improve consistency
+
+This order delivers the visual wins first while also moving the sponsor configuration model forward.
+
+6. Definition of Done
+
+This update is complete when:
+
+the Sponsor Dashboard header is cleaner, less busy, and better organized
+
+Admin → Sponsors shows vertically aligned sponsorship pills
+
+Edit Sponsor supports sponsor-specific meeting block customization in addition to Onsite / Online / Info Request toggles
+
+the event scheduling page header visually matches the welcome page style more closely
+
+attendee-facing event pages feel more consistent and polished
+
+7. Success Standard
+
+After this update:
+
+sponsors should see a cleaner, more premium dashboard header
+
+admins should be able to assign not only sponsor features but also sponsor-specific meeting block access
+
+the sponsors table should be easier to scan visually
+
+the event scheduling page should feel like a natural continuation of the registration confirmation experience

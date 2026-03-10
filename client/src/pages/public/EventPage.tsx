@@ -405,6 +405,15 @@ export default function EventPage() {
     );
   }, [eventSponsors, activeFilters]);
 
+  const sponsorEffectiveBlocks = useMemo(() => {
+    if (!event) return [];
+    const allBlocks = event.meetingBlocks ?? [];
+    if (!selectedSponsor) return allBlocks;
+    const link = getSponsorEventLink(selectedSponsor, event.id);
+    if (!link || link.useDefaultBlocks !== false || !(link.selectedBlockIds?.length)) return allBlocks;
+    return allBlocks.filter((b) => link.selectedBlockIds!.includes(b.id));
+  }, [event, selectedSponsor]);
+
   const { status: prefillStatus, lookup: lookupAttendee } = useAttendeePrefill(event?.id);
 
   const eventColorStyle = useMemo((): React.CSSProperties => {
@@ -461,14 +470,14 @@ export default function EventPage() {
     const evEnd   = parseISO(event.endDate   as unknown as string);
     evStart.setHours(0, 0, 0, 0); evEnd.setHours(23, 59, 59, 999);
     return [...new Set(
-      (event.meetingBlocks ?? [])
+      sponsorEffectiveBlocks
         .filter((b) => {
           const blockDate = new Date(b.date + "T00:00:00");
           return blockDate >= evStart && blockDate <= evEnd;
         })
         .map((b) => b.date)
     )].sort();
-  }, [event]);
+  }, [event, sponsorEffectiveBlocks]);
 
   function go(s: number) { setError(""); setStep(s); }
 
@@ -770,42 +779,50 @@ export default function EventPage() {
       <>
       <Shell style={eventColorStyle}>
         <motion.div {...slide} className="w-full max-w-5xl mx-auto px-6 pt-2 pb-8">
-          {/* Event header */}
-          <div className="text-center mb-3">
-            {event.logoUrl && (
-              <div className="flex justify-center mb-3">
-                <img
-                  src={event.logoUrl} alt={event.name}
-                  className="h-14 sm:h-16 max-w-[240px] sm:max-w-[280px] object-contain"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  data-testid="img-event-logo"
-                />
+          {/* Event hero header — horizontal layout matching Welcome page style */}
+          <div className="bg-card border border-border/60 rounded-2xl shadow-sm overflow-hidden mb-5">
+            <div className="px-5 py-4 flex items-center gap-5">
+              <div className="h-20 w-20 rounded-xl border border-border/60 bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                {event.logoUrl ? (
+                  <img
+                    src={event.logoUrl} alt={event.name}
+                    className="h-16 max-w-[72px] object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    data-testid="img-event-logo"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-muted/40">
+                    <Building2 className="h-8 w-8 text-muted-foreground/40" />
+                  </div>
+                )}
               </div>
-            )}
-            <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground tracking-tight leading-tight mb-1">
-              {event.name}
-            </h1>
-            <div className="flex flex-wrap items-center justify-center gap-4 text-muted-foreground text-sm">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-accent" style={evAccent ? { color: evAccent } : undefined} />
-                {format(parseISO(event.startDate as unknown as string), "MMMM d")}
-                {" – "}
-                {format(parseISO(event.endDate as unknown as string), "MMMM d, yyyy")}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-muted-foreground/70" />
-                {event.location}
-              </span>
-              {getEventWebsite(event.slug, event.websiteUrl) && (
-                <a
-                  href={getEventWebsite(event.slug, event.websiteUrl)!}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-accent hover:opacity-80 transition-opacity font-medium"
-                  data-testid="link-event-website"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" /> Event Website
-                </a>
-              )}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-display font-bold text-foreground leading-tight mb-1">
+                  {event.name}
+                </h1>
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-accent" style={evAccent ? { color: evAccent } : undefined} />
+                    {format(parseISO(event.startDate as unknown as string), "MMMM d")}
+                    {" – "}
+                    {format(parseISO(event.endDate as unknown as string), "MMMM d, yyyy")}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 text-muted-foreground/70" />
+                    {event.location}
+                  </span>
+                  {getEventWebsite(event.slug, event.websiteUrl) && (
+                    <a
+                      href={getEventWebsite(event.slug, event.websiteUrl)!}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-accent hover:opacity-80 transition-opacity font-medium"
+                      data-testid="link-event-website"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> Event Website
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -860,7 +877,17 @@ export default function EventPage() {
             </div>
           )}
 
-          {/* Interest filter — becomes the primary heading when scheduling is active */}
+          {/* Intro copy — always shown when scheduling is active */}
+          {!eventEnded && !schedulingDisabled && !showExternalHandoff && (
+            <div className="mb-3 space-y-0.5">
+              <p className="text-base font-display font-bold text-foreground">Browse and book a meeting with participating sponsors.</p>
+              {attributesInUse.length > 0 && (
+                <p className="text-sm text-muted-foreground">Filter by topic to find sponsors aligned with your interests.</p>
+              )}
+            </div>
+          )}
+
+          {/* Interest filter */}
           {attributesInUse.length > 0 && (() => {
             const allOptions = attributesInUse;
             const SHOW_LIMIT = 7;
@@ -868,10 +895,6 @@ export default function EventPage() {
             const hasMore = allOptions.length > SHOW_LIMIT;
             return (
               <div className="mb-4 space-y-2">
-                <div className="mb-1 space-y-0.5">
-                  <p className="text-base font-display font-bold text-foreground">Browse participating sponsors and book available meeting times based on their availability.</p>
-                  <p className="text-sm text-muted-foreground">Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.</p>
-                </div>
                 <div className="pt-1">
                   <h2 className="text-xl font-display font-semibold text-foreground mb-2">
                     What are you interested in?
@@ -1165,7 +1188,7 @@ export default function EventPage() {
   // ── STEP 2: TIME SELECTION (onsite = slot cards | online = free-form picker) ─
   if (step === 2) {
     const stepLabels = meetingMode === "online" ? ONLINE_STEPS : ONSITE_STEPS;
-    const slots = generateSlots(event.meetingBlocks ?? [], selectedDate);
+    const slots = generateSlots(sponsorEffectiveBlocks, selectedDate);
     const allBooked = meetingMode === "onsite" && slots.length > 0 &&
       slots.every((t) => bookedSlots.has(`${selectedSponsor?.id}|${selectedDate}|${t}`));
 
@@ -1589,7 +1612,7 @@ export default function EventPage() {
 
   // ── LOCATION HELPERS (onsite, steps 3+) ───────────────────────────────────
   const allLocations = event.meetingLocations ?? [];
-  const selectedBlock = (event.meetingBlocks ?? []).find(
+  const selectedBlock = sponsorEffectiveBlocks.find(
     (b) => b.date === selectedDate && toMins(b.startTime) <= toMins(selectedTime) && toMins(selectedTime) < toMins(b.endTime)
   );
   const blockLocationIds = selectedBlock?.locationIds ?? [];

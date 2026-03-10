@@ -4,8 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sponsor, InsertSponsor, Event, EventSponsorLink, SPONSORSHIP_LEVELS, SponsorshipLevel } from "@shared/schema";
-import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem } from "lucide-react";
+import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem, CalendarDays, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+
+function fmt12(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+}
 
 interface SponsorFormModalProps {
   isOpen: boolean;
@@ -119,6 +125,16 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
       ...prev,
       assignedEvents: (prev.assignedEvents ?? []).map(ae =>
         ae.eventId === eventId ? { ...ae, [flag]: value } : ae
+      )
+    }));
+  }
+
+  function handleBlockAccess(eventId: string, useDefault: boolean, blockIds: string[]) {
+    if (readOnly) return;
+    setFormData(prev => ({
+      ...prev,
+      assignedEvents: (prev.assignedEvents ?? []).map(ae =>
+        ae.eventId === eventId ? { ...ae, useDefaultBlocks: useDefault, selectedBlockIds: blockIds } : ae
       )
     }));
   }
@@ -466,7 +482,7 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                             )}
                           </div>
                           {currentLevel && (
-                            <div className="px-4 pb-3 pt-0">
+                            <div className="px-4 pb-3 pt-0 space-y-3">
                               <div className="flex gap-4 flex-wrap">
                                 {[
                                   { label: "Onsite Meetings", flag: "onsiteMeetingEnabled" as const },
@@ -510,6 +526,82 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                                   );
                                 })}
                               </div>
+
+                              {/* Meeting Block Access */}
+                              {(() => {
+                                const ae = (formData.assignedEvents || []).find(a => a.eventId === ev.id);
+                                const useDefault = ae?.useDefaultBlocks !== false;
+                                const sortedBlocks = [...(ev.meetingBlocks ?? [])].sort((a, b) =>
+                                  a.date < b.date ? -1 : a.date > b.date ? 1 : a.startTime.localeCompare(b.startTime)
+                                );
+                                return (
+                                  <div className="border-t border-border/30 pt-2.5">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                                        <CalendarDays className="h-3 w-3" /> Meeting Block Access
+                                      </span>
+                                      <div className="flex rounded-md border border-input overflow-hidden w-fit">
+                                        <button
+                                          type="button"
+                                          disabled={readOnly}
+                                          onClick={() => handleBlockAccess(ev.id, true, [])}
+                                          className={cn(
+                                            "text-[10px] px-2 py-0.5 font-medium transition-colors",
+                                            useDefault ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                                          )}
+                                          data-testid={`toggle-blocks-default-${ev.id}`}
+                                        >
+                                          All event blocks
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={readOnly}
+                                          onClick={() => handleBlockAccess(ev.id, false, ae?.selectedBlockIds ?? [])}
+                                          className={cn(
+                                            "text-[10px] px-2 py-0.5 font-medium transition-colors border-l border-input",
+                                            !useDefault ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                                          )}
+                                          data-testid={`toggle-blocks-custom-${ev.id}`}
+                                        >
+                                          Custom
+                                        </button>
+                                      </div>
+                                    </div>
+                                    {!useDefault && sortedBlocks.length > 0 && (
+                                      <div className="max-h-44 overflow-y-auto space-y-0.5 border border-border/40 rounded-lg p-2 bg-muted/20">
+                                        {sortedBlocks.map((block) => {
+                                          const checked = (ae?.selectedBlockIds ?? []).includes(block.id);
+                                          return (
+                                            <label key={block.id} className="flex items-center gap-2 text-xs cursor-pointer py-0.5 hover:bg-muted/40 rounded px-1">
+                                              <input
+                                                type="checkbox"
+                                                disabled={readOnly}
+                                                checked={checked}
+                                                onChange={(e) => {
+                                                  const newIds = e.target.checked
+                                                    ? [...(ae?.selectedBlockIds ?? []), block.id]
+                                                    : (ae?.selectedBlockIds ?? []).filter((id) => id !== block.id);
+                                                  handleBlockAccess(ev.id, false, newIds);
+                                                }}
+                                                className="h-3.5 w-3.5 rounded border-input shrink-0"
+                                                data-testid={`checkbox-block-${block.id}`}
+                                              />
+                                              <span className="text-foreground/80">
+                                                {format(new Date(block.date + "T00:00:00"), "EEE, MMM d")}
+                                                {" · "}
+                                                {fmt12(block.startTime)}–{fmt12(block.endTime)}
+                                              </span>
+                                            </label>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                    {!useDefault && sortedBlocks.length === 0 && (
+                                      <p className="text-[10px] text-muted-foreground italic">No meeting blocks defined for this event yet.</p>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           )}
                         </div>

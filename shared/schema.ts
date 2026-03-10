@@ -62,6 +62,9 @@ export const eventSponsorLinkSchema = z.object({
   onsiteMeetingEnabled: z.boolean().default(true),
   onlineMeetingEnabled: z.boolean().default(true),
   informationRequestEnabled: z.boolean().default(true),
+  // Meeting block access: true = use all event blocks, false = use selectedBlockIds only
+  useDefaultBlocks: z.boolean().default(true),
+  selectedBlockIds: z.array(z.string()).default([]),
 });
 export type EventSponsorLink = z.infer<typeof eventSponsorLinkSchema>;
 

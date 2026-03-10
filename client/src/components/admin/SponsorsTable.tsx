@@ -133,10 +133,12 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
                       if (uniqueLevels.size <= 1) {
                         const best = getBestLevel(sponsor);
                         return best ? (
-                          <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold", levelColors[best] ?? "")}>
-                            {best === "Platinum" && <Gem className="h-3 w-3" />}
-                            {best}
-                          </span>
+                          <div className="flex flex-col gap-1.5 min-h-[32px] justify-center">
+                            <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold w-fit", levelColors[best] ?? "")}>
+                              {best === "Platinum" && <Gem className="h-3 w-3" />}
+                              {best}
+                            </span>
+                          </div>
                         ) : <span className="text-muted-foreground italic text-xs">None</span>;
                       }
                       // Multiple events with different levels → show per-event breakdown

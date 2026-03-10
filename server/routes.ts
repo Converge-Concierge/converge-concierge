@@ -657,6 +657,35 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
     }
 
+    // Block access validation: if sponsor has custom blocks, booking must fall within them
+    if (parsed.data.source === "public" && parsed.data.meetingType !== "online_request") {
+      const [blockEvent, blockSponsor] = await Promise.all([
+        storage.getEvent(parsed.data.eventId),
+        storage.getSponsor(parsed.data.sponsorId),
+      ]);
+      if (blockEvent && blockSponsor) {
+        const blockLink = (blockSponsor.assignedEvents ?? []).find(
+          (ae) => ae.eventId === parsed.data.eventId && (ae.archiveState ?? "active") === "active"
+        );
+        if (blockLink && blockLink.useDefaultBlocks === false && (blockLink.selectedBlockIds ?? []).length > 0) {
+          const allowedBlocks = (blockEvent.meetingBlocks ?? []).filter((b) =>
+            blockLink.selectedBlockIds!.includes(b.id)
+          );
+          const toMinsLocal = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+          const bookingMins = toMinsLocal(parsed.data.time);
+          const inAllowedBlock = allowedBlocks.some(
+            (b) =>
+              b.date === parsed.data.date &&
+              toMinsLocal(b.startTime) <= bookingMins &&
+              bookingMins < toMinsLocal(b.endTime)
+          );
+          if (!inAllowedBlock) {
+            return res.status(400).json({ message: "This time slot is not within the sponsor's available meeting blocks." });
+          }
+        }
+      }
+    }
+
     // Only check for slot conflicts on onsite meetings
     if (parsed.data.meetingType !== "online_request") {
       const { eventId, sponsorId, date, time } = parsed.data;

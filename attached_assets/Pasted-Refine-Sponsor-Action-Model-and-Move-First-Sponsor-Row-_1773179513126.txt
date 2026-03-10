@@ -1,0 +1,476 @@
+Refine Sponsor Action Model and Move First Sponsor Row Above the Fold
+
+We need to update the sponsor discovery / scheduling page so it reflects the actual three sponsor actions shown in the current UI and improves the layout so the first row of sponsor cards appears above the fold.
+
+The current attendee-facing sponsor card includes these three actions:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+There is no “Request Meeting” function in the current product and that should be removed from the architecture and UI assumptions.
+
+We also need to make the sponsor listing more effective by ensuring the first row of sponsor cards appears higher on the page so users immediately see actionable sponsor options without unnecessary scrolling.
+
+Primary Goals
+Goal 1
+
+Use the correct sponsor action model:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+Do not include Request Meeting.
+
+Goal 2
+
+Refactor sponsor-level controls so these three actions can be enabled or disabled per sponsor per event.
+
+Goal 3
+
+Adjust the layout so the first row of sponsor cards is above the fold on common laptop screen sizes.
+
+1. Correct the Sponsor Action Model
+
+The attendee-facing sponsor card should support only these three actions:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+Remove references to:
+
+Request Meeting
+
+Request Online Meeting
+
+any extra intermediate meeting request action that does not exist in the current UI
+
+This needs to be reflected in:
+
+data model assumptions
+
+admin configuration
+
+sponsor card rendering logic
+
+scheduling logic
+
+2. Sponsor Actions Must Be Controlled Per Sponsor Per Event
+
+These three functions must be configurable at the sponsor-event level, not only at the event level.
+
+Required sponsor-event action flags
+
+Add or support fields like:
+
+onsite_meeting_enabled
+online_meeting_enabled
+information_request_enabled
+
+These controls should determine which action buttons appear on the sponsor card for that sponsor at that event.
+
+3. Meeting Availability Must Be Sponsor-Level
+
+Meeting blocks should belong to the sponsor, not just the event.
+
+The event still defines the overall meeting framework, but the sponsor must control which meeting inventory is actually available.
+
+Event defines:
+
+dates
+
+overall meeting windows
+
+valid locations
+
+default meeting duration
+
+general scheduling framework
+
+Sponsor-event configuration defines:
+
+whether onsite meetings are enabled
+
+whether online meetings are enabled
+
+whether information requests are enabled
+
+which time blocks the sponsor can use
+
+which locations the sponsor can use
+
+whether the sponsor has full or limited availability
+
+4. Update Data Model Direction
+
+Use sponsor-event configuration as the control layer.
+
+Recommended sponsor-event fields
+id
+sponsor_id
+event_id
+
+onsite_meeting_enabled
+online_meeting_enabled
+information_request_enabled
+
+meeting_access_mode nullable
+max_meetings nullable
+max_onsite_blocks nullable
+max_online_blocks nullable
+
+allowed_locations nullable
+created_at
+updated_at
+Recommended sponsor meeting block structure
+id
+sponsor_id
+event_id
+date
+start_time
+end_time
+meeting_type
+location
+is_available
+created_at
+updated_at
+
+meeting_type should support at least:
+
+onsite
+
+online
+
+5. Update Sponsor Card Rendering Logic
+
+The attendee-facing sponsor cards should dynamically render only the actions enabled for that sponsor.
+
+Valid button set
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+Example behavior
+Sponsor with full access
+
+Show:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+Sponsor with onsite only
+
+Show:
+
+Schedule Onsite Meeting
+
+Request Information
+
+Sponsor with online only
+
+Show:
+
+Online Meeting
+
+Request Information
+
+Sponsor with info only
+
+Show:
+
+Request Information
+
+Sponsor with meetings only
+
+Show:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Do not show disabled or unavailable actions unless there is a deliberate UX reason.
+
+Preferred behavior is to hide unavailable actions entirely.
+
+6. Scheduling Logic Must Respect Sponsor-Level Controls
+
+Before showing booking options or creating meetings, validate that the sponsor actually has that action enabled.
+
+Onsite meeting validation
+
+Before allowing onsite booking:
+
+sponsor-event onsite_meeting_enabled must be true
+
+selected block must belong to that sponsor
+
+selected location must be valid for that sponsor
+
+Online meeting validation
+
+Before allowing online booking:
+
+sponsor-event online_meeting_enabled must be true
+
+selected online block must belong to that sponsor
+
+Information request validation
+
+Before showing or submitting the form:
+
+sponsor-event information_request_enabled must be true
+
+7. Update Admin Configuration UI
+
+We need admin controls for sponsor-event access.
+
+Recommended location
+
+Inside the sponsor record for each assigned event, add a section:
+
+Sponsor Event Functionality
+
+Fields
+
+Onsite Meetings Enabled
+
+Online Meetings Enabled
+
+Information Requests Enabled
+
+Allowed Locations
+
+Maximum Meetings or Block Limits if used
+
+Access Mode if used
+
+This should be configurable per sponsor per event.
+
+8. Remove “Request Meeting” From Earlier Planning
+
+Wherever the system, docs, labels, or assumptions mention Request Meeting, remove it.
+
+The current product should use only:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+This should be reflected consistently in:
+
+UI copy
+
+admin configuration
+
+validation logic
+
+roadmap assumptions for this phase
+
+9. Move the First Row of Sponsors Above the Fold
+
+The current sponsor listing is sitting too low on the page.
+
+We need the first row of sponsor cards visible without scrolling on typical laptop screens.
+
+Required outcome
+
+On common desktop/laptop viewport sizes, users should land on the page and immediately see the first row of sponsor cards and their action buttons.
+
+10. Layout Changes to Achieve Above-the-Fold Placement
+
+Reduce unnecessary vertical space above the sponsor grid.
+
+Recommended adjustments
+
+Review and tighten:
+
+top page padding
+
+space below page heading
+
+space below descriptive text
+
+space around filters
+
+card section margin before sponsor list
+
+oversized banner/header blocks if present
+
+The sponsor grid should start higher.
+
+Specific layout goal
+
+The section title:
+
+Sponsors Available for Meetings
+
+and at least the first full row of sponsor cards should be visible above the fold.
+
+The CTA buttons should also ideally be visible without the user needing to scroll.
+
+11. Sponsor Card Vertical Efficiency
+
+If necessary, slightly tighten sponsor card height so the first row fits higher without making cards feel cramped.
+
+Possible small adjustments:
+
+reduce top/bottom card padding slightly
+
+tighten spacing between logo, sponsor name, and description
+
+shorten description preview to 2 lines with ellipsis
+
+reduce extra whitespace between action buttons
+
+Do not make the cards feel compressed or hard to read.
+
+The goal is a cleaner, tighter layout.
+
+12. Keep the Sponsor Cards Visually Strong
+
+Even while moving them above the fold, preserve the premium feel.
+
+Keep
+
+sponsor logo
+
+sponsor tier badge
+
+sponsor name
+
+short description
+
+View Profile
+
+action buttons
+
+Improve only spacing and hierarchy
+
+Do not remove important sponsor identity elements.
+
+13. Suggested Sponsor Card Button Order
+
+Use this button order consistently:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+This matches the current screenshot and keeps physical/in-person action first.
+
+14. Recommended Responsive Behavior
+
+On large screens:
+
+show multiple sponsor cards per row
+
+keep first row above the fold
+
+On medium screens:
+
+cards may wrap sooner, but still prioritize showing sponsor actions quickly
+
+On small screens:
+
+stack cards if needed, but keep the top of the first card visible immediately
+
+15. Migration / Backward Compatibility
+
+If the current system assumes all sponsors in an event have the same action set, migrate existing sponsors to sensible defaults so nothing breaks.
+
+Suggested default migration
+
+For currently active sponsors:
+
+if they currently display onsite + online + request information, preserve that behavior by default
+
+then allow admin to modify each sponsor-event config going forward
+
+This should avoid regressions.
+
+16. Recommended Implementation Order
+Phase 1
+
+remove Request Meeting assumptions from code/config
+
+add sponsor-event action flags:
+
+onsite_meeting_enabled
+
+online_meeting_enabled
+
+information_request_enabled
+
+Phase 2
+
+refactor booking logic to respect sponsor-level flags and sponsor-level blocks
+
+validate onsite/online separately
+
+Phase 3
+
+update sponsor cards to render only valid actions
+
+update admin configuration UI
+
+Phase 4
+
+tighten page layout so first sponsor row is above the fold
+
+optimize card spacing and vertical rhythm
+
+This order reduces risk and gets the structure right first.
+
+17. Definition of Done
+
+This update is complete when:
+
+the system supports only the three real sponsor actions:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+these actions are configurable per sponsor per event
+
+meeting availability is tied to the sponsor, not just the event
+
+sponsor cards display only the enabled actions for that sponsor
+
+the first row of sponsor cards appears above the fold on normal laptop screens
+
+the page feels more immediately actionable when it loads
+
+18. Success Standard
+
+After this update, Concierge should support sponsor setups like:
+
+Sponsor A: onsite + online + info
+
+Sponsor B: onsite + info
+
+Sponsor C: online + info
+
+Sponsor D: info only
+
+And users should land on the sponsor page and immediately see the first row of sponsors and their available actions without unnecessary scrolling.

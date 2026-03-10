@@ -58,6 +58,10 @@ export const eventSponsorLinkSchema = z.object({
   sponsorshipLevel: z.enum(SPONSORSHIP_LEVELS).nullable().optional(),
   archiveState: z.enum(["active", "archived"]).default("active"),
   archiveSource: z.enum(["manual", "event"]).nullable().default(null),
+  // Per-sponsor-per-event action flags (default true for backward compat)
+  onsiteMeetingEnabled: z.boolean().default(true),
+  onlineMeetingEnabled: z.boolean().default(true),
+  informationRequestEnabled: z.boolean().default(true),
 });
 export type EventSponsorLink = z.infer<typeof eventSponsorLinkSchema>;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,10 +99,28 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
           ),
         }));
       } else {
-        const newLink: EventSponsorLink = { eventId, sponsorshipLevel: level, archiveState: "active", archiveSource: null };
+        const newLink: EventSponsorLink = {
+          eventId,
+          sponsorshipLevel: level,
+          archiveState: "active",
+          archiveSource: null,
+          onsiteMeetingEnabled: true,
+          onlineMeetingEnabled: true,
+          informationRequestEnabled: true,
+        };
         setFormData((prev) => ({ ...prev, assignedEvents: [...current, newLink] }));
       }
     }
+  }
+
+  function handleActionFlag(eventId: string, flag: "onsiteMeetingEnabled" | "onlineMeetingEnabled" | "informationRequestEnabled", value: boolean) {
+    if (readOnly) return;
+    setFormData(prev => ({
+      ...prev,
+      assignedEvents: (prev.assignedEvents ?? []).map(ae =>
+        ae.eventId === eventId ? { ...ae, [flag]: value } : ae
+      )
+    }));
   }
 
   function getEventAssignedLevel(eventId: string): SponsorshipLevel | null {
@@ -415,36 +433,84 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                     {visibleEvents.map((ev) => {
                       const currentLevel = getEventAssignedLevel(ev.id);
                       return (
-                        <div
-                          key={ev.id}
-                          className={cn("flex items-center gap-3 px-4 py-3", currentLevel ? "bg-accent/5" : "")}
-                          data-testid={`event-assignment-row-${ev.id}`}
-                        >
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <span className="font-mono text-xs font-semibold text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded shrink-0">
-                              {ev.slug}
-                            </span>
-                            <span className="text-sm text-foreground truncate">{ev.name}</span>
-                          </div>
-                          {readOnly ? (
-                            currentLevel ? (
-                              <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold shrink-0", levelColors[currentLevel])}>
-                                {currentLevel === "Platinum" && <Gem className="h-3 w-3" />}
-                                {currentLevel}
+                        <div key={ev.id}>
+                          <div
+                            className={cn("flex items-center gap-3 px-4 py-3", currentLevel ? "bg-accent/5" : "")}
+                            data-testid={`event-assignment-row-${ev.id}`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="font-mono text-xs font-semibold text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded shrink-0">
+                                {ev.slug}
                               </span>
+                              <span className="text-sm text-foreground truncate">{ev.name}</span>
+                            </div>
+                            {readOnly ? (
+                              currentLevel ? (
+                                <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold shrink-0", levelColors[currentLevel])}>
+                                  {currentLevel === "Platinum" && <Gem className="h-3 w-3" />}
+                                  {currentLevel}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic shrink-0">None</span>
+                              )
                             ) : (
-                              <span className="text-xs text-muted-foreground italic shrink-0">None</span>
-                            )
-                          ) : (
-                            <select
-                              className={cn(selectClass, "w-32 shrink-0")}
-                              value={currentLevel ?? ""}
-                              onChange={(e) => setEventLevel(ev.id, (e.target.value || null) as SponsorshipLevel | null)}
-                              data-testid={`select-event-level-${ev.id}`}
-                            >
-                              <option value="">None</option>
-                              {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-                            </select>
+                              <select
+                                className={cn(selectClass, "w-32 shrink-0")}
+                                value={currentLevel ?? ""}
+                                onChange={(e) => setEventLevel(ev.id, (e.target.value || null) as SponsorshipLevel | null)}
+                                data-testid={`select-event-level-${ev.id}`}
+                              >
+                                <option value="">None</option>
+                                {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                              </select>
+                            )}
+                          </div>
+                          {currentLevel && (
+                            <div className="px-4 pb-3 pt-0">
+                              <div className="flex gap-4 flex-wrap">
+                                {[
+                                  { label: "Onsite Meetings", flag: "onsiteMeetingEnabled" as const },
+                                  { label: "Online Meetings", flag: "onlineMeetingEnabled" as const },
+                                  { label: "Info Requests", flag: "informationRequestEnabled" as const },
+                                ].map(({ label, flag }) => {
+                                  const ae = (formData.assignedEvents || []).find(ae => ae.eventId === ev.id);
+                                  const isEnabled = ae?.[flag] ?? true;
+                                  return (
+                                    <div key={flag} className="flex flex-col gap-1.5">
+                                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                        {label}
+                                      </span>
+                                      <div className="flex rounded-md border border-input overflow-hidden w-fit">
+                                        <button
+                                          type="button"
+                                          disabled={readOnly}
+                                          onClick={() => handleActionFlag(ev.id, flag, true)}
+                                          className={cn(
+                                            "text-[10px] px-2 py-0.5 font-medium transition-colors",
+                                            isEnabled ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                                          )}
+                                          data-testid={`toggle-${flag}-yes-${ev.id}`}
+                                        >
+                                          Yes
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={readOnly}
+                                          onClick={() => handleActionFlag(ev.id, flag, false)}
+                                          className={cn(
+                                            "text-[10px] px-2 py-0.5 font-medium transition-colors border-l border-input",
+                                            !isEnabled ? "bg-muted text-muted-foreground" : "text-muted-foreground hover:bg-muted"
+                                          )}
+                                          data-testid={`toggle-${flag}-no-${ev.id}`}
+                                        >
+                                          No
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           )}
                         </div>
                       );

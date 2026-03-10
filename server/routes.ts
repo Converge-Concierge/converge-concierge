@@ -580,6 +580,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const parsed = insertMeetingSchema.safeParse(body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error });
 
+    // Per-event action flag validation (T004)
+    // Only apply to public bookings (admin bookings bypass these gates)
+    if (parsed.data.source === "public") {
+      const sponsor = await storage.getSponsor(parsed.data.sponsorId);
+      if (sponsor) {
+        const link = (sponsor.assignedEvents ?? []).find(
+          ae => ae.eventId === parsed.data.eventId && (ae.archiveState ?? "active") === "active"
+        );
+        if (parsed.data.meetingType === "online_request") {
+          const onlineEnabled = link?.onlineMeetingEnabled ?? sponsor.allowOnlineMeetings ?? true;
+          if (!onlineEnabled) {
+            return res.status(403).json({ message: "Online meetings are not available for this sponsor at this event." });
+          }
+        } else {
+          const onsiteEnabled = link?.onsiteMeetingEnabled ?? true;
+          if (!onsiteEnabled) {
+            return res.status(403).json({ message: "Onsite meetings are not available for this sponsor at this event." });
+          }
+        }
+      }
+    }
+
     // Validate location tier eligibility for onsite meetings
     if (parsed.data.meetingType !== "online_request" && parsed.data.location) {
       const [eligEvent, eligSponsor] = await Promise.all([
@@ -1565,6 +1587,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     const sponsor = await storage.getSponsor(parsed.data.sponsorId);
     if (!sponsor) return res.status(404).json({ error: "Sponsor not found" });
+
+    // Information Request Action Flag Validation (T004)
+    if (parsed.data.source === "Public" && parsed.data.eventId) {
+      const link = (sponsor.assignedEvents ?? []).find(
+        ae => ae.eventId === parsed.data.eventId && (ae.archiveState ?? "active") === "active"
+      );
+      const infoEnabled = link?.informationRequestEnabled ?? true;
+      if (!infoEnabled) {
+        return res.status(403).json({ error: "Information requests are not available for this sponsor at this event." });
+      }
+    }
 
     const record = await storage.createInformationRequest(parsed.data);
 

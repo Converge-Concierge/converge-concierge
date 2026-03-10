@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { AnimatePresence, motion } from "framer-motion";
-import { Event, Sponsor, Meeting, AppBranding } from "@shared/schema";
+import { Event, Sponsor, Meeting, AppBranding, EventSponsorLink } from "@shared/schema";
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
   AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Clock, User, Video, Download, ExternalLink,
@@ -67,6 +67,12 @@ const LEVEL_ORDER: Record<string, number> = { Platinum: 0, Gold: 1, Silver: 2, B
 function getSponsorEventLevel(sponsor: Sponsor, eventId: string): string {
   const link = (sponsor.assignedEvents ?? []).find((ae) => ae.eventId === eventId && (ae.archiveState ?? "active") === "active");
   return link?.sponsorshipLevel ?? "";
+}
+
+function getSponsorEventLink(sponsor: Sponsor, eventId: string): EventSponsorLink | undefined {
+  return (sponsor.assignedEvents ?? []).find(
+    ae => ae.eventId === eventId && (ae.archiveState ?? "active") === "active"
+  );
 }
 
 function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m; }
@@ -742,20 +748,20 @@ export default function EventPage() {
     return (
       <>
       <Shell style={eventColorStyle}>
-        <motion.div {...slide} className="w-full max-w-5xl mx-auto px-6 pt-5 pb-8">
+        <motion.div {...slide} className="w-full max-w-5xl mx-auto px-6 pt-2 pb-8">
           {/* Event header */}
-          <div className="text-center mb-5">
+          <div className="text-center mb-3">
             {event.logoUrl && (
-              <div className="flex justify-center mb-5">
+              <div className="flex justify-center mb-3">
                 <img
                   src={event.logoUrl} alt={event.name}
-                  className="h-20 sm:h-24 max-w-[280px] sm:max-w-[340px] object-contain"
+                  className="h-14 sm:h-16 max-w-[240px] sm:max-w-[280px] object-contain"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   data-testid="img-event-logo"
                 />
               </div>
             )}
-            <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight leading-tight mb-2">
+            <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground tracking-tight leading-tight mb-1">
               {event.name}
             </h1>
             <div className="flex flex-wrap items-center justify-center gap-4 text-muted-foreground text-sm">
@@ -840,14 +846,14 @@ export default function EventPage() {
             const visibleOptions = showAllFilters ? allOptions : allOptions.slice(0, SHOW_LIMIT);
             const hasMore = allOptions.length > SHOW_LIMIT;
             return (
-              <div className="mb-6 space-y-4">
-                <div className="mb-2 space-y-1">
-                  <p className="text-lg font-display font-bold text-foreground">Make the most of your time at the event by scheduling meetings with participating sponsors.</p>
+              <div className="mb-4 space-y-2">
+                <div className="mb-1 space-y-0.5">
+                  <p className="text-base font-display font-bold text-foreground">Make the most of your time at the event by scheduling meetings with participating sponsors.</p>
                   <p className="text-sm text-muted-foreground">Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.</p>
-                  <p className="text-sm text-muted-foreground/80 italic">Sponsors are offering a limited number of private meeting slots during the event.</p>
+                  <p className="text-xs text-muted-foreground/80 italic">Sponsors are offering a limited number of private meeting slots during the event.</p>
                 </div>
-                <div className="pt-2">
-                  <h2 className="text-2xl font-display font-semibold text-foreground mb-3">
+                <div className="pt-1">
+                  <h2 className="text-xl font-display font-semibold text-foreground mb-2">
                     What are you interested in?
                   </h2>
                   <div className="flex flex-wrap gap-1.5 items-center">
@@ -921,7 +927,7 @@ export default function EventPage() {
             </div>
           ) : (
             <>
-              <div className="flex items-end justify-between mb-4">
+              <div className="flex items-end justify-between mb-3">
                 <h3
                   className="text-base font-display font-semibold text-foreground"
                   data-testid="text-sponsor-results-label"
@@ -948,13 +954,13 @@ export default function EventPage() {
                   )}
                   data-testid={`sponsor-card-${sponsor.id}`}
                 >
-                  <div className="flex-1 p-4">
-                    <div className="flex items-start justify-between gap-2 mb-3">
-                      <div className="h-9 flex items-center shrink-0">
+                  <div className="flex-1 p-3">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="h-8 flex items-center shrink-0">
                         {sponsor.logoUrl ? (
                           <img src={sponsor.logoUrl} alt={sponsor.name} className="h-8 max-w-[90px] object-contain" />
                         ) : (
-                          <div className="h-9 w-9 rounded-lg bg-white border border-black/10 shadow-sm flex items-center justify-center">
+                          <div className="h-8 w-8 rounded-lg bg-white border border-black/10 shadow-sm flex items-center justify-center">
                             <Building2 className="h-4 w-4 text-muted-foreground/60" />
                           </div>
                         )}
@@ -979,44 +985,59 @@ export default function EventPage() {
                       <ExternalLink className="h-2.5 w-2.5" /> View Profile
                     </Link>
                   </div>
-                  <div className="px-4 pb-4 space-y-1.5">
-                    {(eventEnded || schedulingDisabled) ? (
-                      <div className="w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs font-medium text-center border border-border/60" data-testid={`text-scheduling-closed-${sponsor.id}`}>
-                        Scheduling Closed
-                      </div>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => pickSponsor(sponsor)}
-                          data-testid={`btn-meet-${sponsor.id}`}
-                          className={cn(
-                            "w-full py-2 rounded-lg text-white text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
-                            levelAccent[getSponsorEventLevel(sponsor, event.id)] || "bg-primary hover:bg-primary/90",
+                  <div className="px-3 pb-3 space-y-1">
+                    {(() => {
+                      const link = getSponsorEventLink(sponsor, event.id);
+                      const onsiteEnabled = link?.onsiteMeetingEnabled ?? true;
+                      const onlineEnabled = link?.onlineMeetingEnabled ?? sponsor.allowOnlineMeetings;
+                      const infoEnabled = link?.informationRequestEnabled ?? true;
+
+                      return (
+                        <>
+                          {(eventEnded || schedulingDisabled) ? (
+                            <div className="w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs font-medium text-center border border-border/60" data-testid={`text-scheduling-closed-${sponsor.id}`}>
+                              Scheduling Closed
+                            </div>
+                          ) : (
+                            <>
+                              {onsiteEnabled && (
+                                <button
+                                  onClick={() => pickSponsor(sponsor)}
+                                  data-testid={`btn-meet-${sponsor.id}`}
+                                  className={cn(
+                                    "w-full py-1.5 rounded-lg text-white text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
+                                    levelAccent[getSponsorEventLevel(sponsor, event.id)] || "bg-primary hover:bg-primary/90",
+                                  )}
+                                >
+                                  Schedule Onsite Meeting
+                                </button>
+                              )}
+                              {onlineEnabled && (
+                                <button
+                                  onClick={() => pickOnlineMeeting(sponsor)}
+                                  data-testid={`btn-online-${sponsor.id}`}
+                                  className={cn(
+                                    "w-full py-1 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5",
+                                    levelAccentSecondary[getSponsorEventLevel(sponsor, event.id)] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
+                                  )}
+                                >
+                                  <Video className="h-3 w-3" /> Online Meeting
+                                </button>
+                              )}
+                            </>
                           )}
-                        >
-                          Schedule Onsite Meeting
-                        </button>
-                        {sponsor.allowOnlineMeetings && (
-                          <button
-                            onClick={() => pickOnlineMeeting(sponsor)}
-                            data-testid={`btn-online-${sponsor.id}`}
-                            className={cn(
-                              "w-full py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5",
-                              levelAccentSecondary[getSponsorEventLevel(sponsor, event.id)] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
-                            )}
-                          >
-                            <Video className="h-3 w-3" /> Online Meeting
-                          </button>
-                        )}
-                      </>
-                    )}
-                    <button
-                      onClick={() => setRequestInfoSponsor(sponsor)}
-                      data-testid={`btn-request-info-${sponsor.id}`}
-                      className="w-full py-1.5 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground bg-transparent hover:bg-muted/50 transition-all duration-150 active:scale-[0.98]"
-                    >
-                      Request Information
-                    </button>
+                          {infoEnabled && (
+                            <button
+                              onClick={() => setRequestInfoSponsor(sponsor)}
+                              data-testid={`btn-request-info-${sponsor.id}`}
+                              className="w-full py-1 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground bg-transparent hover:bg-muted/50 transition-all duration-150 active:scale-[0.98]"
+                            >
+                              Request Information
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </motion.div>
               ))}

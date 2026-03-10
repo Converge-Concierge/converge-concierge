@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { 
@@ -103,6 +103,93 @@ function downloadCSV(filename: string, content: string) {
   document.body.removeChild(link);
 }
 
+// --- FileUploadZone ---
+
+function FileUploadZone({
+  file,
+  onFileSelected,
+  testId,
+  label = "Click to upload or drag and drop",
+  hint = "CSV files only",
+}: {
+  file: File | null;
+  onFileSelected: (file: File) => void;
+  testId?: string;
+  label?: string;
+  hint?: string;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  const validateAndSelect = (f: File) => {
+    setFileError(null);
+    if (!f.name.toLowerCase().endsWith(".csv") && f.type !== "text/csv") {
+      setFileError("Only CSV files are allowed.");
+      return;
+    }
+    onFileSelected(f);
+  };
+
+  return (
+    <div
+      className={cn(
+        "border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer select-none",
+        isDragging
+          ? "border-accent bg-accent/5"
+          : file
+          ? "border-green-400 bg-green-50/20"
+          : "border-border hover:border-accent/50"
+      )}
+      onClick={() => fileInputRef.current?.click()}
+      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+      onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
+      onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const dropped = e.dataTransfer.files?.[0];
+        if (dropped) validateAndSelect(dropped);
+      }}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        data-testid={testId}
+        onChange={(e) => {
+          const selected = e.target.files?.[0];
+          if (selected) validateAndSelect(selected);
+          e.target.value = "";
+        }}
+      />
+      <div className="space-y-2 pointer-events-none">
+        <div className="mx-auto w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+          {file ? (
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+          ) : (
+            <Upload className={cn("h-5 w-5 text-accent", isDragging && "animate-bounce")} />
+          )}
+        </div>
+        <div className="text-sm">
+          {file ? (
+            <span className="font-medium text-foreground">{file.name}</span>
+          ) : isDragging ? (
+            <span className="text-accent font-medium">Drop your CSV file here</span>
+          ) : (
+            <span>{label}</span>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      </div>
+      {fileError && (
+        <p className="mt-2 text-xs text-destructive pointer-events-none">{fileError}</p>
+      )}
+    </div>
+  );
+}
+
 // --- Components ---
 
 function CategorySection({ 
@@ -189,9 +276,7 @@ function CategorySection({
     toast({ title: "Export Complete", description: `${categoryLabel} exported successfully.` });
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
+  const processFile = (selectedFile: File) => {
     setFile(selectedFile);
     setImportResult(null);
 
@@ -207,7 +292,6 @@ function CategorySection({
       const headers = lines[0].split(",").map(h => h.trim());
       const expectedHeaders = headersMap[category];
       
-      // Basic header validation
       const missingHeaders = expectedHeaders.filter(h => !headers.includes(h));
       if (missingHeaders.length > 0) {
         toast({ 
@@ -226,7 +310,6 @@ function CategorySection({
         });
 
         const errors: string[] = [];
-        // Basic validation based on category
         if (category === "sponsors" && !rowData.Name) errors.push("Name is required");
         if (category === "attendees") {
           if (!rowData.Email) errors.push("Email is required");
@@ -364,24 +447,11 @@ function CategorySection({
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-accent/50 transition-colors relative cursor-pointer">
-                <Input 
-                  type="file" 
-                  accept=".csv" 
-                  className="absolute inset-0 opacity-0 cursor-pointer" 
-                  onChange={handleFileChange}
-                  data-testid={`input-import-file-${category}`}
-                />
-                <div className="space-y-2">
-                  <div className="mx-auto w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                    <Upload className="h-5 w-5 text-accent" />
-                  </div>
-                  <div className="text-sm">
-                    {file ? <span className="font-medium text-foreground">{file.name}</span> : <span>Click to upload or drag and drop</span>}
-                  </div>
-                  <p className="text-xs text-muted-foreground">CSV files only</p>
-                </div>
-              </div>
+              <FileUploadZone
+                file={file}
+                onFileSelected={processFile}
+                testId={`input-import-file-${category}`}
+              />
             </div>
           </CardContent>
           <CardFooter>
@@ -653,9 +723,7 @@ function NunifySection({
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
+  const processFile = (selectedFile: File) => {
     setFile(selectedFile);
     setImportResult(null);
 
@@ -665,7 +733,6 @@ function NunifySection({
       const lines = text.split(/\r?\n/).filter(line => line.trim());
       if (lines.length < 1) return;
 
-      // Simple CSV parser that handles quotes
       const parseCSVLine = (line: string) => {
         const result = [];
         let cur = "";
@@ -844,29 +911,13 @@ function NunifySection({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 flex-1">
-              <div 
-                className={cn(
-                  "border-2 border-dashed border-border rounded-lg p-8 text-center transition-colors relative cursor-pointer",
-                  file ? "bg-green-50/20 border-green-200" : "hover:border-accent/50"
-                )}
-              >
-                <Input 
-                  type="file" 
-                  accept=".csv" 
-                  className="absolute inset-0 opacity-0 cursor-pointer" 
-                  onChange={handleFileChange}
-                  data-testid="input-nunify-import-file"
-                />
-                <div className="space-y-2">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                    <Upload className="h-6 w-6 text-accent" />
-                  </div>
-                  <div className="text-sm">
-                    {file ? <span className="font-medium text-foreground">{file.name}</span> : <span>Click to upload Nunify CSV</span>}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Supports updates by Nunify ID or meeting details</p>
-                </div>
-              </div>
+              <FileUploadZone
+                file={file}
+                onFileSelected={processFile}
+                testId="input-nunify-import-file"
+                label="Click to upload Nunify CSV"
+                hint="Supports updates by Nunify ID or meeting details"
+              />
             </CardContent>
             <CardFooter>
               <Button 

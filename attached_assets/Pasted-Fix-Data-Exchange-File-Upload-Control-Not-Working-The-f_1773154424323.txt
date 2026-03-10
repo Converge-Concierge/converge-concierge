@@ -1,0 +1,344 @@
+Fix Data Exchange File Upload Control Not Working
+
+The file upload area in the Data Exchange section is currently not functioning.
+
+Affected behavior:
+
+In all Data Exchange tabs, the uploader area that says:
+
+“Click to upload or drag and drop”
+
+does not open the file picker when clicked and does not reliably accept drag-and-drop files.
+
+This needs to be fixed so admins can upload CSV files for import.
+
+Problem Scope
+
+This issue affects all Data Exchange import tabs, not just Sponsors.
+
+Examples may include:
+
+Sponsors import
+
+Attendees import
+
+Meetings import
+
+any other CSV import screen inside Data Exchange
+
+The fix should be applied globally to the reusable upload component if one is being used.
+
+Expected Behavior
+
+When a user clicks anywhere in the upload box:
+
+the system should open the native file picker
+
+When a user drags a CSV file onto the upload box:
+
+the drop zone should visually indicate active drag state
+
+the file should be accepted
+
+the selected filename should display
+
+the import action should become available
+
+The component should work consistently across all supported import tabs.
+
+Likely Root Causes to Check
+
+Please inspect the upload component for one or more of the following common issues:
+
+1. Hidden file input is not connected to the clickable area
+
+The visible drop zone may not be properly wired to the underlying:
+
+<input type="file" />
+
+The click action should either:
+
+use a <label for="fileInputId">
+
+or programmatically trigger fileInputRef.click()
+
+2. Click handler is attached to the wrong container
+
+Sometimes the visible upload box is styled correctly but the click handler is placed on a child element that is not filling the whole container.
+
+Result:
+Only a small portion is clickable or nothing happens.
+
+Make the entire upload area clickable.
+
+3. Drag-and-drop events are not preventing browser defaults
+
+If these handlers are missing preventDefault(), the browser may ignore the drop or try to open the file directly.
+
+Check these events:
+
+onDragOver
+
+onDragEnter
+
+onDragLeave
+
+onDrop
+
+Make sure preventDefault() is called where required.
+
+4. Overlay or disabled layer blocking clicks
+
+Check whether another element is sitting on top of the upload area due to:
+
+z-index
+
+absolute positioning
+
+disabled state
+
+pointer-events CSS
+
+Inspect whether the upload area looks active but is actually blocked by another layer.
+
+5. Button state tied to file selection is not updating
+
+The uploader may accept a file internally but fail to update UI state.
+
+Verify that after selecting a file:
+
+file state is stored
+
+selected filename renders
+
+“Start Import” becomes enabled when appropriate
+
+6. Shared component regression across tabs
+
+If all tabs are broken, the issue is likely inside:
+
+a shared upload component
+
+a shared file input hook
+
+a reusable Data Exchange import wrapper
+
+Fix the shared logic rather than patching each tab individually.
+
+Required Functional Fix
+A. Clicking the Upload Box Must Open File Picker
+
+Implement one of these patterns.
+
+Preferred approach
+<label for="csv-upload" class="upload-dropzone">
+  Click to upload or drag and drop
+</label>
+<input id="csv-upload" type="file" accept=".csv,text/csv" hidden />
+Or programmatic click
+uploadBox.onClick = () => fileInputRef.current?.click();
+B. Drag and Drop Must Work Reliably
+
+Handle drag events properly.
+
+Example logic:
+
+const handleDragOver = (e) => {
+  e.preventDefault();
+  setIsDragging(true);
+};
+
+const handleDragLeave = (e) => {
+  e.preventDefault();
+  setIsDragging(false);
+};
+
+const handleDrop = (e) => {
+  e.preventDefault();
+  setIsDragging(false);
+
+  const file = e.dataTransfer?.files?.[0];
+  if (!file) return;
+
+  handleSelectedFile(file);
+};
+C. CSV Validation Must Still Apply
+
+Uploader should only accept:
+
+.csv
+
+text/csv
+
+If a non-CSV file is dropped or selected:
+
+show a clear validation error
+
+do not proceed to import
+
+D. Selected File Must Be Visible in UI
+
+After a file is selected, show something like:
+
+filename
+
+file size optionally
+
+replace/remove option optionally
+
+Example:
+
+Selected file: cugi-sponsors.csv
+E. Start Import Button Must Reflect State Properly
+
+Current behavior suggests the uploader may not be passing file state correctly.
+
+Rules:
+
+disabled when no valid file is selected
+
+enabled once a valid CSV is selected
+
+disabled during active upload/import processing
+
+UI Requirements
+
+Improve usability of the upload zone so users clearly understand status.
+
+Default state
+
+Display:
+
+upload icon
+
+“Click to upload or drag and drop”
+
+“CSV files only”
+
+Drag active state
+
+Change border/background to show active drop target.
+
+Selected state
+
+Display:
+
+selected filename
+
+success indicator or subtle confirmation
+
+Error state
+
+Display clear message such as:
+
+“Only CSV files are allowed”
+
+“File could not be read”
+
+“Upload failed. Please try again.”
+
+Technical Requirements
+
+Please verify the following in the Data Exchange upload implementation:
+
+File input
+
+exists in DOM
+
+is not disabled unintentionally
+
+has accept=".csv,text/csv"
+
+Event wiring
+
+click event triggers file selection
+
+drop handler receives file
+
+drag events call preventDefault()
+
+State handling
+
+selected file stored in component state
+
+import button reads from same file state
+
+state resets cleanly after successful import or cancel
+
+Reusability
+
+fix at shared component level if common uploader is used across tabs
+
+Testing Requirements
+
+After implementing the fix, test all of the following:
+
+Click upload
+
+click anywhere in upload box
+
+file picker opens
+
+select valid CSV
+
+filename appears
+
+Start Import enables
+
+Drag and drop
+
+drag CSV onto drop zone
+
+drag styling appears
+
+drop file
+
+filename appears
+
+Start Import enables
+
+Invalid file
+
+upload non-CSV file
+
+validation message appears
+
+Start Import remains disabled
+
+Cross-tab validation
+
+Confirm the uploader works in all Data Exchange tabs, including at minimum:
+
+Sponsors
+
+Attendees
+
+Meetings
+
+Expected Result
+
+Admins should be able to:
+
+click the upload zone to choose a CSV
+
+drag and drop a CSV into the upload zone
+
+see the selected file reflected in the UI
+
+start the import successfully
+
+This should work consistently across the entire Data Exchange section.
+
+Recommended Implementation Note
+
+If the current uploader is custom-built and unstable, replace it with a simpler and more reliable pattern:
+
+hidden native file input
+
+clickable styled label/container
+
+straightforward drag-and-drop handlers
+
+shared reusable component for all imports
+
+Reliability is more important than overly complex upload UI.

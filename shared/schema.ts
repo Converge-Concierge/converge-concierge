@@ -158,10 +158,13 @@ export const attendees = pgTable("attendees", {
   company: text("company").notNull(),
   title: text("title").notNull(),
   email: text("email").notNull(),
+  phone: text("phone"),
   linkedinUrl: text("linkedin_url"),
   assignedEvent: varchar("assigned_event").notNull(), // event id
   archiveState: text("archive_state", { enum: ["active", "archived"] }).notNull().default("active"),
   archiveSource: text("archive_source", { enum: ["event", "manual"] }),
+  externalSource: text("external_source"),
+  externalRegistrationId: text("external_registration_id"),
 });
 
 export const insertAttendeeSchema = createInsertSchema(attendees).extend({

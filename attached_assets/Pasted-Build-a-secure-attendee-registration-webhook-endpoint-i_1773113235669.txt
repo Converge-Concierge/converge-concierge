@@ -1,0 +1,378 @@
+Build a secure attendee-registration webhook endpoint in Converge Concierge so Zapier can send Eventzilla registration data into the app.
+
+Important rules:
+- Do not redesign the app
+- Do not break existing attendee, sponsor, meeting, admin, or reporting workflows
+- Preserve all current working functionality
+- This is an additive integration endpoint only
+
+Goal:
+Allow Zapier to POST Eventzilla registration data into Converge Concierge so attendee records are automatically created or updated by event.
+
+==================================================
+1. CREATE A SECURE WEBHOOK ENDPOINT
+==================================================
+
+Create a backend POST endpoint:
+
+/api/integrations/eventzilla/registration
+
+Purpose:
+Receive attendee registration data from Zapier.
+
+This endpoint must:
+- accept JSON payloads
+- validate a shared secret header
+- upsert attendee records
+- associate the attendee to the correct event
+- return a clear JSON success/failure response
+
+==================================================
+2. SHARED SECRET AUTHENTICATION
+==================================================
+
+Add an environment variable:
+
+EVENTZILLA_WEBHOOK_SECRET
+
+The endpoint must require a request header:
+
+?DR348mCjtoY&MFB
+
+Behavior:
+- if header is missing -> return 401
+- if header does not match EVENTZILLA_WEBHOOK_SECRET -> return 401
+- if valid -> continue
+
+Do not allow anonymous public posting.
+
+==================================================
+3. EXPECTED PAYLOAD FORMAT
+==================================================
+
+Support JSON payloads like this:
+
+{
+  "source": "eventzilla",
+  "eventCode": "FRC2026",
+  "registrationId": "EZ12345",
+  "firstName": "Dan",
+  "lastName": "Carmody",
+  "email": "dan@example.com",
+  "company": "TreaSolution",
+  "title": "President",
+  "status": "registered",
+  "registrationSource": "eventzilla"
+}
+
+Required fields:
+- eventCode
+- registrationId
+- firstName
+- lastName
+- email
+
+Optional fields:
+- company
+- title
+- status
+- registrationSource
+
+If source or registrationSource is omitted, default source to:
+eventzilla
+
+==================================================
+4. EVENT LOOKUP / VALIDATION
+==================================================
+
+Use eventCode to match the attendee to an existing event.
+
+Behavior:
+- if eventCode matches an existing event, continue
+- if eventCode is unknown, return 400 with a clear error
+- log the failed request for debugging
+
+Do not create orphan attendee records without an event.
+
+==================================================
+5. UPSERT ATTENDEE LOGIC
+==================================================
+
+Use upsert logic, not create-only.
+
+Primary matching rule:
+email + eventCode
+
+If attendee already exists for that event:
+- update the attendee record
+
+If attendee does not exist for that event:
+- create a new attendee record
+
+Store these integration fields on the attendee if possible:
+- externalSource = "eventzilla"
+- externalRegistrationId = registrationId
+
+If the schema already has equivalent fields, use those.
+
+==================================================
+6. FIELDS TO CREATE / UPDATE
+==================================================
+
+Update the Eventzilla attendee webhook integration in Converge Concierge based on the actual Zapier fields currently available.
+
+Important rules:
+- Do not redesign the app
+- Do not break existing attendee, sponsor, meeting, admin, or reporting workflows
+- Preserve all current working functionality
+- This is an additive backend integration only
+
+Goal:
+Allow Zapier to POST the Eventzilla attendee fields we can actually send today into Converge Concierge.
+
+The current available Zapier fields are:
+
+- eventCode
+- registrationId
+- firstName
+- lastName
+- email
+- company
+- title
+- status
+- phone
+
+Do not require any other fields for this webhook to work.
+
+==================================================
+1. CREATE / UPDATE THE WEBHOOK ENDPOINT
+==================================================
+
+Create or update a backend POST endpoint:
+
+/api/integrations/eventzilla/registration
+
+This endpoint must:
+- accept JSON payloads
+- validate a shared secret header
+- upsert attendee records
+- associate attendees to the correct event
+- return clear JSON responses
+
+==================================================
+2. SHARED SECRET AUTHENTICATION
+==================================================
+
+Add an environment variable:
+
+EVENTZILLA_WEBHOOK_SECRET
+
+Require this request header:
+
+?DR348mCjtoY&MFB
+
+Behavior:
+- if missing -> return 401
+- if invalid -> return 401
+- if valid -> continue
+
+==================================================
+3. SUPPORTED PAYLOAD FORMAT
+==================================================
+
+Support exactly this payload shape:
+
+{
+  "eventCode": "FRC2026",
+  "registrationId": "39580043",
+  "firstName": "Josh",
+  "lastName": "Lambert",
+  "email": "josh@example.com",
+  "company": "Best Egg",
+  "title": "Chief Compliance Officer",
+  "status": "registered",
+  "phone": "(434) 327-6013"
+}
+
+Required fields:
+- eventCode
+- registrationId
+- firstName
+- lastName
+- email
+
+Optional fields:
+- company
+- title
+- status
+- phone
+
+Do not fail the request if optional fields are missing.
+
+==================================================
+4. EVENT LOOKUP
+==================================================
+
+Use eventCode to find the existing event.
+
+Behavior:
+- if eventCode matches an existing event -> continue
+- if eventCode is unknown -> return 400 with a clear error
+- log the failure for debugging
+
+Do not create orphan attendee records without a valid event.
+
+==================================================
+5. UPSERT ATTENDEE LOGIC
+==================================================
+
+Use upsert logic based on:
+
+email + eventCode
+
+Behavior:
+- if attendee already exists for that event -> update attendee
+- if attendee does not exist for that event -> create attendee
+
+Store integration metadata if possible:
+- externalSource = "eventzilla"
+- externalRegistrationId = registrationId
+
+If equivalent fields already exist, use them.
+
+==================================================
+6. FIELD MAPPING
+==================================================
+
+Map the Zapier payload fields into the attendee record as follows:
+
+eventCode
+-> match to event record
+
+registrationId
+-> externalRegistrationId
+
+firstName
+-> attendee.firstName
+or preserve separately if schema supports it
+
+lastName
+-> attendee.lastName
+or preserve separately if schema supports it
+
+email
+-> attendee.email
+
+company
+-> attendee.company
+
+title
+-> attendee.title
+
+status
+-> attendee.status or registrationStatus
+(use the existing field name in the schema)
+
+phone
+-> attendee.phone
+
+If the current attendee model only stores fullName:
+- safely populate fullName = firstName + " " + lastName
+- but preferably preserve firstName and lastName separately if the schema supports it
+
+==================================================
+7. DO NOT REQUIRE UNSUPPORTED FIELDS
+==================================================
+
+Do NOT require any of the following for the webhook to succeed:
+- linkedinUrl
+- interests
+- registrationSource
+- source
+- ticketType
+
+If those fields do not exist in the Zap today, the endpoint must still work correctly.
+
+You may optionally default:
+- externalSource = "eventzilla"
+
+==================================================
+8. RESPONSE FORMAT
+==================================================
+
+Return clear JSON responses.
+
+Success response example:
+{
+  "ok": true,
+  "action": "created",
+  "attendeeId": "123",
+  "eventCode": "FRC2026"
+}
+
+Update response example:
+{
+  "ok": true,
+  "action": "updated",
+  "attendeeId": "123",
+  "eventCode": "FRC2026"
+}
+
+Failure response example:
+{
+  "ok": false,
+  "error": "Unknown eventCode"
+}
+
+==================================================
+9. LOGGING
+==================================================
+
+Add server-side logging for:
+- webhook received
+- eventCode
+- email
+- registrationId
+- created vs updated
+- auth failures
+- validation failures
+
+Keep logs concise but useful for Zapier testing.
+
+==================================================
+10. ZAPIER COMPATIBILITY
+==================================================
+
+This endpoint must work with the current Zapier setup:
+
+- Method: POST
+- Payload Type: JSON
+- Wrap Request In Array: No
+- Header:
+    x-converge-secret: [secret]
+
+Do not require nested payloads.
+Do not require array payloads.
+Accept the flat key/value JSON structure Zapier is sending.
+
+==================================================
+11. DO NOT EXPOSE THIS IN THE UI
+==================================================
+
+This is a backend integration endpoint only.
+
+Do not add any public page or form for it.
+
+==================================================
+12. SUCCESS CRITERIA
+==================================================
+
+After implementation:
+- Zapier can POST the current Eventzilla fields into Concierge
+- invalid secret returns 401
+- valid payload creates attendee if not found
+- valid payload updates attendee if already found for same email + event
+- attendee is linked to the correct event
+- company, title, status, and phone are stored when present
+- endpoint returns clear JSON showing created vs updated
+- logs are useful for debugging live Zap runs

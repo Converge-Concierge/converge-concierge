@@ -18,8 +18,8 @@ export default function LoginPage() {
   const { data: branding } = useQuery<AppBranding>({ queryKey: ["/api/branding-public"] });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [email, setEmail] = useState("admin@converge.com");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   // Forgot password state

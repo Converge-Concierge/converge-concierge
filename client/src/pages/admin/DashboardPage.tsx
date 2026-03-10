@@ -2,12 +2,13 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Event, Sponsor, Attendee, Meeting } from "@shared/schema";
+import { Event, Sponsor, Attendee, Meeting, InformationRequest } from "@shared/schema";
 import {
   CalendarDays, Building2, Users, Handshake, TrendingUp,
   ArrowRight, Clock, CheckCircle2, XCircle, AlertCircle,
+  MessageSquare, FileText,
 } from "lucide-react";
-import { format, parseISO, isAfter } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 
 const statusColors: Record<string, string> = {
@@ -21,6 +22,16 @@ const statusIcons: Record<string, React.ReactNode> = {
   Completed: <CheckCircle2 className="h-3 w-3" />,
   Cancelled: <XCircle className="h-3 w-3" />,
   NoShow:    <AlertCircle className="h-3 w-3" />,
+};
+
+const infoStatusColors: Record<string, string> = {
+  New:              "bg-blue-100 text-blue-700",
+  Open:             "bg-blue-100 text-blue-700",
+  "Email Sent":     "bg-amber-100 text-amber-700",
+  Contacted:        "bg-amber-100 text-amber-700",
+  "Meeting Scheduled": "bg-teal-100 text-teal-700",
+  Closed:           "bg-gray-100 text-gray-600",
+  "Not Qualified":  "bg-orange-100 text-orange-700",
 };
 
 function StatCard({
@@ -52,10 +63,11 @@ function StatCard({
 export default function DashboardPage() {
   const [, nav] = useLocation();
 
-  const { data: events   = [] } = useQuery<Event[]>  ({ queryKey: ["/api/events"]   });
-  const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
-  const { data: attendees = [] } = useQuery<Attendee[]>({ queryKey: ["/api/attendees"] });
-  const { data: meetings = [] } = useQuery<Meeting[]>({ queryKey: ["/api/meetings"] });
+  const { data: events      = [] } = useQuery<Event[]>             ({ queryKey: ["/api/events"]   });
+  const { data: sponsors    = [] } = useQuery<Sponsor[]>           ({ queryKey: ["/api/sponsors"] });
+  const { data: attendees   = [] } = useQuery<Attendee[]>          ({ queryKey: ["/api/attendees"] });
+  const { data: meetings    = [] } = useQuery<Meeting[]>           ({ queryKey: ["/api/meetings"] });
+  const { data: infoRequests = [] } = useQuery<InformationRequest[]>({ queryKey: ["/api/admin/information-requests"] });
 
   const activeEvents   = events.filter((e) => (e.archiveState ?? "active") === "active");
   const activeSponsors = sponsors.filter((s) => (s.archiveState ?? "active") === "active");
@@ -66,7 +78,6 @@ export default function DashboardPage() {
     return counts;
   }, [meetings]);
 
-  // Upcoming meetings: Scheduled status, sorted by date+time ascending
   const upcoming = useMemo(() => {
     return [...meetings]
       .filter((m) => m.status === "Scheduled")
@@ -74,7 +85,12 @@ export default function DashboardPage() {
       .slice(0, 8);
   }, [meetings]);
 
-  // Per-event meeting counts
+  const recentInfoRequests = useMemo(() => {
+    return [...infoRequests]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5);
+  }, [infoRequests]);
+
   const meetingsByEvent = useMemo(() => {
     const counts: Record<string, number> = {};
     meetings.forEach((m) => { counts[m.eventId] = (counts[m.eventId] ?? 0) + 1; });
@@ -84,9 +100,20 @@ export default function DashboardPage() {
       .sort((a, b) => b.count - a.count);
   }, [meetings, events]);
 
+  const meetingsBySponsor = useMemo(() => {
+    const counts: Record<string, number> = {};
+    meetings.forEach((m) => { counts[m.sponsorId] = (counts[m.sponsorId] ?? 0) + 1; });
+    return sponsors
+      .map((s) => ({ sponsor: s, count: counts[s.id] ?? 0 }))
+      .filter((x) => x.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+  }, [meetings, sponsors]);
+
   function getSponsorName(id: string) { return sponsors.find((s) => s.id === id)?.name ?? "—"; }
   function getAttendeeName(id: string) { return attendees.find((a) => a.id === id)?.name ?? "—"; }
   function getEventSlug(id: string) { return events.find((e) => e.id === id)?.slug ?? "—"; }
+  function getSponsorNameById(id: string | null) { return id ? (sponsors.find((s) => s.id === id)?.name ?? "—") : "—"; }
 
   return (
     <motion.div
@@ -99,12 +126,12 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Overview of your scheduling activity across all events.
+          Command center — activity, queue, and performance across all events.
         </p>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Top KPI row */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           label="Total Meetings"
           value={meetings.length}
@@ -137,6 +164,14 @@ export default function DashboardPage() {
           accent="bg-green-100"
           onClick={() => nav("/admin/attendees")}
         />
+        <StatCard
+          label="Info Requests"
+          value={infoRequests.length}
+          icon={MessageSquare}
+          sub={`${infoRequests.filter((r) => r.status === "New" || r.status === "Open").length} open`}
+          accent="bg-blue-100"
+          onClick={() => nav("/admin/information-requests")}
+        />
       </div>
 
       {/* Status breakdown */}
@@ -146,7 +181,7 @@ export default function DashboardPage() {
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {Object.entries(statusCounts).map(([status, count]) => (
-            <div key={status} className="flex flex-col items-center justify-center p-4 rounded-xl bg-muted/40 border border-border/40">
+            <div key={status} className="flex flex-col items-center justify-center p-4 rounded-xl bg-muted/40 border border-border/40 cursor-pointer hover:bg-muted/60 transition-colors" onClick={() => nav("/admin/meetings")}>
               <span className={cn("flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full mb-2", statusColors[status] ?? "bg-muted text-muted-foreground")}>
                 {statusIcons[status]} {status}
               </span>
@@ -156,9 +191,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Operational widgets */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming meetings */}
-        <div className="lg:col-span-2 bg-card rounded-2xl border border-border/60 shadow-sm p-6">
+        <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Clock className="h-4 w-4 text-accent" /> Upcoming Meetings
@@ -171,7 +207,7 @@ export default function DashboardPage() {
             </button>
           </div>
           {upcoming.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-2">
               <Handshake className="h-8 w-8 opacity-20" />
               <p className="text-sm">No upcoming meetings scheduled.</p>
             </div>
@@ -202,13 +238,72 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Recent Info Requests */}
+        <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-accent" /> Recent Info Requests
+            </h2>
+            <button
+              onClick={() => nav("/admin/information-requests")}
+              className="text-xs text-accent flex items-center gap-1 hover:underline underline-offset-2"
+            >
+              View all <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
+          {recentInfoRequests.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-2">
+              <MessageSquare className="h-8 w-8 opacity-20" />
+              <p className="text-sm">No information requests yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recentInfoRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                    <FileText className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {req.attendeeFirstName} {req.attendeeLastName} · {req.attendeeCompany}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {getSponsorNameById(req.sponsorId)} · {getEventSlug(req.eventId ?? "")}
+                    </p>
+                  </div>
+                  <span className={cn(
+                    "text-xs font-semibold px-2 py-0.5 rounded-full shrink-0",
+                    infoStatusColors[req.status] ?? "bg-muted text-muted-foreground",
+                  )}>
+                    {req.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Performance visuals */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Meetings by event */}
         <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
-          <h2 className="text-sm font-semibold text-foreground mb-5 flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-accent" /> Meetings by Event
-          </h2>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-accent" /> Meetings by Event
+            </h2>
+            <button
+              onClick={() => nav("/admin/reports")}
+              className="text-xs text-accent flex items-center gap-1 hover:underline underline-offset-2"
+            >
+              Reports <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
           {meetingsByEvent.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-2">
               <CalendarDays className="h-8 w-8 opacity-20" />
               <p className="text-sm text-center">No meetings recorded yet.</p>
             </div>
@@ -225,6 +320,47 @@ export default function DashboardPage() {
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
                         className="h-full bg-accent rounded-full transition-all duration-500"
+                        style={{ width: `${(count / max) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Meetings by sponsor */}
+        <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-accent" /> Meetings by Sponsor
+            </h2>
+            <button
+              onClick={() => nav("/admin/sponsors")}
+              className="text-xs text-accent flex items-center gap-1 hover:underline underline-offset-2"
+            >
+              View sponsors <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
+          {meetingsBySponsor.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-2">
+              <Building2 className="h-8 w-8 opacity-20" />
+              <p className="text-sm text-center">No meetings recorded yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {meetingsBySponsor.map(({ sponsor, count }) => {
+                const max = meetingsBySponsor[0].count;
+                return (
+                  <div key={sponsor.id}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold text-foreground truncate max-w-[180px]">{sponsor.name}</span>
+                      <span className="text-xs text-muted-foreground font-medium">{count}</span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary/60 rounded-full transition-all duration-500"
                         style={{ width: `${(count / max) * 100}%` }}
                       />
                     </div>

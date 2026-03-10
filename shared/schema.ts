@@ -522,7 +522,8 @@ export type PermissionAuditLog = typeof permissionAuditLogs.$inferSelect;
 
 // ── Information Requests ──────────────────────────────────────────────────────
 
-export const INFORMATION_REQUEST_STATUSES = ["New", "Contacted", "Closed"] as const;
+export const INFORMATION_REQUEST_STATUSES = ["New", "Contacted", "Open", "Email Sent", "Meeting Scheduled", "Closed", "Not Qualified"] as const;
+export const SPONSOR_INFO_REQUEST_STATUSES = ["Open", "Email Sent", "Meeting Scheduled", "Closed", "Not Qualified"] as const;
 export type InformationRequestStatus = typeof INFORMATION_REQUEST_STATUSES[number];
 
 export const informationRequests = pgTable("information_requests", {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
-  Settings2, Clock, Globe, Calendar, Shield, Edit2, Save, X,
+  Settings2, Clock, Globe, Calendar, Edit2, Save, X,
   Lock, Info, CheckCircle2, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -296,47 +296,6 @@ export default function SettingsPage() {
           <div>
             <ReadRow label="Online Meeting Window Start" value={s.onlineWindowStart} />
             <ReadRow label="Online Meeting Window End" value={s.onlineWindowEnd} />
-          </div>
-        )}
-      </div>
-
-      {/* ── Access Control ──────────────────────────────────────────────────── */}
-      <div className={cn("bg-card rounded-2xl border border-border/60 shadow-sm p-6 space-y-5", !isAdmin && "opacity-70")}>
-        <div className="flex items-center justify-between pb-3 border-b border-border/50">
-          <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-accent" />
-            <h2 className="text-sm font-semibold text-foreground">Access Control</h2>
-          </div>
-          {!isAdmin && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground border border-border/60 rounded px-2 py-0.5">
-              <Lock className="h-3 w-3" /> Admin only
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Control what managers are permitted to do in this system.
-        </p>
-        {editing && isAdmin ? (
-          <div className="space-y-5">
-            {([
-              { key: "allowManagersToArchive" as const, label: "Allow Managers to Archive Records", desc: "Managers can archive events, sponsors, and attendees." },
-              { key: "allowManagersToEditBranding" as const, label: "Allow Managers to Edit Branding", desc: "Managers can modify global branding settings." },
-              { key: "allowManagersToEditSettings" as const, label: "Allow Managers to Edit Settings", desc: "Managers can edit system preferences and scheduling defaults." },
-            ]).map(({ key, label, desc }) => (
-              <div key={key} className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium text-foreground">{label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
-                </div>
-                <Toggle value={s[key] as boolean} onChange={(v) => set(key, v)} testId={`toggle-${key}`} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div>
-            <ReadRow label="Managers can archive records" value={s.allowManagersToArchive} />
-            <ReadRow label="Managers can edit branding" value={s.allowManagersToEditBranding} />
-            <ReadRow label="Managers can edit settings" value={s.allowManagersToEditSettings} />
           </div>
         )}
       </div>

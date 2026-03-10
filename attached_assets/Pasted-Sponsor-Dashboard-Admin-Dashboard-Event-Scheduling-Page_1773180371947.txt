@@ -1,0 +1,556 @@
+Sponsor Dashboard, Admin Dashboard, Event Scheduling Page, Welcome Page, and Settings Cleanup
+
+Implement the following UX and functional improvements across Concierge.
+
+These are mostly UI/UX, interaction, and configuration cleanup tasks, but several require small logic updates as well.
+
+1. Sponsor Dashboard Improvements
+1A. Information Requests section should always be expanded
+
+On the Sponsor Dashboard, the Information Requests section should behave like the Meetings section.
+
+Required behavior
+
+Information Requests should be expanded by default
+
+It should remain visible and open on page load
+
+Do not hide the table behind a collapsed accordion by default
+
+If accordions are still used elsewhere, this section may remain collapsible, but the default state should be open.
+
+1B. Information Request Actions should be editable
+
+The Actions column in Information Requests should not be static text only.
+
+It should be editable by the sponsor.
+
+Replace current behavior
+
+Current state appears to show a fixed action like:
+
+Closed
+
+Instead, sponsors should be able to update the request outcome/status from the dashboard.
+
+Required status options
+
+Use these options:
+
+Meeting Scheduled
+
+Email Sent
+
+Open
+
+Closed
+
+Not Qualified
+
+Optional additional statuses if useful
+
+If easy and genuinely helpful, also support:
+
+Contact Attempted
+
+No Response
+
+But keep the list clean. Do not overload it.
+
+Recommendation
+
+For now, the strongest status list is:
+
+Open
+
+Email Sent
+
+Meeting Scheduled
+
+Closed
+
+Not Qualified
+
+This is enough for sponsor workflow and reporting.
+
+1C. Recommended Information Request data behavior
+
+The Information Requests section should show:
+
+Name / Title
+
+Company
+
+Email
+
+Status
+
+Source
+
+Actions / editable status control
+
+If possible, make the status editable through:
+
+inline dropdown, or
+
+row action menu
+
+Inline dropdown is preferred for speed.
+
+1D. Sponsor Dashboard metric cards should be clickable
+
+The KPI metric cards on the Sponsor Dashboard should act as navigation shortcuts.
+
+Current metric cards include examples like:
+
+Meetings Scheduled
+
+Meetings Completed
+
+Companies Engaged
+
+Leads Captured
+
+Information Requests
+
+Required behavior
+
+Clicking a metric card should scroll to or jump to the relevant section on the page.
+
+Example mapping
+
+Meetings Scheduled → Meetings section
+
+Meetings Completed → Meetings section filtered visually if easy, otherwise just Meetings section
+
+Companies Engaged → Lead Contacts or Sponsor Performance section
+
+Leads Captured → Lead Contacts section
+
+Information Requests → Information Requests section
+
+Use smooth scrolling if available.
+
+At minimum, clicking should jump to the correct section anchor.
+
+1E. Add logo visibility to the Sponsor Dashboard
+
+Somewhere on the Sponsor Dashboard, we need stronger visual branding using:
+
+Event logo
+
+Sponsor Dashboard Logo from Branding
+
+Right now, branding presence feels too light.
+
+Required behavior
+
+Display both logos on the page in a tasteful way.
+
+Recommended placement
+
+In the dashboard header / hero area, show:
+
+Sponsor Dashboard Logo or Concierge logo
+
+Event logo
+
+Sponsor name
+
+Event name
+
+event details
+
+Goal
+
+Make the page feel more branded and premium, not generic.
+
+Do not clutter the page, but the logos should be visibly present and intentional.
+
+2. Admin Dashboard Improvements
+
+The current Admin Dashboard feels too basic and not optimized.
+
+We need to make it more useful, more visually compelling, and more operational.
+
+2A. Improve admin dashboard hierarchy
+
+The admin dashboard should feel like a true control center.
+
+Prioritize:
+
+what needs attention
+
+upcoming activity
+
+overall performance
+
+recent changes
+
+clear next actions
+
+2B. Recommended dashboard structure
+
+Reorganize the dashboard into:
+
+Top row: high-value KPI cards
+
+Examples:
+
+Total Meetings
+
+Active Events
+
+Active Sponsors
+
+Attendees
+
+Information Requests
+
+Meetings Today
+
+Upcoming Meetings
+
+Only include metrics that are truly available.
+
+Middle row: action / queue area
+
+Include more operational widgets such as:
+
+Upcoming Meetings
+
+Recent Information Requests
+
+Recent Activity
+
+Notifications / items requiring attention
+
+Lower row: performance visuals
+
+Include charts like:
+
+Meeting Status Breakdown
+
+Meetings by Event
+
+Meetings by Sponsor
+
+Information Requests by Sponsor or Event if easy
+
+2C. Make dashboard feel less empty and more actionable
+
+Add links or CTAs from widgets such as:
+
+View all Meetings
+
+View all Information Requests
+
+Open Reports
+
+Open Sponsors
+
+The admin dashboard should not just summarize data. It should direct the admin to the next task.
+
+2D. Improve visual polish
+
+Use:
+
+stronger section headers
+
+better spacing hierarchy
+
+fewer large empty gaps
+
+more informative cards
+
+more meaningful quick actions
+
+Do not overcomplicate the admin dashboard, but it should feel more premium and more useful.
+
+3. Event Scheduling Page Cleanup
+
+The event scheduling page currently has a section near the top that feels cluttered and wordy.
+
+The red-circled section should be simplified and made clearer.
+
+3A. Streamline the intro content
+
+Current content is too verbose and visually heavy.
+
+Simplify the structure so the user sees:
+
+event identity
+
+brief next-step guidance
+
+topic filters
+
+sponsor cards
+
+The content block above sponsor cards should be shorter and easier to scan.
+
+3B. Rewrite the messaging for clarity
+
+Do not use the current statement:
+
+“All meetings are private 30-minute conversations with sponsor representatives during the event.”
+
+This is inaccurate because:
+
+default meeting duration is 20 minutes, as defined in admin settings
+
+some meetings may take place at an exhibit table or other non-private setting
+
+not all meetings are necessarily private
+
+Replace with language that is accurate and flexible
+
+Use something more like:
+
+Explore sponsors and schedule available meeting opportunities during the event.
+
+Or:
+
+Browse participating sponsors and book available meeting times based on their availability.
+
+And for helper text:
+
+Meeting formats, durations, and locations vary by sponsor and event setup.
+
+This is much safer and more accurate.
+
+3C. Reduce visual clutter above sponsor cards
+
+Tighten:
+
+top spacing
+
+descriptive text block size
+
+excess copy
+
+spacing between topic filters and sponsor cards
+
+The goal is to get attendees to sponsor cards faster.
+
+3D. Recommended content order for scheduling page
+
+Use this order:
+
+Event logo and title
+
+Event date/location
+
+Short next-step instruction
+
+Topic filters
+
+Sponsor cards
+
+Keep it clean and concise.
+
+4. Welcome Page / Event Registration Confirmation Page
+
+The welcome page needs several improvements.
+
+4A. Add Request Information button to sponsor cards
+
+On the event registration confirmation page, sponsor cards are missing the Request Information button.
+
+Required behavior
+
+Show the full sponsor action set on these cards as appropriate:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+This should match the sponsor functionality rules already used elsewhere.
+
+Do not omit Request Information from this page.
+
+4B. Make the green “Registration Confirmation” badge bigger and animated
+
+The green Registration Confirmation badge should be more noticeable.
+
+Required changes
+
+make the badge slightly larger
+
+improve its visual prominence
+
+add a subtle pulse animation
+
+The pulse should feel polished, not distracting.
+
+Use a soft, modern pulse effect rather than an aggressive animation.
+
+4C. Add clearer next-step language
+
+Before the existing heading:
+
+Make the most of your time at the event.
+
+Add a short lead-in like:
+
+Next step: Make the most of your time at the conference
+
+This should act as a transition from registration confirmation to sponsor engagement.
+
+Suggested structure
+
+Registration Confirmation badge
+
+Main “You’re Registered” heading
+
+Next step line
+
+Sponsor discovery intro
+
+This makes the page flow better.
+
+4D. Keep welcome page focused on conversion
+
+The welcome page should guide attendees naturally toward sponsor action.
+
+The sponsor section should feel like the next obvious step after registration, not a disconnected section.
+
+Keep the messaging concise and action-oriented.
+
+5. Settings Cleanup
+5A. Remove Access Control from Settings
+
+The Access Control area currently appearing under Settings can be removed from Settings.
+
+This functionality already exists as its own left navigation item.
+
+Required change
+
+Remove the Access Control block/page from Settings if it is duplicated there.
+
+Access Control should live only in its dedicated module in the main navigation.
+
+This avoids redundancy and confusion.
+
+6. Interaction and Consistency Standards
+6A. Status language consistency
+
+Use consistent status labels across sponsor-facing Information Requests.
+
+Preferred status set:
+
+Open
+
+Email Sent
+
+Meeting Scheduled
+
+Closed
+
+Not Qualified
+
+Keep naming consistent in:
+
+sponsor dashboard
+
+admin views
+
+exports if used
+
+6B. Clickable metrics should use smooth navigation
+
+Where metric cards jump to a section, use:
+
+smooth scroll
+
+anchor targeting
+
+visible destination highlighting if easy
+
+This helps the dashboard feel polished.
+
+6C. Branding visibility
+
+Wherever logos are added, keep usage consistent with Branding settings.
+
+Use:
+
+the configured event logo
+
+the configured Sponsor Dashboard / platform branding logo
+
+Do not hardcode logos if the Branding system already stores them.
+
+7. Implementation Priorities
+
+Implement in this order:
+
+Phase 1
+
+always expand Information Requests on Sponsor Dashboard
+
+make Information Request actions editable
+
+make Sponsor Dashboard KPI cards clickable
+
+add Request Information button to welcome page sponsor cards
+
+Phase 2
+
+add event logo + Sponsor Dashboard Logo to sponsor dashboard
+
+improve Registration Confirmation badge size and pulse
+
+add “Next step” language to welcome page
+
+remove inaccurate scheduling page copy
+
+Phase 3
+
+streamline event scheduling page intro area and spacing
+
+improve Admin Dashboard layout and usefulness
+
+remove duplicate Access Control from Settings
+
+This order gets the highest-value improvements live first.
+
+8. Definition of Done
+
+This update is complete when:
+
+Sponsor Dashboard Information Requests is always expanded
+
+sponsors can edit Information Request action/status
+
+Sponsor Dashboard metric cards navigate to the relevant section
+
+Sponsor Dashboard clearly displays both event logo and dashboard/platform branding
+
+Admin Dashboard feels more useful and visually stronger
+
+event scheduling page intro is cleaner and more accurate
+
+welcome page sponsor cards include Request Information
+
+Registration Confirmation badge is larger and subtly pulsing
+
+welcome page includes a “Next step” transition
+
+Access Control is removed from Settings if duplicated there
+
+9. Success Standard
+
+After this update:
+
+sponsors should feel the dashboard is more actionable and branded
+
+admins should feel the main dashboard is more useful and less bland
+
+attendees should reach sponsor actions faster on event pages
+
+messaging should be accurate to actual meeting rules
+
+the interface should feel cleaner, more intentional, and more conversion-focused

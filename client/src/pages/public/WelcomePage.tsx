@@ -2,13 +2,14 @@ import { useState, useMemo } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Event, Sponsor } from "@shared/schema";
+import { Event, Sponsor, EventSponsorLink } from "@shared/schema";
 import {
-  ExternalLink, Building2, CheckCircle, Video, Gem, X,
+  ExternalLink, Building2, CheckCircle, Video, Gem, X, MessageSquare,
 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import PublicFooter from "@/components/PublicFooter";
+import { RequestInfoModal } from "@/components/RequestInfoModal";
 
 // ── Constants / helpers ──────────────────────────────────────────────────────
 
@@ -28,6 +29,10 @@ function getEventWebsite(slug: string, storedUrl?: string | null): string | null
 function getSponsorEventLevel(sponsor: Sponsor, eventId: string): string {
   const ae = (sponsor.assignedEvents ?? []).find((e) => e.eventId === eventId);
   return (ae?.sponsorshipLevel && ae.sponsorshipLevel !== "None") ? ae.sponsorshipLevel : "";
+}
+
+function getSponsorEventLink(sponsor: Sponsor, eventId: string): EventSponsorLink | undefined {
+  return (sponsor.assignedEvents ?? []).find((e) => e.eventId === eventId);
 }
 
 const levelPriority: Record<string, number> = {
@@ -81,6 +86,7 @@ export default function WelcomePage() {
 
   const [activeFilters,  setActiveFilters]  = useState<string[]>([]);
   const [showAllFilters, setShowAllFilters] = useState(false);
+  const [requestInfoSponsor, setRequestInfoSponsor] = useState<Sponsor | null>(null);
 
   const FILTER_LIMIT = 10;
 
@@ -175,10 +181,11 @@ export default function WelcomePage() {
 
             <div className="min-w-0 flex-1">
               <div
-                className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1 rounded-full mb-3"
+                className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold px-4 py-1.5 rounded-full mb-3 animate-pulse"
+                style={{ animationDuration: "2.5s" }}
                 data-testid="badge-registered"
               >
-                <CheckCircle className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                <CheckCircle className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                 Registration Confirmation
               </div>
               <h1
@@ -201,8 +208,11 @@ export default function WelcomePage() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.25, delay: 0.05 }}
           >
+            <p className="text-xs font-semibold uppercase tracking-widest text-accent mb-1">
+              Next step
+            </p>
             <p className="text-xl sm:text-2xl font-display font-bold text-foreground">
-              Make the most of your time at the event.
+              Make the most of your time at the conference.
             </p>
             <p className="text-sm text-muted-foreground mt-1">
               Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.
@@ -343,30 +353,49 @@ export default function WelcomePage() {
                         <ExternalLink className="h-2.5 w-2.5" /> View Profile
                       </Link>
                     </div>
-                    <div className="px-4 pb-4 space-y-1.5">
-                      <button
-                        onClick={() => nav(`/event/${event.slug}?sponsor=${sponsor.id}&mode=onsite`)}
-                        data-testid={`btn-meet-${sponsor.id}`}
-                        className={cn(
-                          "w-full py-2 rounded-lg text-white text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
-                          levelAccent[level] || "bg-primary hover:bg-primary/90",
-                        )}
-                      >
-                        Schedule Onsite Meeting
-                      </button>
-                      {sponsor.allowOnlineMeetings && (
-                        <button
-                          onClick={() => nav(`/event/${event.slug}?sponsor=${sponsor.id}&mode=online`)}
-                          data-testid={`btn-online-${sponsor.id}`}
-                          className={cn(
-                            "w-full py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5",
-                            levelAccentSecondary[level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
+                    {(() => {
+                      const link = getSponsorEventLink(sponsor, event.id);
+                      const onsiteEnabled = link?.onsiteMeetingEnabled ?? true;
+                      const onlineEnabled = link?.onlineMeetingEnabled ?? true;
+                      const infoEnabled = link?.informationRequestEnabled ?? true;
+                      return (
+                        <div className="px-4 pb-4 space-y-1.5">
+                          {onsiteEnabled && (
+                            <button
+                              onClick={() => nav(`/event/${event.slug}?sponsor=${sponsor.id}&mode=onsite`)}
+                              data-testid={`btn-meet-${sponsor.id}`}
+                              className={cn(
+                                "w-full py-2 rounded-lg text-white text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
+                                levelAccent[level] || "bg-primary hover:bg-primary/90",
+                              )}
+                            >
+                              Schedule Onsite Meeting
+                            </button>
                           )}
-                        >
-                          <Video className="h-3 w-3" /> Online Meeting
-                        </button>
-                      )}
-                    </div>
+                          {onlineEnabled && sponsor.allowOnlineMeetings && (
+                            <button
+                              onClick={() => nav(`/event/${event.slug}?sponsor=${sponsor.id}&mode=online`)}
+                              data-testid={`btn-online-${sponsor.id}`}
+                              className={cn(
+                                "w-full py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5",
+                                levelAccentSecondary[level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
+                              )}
+                            >
+                              <Video className="h-3 w-3" /> Online Meeting
+                            </button>
+                          )}
+                          {infoEnabled && (
+                            <button
+                              onClick={() => setRequestInfoSponsor(sponsor)}
+                              data-testid={`btn-info-${sponsor.id}`}
+                              className="w-full py-1.5 rounded-lg text-xs font-semibold border border-border text-muted-foreground bg-muted/30 hover:bg-muted transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5"
+                            >
+                              <MessageSquare className="h-3 w-3" /> Request Information
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </motion.div>
                 );
               })}
@@ -374,6 +403,14 @@ export default function WelcomePage() {
           )}
         </motion.div>
       </div>
+
+      <RequestInfoModal
+        open={!!requestInfoSponsor}
+        onClose={() => setRequestInfoSponsor(null)}
+        sponsorId={requestInfoSponsor?.id ?? ""}
+        sponsorName={requestInfoSponsor?.name ?? ""}
+        eventId={event.id}
+      />
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}
       {eventWebsite && (

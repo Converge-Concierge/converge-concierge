@@ -355,9 +355,13 @@ export default function EventPage() {
     const found = sponsors.find((s) => s.id === sponsorParam);
     if (!found) return;
     hasAppliedDeepLink.current = true;
-    setSelectedSponsor(found);
-    setMeetingMode(modeParam === "online" ? "online" : "onsite");
-    setStep(1);
+    if (modeParam === "info") {
+      setRequestInfoSponsor(found);
+    } else {
+      setSelectedSponsor(found);
+      setMeetingMode(modeParam === "online" ? "online" : "onsite");
+      setStep(1);
+    }
   }, [sponsors]);
 
   const event = events.find((e) => e.slug === slug);
@@ -848,9 +852,8 @@ export default function EventPage() {
             return (
               <div className="mb-4 space-y-2">
                 <div className="mb-1 space-y-0.5">
-                  <p className="text-base font-display font-bold text-foreground">Make the most of your time at the event by scheduling meetings with participating sponsors.</p>
+                  <p className="text-base font-display font-bold text-foreground">Browse participating sponsors and book available meeting times based on their availability.</p>
                   <p className="text-sm text-muted-foreground">Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.</p>
-                  <p className="text-xs text-muted-foreground/80 italic">Sponsors are offering a limited number of private meeting slots during the event.</p>
                 </div>
                 <div className="pt-1">
                   <h2 className="text-xl font-display font-semibold text-foreground mb-2">
@@ -907,7 +910,7 @@ export default function EventPage() {
                     </button>
                   )}
                   <p className="mt-3 text-xs text-muted-foreground/70">
-                    All meetings are private 30-minute conversations with sponsor representatives during the event.
+                    Meeting formats, durations, and locations vary by sponsor and event setup.
                   </p>
                 </div>
               </div>

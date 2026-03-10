@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { downloadICS, googleCalendarUrl } from "@/lib/ics";
+import { SPONSOR_INFO_REQUEST_STATUSES } from "@shared/schema";
 
 import { useToast } from "@/hooks/use-toast";
 
@@ -100,9 +101,15 @@ function fmt12(t: string) {
 
 // ── Stat card ──────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, icon: Icon, accent, sub }: { label: string; value: number | string; icon: React.ElementType; accent?: string; sub?: string }) {
+function StatCard({ label, value, icon: Icon, accent, sub, onClick }: { label: string; value: number | string; icon: React.ElementType; accent?: string; sub?: string; onClick?: () => void }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card shadow-sm p-5 flex flex-col gap-3">
+    <div
+      className={cn(
+        "rounded-2xl border border-border/60 bg-card shadow-sm p-5 flex flex-col gap-3",
+        onClick && "cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.98]",
+      )}
+      onClick={onClick}
+    >
       <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center", accent ? `bg-${accent}-100` : "bg-muted")}>
         <Icon className={cn("h-4 w-4", accent ? `text-${accent}-600` : "text-accent")} />
       </div>
@@ -125,10 +132,13 @@ export default function SponsorDashboardPage() {
   const { toast } = useToast();
   const [notifOpen, setNotifOpen] = useState(true);
   const [leadsOpen, setLeadsOpen] = useState(false);
-  const [infoRequestsOpen, setInfoRequestsOpen] = useState(false);
+  const [infoRequestsOpen, setInfoRequestsOpen] = useState(true);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [linkInput, setLinkInput] = useState("");
   const notifSectionRef = useRef<HTMLDivElement>(null);
+  const meetingsSectionRef = useRef<HTMLDivElement>(null);
+  const leadsSectionRef = useRef<HTMLDivElement>(null);
+  const infoRequestsSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (!token) nav("/sponsor/login"); }, [token]);
 
@@ -370,7 +380,31 @@ export default function SponsorDashboardPage() {
           className="w-full max-w-5xl mx-auto px-6 pt-8 space-y-8"
         >
           {/* Sponsor + Event header */}
-          <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
+          <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+            {(branding?.sponsorDashboardLogoUrl || event.logoUrl) && (
+              <div className="px-6 pt-5 pb-3 border-b border-border/40 flex items-center justify-between gap-4 bg-muted/20">
+                <div className="flex items-center gap-4">
+                  {branding?.sponsorDashboardLogoUrl && (
+                    <img
+                      src={branding.sponsorDashboardLogoUrl}
+                      alt={branding.appName || "Concierge"}
+                      className="h-8 max-w-[160px] object-contain"
+                      data-testid="img-dashboard-brand-logo"
+                    />
+                  )}
+                  {event.logoUrl && (
+                    <div className="h-10 border border-border/50 bg-white rounded-lg p-1.5 flex items-center justify-center overflow-hidden shrink-0" data-testid="img-event-logo-header">
+                      <img src={event.logoUrl} alt={event.name} className="h-7 max-w-[120px] object-contain" />
+                    </div>
+                  )}
+                </div>
+                <div className="text-right hidden sm:block">
+                  <p className="text-xs font-semibold text-foreground">{event.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{event.location}</p>
+                </div>
+              </div>
+            )}
+            <div className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               {/* Sponsor logo on the left — primary visual */}
               <div className="h-16 w-16 rounded-xl bg-white border border-border/70 flex items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-sponsor-logo-card">
@@ -460,6 +494,7 @@ export default function SponsorDashboardPage() {
                   </div>
                 )}
               </div>
+            </div>
             </div>
           </div>
 
@@ -586,11 +621,11 @@ export default function SponsorDashboardPage() {
 
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-            <StatCard label="Meetings Scheduled"  value={stats.scheduled}           icon={Calendar}       sub="confirmed upcoming meetings" />
-            <StatCard label="Meetings Completed"  value={stats.completed}           icon={CheckCircle2}   sub="successfully held" />
-            <StatCard label="Companies Engaged"   value={stats.companies}           icon={Building2}      sub="distinct organizations" />
-            <StatCard label="Leads Captured"      value={leads.length}              icon={UserCheck}      sub="unique contacts met" />
-            <StatCard label="Information Requests" value={infoRequests.length}      icon={MessageSquare}  sub="pending follow-ups" />
+            <StatCard label="Meetings Scheduled"  value={stats.scheduled}    icon={Calendar}       sub="confirmed upcoming"    onClick={() => meetingsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
+            <StatCard label="Meetings Completed"  value={stats.completed}    icon={CheckCircle2}   sub="successfully held"     onClick={() => meetingsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
+            <StatCard label="Companies Engaged"   value={stats.companies}    icon={Building2}      sub="distinct organizations" onClick={() => leadsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
+            <StatCard label="Leads Captured"      value={leads.length}       icon={UserCheck}      sub="unique contacts"       onClick={() => leadsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
+            <StatCard label="Information Requests" value={infoRequests.length} icon={MessageSquare} sub="follow-ups"           onClick={() => infoRequestsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
           </div>
 
           {/* Charts — only shown when there's data */}
@@ -752,7 +787,7 @@ export default function SponsorDashboardPage() {
           </div>
 
           {/* Meeting list */}
-          <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+          <div ref={meetingsSectionRef} className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -996,7 +1031,7 @@ export default function SponsorDashboardPage() {
           </div>
 
           {/* Leads table */}
-          <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+          <div ref={leadsSectionRef} className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
             <button
               onClick={() => setLeadsOpen((v) => !v)}
               className="w-full px-6 py-4 border-b border-border/50 flex items-center justify-between hover:bg-muted/30 transition-colors"
@@ -1069,7 +1104,7 @@ export default function SponsorDashboardPage() {
             )}
           </div>
           {/* ── Information Requests section ──────────────────────────────── */}
-          <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+          <div ref={infoRequestsSectionRef} className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
             <button
               onClick={() => setInfoRequestsOpen((v) => !v)}
               className="w-full px-6 py-4 border-b border-border/50 flex items-center justify-between hover:bg-muted/30 transition-colors"
@@ -1093,26 +1128,29 @@ export default function SponsorDashboardPage() {
                 </div>
               ) : (
                 <>
-                  <div className="hidden sm:grid grid-cols-[1fr_140px_160px_120px_100px_160px] gap-3 px-6 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <div className="hidden sm:grid grid-cols-[1fr_140px_160px_180px_80px] gap-3 px-6 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     <span>Name / Title</span>
                     <span>Company</span>
                     <span>Email</span>
                     <span>Status</span>
                     <span>Source</span>
-                    <span>Actions</span>
                   </div>
                   <div className="divide-y divide-border/40">
                     {[...infoRequests]
                       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                       .map((req) => {
                         const statusColor =
-                          req.status === "New"       ? "bg-blue-100 text-blue-700 border-blue-200" :
-                          req.status === "Contacted" ? "bg-amber-100 text-amber-700 border-amber-200" :
-                                                       "bg-gray-100 text-gray-600 border-gray-200";
+                          req.status === "New"              ? "bg-blue-100 text-blue-700 border-blue-200" :
+                          req.status === "Open"             ? "bg-blue-100 text-blue-700 border-blue-200" :
+                          req.status === "Contacted"        ? "bg-amber-100 text-amber-700 border-amber-200" :
+                          req.status === "Email Sent"       ? "bg-amber-100 text-amber-700 border-amber-200" :
+                          req.status === "Meeting Scheduled"? "bg-teal-100 text-teal-700 border-teal-200" :
+                          req.status === "Not Qualified"    ? "bg-orange-100 text-orange-700 border-orange-200" :
+                                                             "bg-gray-100 text-gray-600 border-gray-200";
                         return (
                           <div
                             key={req.id}
-                            className="px-6 py-4 flex flex-col sm:grid sm:grid-cols-[1fr_140px_160px_120px_100px_160px] sm:items-start gap-3 hover:bg-muted/30 transition-colors"
+                            className="px-6 py-4 flex flex-col sm:grid sm:grid-cols-[1fr_140px_160px_180px_80px] sm:items-center gap-3 hover:bg-muted/30 transition-colors"
                             data-testid={`info-req-row-${req.id}`}
                           >
                             <div>
@@ -1124,35 +1162,26 @@ export default function SponsorDashboardPage() {
                             </div>
                             <p className="text-sm text-foreground truncate">{req.attendeeCompany}</p>
                             <p className="text-xs text-muted-foreground truncate">{req.attendeeEmail}</p>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusColor} w-fit`}>
-                              {req.status}
-                            </span>
-                            <p className="text-xs text-muted-foreground">{req.source}</p>
-                            <div className="flex gap-2 flex-wrap">
-                              {req.status === "New" && (
-                                <button
-                                  onClick={() => updateInfoStatus.mutate({ id: req.id, status: "Contacted" })}
-                                  disabled={updateInfoStatus.isPending}
-                                  className="text-xs px-2.5 py-1 rounded-lg border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-50"
-                                  data-testid={`btn-contacted-${req.id}`}
-                                >
-                                  Mark Contacted
-                                </button>
-                              )}
-                              {req.status !== "Closed" && (
-                                <button
-                                  onClick={() => updateInfoStatus.mutate({ id: req.id, status: "Closed" })}
-                                  disabled={updateInfoStatus.isPending}
-                                  className="text-xs px-2.5 py-1 rounded-lg border border-gray-300 text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors disabled:opacity-50"
-                                  data-testid={`btn-close-req-${req.id}`}
-                                >
-                                  Close
-                                </button>
-                              )}
-                              {req.status === "Closed" && (
-                                <span className="text-xs text-muted-foreground/50">Closed</span>
-                              )}
+                            <div>
+                              <select
+                                value={req.status}
+                                onChange={(e) => updateInfoStatus.mutate({ id: req.id, status: e.target.value })}
+                                disabled={updateInfoStatus.isPending}
+                                data-testid={`select-status-${req.id}`}
+                                className={cn(
+                                  "text-xs font-medium border rounded-full px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer disabled:opacity-50 appearance-none",
+                                  statusColor,
+                                )}
+                              >
+                                {SPONSOR_INFO_REQUEST_STATUSES.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                                {!SPONSOR_INFO_REQUEST_STATUSES.includes(req.status as any) && (
+                                  <option value={req.status}>{req.status}</option>
+                                )}
+                              </select>
                             </div>
+                            <p className="text-xs text-muted-foreground">{req.source}</p>
                           </div>
                         );
                       })}

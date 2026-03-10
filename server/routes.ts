@@ -1012,5 +1012,97 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     (pdf as any).pipe(res);
   });
 
+  // ── Eventzilla Webhook — Zapier registration intake ────────────────────────
+  app.post("/api/integrations/eventzilla/registration", async (req, res) => {
+    const secret = process.env.EVENTZILLA_WEBHOOK_SECRET;
+    const incomingSecret = req.headers["x-converge-secret"];
+
+    // Auth check
+    if (!incomingSecret) {
+      console.log("[eventzilla] 401 — missing x-converge-secret header");
+      return res.status(401).json({ ok: false, error: "Missing authentication header" });
+    }
+    if (!secret || incomingSecret !== secret) {
+      console.log("[eventzilla] 401 — invalid secret");
+      return res.status(401).json({ ok: false, error: "Invalid authentication" });
+    }
+
+    const { eventCode, registrationId, firstName, lastName, email, company, title, status, phone } = req.body ?? {};
+
+    console.log(`[eventzilla] webhook received — eventCode=${eventCode} email=${email} registrationId=${registrationId}`);
+
+    // Validate required fields
+    if (!eventCode || !registrationId || !firstName || !lastName || !email) {
+      console.log("[eventzilla] 400 — missing required fields");
+      return res.status(400).json({ ok: false, error: "Missing required fields: eventCode, registrationId, firstName, lastName, email" });
+    }
+
+    // Look up event by slug (eventCode = slug)
+    const allEvents = await storage.getEvents();
+    const event = allEvents.find((e) => e.slug?.toLowerCase() === String(eventCode).toLowerCase());
+    if (!event) {
+      console.log(`[eventzilla] 400 — unknown eventCode: ${eventCode}`);
+      return res.status(400).json({ ok: false, error: `Unknown eventCode: ${eventCode}` });
+    }
+
+    const fullName = [firstName, lastName].filter(Boolean).join(" ");
+
+    // Upsert: check active attendee first, then archived
+    const existing = await storage.getAttendeeByEmailAndEvent(String(email).toLowerCase(), event.id);
+
+    if (existing) {
+      // Update existing active attendee
+      await storage.updateAttendee(existing.id, {
+        firstName:              String(firstName),
+        lastName:               String(lastName),
+        name:                   fullName,
+        company:                company ? String(company) : existing.company,
+        title:                  title   ? String(title)   : existing.title,
+        phone:                  phone   ? String(phone)   : existing.phone ?? undefined,
+        externalSource:         "eventzilla",
+        externalRegistrationId: String(registrationId),
+      });
+      console.log(`[eventzilla] updated attendee ${existing.id} for ${email} / ${eventCode}`);
+      return res.json({ ok: true, action: "updated", attendeeId: existing.id, eventCode });
+    }
+
+    // Check archived
+    const archived = await storage.getArchivedAttendeeByEmailAndEvent(String(email).toLowerCase(), event.id);
+    if (archived) {
+      await storage.updateAttendee(archived.id, {
+        firstName:              String(firstName),
+        lastName:               String(lastName),
+        name:                   fullName,
+        company:                company ? String(company) : archived.company,
+        title:                  title   ? String(title)   : archived.title,
+        phone:                  phone   ? String(phone)   : archived.phone ?? undefined,
+        archiveState:           "active",
+        archiveSource:          null,
+        externalSource:         "eventzilla",
+        externalRegistrationId: String(registrationId),
+      });
+      console.log(`[eventzilla] reactivated + updated archived attendee ${archived.id} for ${email} / ${eventCode}`);
+      return res.json({ ok: true, action: "updated", attendeeId: archived.id, eventCode });
+    }
+
+    // Create new attendee
+    const created = await storage.createAttendee({
+      firstName:              String(firstName),
+      lastName:               String(lastName),
+      name:                   fullName,
+      email:                  String(email).toLowerCase(),
+      company:                company ? String(company) : "",
+      title:                  title   ? String(title)   : "",
+      phone:                  phone   ? String(phone)   : undefined,
+      assignedEvent:          event.id,
+      archiveState:           "active",
+      archiveSource:          null,
+      externalSource:         "eventzilla",
+      externalRegistrationId: String(registrationId),
+    });
+    console.log(`[eventzilla] created attendee ${created.id} for ${email} / ${eventCode}`);
+    return res.status(201).json({ ok: true, action: "created", attendeeId: created.id, eventCode });
+  });
+
   return httpServer;
 }

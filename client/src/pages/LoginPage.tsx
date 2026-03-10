@@ -218,9 +218,10 @@ export default function LoginPage() {
                           <Input 
                             id="email" 
                             type="email" 
-                            placeholder="admin@converge.com" 
+                            placeholder="you@example.com" 
                             className="pl-10 h-12 rounded-xl border-border/80 focus-visible:ring-accent"
                             required
+                            autoComplete="username"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             data-testid="input-login-email"
@@ -240,6 +241,7 @@ export default function LoginPage() {
                             placeholder="••••••••" 
                             className="pl-10 pr-10 h-12 rounded-xl border-border/80 focus-visible:ring-accent"
                             required
+                            autoComplete="current-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             data-testid="input-login-password"
@@ -361,7 +363,7 @@ export default function LoginPage() {
                               <Input
                                 id="forgot-email"
                                 type="email"
-                                placeholder="admin@converge.com"
+                                placeholder="you@example.com"
                                 className="pl-10 h-12 rounded-xl border-border/80 focus-visible:ring-accent"
                                 required
                                 value={forgotEmail}

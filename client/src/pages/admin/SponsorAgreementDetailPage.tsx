@@ -649,6 +649,43 @@ export default function SponsorAgreementDetailPage() {
             ))}
           </div>
         </div>
+
+        {/* Deliverables Timeline */}
+        <div className="px-6 py-4 border-t border-border/40 bg-muted/20">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2.5">Deliverables Progress</p>
+          <div className="relative">
+            <div className="h-2 bg-muted/60 rounded-full overflow-hidden flex">
+              {[
+                { label: "Setup", range: [0, 25], color: "bg-slate-400" },
+                { label: "Sponsor Inputs", range: [25, 50], color: "bg-amber-400" },
+                { label: "Event Prep", range: [50, 75], color: "bg-blue-400" },
+                { label: "Post Event", range: [75, 100], color: "bg-green-500" },
+              ].map(({ label, range, color }, i) => {
+                const segmentStart = range[0];
+                const segmentEnd = range[1];
+                const fill = Math.min(100, Math.max(0, ((completionPct - segmentStart) / (segmentEnd - segmentStart)) * 100));
+                return (
+                  <div key={label} className={`flex-1 relative ${i > 0 ? "border-l border-background/60" : ""}`}>
+                    <div className={`h-full ${color} transition-all`} style={{ width: `${completionPct >= segmentStart ? Math.min(fill, 100) : 0}%` }} />
+                  </div>
+                );
+              })}
+            </div>
+            <div
+              className="absolute top-0 h-2 w-0.5 bg-foreground/40 shadow-sm transition-all"
+              style={{ left: `calc(${completionPct}% - 1px)` }}
+            />
+          </div>
+          <div className="flex mt-1.5">
+            {["0–25% Setup", "25–50% Sponsor Inputs", "50–75% Event Prep", "75–100% Post Event"].map((label, i) => (
+              <div key={label} className="flex-1 text-center">
+                <span className={`text-[9px] font-semibold uppercase tracking-wide ${i * 25 <= completionPct ? "text-foreground/70" : "text-muted-foreground/40"}`}>
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}

@@ -3055,6 +3055,289 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
+  // ─── Activation Score helpers ────────────────────────────────────────────────
+  const COMPLETED_STATUSES = new Set(["Delivered", "Approved", "Completed"]);
+  const NA_STATUS = "N/A";
+  const OUTSTANDING_INPUT_STATUSES = new Set(["Awaiting Sponsor Input", "Not Started", "Needed", "Issue Identified", "Blocked"]);
+
+  function computeActivationScore(opts: {
+    hasLoggedIn: boolean;
+    deliverables: { status: string; ownerType: string; sponsorVisible: boolean | null }[];
+    meetingCount: number;
+    scheduledMeetingCount: number;
+    infoRequestCount: number;
+    sponsor: { logoUrl?: string | null; shortDescription?: string | null; websiteUrl?: string | null };
+  }): { score: number; components: Record<string, number> } {
+    // Login (10)
+    const loginScore = opts.hasLoggedIn ? 10 : 0;
+
+    // Deliverables completion (25)
+    const visibleDeliverables = opts.deliverables.filter(d => d.sponsorVisible !== false && d.status !== NA_STATUS);
+    const completedDeliverables = visibleDeliverables.filter(d => COMPLETED_STATUSES.has(d.status));
+    const deliverableScore = visibleDeliverables.length > 0
+      ? Math.round((completedDeliverables.length / visibleDeliverables.length) * 25)
+      : 0;
+
+    // Meeting requests received (20) — any meeting exists
+    const meetingRequestScore = opts.meetingCount > 0 ? 20 : 0;
+
+    // Meetings scheduled (20) — any scheduled/completed meeting
+    const meetingScheduledScore = opts.scheduledMeetingCount > 0 ? 20 : 0;
+
+    // Information requests received (10)
+    const infoRequestScore = opts.infoRequestCount > 0 ? 10 : 0;
+
+    // Sponsor inputs completed (10) — sponsor-owned deliverables not outstanding
+    const sponsorOwnedDeliverables = opts.deliverables.filter(
+      d => d.ownerType === "Sponsor" && d.sponsorVisible !== false && d.status !== NA_STATUS
+    );
+    let sponsorInputScore: number;
+    if (sponsorOwnedDeliverables.length === 0) {
+      sponsorInputScore = 10; // No sponsor inputs = full credit
+    } else {
+      const completedInputs = sponsorOwnedDeliverables.filter(d => !OUTSTANDING_INPUT_STATUSES.has(d.status));
+      sponsorInputScore = Math.round((completedInputs.length / sponsorOwnedDeliverables.length) * 10);
+    }
+
+    // Profile completeness (5)
+    const profileScore =
+      (opts.sponsor.logoUrl ? 2 : 0) +
+      (opts.sponsor.shortDescription ? 2 : 0) +
+      (opts.sponsor.websiteUrl ? 1 : 0);
+
+    const score = loginScore + deliverableScore + meetingRequestScore + meetingScheduledScore + infoRequestScore + sponsorInputScore + profileScore;
+    return {
+      score: Math.min(100, score),
+      components: {
+        login: loginScore,
+        deliverables: deliverableScore,
+        meetingRequests: meetingRequestScore,
+        meetingsScheduled: meetingScheduledScore,
+        infoRequests: infoRequestScore,
+        sponsorInputs: sponsorInputScore,
+        profile: profileScore,
+      },
+    };
+  }
+
+  function activationLabel(score: number): string {
+    if (score >= 80) return "Fully Activated";
+    if (score >= 60) return "Active";
+    if (score >= 40) return "At Risk";
+    return "Inactive";
+  }
+
+  // GET /api/agreement/activation-metrics — per-sponsor+event activation scores
+  app.get("/api/agreement/activation-metrics", requireAuth, async (req, res) => {
+    try {
+      const [allDeliverables, allMeetings, allInfoRequests, allSponsors, allSponsorUsers] = await Promise.all([
+        storage.listAgreementDeliverables({}),
+        storage.getMeetings(),
+        storage.listInformationRequests(),
+        storage.getSponsors(),
+        storage.getAllSponsorUsers(),
+      ]);
+
+      // Index sponsor users by sponsorId → pick best lastLoginAt and sum loginCount
+      const loginBySponsors = new Map<string, { lastLoginAt: Date | null; loginCount: number }>();
+      for (const u of allSponsorUsers) {
+        const existing = loginBySponsors.get(u.sponsorId);
+        const ts = u.lastLoginAt ? new Date(u.lastLoginAt) : null;
+        if (!existing) {
+          loginBySponsors.set(u.sponsorId, { lastLoginAt: ts, loginCount: u.loginCount ?? 0 });
+        } else {
+          loginBySponsors.set(u.sponsorId, {
+            lastLoginAt: ts && (!existing.lastLoginAt || ts > existing.lastLoginAt) ? ts : existing.lastLoginAt,
+            loginCount: existing.loginCount + (u.loginCount ?? 0),
+          });
+        }
+      }
+
+      // Group deliverables by sponsorId+eventId
+      const deliverablesByKey = new Map<string, typeof allDeliverables>();
+      for (const d of allDeliverables) {
+        const key = `${d.sponsorId}:${d.eventId}`;
+        if (!deliverablesByKey.has(key)) deliverablesByKey.set(key, []);
+        deliverablesByKey.get(key)!.push(d);
+      }
+
+      // Group meetings by sponsorId+eventId
+      const meetingsByKey = new Map<string, { total: number; scheduled: number }>();
+      for (const m of allMeetings) {
+        if (!m.sponsorId || !m.eventId) continue;
+        const key = `${m.sponsorId}:${m.eventId}`;
+        const ex = meetingsByKey.get(key) ?? { total: 0, scheduled: 0 };
+        ex.total++;
+        if (m.status === "Scheduled" || m.status === "Completed") ex.scheduled++;
+        meetingsByKey.set(key, ex);
+      }
+
+      // Group info requests by sponsorId+eventId
+      const infoByKey = new Map<string, number>();
+      for (const r of allInfoRequests) {
+        if (!r.eventId) continue;
+        const key = `${r.sponsorId}:${r.eventId}`;
+        infoByKey.set(key, (infoByKey.get(key) ?? 0) + 1);
+      }
+
+      // Build metrics for each unique sponsorId+eventId found in deliverables
+      const sponsorMap = new Map(allSponsors.map(s => [s.id, s]));
+      const results: {
+        sponsorId: string; eventId: string;
+        activationScore: number; activationLabel: string;
+        completionPct: number; completedDeliverables: number; totalDeliverables: number;
+        meetingsScheduled: number; meetingsCompleted: number; meetingRequests: number;
+        infoRequestCount: number;
+        lastLoginAt: string | null; loginCount: number; hasNeverLoggedIn: boolean;
+        scoreComponents: Record<string, number>;
+      }[] = [];
+
+      for (const [key, deliverables] of deliverablesByKey) {
+        const [sponsorId, eventId] = key.split(":");
+        const sponsor = sponsorMap.get(sponsorId);
+        if (!sponsor) continue;
+
+        const loginData = loginBySponsors.get(sponsorId) ?? { lastLoginAt: null, loginCount: 0 };
+        const meetings = meetingsByKey.get(key) ?? { total: 0, scheduled: 0 };
+        const infoCount = infoByKey.get(key) ?? 0;
+
+        const visibleDeliverables = deliverables.filter(d => d.sponsorVisible !== false && d.status !== NA_STATUS);
+        const completedCount = visibleDeliverables.filter(d => COMPLETED_STATUSES.has(d.status)).length;
+        const completionPct = visibleDeliverables.length > 0 ? Math.round((completedCount / visibleDeliverables.length) * 100) : 0;
+
+        // Count completed meetings vs total meetings
+        const allMeetingsForKey = allMeetings.filter(m => m.sponsorId === sponsorId && m.eventId === eventId);
+        const meetingsCompleted = allMeetingsForKey.filter(m => m.status === "Completed").length;
+
+        const { score, components } = computeActivationScore({
+          hasLoggedIn: !!loginData.lastLoginAt,
+          deliverables,
+          meetingCount: meetings.total,
+          scheduledMeetingCount: meetings.scheduled,
+          infoRequestCount: infoCount,
+          sponsor: { logoUrl: sponsor.logoUrl, shortDescription: (sponsor as any).shortDescription, websiteUrl: sponsor.websiteUrl },
+        });
+
+        results.push({
+          sponsorId, eventId,
+          activationScore: score,
+          activationLabel: activationLabel(score),
+          completionPct,
+          completedDeliverables: completedCount,
+          totalDeliverables: visibleDeliverables.length,
+          meetingsScheduled: meetings.scheduled,
+          meetingsCompleted,
+          meetingRequests: meetings.total,
+          infoRequestCount: infoCount,
+          lastLoginAt: loginData.lastLoginAt ? loginData.lastLoginAt.toISOString() : null,
+          loginCount: loginData.loginCount,
+          hasNeverLoggedIn: !loginData.lastLoginAt,
+          scoreComponents: components,
+        });
+      }
+
+      res.json(results);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // GET /api/agreement/activation-metrics/export.csv
+  app.get("/api/agreement/activation-metrics/export.csv", requireAuth, async (req, res) => {
+    try {
+      const [allDeliverables, allMeetings, allInfoRequests, allSponsors, allSponsorUsers, allEvents] = await Promise.all([
+        storage.listAgreementDeliverables({}),
+        storage.getMeetings(),
+        storage.listInformationRequests(),
+        storage.getSponsors(),
+        storage.getAllSponsorUsers(),
+        storage.getEvents(),
+      ]);
+
+      const loginBySponsors = new Map<string, { lastLoginAt: Date | null; loginCount: number }>();
+      for (const u of allSponsorUsers) {
+        const existing = loginBySponsors.get(u.sponsorId);
+        const ts = u.lastLoginAt ? new Date(u.lastLoginAt) : null;
+        if (!existing) {
+          loginBySponsors.set(u.sponsorId, { lastLoginAt: ts, loginCount: u.loginCount ?? 0 });
+        } else {
+          loginBySponsors.set(u.sponsorId, {
+            lastLoginAt: ts && (!existing.lastLoginAt || ts > existing.lastLoginAt) ? ts : existing.lastLoginAt,
+            loginCount: existing.loginCount + (u.loginCount ?? 0),
+          });
+        }
+      }
+
+      const deliverablesByKey = new Map<string, typeof allDeliverables>();
+      for (const d of allDeliverables) {
+        const key = `${d.sponsorId}:${d.eventId}`;
+        if (!deliverablesByKey.has(key)) deliverablesByKey.set(key, []);
+        deliverablesByKey.get(key)!.push(d);
+      }
+
+      const meetingsByKey = new Map<string, { total: number; scheduled: number; completed: number }>();
+      for (const m of allMeetings) {
+        if (!m.sponsorId || !m.eventId) continue;
+        const key = `${m.sponsorId}:${m.eventId}`;
+        const ex = meetingsByKey.get(key) ?? { total: 0, scheduled: 0, completed: 0 };
+        ex.total++;
+        if (m.status === "Scheduled" || m.status === "Completed") ex.scheduled++;
+        if (m.status === "Completed") ex.completed++;
+        meetingsByKey.set(key, ex);
+      }
+
+      const infoByKey = new Map<string, number>();
+      for (const r of allInfoRequests) {
+        if (!r.eventId) continue;
+        const key = `${r.sponsorId}:${r.eventId}`;
+        infoByKey.set(key, (infoByKey.get(key) ?? 0) + 1);
+      }
+
+      const sponsorMap = new Map(allSponsors.map(s => [s.id, s]));
+      const eventMap = new Map(allEvents.map(e => [e.id, e]));
+
+      const rows: string[] = ["Event,Sponsor,Sponsorship Level,Activation Score,Activation Status,Deliverables Completion %,Completed Deliverables,Total Deliverables,Meetings Scheduled,Meetings Completed,Meeting Requests,Information Requests,Login Count,Last Login"];
+
+      for (const [key, deliverables] of deliverablesByKey) {
+        const [sponsorId, eventId] = key.split(":");
+        const sponsor = sponsorMap.get(sponsorId);
+        const event = eventMap.get(eventId);
+        if (!sponsor || !event) continue;
+
+        const loginData = loginBySponsors.get(sponsorId) ?? { lastLoginAt: null, loginCount: 0 };
+        const meetings = meetingsByKey.get(key) ?? { total: 0, scheduled: 0, completed: 0 };
+        const infoCount = infoByKey.get(key) ?? 0;
+
+        const visibleDeliverables = deliverables.filter(d => d.sponsorVisible !== false && d.status !== NA_STATUS);
+        const completedCount = visibleDeliverables.filter(d => COMPLETED_STATUSES.has(d.status)).length;
+        const completionPct = visibleDeliverables.length > 0 ? Math.round((completedCount / visibleDeliverables.length) * 100) : 0;
+
+        // Get sponsorship level from the deliverables (first one with a level)
+        const level = (deliverables[0] as any).sponsorshipLevel ?? "";
+
+        const { score } = computeActivationScore({
+          hasLoggedIn: !!loginData.lastLoginAt,
+          deliverables,
+          meetingCount: meetings.total,
+          scheduledMeetingCount: meetings.scheduled,
+          infoRequestCount: infoCount,
+          sponsor: { logoUrl: sponsor.logoUrl, shortDescription: (sponsor as any).shortDescription, websiteUrl: sponsor.websiteUrl },
+        });
+
+        const lastLogin = loginData.lastLoginAt ? loginData.lastLoginAt.toISOString().split("T")[0] : "Never";
+        const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+        rows.push([
+          esc(event.name), esc(sponsor.name), esc(level), score, esc(activationLabel(score)),
+          `${completionPct}%`, completedCount, visibleDeliverables.length,
+          meetings.scheduled, meetings.completed, meetings.total, infoCount,
+          loginData.loginCount, esc(lastLogin),
+        ].join(","));
+      }
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", "attachment; filename=\"sponsor-performance.csv\"");
+      res.send(rows.join("\n"));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   // POST /api/agreement/reminders/send — manually send grouped reminder to a sponsor for an event
   app.post("/api/agreement/reminders/send", requireAuth, async (req, res) => {
     try {

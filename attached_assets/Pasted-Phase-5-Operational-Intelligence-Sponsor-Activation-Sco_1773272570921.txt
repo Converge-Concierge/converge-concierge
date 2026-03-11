@@ -1,0 +1,392 @@
+Phase 5 — Operational Intelligence, Sponsor Activation Score, and Advanced Deliverables Monitoring
+
+Phase 5 enhances the Concierge platform with operational visibility and sponsor success metrics.
+
+The system should now help administrators:
+
+monitor sponsor activation
+
+identify sponsorship risks early
+
+measure deliverables progress
+
+surface operational problems automatically
+
+demonstrate sponsor value more clearly
+
+This phase does not introduce new core objects, but instead builds analytics and monitoring layers on top of the existing system.
+
+Phase 5 Goals
+
+Add operational intelligence so the system can answer questions like:
+
+Which sponsors are not engaging with Concierge?
+
+Which sponsors have incomplete deliverables?
+
+Which sponsors have not scheduled meetings?
+
+Which sponsors have not logged into their dashboard?
+
+Which sponsors are fully activated?
+
+This will help Converge protect sponsorship value and drive meeting activity.
+
+1. Create Sponsor Activation Score
+
+Create a Sponsor Activation Score that measures how engaged a sponsor is with the event.
+
+The score should be calculated per:
+
+sponsor
+
+event
+
+Store the score as a calculated metric, not a manually edited field.
+
+1A. Activation Score Components
+
+Score components should include:
+
+Metric	Weight
+Dashboard login	10
+Agreement Deliverables completion	25
+Meeting requests received	20
+Meetings scheduled	20
+Information requests received	10
+Sponsor inputs completed	10
+Profile completeness	5
+
+Total possible score = 100.
+
+1B. Score Calculation
+
+Calculate the activation score dynamically or periodically.
+
+Example formula concept:
+
+activation_score =
+login_score +
+deliverables_score +
+meeting_score +
+info_request_score +
+profile_score
+
+Where each component contributes its weighted value.
+
+1C. Activation Status Labels
+
+Display score categories:
+
+Score	Label
+80–100	Fully Activated
+60–79	Active
+40–59	At Risk
+0–39	Inactive
+
+These labels should appear in admin views.
+
+2. Add Activation Score to Sponsor Agreements
+
+Extend the Sponsor Agreements admin table to include:
+
+Activation Score
+
+Activation Status
+
+Example columns:
+
+Event
+Sponsor
+Sponsorship Level
+Deliverables Completion %
+Activation Score
+Activation Status
+Meetings Scheduled
+Last Login
+
+3. Deliverables Completion Metrics
+
+Create a completion percentage based on:
+
+completed_deliverables / total_deliverables
+
+Exclude deliverables that are:
+
+not sponsor visible
+
+marked not applicable
+
+Show this metric in:
+
+sponsor agreements list
+
+sponsor agreement detail header
+
+admin dashboard alerts
+
+4. Admin Dashboard Deliverables Monitoring
+
+Enhance the Admin Dashboard → Needs Attention section.
+
+Add operational alerts.
+
+4A. New Alert Types
+
+Add alerts such as:
+
+Sponsors with incomplete deliverables
+Sponsors missing Certificate of Insurance
+Sponsors with low activation score
+Sponsors without meetings scheduled
+Sponsors who have never logged in
+Sponsors with outstanding sponsor inputs
+
+4B. Alert Behavior
+
+Each alert should:
+
+display a count
+
+link to a filtered list view
+
+be event-specific if an event tab is selected
+
+Example alert:
+
+3 sponsors have incomplete deliverables
+
+Link to:
+
+Agreement Deliverables → Sponsor Agreements → Filtered
+5. Add Deliverables Monitoring Dashboard Section
+
+Create a new section on the Admin Dashboard called:
+
+Sponsor Deliverables Health
+
+Include simple metrics:
+
+Sponsors Fully Activated
+
+Sponsors At Risk
+
+Sponsors Inactive
+
+Sponsors Awaiting Sponsor Input
+
+This should help quickly identify problems.
+
+6. Sponsor Login Monitoring
+
+Track sponsor dashboard access.
+
+Record:
+
+last login date
+
+login count
+
+Add fields if not already present:
+
+last_login_at
+login_count
+
+Add admin indicators for:
+
+Sponsors who have never logged in
+
+Sponsors inactive for 30+ days
+
+7. Sponsor Meeting Activity Tracking
+
+Add sponsor-level meeting metrics:
+
+Meetings Scheduled
+
+Meetings Completed
+
+Meeting Requests
+
+Average meetings per sponsor
+
+These should be computed per event.
+
+8. Add Meeting Activity Indicators to Sponsor Agreements
+
+Extend the Sponsor Agreements table with:
+
+Meetings Scheduled
+Meetings Completed
+Info Requests
+Activation Score
+
+This helps the team see whether a sponsor is actually benefiting from Concierge.
+
+9. Enhance Sponsor Dashboard Reporting
+
+Enhance the sponsor-facing Reports tab to show:
+
+Meeting Metrics:
+
+Meetings Scheduled
+
+Meetings Completed
+
+Meeting Requests Received
+
+Lead Metrics:
+
+Information Requests
+
+Unique Attendees Engaged
+
+Deliverables Metrics:
+
+Deliverables Completed
+
+Deliverables Remaining
+
+10. Add Sponsor Value Indicators
+
+Add small indicators in the sponsor dashboard:
+
+Examples:
+
+Your Concierge Performance
+
+Meetings Scheduled
+Information Requests
+Sponsor Profile Views (if available)
+
+This reinforces the value of the platform.
+
+11. Add Admin Export for Sponsor Performance
+
+Allow admins to export sponsor performance metrics.
+
+Example export fields:
+
+Event
+Sponsor
+Activation Score
+Meetings Scheduled
+Meetings Completed
+Information Requests
+Deliverables Completion
+Last Login
+
+Format:
+
+CSV export is sufficient.
+
+12. Add Deliverables Timeline Indicator
+
+In Sponsor Agreement detail, add a small timeline indicator.
+
+Example:
+
+Deliverables Progress
+
+0–25%  Setup
+25–50% Sponsor Inputs
+50–75% Event Preparation
+75–100% Post Event Delivery
+
+This gives visual progress context.
+
+13. Add Admin Filter: Activation Risk
+
+Add quick filters in Sponsor Agreements:
+
+Fully Activated
+Active
+At Risk
+Inactive
+
+This allows admins to quickly focus on problem sponsors.
+
+14. Add Admin Filter: No Meetings Scheduled
+
+Create a filter for:
+
+Sponsors with zero meetings scheduled
+
+This is one of the most important operational indicators.
+
+15. Admin Notification Preparation
+
+Prepare the system so that in future phases it could support notifications like:
+
+Sponsor has not logged in
+
+Sponsor has not scheduled meetings
+
+Sponsor has incomplete deliverables
+
+For now this should only appear in the admin dashboard.
+
+Do not send automated admin alerts yet.
+
+16. Improve Admin Dashboard Visual Design
+
+Improve the admin dashboard to make operational data easier to scan.
+
+Use cards such as:
+
+Sponsor Activation
+Deliverables Completion
+Meetings Activity
+Outstanding Items
+
+These should respect the selected event tab.
+
+17. Event-Specific Monitoring
+
+Ensure all Phase 5 metrics respect the selected event tab context.
+
+Example:
+
+If FRC 2026 tab is selected:
+
+show only FRC 2026 sponsor metrics
+
+If "All" tab is selected:
+
+aggregate across events.
+
+18. Acceptance Criteria
+
+Phase 5 is complete when:
+
+sponsor activation score exists
+
+sponsor agreements show activation score
+
+deliverables completion metrics are calculated
+
+admin dashboard shows operational alerts
+
+admin can filter sponsors by activation risk
+
+sponsor meetings metrics appear in sponsor agreements
+
+sponsor reports show engagement metrics
+
+sponsor performance export works
+
+19. Success Standard
+
+After Phase 5, Concierge should function as a true sponsor success monitoring system.
+
+Admins should be able to quickly identify:
+
+inactive sponsors
+
+sponsors not scheduling meetings
+
+sponsors not completing deliverables
+
+sponsors not engaging with Concierge
+
+This helps ensure every sponsor gets value from the event.

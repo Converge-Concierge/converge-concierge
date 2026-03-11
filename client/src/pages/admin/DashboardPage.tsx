@@ -6,10 +6,18 @@ import { Event, Sponsor, Attendee, Meeting, InformationRequest, AppBranding } fr
 import {
   CalendarDays, Building2, Users, Handshake, TrendingUp,
   ArrowRight, Clock, CheckCircle2, XCircle, AlertCircle,
-  MessageSquare, FileText, AlertTriangle, ShieldAlert,
+  MessageSquare, FileText, AlertTriangle, ShieldAlert, Activity, LogIn, Zap,
 } from "lucide-react";
+
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
+
+type ActivationMetric = {
+  sponsorId: string; eventId: string;
+  activationScore: number; activationLabel: string;
+  completionPct: number; meetingsScheduled: number;
+  lastLoginAt: string | null; hasNeverLoggedIn: boolean;
+};
 
 const statusColors: Record<string, string> = {
   Scheduled: "bg-blue-100 text-blue-700",
@@ -73,6 +81,9 @@ export default function DashboardPage() {
   const { data: branding } = useQuery<AppBranding>({ queryKey: ["/api/branding-public"] });
   const { data: outstandingSummary } = useQuery<{ total: number; overdueCount: number; sponsorCount: number }>({
     queryKey: ["/api/agreement/outstanding-summary"],
+  });
+  const { data: activationMetrics = [] } = useQuery<ActivationMetric[]>({
+    queryKey: ["/api/agreement/activation-metrics"],
   });
 
   // Auto-select closest upcoming (non-completed) event once when events first load
@@ -197,6 +208,26 @@ export default function DashboardPage() {
       .sort((a, b) => b.count - a.count);
   }, [filteredMeetings, events]);
 
+  const filteredActivationMetrics = useMemo(() => {
+    if (selectedEventId === "all") return activationMetrics;
+    return activationMetrics.filter(m => m.eventId === selectedEventId);
+  }, [activationMetrics, selectedEventId]);
+
+  const activationHealth = useMemo(() => {
+    const counts = { fullyActivated: 0, active: 0, atRisk: 0, inactive: 0, neverLoggedIn: 0, noMeetings: 0 };
+    const seenSponsors = new Set<string>();
+    for (const m of filteredActivationMetrics) {
+      if (!seenSponsors.has(m.sponsorId)) seenSponsors.add(m.sponsorId);
+      if (m.activationLabel === "Fully Activated") counts.fullyActivated++;
+      else if (m.activationLabel === "Active") counts.active++;
+      else if (m.activationLabel === "At Risk") counts.atRisk++;
+      else counts.inactive++;
+      if (m.hasNeverLoggedIn) counts.neverLoggedIn++;
+      if (m.meetingsScheduled === 0) counts.noMeetings++;
+    }
+    return counts;
+  }, [filteredActivationMetrics]);
+
   const meetingsBySponsor = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredMeetings.forEach((m) => { counts[m.sponsorId] = (counts[m.sponsorId] ?? 0) + 1; });
@@ -277,8 +308,33 @@ export default function DashboardPage() {
       });
     }
 
+    // Sponsors with low activation (At Risk or Inactive)
+    const lowActivationCount = filteredActivationMetrics.filter(m =>
+      m.activationLabel === "At Risk" || m.activationLabel === "Inactive"
+    ).length;
+    if (lowActivationCount > 0) {
+      items.push({
+        severity: "warning",
+        title: `${lowActivationCount} sponsor agreement${lowActivationCount !== 1 ? "s" : ""} with low activation score`,
+        desc: "These sponsors have an activation score below 60. They may need additional engagement.",
+        link: "/admin/agreement?tab=sponsor-agreements",
+        linkText: "View Agreements",
+      });
+    }
+
+    // Sponsors who have never logged in
+    if (activationHealth.neverLoggedIn > 0) {
+      items.push({
+        severity: "info",
+        title: `${activationHealth.neverLoggedIn} sponsor${activationHealth.neverLoggedIn !== 1 ? "s have" : " has"} never logged into the dashboard`,
+        desc: "These sponsors haven't accessed their Concierge dashboard yet.",
+        link: "/admin/agreement?tab=sponsor-agreements",
+        linkText: "View Agreements",
+      });
+    }
+
     return items;
-  }, [filteredInfoRequests, filteredMeetings, activeSponsors, selectedEventId, selectedEvent, outstandingSummary]);
+  }, [filteredInfoRequests, filteredMeetings, activeSponsors, selectedEventId, selectedEvent, outstandingSummary, filteredActivationMetrics, activationHealth]);
 
   function getSponsorName(id: string) { return sponsors.find((s) => s.id === id)?.name ?? "—"; }
   function getAttendeeName(id: string) { return attendees.find((a) => a.id === id)?.name ?? "—"; }
@@ -449,6 +505,41 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Sponsor Deliverables Health */}
+      {filteredActivationMetrics.length > 0 && (
+        <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Activity className="h-4 w-4 text-accent" /> Sponsor Deliverables Health
+            </h2>
+            <button
+              onClick={() => nav("/admin/agreement?tab=sponsor-agreements")}
+              className="text-xs text-accent flex items-center gap-1 hover:underline underline-offset-2"
+            >
+              View All <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { label: "Fully Activated", count: activationHealth.fullyActivated, color: "bg-green-50 border-green-200 text-green-700", dot: "bg-green-500" },
+              { label: "Active",           count: activationHealth.active,          color: "bg-blue-50 border-blue-200 text-blue-700",  dot: "bg-blue-500" },
+              { label: "At Risk",          count: activationHealth.atRisk,          color: "bg-amber-50 border-amber-200 text-amber-700", dot: "bg-amber-500" },
+              { label: "Inactive",         count: activationHealth.inactive,        color: "bg-red-50 border-red-200 text-red-700",   dot: "bg-red-400" },
+              { label: "Never Logged In",  count: activationHealth.neverLoggedIn,   color: "bg-purple-50 border-purple-200 text-purple-700", dot: "bg-purple-400" },
+              { label: "No Meetings",      count: activationHealth.noMeetings,      color: "bg-slate-50 border-slate-200 text-slate-600", dot: "bg-slate-400" },
+            ].map(({ label, count, color, dot }) => (
+              <div key={label} className={`rounded-xl border p-4 flex flex-col gap-2 cursor-pointer hover:shadow-md transition-all ${color}`} onClick={() => nav("/admin/agreement?tab=sponsor-agreements")} data-testid={`health-card-${label.toLowerCase().replace(/\s+/g, '-')}`}>
+                <div className="flex items-center gap-1.5">
+                  <div className={`h-2 w-2 rounded-full ${dot}`} />
+                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-70 leading-tight">{label}</span>
+                </div>
+                <p className="text-2xl font-display font-bold leading-none">{count}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Status breakdown */}
       <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">

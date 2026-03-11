@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import {
   ClipboardList, Plus, Package, Users, AlertCircle, RefreshCw,
   Eye, Archive, Copy, ChevronRight, CheckCircle2, Clock, Gem, Search, Filter,
-  Send, Calendar, TriangleAlert,
+  Send, Calendar, TriangleAlert, Download, TrendingUp, Activity, LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,30 @@ type AgreementSummary = {
   lastUpdated: string;
 };
 
+type ActivationMetric = {
+  sponsorId: string;
+  eventId: string;
+  activationScore: number;
+  activationLabel: string;
+  completionPct: number;
+  completedDeliverables: number;
+  totalDeliverables: number;
+  meetingsScheduled: number;
+  meetingsCompleted: number;
+  meetingRequests: number;
+  infoRequestCount: number;
+  lastLoginAt: string | null;
+  loginCount: number;
+  hasNeverLoggedIn: boolean;
+};
+
+const ACTIVATION_COLORS: Record<string, string> = {
+  "Fully Activated": "bg-green-100 text-green-700 border-green-300",
+  "Active":          "bg-blue-100 text-blue-700 border-blue-300",
+  "At Risk":         "bg-amber-100 text-amber-700 border-amber-300",
+  "Inactive":        "bg-red-100 text-red-700 border-red-300",
+};
+
 const LEVEL_COLORS: Record<string, string> = {
   Platinum: "bg-slate-100 text-slate-700 border-slate-300",
   Gold:     "bg-amber-50 text-amber-700 border-amber-300",
@@ -59,6 +83,7 @@ export default function AgreementDeliverablesPage() {
   const [searchAgreements, setSearchAgreements] = useState("");
   const [filterLevel, setFilterLevel] = useState("all");
   const [filterEvent, setFilterEvent] = useState("all");
+  const [filterActivation, setFilterActivation] = useState("all");
   const [newTemplateName, setNewTemplateName] = useState("");
 
   // Outstanding items tab state
@@ -86,6 +111,11 @@ export default function AgreementDeliverablesPage() {
 
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
+  const { data: activationMetrics = [] } = useQuery<ActivationMetric[]>({
+    queryKey: ["/api/agreement/activation-metrics"],
+    enabled: activeTab === "sponsor-agreements",
+  });
+  const activationMap = new Map(activationMetrics.map(m => [`${m.sponsorId}:${m.eventId}`, m]));
 
   type OutstandingItem = {
     id: string; sponsorId: string; eventId: string; sponsorName: string; eventName: string;
@@ -181,6 +211,14 @@ export default function AgreementDeliverablesPage() {
     }
     if (filterEvent !== "all" && a.eventId !== filterEvent) return false;
     if (filterLevel !== "all" && a.sponsorshipLevel !== filterLevel) return false;
+    if (filterActivation !== "all") {
+      const m = activationMap.get(`${a.sponsorId}:${a.eventId}`);
+      if (filterActivation === "no-meetings") {
+        if (!m || m.meetingsScheduled > 0) return false;
+      } else {
+        if (!m || m.activationLabel !== filterActivation) return false;
+      }
+    }
     return true;
   });
 
@@ -436,8 +474,8 @@ export default function AgreementDeliverablesPage() {
 
         {/* ── Sponsor Agreements ── */}
         <TabsContent value="sponsor-agreements" className="mt-4 space-y-4">
-          <div className="flex gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-wrap gap-3">
+            <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by sponsor or event..."
@@ -467,6 +505,24 @@ export default function AgreementDeliverablesPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterActivation} onValueChange={setFilterActivation}>
+              <SelectTrigger className="w-44" data-testid="select-filter-activation">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Activation</SelectItem>
+                <SelectItem value="Fully Activated">Fully Activated</SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="At Risk">At Risk</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
+                <SelectItem value="no-meetings">No Meetings Scheduled</SelectItem>
+              </SelectContent>
+            </Select>
+            <a href="/api/agreement/activation-metrics/export.csv" download data-testid="link-export-csv">
+              <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                <Download className="h-3.5 w-3.5" /> Export CSV
+              </Button>
+            </a>
           </div>
 
           {agrLoading ? (
@@ -485,19 +541,19 @@ export default function AgreementDeliverablesPage() {
               </Button>
             </div>
           ) : (
-            <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
-              <table className="w-full text-sm">
+            <div className="bg-white border border-border rounded-xl overflow-x-auto shadow-sm">
+              <table className="w-full text-sm min-w-[900px]">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    {["Sponsor", "Event", "Level", "Template Source", "Total", "Delivered", "Awaiting", "Last Updated", "Actions"].map((h) => (
+                    {["Sponsor", "Event", "Level", "Completion", "Activation", "Meetings", "Last Login", "Actions"].map((h) => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredAgreements.map((a) => {
-                    const completionPct = a.totalDeliverables > 0 ? Math.round((a.deliveredCount / a.totalDeliverables) * 100) : 0;
-                    const templateName = templates.find((t) => t.id === a.packageTemplateId)?.packageName ?? "Custom";
+                    const metric = activationMap.get(`${a.sponsorId}:${a.eventId}`);
+                    const completionPct = metric?.completionPct ?? (a.totalDeliverables > 0 ? Math.round((a.deliveredCount / a.totalDeliverables) * 100) : 0);
                     return (
                       <tr key={`${a.sponsorId}-${a.eventId}`} className="border-b border-border/50 hover:bg-muted/20 transition-colors" data-testid={`row-agreement-${a.sponsorId}`}>
                         <td className="px-4 py-3 font-medium text-foreground">{a.sponsorName}</td>
@@ -508,21 +564,45 @@ export default function AgreementDeliverablesPage() {
                             {a.sponsorshipLevel}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">{templateName}</td>
-                        <td className="px-4 py-3 text-center font-medium">{a.totalDeliverables}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="text-green-700 font-medium">{a.deliveredCount}</span>
-                          <span className="text-muted-foreground text-xs ml-1">({completionPct}%)</span>
+                        <td className="px-4 py-3 w-32">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={cn("h-full rounded-full transition-all", completionPct >= 80 ? "bg-green-500" : completionPct >= 50 ? "bg-blue-500" : completionPct >= 25 ? "bg-amber-500" : "bg-red-400")}
+                                style={{ width: `${completionPct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-medium text-foreground shrink-0">{completionPct}%</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{a.deliveredCount}/{a.totalDeliverables} items</p>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          {a.awaitingSponsorCount > 0 ? (
-                            <span className="inline-flex items-center justify-center h-5 px-2 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
-                              {a.awaitingSponsorCount}
-                            </span>
+                        <td className="px-4 py-3">
+                          {metric ? (
+                            <div className="flex flex-col gap-1">
+                              <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border w-fit", ACTIVATION_COLORS[metric.activationLabel] ?? "bg-muted text-muted-foreground")}>
+                                {metric.activationLabel}
+                              </span>
+                              <span className="text-[11px] text-muted-foreground font-medium">{metric.activationScore}/100</span>
+                            </div>
                           ) : <span className="text-muted-foreground text-xs">—</span>}
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">
-                          {format(new Date(a.lastUpdated), "MMM d, yyyy")}
+                        <td className="px-4 py-3">
+                          {metric ? (
+                            <div className="text-xs">
+                              <span className="font-medium text-foreground">{metric.meetingsScheduled}</span>
+                              <span className="text-muted-foreground"> sched.</span>
+                              {metric.meetingsCompleted > 0 && <span className="text-green-600 ml-1">{metric.meetingsCompleted} done</span>}
+                            </div>
+                          ) : <span className="text-muted-foreground text-xs">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          {metric?.lastLoginAt ? (
+                            <span className="text-foreground">{format(new Date(metric.lastLoginAt), "MMM d, yyyy")}</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
+                              <AlertCircle className="h-3 w-3" /> Never
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => nav(`/admin/agreement/sponsor-agreements/${a.sponsorId}/${a.eventId}`)} data-testid={`button-open-agreement-${a.sponsorId}`}>

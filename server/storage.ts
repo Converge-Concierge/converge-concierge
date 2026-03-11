@@ -206,6 +206,7 @@ export interface IStorage {
   setSponsorUserPrimary(id: string, sponsorId: string): Promise<void>;
   deleteSponsorUser(id: string): Promise<void>;
   updateSponsorUserLastLogin(id: string): Promise<void>;
+  getAllSponsorUsers(): Promise<SponsorUser[]>;
   createSponsorLoginToken(data: { sponsorUserId: string; sponsorId: string; tokenHash: string; expiresAt: Date }): Promise<SponsorLoginToken>;
   getSponsorLoginTokenByHash(tokenHash: string): Promise<SponsorLoginToken | undefined>;
   markSponsorLoginTokenUsed(id: string): Promise<void>;
@@ -842,15 +843,16 @@ export class MemStorage implements IStorage {
   async getEmailLogByProviderMessageId(_providerMessageId: string): Promise<EmailLog | undefined> { return undefined; }
   async updateEmailLogDelivery(_id: string, _updates: { status?: string; deliveredAt?: Date; openedAt?: Date; clickedAt?: Date; bouncedAt?: Date; bounceReason?: string; providerStatus?: string }): Promise<void> {}
 
-  async upsertSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser> { return { id: randomUUID(), sponsorId: _data.sponsorId, name: _data.name, email: _data.email, accessLevel: _data.accessLevel ?? "owner", isPrimary: _data.isPrimary ?? false, isActive: true, lastLoginAt: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async upsertSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser> { return { id: randomUUID(), sponsorId: _data.sponsorId, name: _data.name, email: _data.email, accessLevel: _data.accessLevel ?? "owner", isPrimary: _data.isPrimary ?? false, isActive: true, lastLoginAt: null, loginCount: 0, createdAt: new Date(), updatedAt: new Date() }; }
   async getSponsorUserByEmail(_email: string): Promise<SponsorUser | undefined> { return undefined; }
   async getSponsorUsersBySponsor(_sponsorId: string): Promise<SponsorUser[]> { return []; }
   async getSponsorUserById(_id: string): Promise<SponsorUser | undefined> { return undefined; }
-  async createSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel: string; isPrimary: boolean; isActive: boolean }): Promise<SponsorUser> { return { id: randomUUID(), ..._data, lastLoginAt: null, createdAt: new Date(), updatedAt: new Date() }; }
-  async updateSponsorUser(_id: string, _data: Partial<{ name: string; email: string; accessLevel: string; isPrimary: boolean; isActive: boolean }>): Promise<SponsorUser> { return { id: _id, sponsorId: "", name: "", email: "", accessLevel: "owner", isPrimary: false, isActive: true, lastLoginAt: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async createSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel: string; isPrimary: boolean; isActive: boolean }): Promise<SponsorUser> { return { id: randomUUID(), ..._data, lastLoginAt: null, loginCount: 0, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateSponsorUser(_id: string, _data: Partial<{ name: string; email: string; accessLevel: string; isPrimary: boolean; isActive: boolean }>): Promise<SponsorUser> { return { id: _id, sponsorId: "", name: "", email: "", accessLevel: "owner", isPrimary: false, isActive: true, lastLoginAt: null, loginCount: 0, createdAt: new Date(), updatedAt: new Date() }; }
   async setSponsorUserPrimary(_id: string, _sponsorId: string): Promise<void> {}
   async deleteSponsorUser(_id: string): Promise<void> {}
   async updateSponsorUserLastLogin(_id: string): Promise<void> {}
+  async getAllSponsorUsers(): Promise<SponsorUser[]> { return []; }
   async createSponsorLoginToken(_data: { sponsorUserId: string; sponsorId: string; tokenHash: string; expiresAt: Date }): Promise<SponsorLoginToken> { return { id: randomUUID(), ..._data, usedAt: null, createdAt: new Date() }; }
   async getSponsorLoginTokenByHash(_tokenHash: string): Promise<SponsorLoginToken | undefined> { return undefined; }
   async markSponsorLoginTokenUsed(_id: string): Promise<void> {}

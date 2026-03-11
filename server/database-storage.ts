@@ -898,7 +898,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateSponsorUserLastLogin(id: string): Promise<void> {
-    await db.update(sponsorUsers).set({ lastLoginAt: new Date(), updatedAt: new Date() }).where(eq(sponsorUsers.id, id));
+    await db.update(sponsorUsers).set({
+      lastLoginAt: new Date(),
+      loginCount: sql`login_count + 1`,
+      updatedAt: new Date(),
+    }).where(eq(sponsorUsers.id, id));
+  }
+
+  async getAllSponsorUsers(): Promise<SponsorUser[]> {
+    return db.select().from(sponsorUsers);
   }
 
   async getEmailTemplates(): Promise<EmailTemplate[]> {

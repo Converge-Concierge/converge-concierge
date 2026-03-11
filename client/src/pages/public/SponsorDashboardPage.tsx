@@ -8,7 +8,7 @@ import {
   Bell, BellOff, Download, ExternalLink, Video, Mail,
   UserCheck, AlertCircle, ChevronDown, ChevronUp, FileDown,
   BarChart3, Monitor, TrendingUp, Link2, X as XIcon, Gem, MessageSquare, Eye, MousePointerClick,
-  CalendarX,
+  CalendarX, ClipboardCheck, Package,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
@@ -238,6 +238,23 @@ export default function SponsorDashboardPage() {
     },
     enabled: !!token,
   });
+
+  const { data: sponsorDeliverables = [] } = useQuery<{ id: string; status: string; sponsorVisible: boolean }[]>({
+    queryKey: ["/api/sponsor-dashboard/agreement-deliverables", token, "reports"],
+    queryFn: async () => {
+      const res = await fetch(`/api/sponsor-dashboard/agreement-deliverables?token=${token}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!token,
+    staleTime: 60_000,
+  });
+
+  const deliverableStats = {
+    total: sponsorDeliverables.length,
+    completed: sponsorDeliverables.filter(d => ["Delivered", "Approved", "Completed"].includes(d.status)).length,
+    remaining: sponsorDeliverables.filter(d => !["Delivered", "Approved", "Completed", "N/A"].includes(d.status)).length,
+  };
 
   const updateInfoStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -1047,6 +1064,46 @@ export default function SponsorDashboardPage() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Deliverables & Engagement */}
+                  {deliverableStats.total > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                        <ClipboardCheck className="h-4 w-4 text-accent" /> Deliverables & Engagement
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        {[
+                          { label: "Deliverables Completed", value: deliverableStats.completed, icon: CheckCircle2, color: "bg-green-50 border-green-200 text-green-800" },
+                          { label: "Deliverables Remaining", value: deliverableStats.remaining, icon: Package,      color: deliverableStats.remaining > 0 ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-card border-border/60" },
+                          { label: "Information Requests",   value: infoRequests.length,        icon: MessageSquare, color: "bg-blue-50 border-blue-200 text-blue-800" },
+                        ].map(({ label, value, icon: Icon, color }) => (
+                          <div key={label} className={cn("rounded-xl border p-5 flex flex-col gap-3 transition-all hover:shadow-md", color)}>
+                            <div className="h-8 w-8 rounded-lg bg-background/50 flex items-center justify-center">
+                              <Icon className="h-4 w-4 opacity-70" />
+                            </div>
+                            <div>
+                              <p className="text-2xl font-display font-bold leading-none">{value}</p>
+                              <p className="text-[11px] font-bold uppercase tracking-wider mt-1.5 opacity-60 leading-tight">{label}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {deliverableStats.total > 0 && (
+                        <div className="bg-muted/30 rounded-xl p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-muted-foreground">Deliverables Completion</span>
+                            <span className="text-xs font-bold text-foreground">{deliverableStats.completed}/{deliverableStats.total} ({Math.round((deliverableStats.completed / deliverableStats.total) * 100)}%)</span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-accent rounded-full transition-all"
+                              style={{ width: `${Math.round((deliverableStats.completed / deliverableStats.total) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                     {(() => {

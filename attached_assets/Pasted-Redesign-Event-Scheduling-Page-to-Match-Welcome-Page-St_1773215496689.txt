@@ -1,0 +1,156 @@
+Redesign Event Scheduling Page to Match Welcome Page Structure and Improve Engagement
+
+The Event Scheduling Page should visually and structurally match the Welcome Page experience.
+
+Many users will arrive directly from:
+
+email links
+
+calendar invites
+
+sponsor outreach
+
+meeting request emails
+
+Therefore the page should orient the attendee quickly, explain the value of interacting with sponsors, and encourage topic selection and meeting requests.
+
+1. Page Header Structure
+
+Update the top section so it matches the Welcome Page layout.
+
+Structure:
+
+[Event Logo]
+
+[Badge: Meeting Scheduling]
+
+Browse Sponsors and Schedule Meetings for  
+The 2026 Fintech Risk & Compliance Forum
+
+Add a short orientation line:
+
+Select topics you're interested in to discover sponsors aligned with your priorities.
+You can request meetings, schedule online sessions, or ask for more information.
+
+This helps users who arrive without seeing the Welcome page first.
+
+2. Replace Current Intro Text
+
+Remove the current text:
+
+Browse and book a meeting with participating sponsors.
+Filter by topic to find sponsors aligned with your interests.
+
+Replace with:
+
+Suggested replacement text:
+
+Explore sponsors participating in the conference and connect with those aligned with your interests.
+
+Select topics below to highlight relevant sponsors and schedule a conversation before or during the event.
+3. Topic Selection Section
+
+Make this section visually match the Welcome Page topic section.
+
+Header:
+
+NEXT STEP
+Make the most of your time at the conference. What topics interest you?
+
+Directly below:
+
+Display the topic pills:
+
+AI
+Compliance
+Customer Service
+Legal
+Regulatory
+
+Styling:
+
+same pill style as welcome page
+
+clickable filter
+
+selected state highlighted
+
+4. Remove Extra Instruction Text
+
+Remove this line:
+
+Meeting formats, durations, and locations vary by sponsor and event setup.
+
+This information is unnecessary and adds clutter.
+
+5. Sponsor Section Header
+
+Update section header from:
+
+Sponsors Available for Meetings
+
+to:
+
+Meet With Our Sponsors
+
+Add subtext below:
+
+Choose a sponsor below to schedule a meeting or request more information.
+6. Improve Engagement Copy
+
+Add optional supporting text:
+
+Sponsors are here to share ideas, solutions, and insights related to your interests.
+A short conversation may help you discover new approaches before the conference even begins.
+
+This encourages exploration instead of transactional scheduling.
+
+7. Sponsor Card Interaction Reminder
+
+Above the sponsor cards, add a short line explaining the actions:
+
+Available actions include:
+• Schedule an onsite meeting during the conference
+• Request an online meeting
+• Ask a sponsor to send you more information
+
+This prevents user confusion about button meanings.
+
+8. Layout Consistency with Welcome Page
+
+Ensure the following elements match the Welcome Page:
+
+Element	Requirement
+Event logo placement	same alignment
+Topic pills	identical style
+Section spacing	consistent vertical rhythm
+Sponsor card design	unchanged
+Header typography	consistent
+
+The goal is visual continuity.
+
+9. Improve Page Intent
+
+The page should clearly communicate:
+
+Purpose:
+
+Discover sponsors aligned with your interests and schedule valuable conversations.
+
+Instead of feeling like a booking utility, it should feel like a curated networking opportunity.
+
+10. Acceptance Criteria
+
+Implementation is complete when:
+
+scheduling page visually matches welcome page structure
+
+topic selection appears prominently
+
+page clearly explains sponsor interaction options
+
+new motivational text replaces the current generic copy
+
+sponsor cards remain unchanged
+
+users arriving from email links immediately understand what to do.

@@ -795,28 +795,41 @@ export default function EventPage() {
       <>
       <Shell style={eventColorStyle}>
         <motion.div {...slide} className="w-full max-w-5xl mx-auto px-6 pt-2 pb-8">
-          {/* Event hero header — horizontal layout matching Welcome page style */}
-          <div className="bg-card border border-border/60 rounded-2xl shadow-sm overflow-hidden mb-5">
-            <div className="px-5 py-4 flex items-center gap-5">
-              <div className="h-20 w-20 rounded-xl border border-border/60 bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
-                {event.logoUrl ? (
+          {/* Event hero header — Welcome page style */}
+          <div className="bg-white border border-border/60 rounded-2xl shadow-sm overflow-hidden mb-5">
+            <div className="px-5 py-5 sm:py-6 flex items-center gap-6 sm:gap-8">
+              {event.logoUrl ? (
+                <div
+                  className="flex-shrink-0 bg-white rounded-lg p-3 border border-border/60 shadow-sm"
+                  data-testid="img-event-logo"
+                >
                   <img
                     src={event.logoUrl} alt={event.name}
-                    className="h-16 max-w-[72px] object-contain"
+                    className="h-28 sm:h-32 max-w-[260px] object-contain"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    data-testid="img-event-logo"
                   />
-                ) : (
-                  <div className="flex items-center justify-center w-full h-full bg-muted/40">
-                    <Building2 className="h-8 w-8 text-muted-foreground/40" />
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-display font-bold text-foreground leading-tight mb-1">
-                  {event.name}
+                </div>
+              ) : (
+                <div className="flex-shrink-0 h-20 w-20 rounded-xl bg-muted flex items-center justify-center" data-testid="img-event-logo">
+                  <Building2 className="h-8 w-8 text-muted-foreground/40" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div
+                  className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 text-sm font-semibold px-4 py-1.5 rounded-full mb-3"
+                  data-testid="badge-meeting-scheduling"
+                >
+                  <Calendar className="h-4 w-4 flex-shrink-0" />
+                  Meeting Scheduling
+                </div>
+                <h1
+                  className="text-2xl sm:text-3xl font-display font-bold text-foreground leading-tight mb-2"
+                  data-testid="heading-event-name"
+                >
+                  Browse Sponsors and Schedule Meetings for{" "}
+                  <span>{event.name}</span>
                 </h1>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-2">
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-accent" style={evAccent ? { color: evAccent } : undefined} />
                     {format(parseISO(event.startDate as unknown as string), "MMMM d")}
@@ -838,6 +851,10 @@ export default function EventPage() {
                     </a>
                   )}
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  Select topics you're interested in to discover sponsors aligned with your priorities.
+                  You can request meetings, schedule online sessions, or ask for more information.
+                </p>
               </div>
             </div>
           </div>
@@ -893,29 +910,22 @@ export default function EventPage() {
             </div>
           )}
 
-          {/* Intro copy — always shown when scheduling is active */}
-          {!eventEnded && !schedulingDisabled && !showExternalHandoff && (
-            <div className="mb-3 space-y-0.5">
-              <p className="text-base font-display font-bold text-foreground">Browse and book a meeting with participating sponsors.</p>
-              {attributesInUse.length > 0 && (
-                <p className="text-sm text-muted-foreground">Filter by topic to find sponsors aligned with your interests.</p>
-              )}
-            </div>
-          )}
-
-          {/* Interest filter */}
-          {attributesInUse.length > 0 && (() => {
+          {/* NEXT STEP — topic selection (active scheduling only) */}
+          {!eventEnded && !schedulingDisabled && !showExternalHandoff && attributesInUse.length > 0 && (() => {
             const allOptions = attributesInUse;
             const SHOW_LIMIT = 7;
             const visibleOptions = showAllFilters ? allOptions : allOptions.slice(0, SHOW_LIMIT);
             const hasMore = allOptions.length > SHOW_LIMIT;
             return (
-              <div className="mb-4 space-y-2">
-                <div className="pt-1">
-                  <h2 className="text-xl font-display font-semibold text-foreground mb-2">
-                    What are you interested in?
-                  </h2>
-                  <div className="flex flex-wrap gap-1.5 items-center">
+              <div className="border border-border/60 rounded-2xl bg-muted/20 overflow-hidden mb-5">
+                <div className="px-5 py-5 sm:py-6 space-y-3">
+                  <p className="text-xs font-black uppercase tracking-widest text-accent">
+                    Next Step
+                  </p>
+                  <p className="text-xl sm:text-2xl font-display font-bold text-foreground">
+                    Make the most of your time at the conference. What topics interest you?
+                  </p>
+                  <div className="flex flex-wrap gap-2 items-center pt-1">
                     {visibleOptions.map((attr) => {
                       const active = activeFilters.some((f) => f.toLowerCase() === attr.toLowerCase());
                       return (
@@ -928,8 +938,8 @@ export default function EventPage() {
                           className={cn(
                             "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
                             active
-                              ? "bg-accent text-accent-foreground border-accent"
-                              : "bg-card text-foreground/70 border-border hover:border-accent/60 hover:text-foreground hover:bg-accent/5",
+                              ? "bg-accent text-white border-accent shadow-sm"
+                              : "bg-white text-foreground/70 border-border hover:border-accent/60 hover:text-foreground hover:bg-accent/5",
                           )}
                           style={(active && evAccent) ? { backgroundColor: evAccent, color: "#fff", borderColor: evAccent } : undefined}
                         >
@@ -949,7 +959,7 @@ export default function EventPage() {
                     {activeFilters.length > 0 && (
                       <button
                         onClick={() => setActiveFilters([])}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-sm text-muted-foreground hover:text-destructive transition-colors"
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm text-muted-foreground hover:text-destructive transition-colors"
                         data-testid="filter-clear"
                       >
                         <X className="h-3.5 w-3.5" /> Clear
@@ -959,15 +969,65 @@ export default function EventPage() {
                   {activeFilters.length > 0 && (
                     <button
                       onClick={() => setActiveFilters([])}
-                      className="mt-2 text-xs text-accent hover:underline underline-offset-2 transition-colors"
+                      className="text-xs text-accent hover:underline underline-offset-2 transition-colors"
                       data-testid="filter-show-all"
                     >
                       Show All Sponsors
                     </button>
                   )}
-                  <p className="mt-3 text-xs text-muted-foreground/70">
-                    Meeting formats, durations, and locations vary by sponsor and event setup.
-                  </p>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Plain filter chips when scheduling is disabled/ended */}
+          {(eventEnded || schedulingDisabled || showExternalHandoff) && attributesInUse.length > 0 && (() => {
+            const allOptions = attributesInUse;
+            const SHOW_LIMIT = 7;
+            const visibleOptions = showAllFilters ? allOptions : allOptions.slice(0, SHOW_LIMIT);
+            const hasMore = allOptions.length > SHOW_LIMIT;
+            return (
+              <div className="mb-4">
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  {visibleOptions.map((attr) => {
+                    const active = activeFilters.some((f) => f.toLowerCase() === attr.toLowerCase());
+                    return (
+                      <button
+                        key={attr}
+                        onClick={() => setActiveFilters((prev) =>
+                          active ? prev.filter((f) => f.toLowerCase() !== attr.toLowerCase()) : [...prev, attr]
+                        )}
+                        data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
+                          active
+                            ? "bg-accent text-white border-accent shadow-sm"
+                            : "bg-card text-foreground/70 border-border hover:border-accent/60 hover:text-foreground hover:bg-accent/5",
+                        )}
+                        style={(active && evAccent) ? { backgroundColor: evAccent, color: "#fff", borderColor: evAccent } : undefined}
+                      >
+                        {attr}
+                      </button>
+                    );
+                  })}
+                  {hasMore && (
+                    <button
+                      onClick={() => setShowAllFilters((v) => !v)}
+                      className="px-3 py-1.5 rounded-full text-sm font-medium text-accent border border-accent/40 hover:bg-accent/10 transition-all"
+                      data-testid="filter-show-more"
+                    >
+                      {showAllFilters ? "Show Less" : `+${allOptions.length - SHOW_LIMIT} More`}
+                    </button>
+                  )}
+                  {activeFilters.length > 0 && (
+                    <button
+                      onClick={() => setActiveFilters([])}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm text-muted-foreground hover:text-destructive transition-colors"
+                      data-testid="filter-clear"
+                    >
+                      <X className="h-3.5 w-3.5" /> Clear
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -986,19 +1046,34 @@ export default function EventPage() {
             </div>
           ) : (
             <>
-              <div className="flex items-end justify-between mb-3">
-                <h3
-                  className="text-base font-display font-semibold text-foreground"
-                  data-testid="text-sponsor-results-label"
-                >
-                  {activeFilters.length > 0 ? "Available Sponsors Matching Your Interests" : "Sponsors Available for Meetings"}
-                </h3>
+              <div className="flex items-end justify-between mb-2">
+                <div>
+                  <h3
+                    className="text-xl font-display font-semibold text-foreground"
+                    data-testid="text-sponsor-results-label"
+                  >
+                    {activeFilters.length > 0 ? "Sponsors Matching Your Interests" : "Meet With Our Sponsors"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Choose a sponsor below to schedule a meeting or request more information.
+                  </p>
+                </div>
                 {eventSponsors.length > 0 && (
                   <span className="text-xs text-muted-foreground shrink-0 ml-3">
                     {filteredSponsors.length} of {eventSponsors.length} sponsor{eventSponsors.length !== 1 ? "s" : ""}
                   </span>
                 )}
               </div>
+              {!eventEnded && !schedulingDisabled && !showExternalHandoff && (
+                <div className="mb-4 text-sm text-muted-foreground space-y-0.5">
+                  <p className="font-medium text-foreground/80">Available actions include:</p>
+                  <ul className="list-disc list-inside space-y-0.5 pl-1 text-xs">
+                    <li>Schedule an onsite meeting during the conference</li>
+                    <li>Request an online meeting</li>
+                    <li>Ask a sponsor to send you more information</li>
+                  </ul>
+                </div>
+              )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredSponsors.map((sponsor, i) => (
                 <motion.div

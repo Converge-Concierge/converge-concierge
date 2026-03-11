@@ -105,8 +105,7 @@ export default function DashboardPage() {
     selectedEventId === "all" ? null : events.find(e => e.id === selectedEventId)
   , [selectedEventId, events]);
 
-  const defaultBrandColor = branding?.primaryColor ?? "#0D1E3A";
-  const accentBarColor = selectedEvent?.primaryColor ?? defaultBrandColor;
+  const accentBarColor = selectedEvent?.accentColor ?? branding?.accentColor ?? "#0D9488";
 
   const headerLogoUrl = useMemo(() => {
     if (selectedEventId !== "all" && selectedEvent?.logoUrl) return selectedEvent.logoUrl;

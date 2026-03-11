@@ -125,6 +125,10 @@ export interface IStorage {
   updateMeeting(id: string, updates: Partial<InsertMeeting>): Promise<Meeting | undefined>;
   deleteMeeting(id: string): Promise<void>;
   getMeetingConflict(eventId: string, sponsorId: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined>;
+  getAttendeeConflict(eventId: string, attendeeId: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined>;
+  getLocationConflict(eventId: string, location: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined>;
+  updateMeetingReminderFlags(id: string, flags: { reminder24SentAt?: Date; reminder2SentAt?: Date }): Promise<void>;
+  getMeetingsDueForReminders(): Promise<Meeting[]>;
   cascadeArchiveEvent(eventId: string): Promise<void>;
   cascadeUnarchiveEvent(eventId: string): Promise<void>;
 
@@ -178,9 +182,11 @@ export interface IStorage {
   getAnalyticsSummary(sponsorId: string, eventId: string): Promise<{ profileViews: number; meetingCtaClicks: number }>;
 
   // Email logs
-  createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null }): Promise<string>;
+  createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null }): Promise<string>;
   listEmailLogs(filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, limit?: number, offset?: number): Promise<EmailLog[]>;
   getEmailLog(id: string): Promise<EmailLog | undefined>;
+  getEmailLogByProviderMessageId(providerMessageId: string): Promise<EmailLog | undefined>;
+  updateEmailLogDelivery(id: string, updates: { status?: string; deliveredAt?: Date; openedAt?: Date; clickedAt?: Date; bouncedAt?: Date; bounceReason?: string; providerStatus?: string }): Promise<void>;
 
   // Sponsor Users & Magic Login
   upsertSponsorUser(data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser>;
@@ -502,6 +508,25 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getAttendeeConflict(eventId: string, attendeeId: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined> {
+    return Array.from(this.meetings.values()).find(
+      (m) => m.eventId === eventId && m.attendeeId === attendeeId && m.date === date && m.time === time && m.id !== excludeId && m.status !== "Cancelled" && m.status !== "NoShow" && (m.archiveState ?? "active") !== "archived"
+    );
+  }
+
+  async getLocationConflict(eventId: string, location: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined> {
+    return Array.from(this.meetings.values()).find(
+      (m) => m.eventId === eventId && m.location === location && m.date === date && m.time === time && m.id !== excludeId && m.status !== "Cancelled" && m.status !== "NoShow" && (m.archiveState ?? "active") !== "archived"
+    );
+  }
+
+  async updateMeetingReminderFlags(id: string, flags: { reminder24SentAt?: Date; reminder2SentAt?: Date }): Promise<void> {
+    const m = this.meetings.get(id);
+    if (m) this.meetings.set(id, { ...m, ...flags });
+  }
+
+  async getMeetingsDueForReminders(): Promise<Meeting[]> { return []; }
+
   // Event lifecycle cascade
   async cascadeArchiveEvent(eventId: string): Promise<void> {
     // Archive active EventAttendee relationships for this event
@@ -755,9 +780,11 @@ export class MemStorage implements IStorage {
     return { profileViews: 0, meetingCtaClicks: 0 };
   }
 
-  async createEmailLog(_data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null }): Promise<string> { return randomUUID(); }
+  async createEmailLog(_data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null }): Promise<string> { return randomUUID(); }
   async listEmailLogs(_filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, _limit?: number, _offset?: number): Promise<EmailLog[]> { return []; }
   async getEmailLog(_id: string): Promise<EmailLog | undefined> { return undefined; }
+  async getEmailLogByProviderMessageId(_providerMessageId: string): Promise<EmailLog | undefined> { return undefined; }
+  async updateEmailLogDelivery(_id: string, _updates: { status?: string; deliveredAt?: Date; openedAt?: Date; clickedAt?: Date; bouncedAt?: Date; bounceReason?: string; providerStatus?: string }): Promise<void> {}
 
   async upsertSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser> { return { id: randomUUID(), sponsorId: _data.sponsorId, name: _data.name, email: _data.email, accessLevel: _data.accessLevel ?? "owner", isPrimary: _data.isPrimary ?? false, isActive: true, lastLoginAt: null, createdAt: new Date(), updatedAt: new Date() }; }
   async getSponsorUserByEmail(_email: string): Promise<SponsorUser | undefined> { return undefined; }

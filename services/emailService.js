@@ -8,6 +8,7 @@ import {
   infoRequestConfirmationForAttendee,
   passwordResetEmail,
   sponsorMagicLoginEmail,
+  meetingReminderEmail,
 } from "./emailTemplates.js";
 import {
   buildMeetingIcs,
@@ -45,16 +46,18 @@ export async function sendEmail(to, subject, htmlContent, attachments) {
 async function sendAndLog(storage, { emailType, to, subject, html, eventId, sponsorId, attendeeId, resendOfId, attachments }) {
   let status = "sent";
   let errorMessage = null;
+  let providerMessageId = null;
   try {
-    await sendEmail(to, subject, html, attachments);
-    console.log(`[EMAIL] Sent "${emailType}" to ${to} — Subject: ${subject}`);
+    const response = await sendEmail(to, subject, html, attachments);
+    providerMessageId = response?.messageId ?? null;
+    console.log(`[EMAIL] Sent "${emailType}" to ${to} — Subject: ${subject}${providerMessageId ? ` — messageId: ${providerMessageId}` : ""}`);
   } catch (err) {
     status = "failed";
     errorMessage = err?.message || String(err);
     console.error(`[EMAIL] Failed to send "${emailType}" to ${to}: ${errorMessage}`);
   }
   try {
-    const id = await storage.createEmailLog({ emailType, recipientEmail: to, subject, htmlContent: html, eventId, sponsorId, attendeeId, status, errorMessage, resendOfId: resendOfId ?? null });
+    const id = await storage.createEmailLog({ emailType, recipientEmail: to, subject, htmlContent: html, eventId, sponsorId, attendeeId, status, errorMessage, resendOfId: resendOfId ?? null, providerMessageId });
     return id;
   } catch (logErr) {
     console.error(`[EMAIL LOG] Failed to write email log: ${logErr?.message || logErr}`);
@@ -261,4 +264,55 @@ export async function sendSponsorMagicLoginEmail(storage, sponsorUser, sponsor, 
     eventId: null,
     attendeeId: null,
   });
+}
+
+export async function sendMeetingReminderEmail(storage, attendee, sponsor, meeting, event, windowLabel) {
+  const sponsorName = sponsor?.name ?? "";
+  const eventName = event?.name ?? "";
+  const windowText = windowLabel === "24h" ? "tomorrow" : "in 2 hours";
+  const subject = `Reminder: Your meeting ${windowText} with ${sponsorName || "the sponsor"}`;
+  const html = meetingReminderEmail({
+    recipientFirstName: attendee?.firstName || attendee?.name?.split(" ")[0] || "there",
+    sponsorName,
+    eventName,
+    meetingDate: meeting?.date,
+    meetingTime: meeting?.time,
+    meetingLocation: meeting?.location,
+    meetingType: meeting?.meetingType,
+    windowLabel,
+  });
+  if (attendee?.email) {
+    await sendAndLog(storage, {
+      emailType: windowLabel === "24h" ? "meeting_reminder_24" : "meeting_reminder_2",
+      to: attendee.email,
+      subject,
+      html,
+      eventId: meeting?.eventId ?? null,
+      sponsorId: meeting?.sponsorId ?? null,
+      attendeeId: attendee.id ?? null,
+    });
+  }
+
+  const sponsorContactEmail = sponsor?.contactEmail;
+  if (sponsorContactEmail) {
+    const sponsorHtml = meetingReminderEmail({
+      recipientFirstName: sponsor?.contactName ?? sponsor?.name ?? "there",
+      sponsorName,
+      eventName,
+      meetingDate: meeting?.date,
+      meetingTime: meeting?.time,
+      meetingLocation: meeting?.location,
+      meetingType: meeting?.meetingType,
+      windowLabel,
+    });
+    await sendAndLog(storage, {
+      emailType: windowLabel === "24h" ? "meeting_reminder_24" : "meeting_reminder_2",
+      to: sponsorContactEmail,
+      subject: `Reminder: Meeting ${windowText} — ${attendee?.firstName || attendee?.name || "Attendee"}`,
+      html: sponsorHtml,
+      eventId: meeting?.eventId ?? null,
+      sponsorId: meeting?.sponsorId ?? null,
+      attendeeId: attendee?.id ?? null,
+    });
+  }
 }

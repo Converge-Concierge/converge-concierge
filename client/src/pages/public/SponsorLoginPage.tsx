@@ -130,7 +130,7 @@ export default function SponsorLoginPage() {
                   </div>
                   <h1 className="text-2xl font-display font-bold text-foreground mb-2">Sponsor Dashboard Access</h1>
                   <p className="text-sm text-muted-foreground">
-                    Enter your work email and we'll send you a secure link to access your sponsor dashboard.
+                    Enter your email to receive a secure access link. Use this if your link has expired or you need a new one.
                   </p>
                 </div>
 
@@ -214,7 +214,10 @@ export default function SponsorLoginPage() {
                   </div>
                   <h1 className="text-2xl font-display font-bold text-foreground mb-2">Access with Token</h1>
                   <p className="text-sm text-muted-foreground">
-                    Paste the access link or token you received from your event coordinator.
+                    Paste the access link or token you received from your event coordinator. Link expired?{" "}
+                    <button type="button" onClick={() => { setMode("email"); setTokenError(""); }} className="underline underline-offset-2 text-foreground hover:text-primary transition-colors">
+                      Switch to email above.
+                    </button>
                   </p>
                 </div>
 

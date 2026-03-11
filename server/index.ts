@@ -5,6 +5,7 @@ import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { seedEmailTemplates } from "./email-template-seeder";
+import { startReminderJob } from "./reminder-service";
 import { storage } from "./storage";
 import { createServer } from "http";
 
@@ -93,6 +94,7 @@ app.use((req, res, next) => {
   await registerRoutes(httpServer, app);
 
   seedEmailTemplates(storage).catch(err => console.error("[STARTUP] Email template seeding failed:", err));
+  startReminderJob();
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

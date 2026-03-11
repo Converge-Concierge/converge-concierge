@@ -89,6 +89,36 @@ const TEMPLATES = [
       "app_name",
     ],
   },
+  {
+    templateKey: "meeting_reminder_24",
+    displayName: "Meeting Reminder — 24 Hours",
+    subjectTemplate: "Reminder: Your meeting tomorrow with {{sponsor_name}}",
+    description: "Sent to attendees and sponsors 24 hours before a scheduled meeting.",
+    variables: [
+      "recipient_first_name",
+      "sponsor_name",
+      "event_name",
+      "meeting_date",
+      "meeting_time",
+      "meeting_location",
+      "meeting_type",
+    ],
+  },
+  {
+    templateKey: "meeting_reminder_2",
+    displayName: "Meeting Reminder — 2 Hours",
+    subjectTemplate: "Reminder: Your meeting in 2 hours with {{sponsor_name}}",
+    description: "Sent to attendees and sponsors 2 hours before a scheduled meeting.",
+    variables: [
+      "recipient_first_name",
+      "sponsor_name",
+      "event_name",
+      "meeting_date",
+      "meeting_time",
+      "meeting_location",
+      "meeting_type",
+    ],
+  },
 ];
 
 export async function seedEmailTemplates(storage: IStorage): Promise<void> {

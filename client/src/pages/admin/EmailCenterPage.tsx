@@ -28,11 +28,15 @@ import { cn } from "@/lib/utils";
 const EMAIL_TYPE_LABELS: Record<string, string> = {
   meeting_confirmation_attendee: "Meeting Confirmation",
   meeting_notification_sponsor: "Sponsor Meeting Alert",
+  meeting_reminder_24: "Reminder (24h)",
+  meeting_reminder_2: "Reminder (2h)",
   info_request_notification_sponsor: "Info Request Alert",
   info_request_confirmation_attendee: "Info Request Confirmation",
   sponsor_report: "Sponsor Report",
   admin_alert: "Admin Alert",
   test_email: "Test Email",
+  password_reset: "Password Reset",
+  sponsor_magic_login: "Sponsor Magic Login",
 };
 
 const EMAIL_TYPES = Object.keys(EMAIL_TYPE_LABELS);
@@ -638,6 +642,57 @@ export default function EmailCenterPage() {
                   </div>
                 )}
               </div>
+
+              {/* Delivery Timeline */}
+              {(selectedLog.providerMessageId || selectedLog.deliveredAt || selectedLog.openedAt || selectedLog.clickedAt || selectedLog.bouncedAt) && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Delivery Timeline</p>
+                  <div className="rounded-lg border border-border/50 bg-muted/10 divide-y divide-border/30">
+                    {selectedLog.providerMessageId && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Provider Message ID</span>
+                        <span className="text-xs font-mono text-foreground truncate max-w-[260px]">{selectedLog.providerMessageId}</span>
+                      </div>
+                    )}
+                    {selectedLog.sentAt && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <div className="flex items-center gap-1.5 text-xs text-blue-700"><MailCheck className="h-3 w-3" /> Sent</div>
+                        <span className="text-xs text-muted-foreground">{fmtSentAt(selectedLog.sentAt)}</span>
+                      </div>
+                    )}
+                    {selectedLog.deliveredAt && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <div className="flex items-center gap-1.5 text-xs text-green-700"><CheckCircle2 className="h-3 w-3" /> Delivered</div>
+                        <span className="text-xs text-muted-foreground">{fmtSentAt(selectedLog.deliveredAt)}</span>
+                      </div>
+                    )}
+                    {selectedLog.openedAt && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <div className="flex items-center gap-1.5 text-xs text-purple-700"><Eye className="h-3 w-3" /> Opened</div>
+                        <span className="text-xs text-muted-foreground">{fmtSentAt(selectedLog.openedAt)}</span>
+                      </div>
+                    )}
+                    {selectedLog.clickedAt && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <div className="flex items-center gap-1.5 text-xs text-indigo-700"><ChevronRight className="h-3 w-3" /> Clicked</div>
+                        <span className="text-xs text-muted-foreground">{fmtSentAt(selectedLog.clickedAt)}</span>
+                      </div>
+                    )}
+                    {selectedLog.bouncedAt && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <div className="flex items-center gap-1.5 text-xs text-red-700"><RotateCcw className="h-3 w-3" /> Bounced</div>
+                        <span className="text-xs text-muted-foreground">{fmtSentAt(selectedLog.bouncedAt)}</span>
+                      </div>
+                    )}
+                    {selectedLog.bounceReason && (
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Bounce Reason</span>
+                        <span className="text-xs text-red-700">{selectedLog.bounceReason}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* HTML Preview */}
               {selectedLog.htmlContent && (

@@ -720,13 +720,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     // Only check for slot conflicts on onsite meetings
     if (parsed.data.meetingType !== "online_request") {
-      const { eventId, sponsorId, date, time } = parsed.data;
-      const conflict = await storage.getMeetingConflict(eventId, sponsorId, date, time);
-      if (conflict) {
-        return res.status(409).json({
-          conflict: true,
-          message: "This time slot is no longer available.",
-        });
+      const { eventId, sponsorId, attendeeId, date, time, location } = parsed.data;
+      const [sponsorConflict, attendeeConflict, locationConflict] = await Promise.all([
+        storage.getMeetingConflict(eventId, sponsorId, date, time),
+        storage.getAttendeeConflict(eventId, attendeeId, date, time),
+        location ? storage.getLocationConflict(eventId, location, date, time) : Promise.resolve(undefined),
+      ]);
+      if (sponsorConflict) {
+        return res.status(409).json({ conflict: true, message: "This sponsor already has a meeting at this time." });
+      }
+      if (attendeeConflict) {
+        return res.status(409).json({ conflict: true, message: "This attendee already has a meeting at this time." });
+      }
+      if (locationConflict) {
+        return res.status(409).json({ conflict: true, message: "This location is already booked at this time." });
       }
     }
 
@@ -784,13 +791,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const effectiveType = body.meetingType ?? existing.meetingType ?? "onsite";
     if (effectiveType !== "online_request") {
       const merged = { ...existing, ...body };
-      const { sponsorId, date, time } = merged;
-      const conflict = await storage.getMeetingConflict(eventId, sponsorId, date, time, req.params.id);
-      if (conflict) {
-        return res.status(409).json({
-          conflict: true,
-          message: "This time slot is no longer available.",
-        });
+      const { sponsorId, attendeeId, date, time, location } = merged;
+      const [sponsorConflict, attendeeConflict, locationConflict] = await Promise.all([
+        storage.getMeetingConflict(eventId, sponsorId, date, time, req.params.id),
+        storage.getAttendeeConflict(eventId, attendeeId, date, time, req.params.id),
+        location ? storage.getLocationConflict(eventId, location, date, time, req.params.id) : Promise.resolve(undefined),
+      ]);
+      if (sponsorConflict) {
+        return res.status(409).json({ conflict: true, message: "This sponsor already has a meeting at this time." });
+      }
+      if (attendeeConflict) {
+        return res.status(409).json({ conflict: true, message: "This attendee already has a meeting at this time." });
+      }
+      if (locationConflict) {
+        return res.status(409).json({ conflict: true, message: "This location is already booked at this time." });
       }
     }
 
@@ -2361,6 +2375,56 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json({ ok: true, sentTo: request.attendeeEmail, requestId: request.id });
     } catch (err: any) {
       res.status(500).json({ error: err?.message ?? String(err) });
+    }
+  });
+
+  // ── Brevo delivery tracking webhook ─────────────────────────────────────────
+  app.post("/api/webhooks/brevo", async (req, res) => {
+    try {
+      const secret = process.env.BREVO_WEBHOOK_SECRET;
+      if (secret) {
+        const providedSecret = req.headers["x-brevo-webhook-secret"] ?? req.query.secret;
+        if (providedSecret !== secret) {
+          return res.status(401).json({ message: "Invalid webhook secret" });
+        }
+      }
+
+      const events = Array.isArray(req.body) ? req.body : [req.body];
+      for (const event of events) {
+        const messageId = event["message-id"] ?? event.messageId ?? event["Message-Id"] ?? null;
+        if (!messageId) continue;
+
+        const log = await storage.getEmailLogByProviderMessageId(messageId);
+        if (!log) continue;
+
+        const eventType = (event.event ?? "").toLowerCase();
+        const ts = event.ts_epoch ? new Date(event.ts_epoch) : (event.date ? new Date(event.date) : new Date());
+        const updates: { status?: string; deliveredAt?: Date; openedAt?: Date; clickedAt?: Date; bouncedAt?: Date; bounceReason?: string; providerStatus?: string } = {
+          providerStatus: eventType,
+        };
+
+        if (eventType === "delivered") {
+          updates.status = "delivered";
+          updates.deliveredAt = ts;
+        } else if (eventType === "opened") {
+          updates.status = "opened";
+          updates.openedAt = ts;
+        } else if (eventType === "clicked") {
+          updates.status = "clicked";
+          updates.clickedAt = ts;
+        } else if (eventType === "bounced" || eventType === "hard_bounce" || eventType === "soft_bounce" || eventType === "blocked" || eventType === "invalid_email") {
+          updates.status = "bounced";
+          updates.bouncedAt = ts;
+          updates.bounceReason = event.reason ?? event.error ?? eventType;
+        }
+
+        await storage.updateEmailLogDelivery(log.id, updates);
+      }
+
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[WEBHOOK] Brevo webhook error:", err?.message ?? err);
+      res.status(500).json({ message: "Webhook processing failed" });
     }
   });
 

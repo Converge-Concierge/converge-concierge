@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
@@ -7,9 +7,17 @@ import {
   CalendarDays, Building2, Users, Handshake, TrendingUp,
   ArrowRight, Clock, CheckCircle2, XCircle, AlertCircle,
   MessageSquare, FileText, AlertTriangle, ShieldAlert,
+  ChevronDown,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const statusColors: Record<string, string> = {
   Scheduled: "bg-blue-100 text-blue-700",
@@ -62,6 +70,7 @@ function StatCard({
 
 export default function DashboardPage() {
   const [, nav] = useLocation();
+  const [selectedEventId, setSelectedEventId] = useState<string>("all");
 
   const { data: events      = [] } = useQuery<Event[]>             ({ queryKey: ["/api/events"]   });
   const { data: sponsors    = [] } = useQuery<Sponsor[]>           ({ queryKey: ["/api/sponsors"] });
@@ -69,46 +78,70 @@ export default function DashboardPage() {
   const { data: meetings    = [] } = useQuery<Meeting[]>           ({ queryKey: ["/api/meetings"] });
   const { data: infoRequests = [] } = useQuery<InformationRequest[]>({ queryKey: ["/api/admin/information-requests"] });
 
+  const selectedEvent = useMemo(() => 
+    selectedEventId === "all" ? null : events.find(e => e.id === selectedEventId)
+  , [selectedEventId, events]);
+
+  const filteredMeetings = useMemo(() => {
+    if (selectedEventId === "all") return meetings;
+    return meetings.filter(m => m.eventId === selectedEventId);
+  }, [meetings, selectedEventId]);
+
+  const filteredInfoRequests = useMemo(() => {
+    if (selectedEventId === "all") return infoRequests;
+    return infoRequests.filter(r => r.eventId === selectedEventId);
+  }, [infoRequests, selectedEventId]);
+
+  const filteredAttendees = useMemo(() => {
+    if (selectedEventId === "all") return attendees;
+    return attendees.filter(a => a.assignedEvent === selectedEventId);
+  }, [attendees, selectedEventId]);
+
+  const filteredSponsors = useMemo(() => {
+    if (selectedEventId === "all") return sponsors;
+    return sponsors.filter(s => s.assignedEvents?.some(link => link.eventId === selectedEventId));
+  }, [sponsors, selectedEventId]);
+
   const activeEvents   = events.filter((e) => (e.archiveState ?? "active") === "active");
-  const activeSponsors = sponsors.filter((s) => (s.archiveState ?? "active") === "active");
+  const activeSponsors = filteredSponsors.filter((s) => (s.archiveState ?? "active") === "active");
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { Scheduled: 0, Completed: 0, Cancelled: 0, NoShow: 0 };
-    meetings.forEach((m) => { if (m.status in counts) counts[m.status]++; });
+    filteredMeetings.forEach((m) => { if (m.status in counts) counts[m.status]++; });
     return counts;
-  }, [meetings]);
+  }, [filteredMeetings]);
 
   const upcoming = useMemo(() => {
-    return [...meetings]
+    return [...filteredMeetings]
       .filter((m) => m.status === "Scheduled")
       .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
       .slice(0, 8);
-  }, [meetings]);
+  }, [filteredMeetings]);
 
   const recentInfoRequests = useMemo(() => {
-    return [...infoRequests]
+    return [...filteredInfoRequests]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5);
-  }, [infoRequests]);
+  }, [filteredInfoRequests]);
 
   const meetingsByEvent = useMemo(() => {
     const counts: Record<string, number> = {};
-    meetings.forEach((m) => { counts[m.eventId] = (counts[m.eventId] ?? 0) + 1; });
+    filteredMeetings.forEach((m) => { counts[m.eventId] = (counts[m.eventId] ?? 0) + 1; });
     return events
       .map((e) => ({ event: e, count: counts[e.id] ?? 0 }))
       .filter((x) => x.count > 0)
       .sort((a, b) => b.count - a.count);
-  }, [meetings, events]);
+  }, [filteredMeetings, events]);
 
   const meetingsBySponsor = useMemo(() => {
     const counts: Record<string, number> = {};
-    meetings.forEach((m) => { counts[m.sponsorId] = (counts[m.sponsorId] ?? 0) + 1; });
+    filteredMeetings.forEach((m) => { counts[m.sponsorId] = (counts[m.sponsorId] ?? 0) + 1; });
     return sponsors
       .map((s) => ({ sponsor: s, count: counts[s.id] ?? 0 }))
       .filter((x) => x.count > 0)
       .sort((a, b) => b.count - a.count)
       .slice(0, 6);
-  }, [meetings, sponsors]);
+  }, [filteredMeetings, sponsors]);
 
   const needsAttentionItems = useMemo(() => {
     const items: Array<{
@@ -120,7 +153,7 @@ export default function DashboardPage() {
     }> = [];
 
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-    const stale = infoRequests.filter(
+    const stale = filteredInfoRequests.filter(
       (r) => (r.status === "New" || r.status === "Open") && new Date(r.createdAt) < threeDaysAgo,
     );
     if (stale.length > 0) {
@@ -134,13 +167,15 @@ export default function DashboardPage() {
     }
 
     const sponsorMeetingCounts: Record<string, number> = {};
-    meetings.forEach((m) => { sponsorMeetingCounts[m.sponsorId] = (sponsorMeetingCounts[m.sponsorId] ?? 0) + 1; });
+    filteredMeetings.forEach((m) => { sponsorMeetingCounts[m.sponsorId] = (sponsorMeetingCounts[m.sponsorId] ?? 0) + 1; });
     const zeroMeetingSponsors = activeSponsors.filter((s) => !sponsorMeetingCounts[s.id]);
     if (zeroMeetingSponsors.length > 0) {
       items.push({
         severity: "info",
         title: `${zeroMeetingSponsors.length} sponsor${zeroMeetingSponsors.length !== 1 ? "s" : ""} with no meetings`,
-        desc: "These sponsors have no meetings scheduled across any event.",
+        desc: selectedEventId === "all" 
+          ? "These sponsors have no meetings scheduled across any event."
+          : `These sponsors have no meetings scheduled for ${selectedEvent?.name || 'this event'}.`,
         link: "/admin/sponsors?attention=no-meetings",
         linkText: "View Sponsors",
       });
@@ -148,7 +183,7 @@ export default function DashboardPage() {
 
     const now = new Date();
     const fortyEightHoursFromNow = new Date(Date.now() + 48 * 60 * 60 * 1000);
-    const urgentPending = meetings.filter((m) => {
+    const urgentPending = filteredMeetings.filter((m) => {
       if (m.status !== "Pending") return false;
       try {
         const dt = new Date(`${m.date}T${m.time}`);
@@ -166,7 +201,7 @@ export default function DashboardPage() {
     }
 
     return items;
-  }, [infoRequests, meetings, activeSponsors]);
+  }, [filteredInfoRequests, filteredMeetings, activeSponsors, selectedEventId, selectedEvent]);
 
   function getSponsorName(id: string) { return sponsors.find((s) => s.id === id)?.name ?? "—"; }
   function getAttendeeName(id: string) { return attendees.find((a) => a.id === id)?.name ?? "—"; }
@@ -181,18 +216,48 @@ export default function DashboardPage() {
       className="space-y-8 max-w-7xl mx-auto"
     >
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Command center — activity, queue, and performance across all events.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Command center — activity, queue, and performance across all events.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1.5 min-w-[240px]">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">
+            Filter by Event
+          </label>
+          <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+            <SelectTrigger className="bg-card border-border/60 shadow-sm" data-testid="select-event-filter">
+              <SelectValue placeholder="Select Event" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Events</SelectItem>
+              {activeEvents.map((event) => (
+                <SelectItem key={event.id} value={event.id}>
+                  {event.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Context Helper */}
+      <div className="flex items-center gap-2 px-4 py-2 bg-accent/5 border border-accent/10 rounded-lg text-xs font-medium text-accent">
+        <div className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+        {selectedEventId === "all" 
+          ? "Showing data for all active events" 
+          : `Showing data for ${selectedEvent?.name}`
+        }
       </div>
 
       {/* Top KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           label="Total Meetings"
-          value={meetings.length}
+          value={filteredMeetings.length}
           icon={Handshake}
           sub={`${statusCounts.Scheduled} scheduled`}
           accent="bg-accent/10"
@@ -210,13 +275,13 @@ export default function DashboardPage() {
           label="Active Sponsors"
           value={activeSponsors.length}
           icon={Building2}
-          sub={`${sponsors.length} total`}
+          sub={`${filteredSponsors.length} total`}
           accent="bg-yellow-100"
           onClick={() => nav("/admin/sponsors")}
         />
         <StatCard
           label="Attendees"
-          value={attendees.length}
+          value={filteredAttendees.length}
           icon={Users}
           sub="registered"
           accent="bg-green-100"
@@ -224,9 +289,9 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Info Requests"
-          value={infoRequests.length}
+          value={filteredInfoRequests.length}
           icon={MessageSquare}
-          sub={`${infoRequests.filter((r) => r.status === "New" || r.status === "Open").length} open`}
+          sub={`${filteredInfoRequests.filter((r) => r.status === "New" || r.status === "Open").length} open`}
           accent="bg-blue-100"
           onClick={() => nav("/admin/information-requests")}
         />

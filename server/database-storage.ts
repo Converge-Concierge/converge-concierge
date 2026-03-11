@@ -373,6 +373,68 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
+  async getAttendeeConflict(eventId: string, attendeeId: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined> {
+    const conditions = [
+      eq(meetings.eventId, eventId),
+      eq(meetings.attendeeId, attendeeId),
+      eq(meetings.date, date),
+      eq(meetings.time, time),
+      ne(meetings.status, "Cancelled"),
+      ne(meetings.status, "NoShow"),
+      ne(meetings.archiveState, "archived"),
+    ];
+    if (excludeId) conditions.push(ne(meetings.id, excludeId));
+    const [row] = await db.select().from(meetings).where(and(...conditions)).limit(1);
+    return row;
+  }
+
+  async getLocationConflict(eventId: string, location: string, date: string, time: string, excludeId?: string): Promise<Meeting | undefined> {
+    const conditions = [
+      eq(meetings.eventId, eventId),
+      eq(meetings.location, location),
+      eq(meetings.date, date),
+      eq(meetings.time, time),
+      ne(meetings.status, "Cancelled"),
+      ne(meetings.status, "NoShow"),
+      ne(meetings.archiveState, "archived"),
+    ];
+    if (excludeId) conditions.push(ne(meetings.id, excludeId));
+    const [row] = await db.select().from(meetings).where(and(...conditions)).limit(1);
+    return row;
+  }
+
+  async updateMeetingReminderFlags(id: string, flags: { reminder24SentAt?: Date; reminder2SentAt?: Date }): Promise<void> {
+    const updates: Record<string, any> = {};
+    if (flags.reminder24SentAt !== undefined) updates.reminder24SentAt = flags.reminder24SentAt;
+    if (flags.reminder2SentAt !== undefined) updates.reminder2SentAt = flags.reminder2SentAt;
+    if (Object.keys(updates).length === 0) return;
+    await db.update(meetings).set(updates).where(eq(meetings.id, id));
+  }
+
+  async getMeetingsDueForReminders(): Promise<Meeting[]> {
+    const now = new Date();
+    const plus23_5h = new Date(now.getTime() + 23.5 * 60 * 60 * 1000);
+    const plus24_5h = new Date(now.getTime() + 24.5 * 60 * 60 * 1000);
+    const plus1_5h = new Date(now.getTime() + 1.5 * 60 * 60 * 1000);
+    const plus2_5h = new Date(now.getTime() + 2.5 * 60 * 60 * 1000);
+
+    const allMeetings = await db.select().from(meetings)
+      .where(and(
+        ne(meetings.status, "Cancelled"),
+        ne(meetings.status, "NoShow"),
+        ne(meetings.archiveState, "archived"),
+      ));
+
+    return allMeetings.filter((m) => {
+      if (!m.date || !m.time) return false;
+      const meetingDt = new Date(`${m.date}T${m.time}`);
+      if (isNaN(meetingDt.getTime())) return false;
+      const needs24 = !m.reminder24SentAt && meetingDt >= plus23_5h && meetingDt <= plus24_5h;
+      const needs2 = !m.reminder2SentAt && meetingDt >= plus1_5h && meetingDt <= plus2_5h;
+      return needs24 || needs2;
+    });
+  }
+
   async cascadeArchiveEvent(eventId: string): Promise<void> {
     await db
       .update(attendees)
@@ -907,7 +969,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(sponsorLoginTokens.sponsorUserId, sponsorUserId), sql`used_at IS NULL`));
   }
 
-  async createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null }): Promise<string> {
+  async createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null }): Promise<string> {
     const id = randomUUID();
     await db.insert(emailLogs).values({
       id,
@@ -923,8 +985,28 @@ export class DatabaseStorage implements IStorage {
       resendOfId: data.resendOfId ?? null,
       sentAt: new Date(),
       createdAt: new Date(),
+      providerMessageId: data.providerMessageId ?? null,
     });
     return id;
+  }
+
+  async getEmailLogByProviderMessageId(providerMessageId: string): Promise<import("@shared/schema").EmailLog | undefined> {
+    const rows = await db.select().from(emailLogs).where(eq(emailLogs.providerMessageId, providerMessageId)).limit(1);
+    return rows[0];
+  }
+
+  async updateEmailLogDelivery(id: string, updates: { status?: string; deliveredAt?: Date; openedAt?: Date; clickedAt?: Date; bouncedAt?: Date; bounceReason?: string; providerStatus?: string }): Promise<void> {
+    const set: Record<string, any> = {};
+    if (updates.status !== undefined) set.status = updates.status;
+    if (updates.deliveredAt !== undefined) set.deliveredAt = updates.deliveredAt;
+    if (updates.openedAt !== undefined) set.openedAt = updates.openedAt;
+    if (updates.clickedAt !== undefined) set.clickedAt = updates.clickedAt;
+    if (updates.bouncedAt !== undefined) set.bouncedAt = updates.bouncedAt;
+    if (updates.bounceReason !== undefined) set.bounceReason = updates.bounceReason;
+    if (updates.providerStatus !== undefined) set.providerStatus = updates.providerStatus;
+    if (Object.keys(set).length > 0) {
+      await db.update(emailLogs).set(set).where(eq(emailLogs.id, id));
+    }
   }
 
   async listEmailLogs(filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, limit = 100, offset = 0): Promise<EmailLog[]> {

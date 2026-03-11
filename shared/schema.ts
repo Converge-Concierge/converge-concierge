@@ -273,6 +273,9 @@ export const meetings = pgTable("meetings", {
   nunifyExternalId: text("nunify_external_id"),
   nunifyExportedAt: timestamp("nunify_exported_at"),
   nunifyExportedBy: text("nunify_exported_by"),
+  // Reminder tracking
+  reminder24SentAt: timestamp("reminder_24_sent_at"),
+  reminder2SentAt: timestamp("reminder_2_sent_at"),
 });
 
 export const insertMeetingSchema = createInsertSchema(meetings).extend({
@@ -602,6 +605,14 @@ export const emailLogs = pgTable("email_logs", {
   resendOfId: varchar("resend_of_id"),
   sentAt: timestamp("sent_at").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  // Delivery tracking (populated via Brevo webhooks)
+  providerMessageId: varchar("provider_message_id"),
+  deliveredAt: timestamp("delivered_at"),
+  openedAt: timestamp("opened_at"),
+  clickedAt: timestamp("clicked_at"),
+  bouncedAt: timestamp("bounced_at"),
+  bounceReason: text("bounce_reason"),
+  providerStatus: text("provider_status"),
 });
 
 export type EmailLog = typeof emailLogs.$inferSelect;

@@ -1,0 +1,626 @@
+Implement Top 5 Concierge Improvements + Tab-Based Sponsor Dashboard UX
+
+Implement the following high-priority improvements in Concierge.
+
+These changes were selected because they will have the most immediate impact on:
+
+sponsor experience
+
+scheduling integrity
+
+admin usability
+
+communication reliability
+
+operational awareness
+
+In addition, redesign the Sponsor Dashboard so it uses a tab-based layout instead of one long scrolling page. The goal is to keep more important information above the fold and make the dashboard easier for sponsors to use.
+
+Priority Improvements Included in This Phase
+1. Meeting reminders
+2. Meeting conflict detection
+3. Event-scoped Admin Dashboard
+4. Email delivery tracking
+5. Self-service sponsor access link renewal
+6. Sponsor Dashboard tab-based UX redesign
+1. Add Automated Meeting Reminders
+
+Meeting reminders are a high-value operational improvement that should reduce no-shows and improve sponsor satisfaction.
+
+Required behavior
+
+Send automated reminder emails for scheduled meetings to:
+
+attendee
+
+sponsor
+
+Reminder timing
+
+Implement at minimum:
+
+24 hours before the meeting
+
+2 hours before the meeting
+
+1A. Trigger rules
+
+Reminders should only send for meetings that are:
+
+scheduled / confirmed
+
+not cancelled
+
+not completed
+
+not already reminded for that time window
+
+1B. Required data flags
+
+Add fields to meetings if they do not already exist:
+
+reminder_24_sent_at nullable
+reminder_2_sent_at nullable
+
+This prevents duplicate sends.
+
+1C. Reminder content
+
+Reminder emails should include:
+
+sponsor name
+
+attendee name
+
+event name
+
+date
+
+time
+
+location or online platform
+
+add-to-calendar support if already implemented
+
+dashboard / schedule link if appropriate
+
+1D. Delivery mechanism
+
+Use the existing Brevo transactional email setup and Email Center logging.
+
+Create new email template types:
+
+meeting_reminder_24
+
+meeting_reminder_2
+
+1E. Scheduling mechanism
+
+Implement a scheduled job / cron-like process that runs periodically.
+
+Recommended:
+
+run every 10 minutes
+
+find meetings that fall into the 24-hour or 2-hour reminder windows
+
+send reminders only once
+
+1F. Acceptance criteria
+
+attendee gets 24-hour reminder
+
+sponsor gets 24-hour reminder
+
+attendee gets 2-hour reminder
+
+sponsor gets 2-hour reminder
+
+reminders are not duplicated
+
+cancelled meetings do not send reminders
+
+2. Add Meeting Conflict Detection
+
+Concierge must prevent overlapping meetings for attendees and sponsors.
+
+Required behavior
+
+Before creating or updating a meeting, check for conflicts involving:
+
+attendee
+
+sponsor
+
+location if location-exclusive
+
+online slot if applicable
+
+2A. Required conflict checks
+Attendee conflict
+
+Do not allow an attendee to be booked into overlapping meetings.
+
+Sponsor conflict
+
+Do not allow the sponsor to be booked into overlapping meetings.
+
+Location conflict
+
+If the meeting location can only host one meeting at a time, do not allow overlapping location bookings.
+
+2B. When to enforce conflict detection
+
+Apply conflict checks in all relevant workflows:
+
+admin meeting creation
+
+attendee self-scheduling
+
+sponsor-side meeting actions if those can create meetings
+
+any edit/reschedule flow
+
+2C. Required UX behavior
+
+If a conflict exists:
+
+block save / scheduling
+
+show a clear validation message
+
+Examples:
+
+This attendee already has a meeting at this time.
+
+This sponsor already has a meeting scheduled during this time block.
+
+This location is already assigned during this time.
+
+2D. Acceptance criteria
+
+overlapping attendee meetings are blocked
+
+overlapping sponsor meetings are blocked
+
+overlapping exclusive locations are blocked
+
+validation messages are clear
+
+conflict detection works in admin and attendee booking flows
+
+3. Add Event-Scoped Admin Dashboard
+
+The Admin Dashboard should support event-specific views instead of only aggregated all-event metrics.
+
+Required behavior
+
+Add a global event filter to the Admin Dashboard.
+
+Filter
+Event: [All Events ▼]
+3A. Filter effects
+
+When an event is selected, update:
+
+KPI metrics
+
+Needs Attention section
+
+recent activity
+
+charts
+
+recent information requests
+
+upcoming meetings
+
+sponsor issues if shown
+
+If “All Events” is selected, continue showing aggregate data.
+
+3B. Recommended dashboard scope logic
+
+Use selected event to filter:
+
+meetings
+
+sponsors
+
+attendees
+
+info requests
+
+alerts
+
+engagement stats
+
+Do not show all-event totals when a specific event is selected.
+
+3C. UI behavior
+
+Make the selected event clearly visible in the dashboard context.
+
+Optional helper text:
+
+Showing dashboard data for FRC2026
+
+Showing dashboard data for All Events
+
+3D. Acceptance criteria
+
+admin can filter dashboard by event
+
+dashboard data updates to selected event
+
+all-events mode still works
+
+event context is clearly visible
+
+4. Add Email Delivery Tracking
+
+The Email Center currently logs email activity, but it needs richer delivery visibility.
+
+Required behavior
+
+Track and surface email delivery lifecycle statuses where possible.
+
+At minimum support:
+
+Sent
+
+Failed
+
+Preferred expanded statuses:
+
+Delivered
+
+Opened
+
+Clicked
+
+Bounced
+
+4A. Implementation approach
+
+Use Brevo webhook events if feasible.
+
+Capture and update email log records when Brevo reports:
+
+delivered
+
+opened
+
+clicked
+
+hard bounce
+
+soft bounce
+
+blocked
+
+complaint if available
+
+4B. Email log model updates
+
+Extend email_logs if needed to support fields such as:
+
+provider_message_id nullable
+delivered_at nullable
+opened_at nullable
+clicked_at nullable
+bounced_at nullable
+bounce_reason nullable
+provider_status nullable
+4C. Email Center UI updates
+
+In Email Center:
+
+show richer status badges
+
+allow filtering by delivery status
+
+show delivery timeline in email detail view if available
+
+4D. Acceptance criteria
+
+sent emails continue to log normally
+
+delivery status updates are reflected in Email Center
+
+failed/bounced emails are identifiable
+
+admins can filter email logs by status
+
+5. Add Self-Service Sponsor Access Link Renewal
+
+Sponsors using magic login links should be able to request a new secure access link without contacting the event team.
+
+Required behavior
+
+On the Sponsor Login page, add a self-service access renewal flow.
+
+UI
+
+Add:
+
+email input
+
+Send me a new secure access link button
+
+This can be the main sponsor login flow or a clearly visible secondary action.
+
+5A. Behavior
+
+When sponsor submits email:
+
+normalize email
+
+look up active sponsor user
+
+generate new sponsor magic login token
+
+send sponsor access email
+
+always show neutral confirmation
+
+Neutral confirmation
+
+If an account exists for that email, a secure access link has been sent.
+
+Do not reveal whether the email exists.
+
+5B. Reuse
+
+Reuse the existing sponsor magic link email system and sponsor auth token logic.
+
+This should not require manual admin action.
+
+5C. Acceptance criteria
+
+sponsor can request new access link from sponsor login page
+
+valid sponsor users receive access email
+
+no account enumeration is exposed
+
+sponsor can log in with the new link normally
+
+6. Redesign Sponsor Dashboard Into Tabs
+
+The Sponsor Dashboard currently requires too much scrolling. Reorganize it into a tab-based interface so more information is accessible above the fold.
+
+Primary goal
+
+Reduce long-page scrolling and make the dashboard easier to scan and use.
+
+The top of the page should show:
+
+sponsor / event header
+
+key metrics
+
+tab navigation
+
+Then each tab should show focused content.
+
+6A. Replace long single-page layout with tabs
+
+Recommended tabs:
+
+Overview
+
+Meetings
+
+Info Requests
+
+Leads
+
+Reports
+
+If needed, a sixth tab:
+
+Activity
+
+But keep the initial set compact.
+
+6B. Tab definitions
+Overview
+
+Show high-level summary:
+
+sponsor/event header
+
+KPI cards
+
+next meeting widget
+
+key notifications / needs attention
+
+recent activity summary
+
+This should be the most useful above-the-fold tab.
+
+Meetings
+
+Show:
+
+Your Meetings table
+
+editable meeting statuses
+
+filters if needed
+
+next upcoming meetings
+
+This replaces the need to scroll down to meeting content.
+
+Info Requests
+
+Show:
+
+Information Requests table
+
+editable statuses
+
+recent/open requests first
+
+summary count
+
+This section should remain expanded by default within its tab.
+
+Leads
+
+Show:
+
+Lead contacts / follow-up tracker
+
+company
+
+title
+
+email
+
+follow-up status if available
+
+If Leads and Info Requests overlap too much today, Leads can still be a simpler tab for now.
+
+Reports
+
+Show:
+
+sponsor performance summary
+
+top companies engaged
+
+charts
+
+PDF report download
+
+exports if allowed
+
+Only primary Owner should see export/download actions.
+
+6C. Above-the-fold requirement
+
+The Sponsor Dashboard should load with:
+
+header visible
+
+logos visible
+
+KPI row visible
+
+tabs visible
+
+Overview content visible
+
+Most important sponsor information should be accessible without excessive scrolling.
+
+6D. Header behavior
+
+Keep the improved sponsor dashboard header structure:
+
+sponsor logo on left
+
+event logo on right
+
+text centered between them
+
+clean layout
+
+no Website / LinkedIn links
+
+6E. Tab UX rules
+
+preserve state while switching tabs if practical
+
+use clear active tab styling
+
+keep each tab focused and not overloaded
+
+do not require nested accordions unless necessary
+
+6F. Permission behavior inside tabs
+
+Respect sponsor access levels:
+
+Owner: full sponsor actions including downloads/exports
+
+Editor: can edit statuses where allowed, cannot export/download
+
+Viewer: read-only
+
+Apply this consistently across tabs.
+
+6G. Acceptance criteria
+
+Sponsor Dashboard uses tabs instead of one long scroll layout
+
+important information appears above the fold
+
+Meetings content is in the Meetings tab
+
+Info Requests content is in the Info Requests tab
+
+Reports content is in the Reports tab
+
+dashboard feels cleaner and more navigable
+
+7. Recommended Implementation Order
+
+Implement in this order:
+
+Step 1
+
+Add meeting conflict detection
+
+Step 2
+
+Add self-service sponsor access renewal
+
+Step 3
+
+Add meeting reminder scheduling and templates
+
+Step 4
+
+Add event filter to Admin Dashboard and scope dashboard data
+
+Step 5
+
+Add email delivery tracking to Email Center
+
+Step 6
+
+Refactor Sponsor Dashboard into tab-based layout
+
+This order secures workflow integrity first, then improves usability and visibility.
+
+8. Acceptance Summary
+
+This work is complete when:
+
+meeting reminders send correctly
+
+meeting conflicts are blocked
+
+Admin Dashboard can be filtered by event
+
+Email Center shows richer delivery statuses
+
+sponsors can request new access links themselves
+
+Sponsor Dashboard is tabbed and above-the-fold friendly
+
+9. Success Standard
+
+After this implementation:
+
+meetings should be more reliable and better attended
+
+admin operations should be more event-specific and actionable
+
+sponsors should access their dashboard more easily
+
+the sponsor dashboard should feel faster, cleaner, and more professional

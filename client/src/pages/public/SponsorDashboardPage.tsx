@@ -10,6 +10,7 @@ import {
   BarChart3, Monitor, TrendingUp, Link2, X as XIcon, Gem, MessageSquare, Eye, MousePointerClick,
   CalendarX,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 import { Button } from "@/components/ui/button";
@@ -97,7 +98,10 @@ const notifIcons: Record<string, { icon: React.ElementType; color: string; label
 };
 
 function fmt12(t: string) {
-  const [h, m] = t.split(":").map(Number);
+  if (!t) return "";
+  const parts = t.split(":");
+  if (parts.length < 2) return t;
+  const [h, m] = parts.map(Number);
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
 }
 
@@ -132,9 +136,7 @@ export default function SponsorDashboardPage() {
   const qc = useQueryClient();
 
   const { toast } = useToast();
-  const [notifOpen, setNotifOpen] = useState(true);
-  const [leadsOpen, setLeadsOpen] = useState(false);
-  const [infoRequestsOpen, setInfoRequestsOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [linkInput, setLinkInput] = useState("");
   const notifSectionRef = useRef<HTMLDivElement>(null);
@@ -351,8 +353,10 @@ export default function SponsorDashboardPage() {
           {unreadCount > 0 && (
             <button
               onClick={() => {
-                setNotifOpen(true);
-                notifSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                setActiveTab("overview");
+                setTimeout(() => {
+                  notifSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 100);
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-100 border border-violet-300 hover-elevate active-elevate-2 transition-colors"
             >
@@ -502,64 +506,77 @@ export default function SponsorDashboardPage() {
             </div>
           </div>
 
-          {/* Next Meeting widget */}
-          {(() => {
-            const todayStr = format(new Date(), "yyyy-MM-dd");
-            const nextMeeting = [...meetings]
-              .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
-              .find(m => (m.status === "Scheduled" || m.status === "Confirmed" || m.status === "Pending") && m.date >= todayStr);
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-5 h-auto p-1 bg-muted/50 border border-border/40 rounded-xl mb-8">
+              <TabsTrigger value="overview" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Overview</TabsTrigger>
+              <TabsTrigger value="meetings" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Meetings</TabsTrigger>
+              <TabsTrigger value="info-requests" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Info Requests</TabsTrigger>
+              <TabsTrigger value="leads" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Leads</TabsTrigger>
+              <TabsTrigger value="reports" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Reports</TabsTrigger>
+            </TabsList>
 
-            return (
-              <div className="rounded-2xl border bg-card shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Calendar className="h-4 w-4 text-primary" />
+            <TabsContent value="overview" className="space-y-8 outline-none">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <StatCard
+                  label="Total Meetings"
+                  value={stats.total}
+                  icon={Handshake}
+                  accent="blue"
+                  sub={`${stats.completed} completed, ${stats.cancelled} cancelled`}
+                  onClick={() => setActiveTab("meetings")}
+                />
+                <StatCard
+                  label="Information Requests"
+                  value={infoRequests.length}
+                  icon={MessageSquare}
+                  accent="amber"
+                  onClick={() => setActiveTab("info-requests")}
+                />
+                <StatCard
+                  label="Captured Leads"
+                  value={leads.length}
+                  icon={UserCheck}
+                  accent="indigo"
+                  onClick={() => setActiveTab("leads")}
+                />
+              </div>
+
+              {(() => {
+                const todayStr = format(new Date(), "yyyy-MM-dd");
+                const nextMeeting = [...meetings]
+                  .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+                  .find(m => (m.status === "Scheduled" || m.status === "Confirmed" || m.status === "Pending") && m.date >= todayStr);
+
+                if (!nextMeeting) return null;
+
+                const isOnline = nextMeeting.meetingType === "online_request";
+                return (
+                  <div className="bg-accent/5 border border-accent/20 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                    <div className="flex items-start gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-accent text-accent-foreground flex items-center justify-center shrink-0 shadow-lg shadow-accent/20">
+                        <Calendar className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-accent bg-accent/10 px-2 py-0.5 rounded">Your Next Meeting</span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> {fmt12(nextMeeting.time)}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-display font-bold text-foreground">Meeting with {nextMeeting.attendee.name}</h3>
+                        <p className="text-sm text-muted-foreground">{nextMeeting.attendee.company} • {nextMeeting.attendee.title}</p>
+                      </div>
                     </div>
-                    <h2 className="text-lg font-display font-bold text-foreground">Next Meeting</h2>
-                  </div>
-                  {nextMeeting && (
-                    <span className={cn("text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border", statusColors[nextMeeting.status])}>
-                      {nextMeeting.status}
-                    </span>
-                  )}
-                </div>
-
-                {nextMeeting ? (
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xl font-bold text-foreground">{nextMeeting.attendee.name}</p>
-                        <span className={cn("text-[10px] px-2 py-0.5 rounded-full border font-medium",
-                          nextMeeting.meetingType === "onsite" ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-indigo-50 text-indigo-700 border-indigo-200"
-                        )}>
-                          {nextMeeting.meetingType === "onsite" ? "Onsite" : "Online"}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-col items-end mr-2">
+                        <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          {isOnline ? <Video className="h-3.5 w-3.5 text-violet-500" /> : <MapPin className="h-3.5 w-3.5 text-accent" />}
+                          {isOnline ? "Online Meeting" : nextMeeting.location}
                         </span>
+                        <span className="text-[10px] text-muted-foreground">{format(parseISO(nextMeeting.date), "EEEE, MMMM do")}</span>
                       </div>
-                      <p className="text-sm text-muted-foreground">{nextMeeting.attendee.title} · {nextMeeting.attendee.company}</p>
-                    </div>
-
-                    <div className="flex flex-col md:items-end gap-1 text-sm">
-                      <div className="flex items-center gap-2 text-foreground font-medium">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {format(parseISO(nextMeeting.date), "EEEE, MMM d")}
-                      </div>
-                      <div className="flex items-center gap-2 text-foreground font-medium">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        {fmt12(nextMeeting.time)}
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
-                        {nextMeeting.meetingType === "onsite" ? nextMeeting.location : (nextMeeting.platform || "Online Platform")}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
-                      {nextMeeting.meetingType === "onsite" && nextMeeting.status === "Scheduled" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadICS({
+                      <Button size="sm" variant="outline" className="gap-2" onClick={() => {
+                         downloadICS({
                             meetingId:    nextMeeting.id,
                             sponsorName:  sponsor.name,
                             attendeeName: nextMeeting.attendee.name,
@@ -568,792 +585,523 @@ export default function SponsorDashboardPage() {
                             date:         nextMeeting.date,
                             time:         nextMeeting.time,
                             location:     nextMeeting.location,
-                            meetingType:  "onsite",
-                          })}
-                          data-testid="btn-next-meeting-ics"
-                        >
-                          <Download className="h-3.5 w-3.5 mr-1.5" />
-                          ICS
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        data-testid="btn-next-meeting-google"
-                      >
-                        <a href={googleCalendarUrl({
-                          meetingId:    nextMeeting.id,
-                          sponsorName:  sponsor.name,
-                          attendeeName: nextMeeting.attendee.name,
-                          eventName:    event.name,
-                          eventSlug:    event.slug,
-                          date:         nextMeeting.date,
-                          time:         nextMeeting.time,
-                          location:     nextMeeting.location,
-                          meetingType:  "onsite",
-                        })} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                          Google
-                        </a>
+                            meetingType:  nextMeeting.meetingType as any,
+                          });
+                      }}>
+                        <Download className="h-3.5 w-3.5" /> Calendar
                       </Button>
-                      {(nextMeeting.status === "Scheduled" || nextMeeting.status === "Confirmed") && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => updateStatus.mutate({ meetingId: nextMeeting.id, status: "Completed" })}
-                          disabled={updateStatus.isPending}
-                          data-testid="btn-next-meeting-complete"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                          Mark Completed
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-6 text-center">
-                    <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
-                      <CalendarX className="h-6 w-6 text-muted-foreground/40" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">No upcoming meetings scheduled. New bookings will appear here.</p>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-            <StatCard label="Meetings Scheduled"  value={stats.scheduled}    icon={Calendar}       sub="confirmed upcoming"    onClick={() => meetingsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
-            <StatCard label="Meetings Completed"  value={stats.completed}    icon={CheckCircle2}   sub="successfully held"     onClick={() => meetingsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
-            <StatCard label="Companies Engaged"   value={stats.companies}    icon={Building2}      sub="distinct organizations" onClick={() => leadsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
-            <StatCard label="Leads Captured"      value={leads.length}       icon={UserCheck}      sub="unique contacts"       onClick={() => leadsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
-            <StatCard label="Information Requests" value={infoRequests.length} icon={MessageSquare} sub="follow-ups"           onClick={() => infoRequestsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
-          </div>
-
-          {/* Exposure Metrics */}
-          {analytics && (analytics.profileViews > 0 || analytics.meetingCtaClicks > 0) && (
-            <div className="bg-card/60 rounded-2xl border border-border/60 p-5">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-                <TrendingUp className="h-3.5 w-3.5" />
-                Exposure Metrics
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                    <Eye className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-display font-bold text-foreground">{analytics.profileViews}</p>
-                    <p className="text-xs text-muted-foreground">Profile Views</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <div className="h-8 w-8 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
-                    <MousePointerClick className="h-4 w-4 text-teal-600" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-display font-bold text-foreground">{analytics.meetingCtaClicks}</p>
-                    <p className="text-xs text-muted-foreground">Meeting CTA Clicks</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
-                    <MessageSquare className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-display font-bold text-foreground">{infoRequests.length}</p>
-                    <p className="text-xs text-muted-foreground">Info Requests</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Charts — only shown when there's data */}
-          {stats.total > 0 && (() => {
-            const statusData = [
-              { name: "Completed",  value: stats.completed,     color: "#14b8a6" },
-              { name: "Pending",    value: stats.pendingOnline, color: "#8b5cf6" },
-              { name: "Scheduled",  value: stats.scheduled,     color: "#3b82f6" },
-              { name: "Cancelled",  value: stats.cancelled,     color: "#ef4444" },
-            ].filter((d) => d.value > 0);
-
-            const onsiteCount  = meetings.filter((m) => m.meetingType === "onsite").length;
-            const onlineCount  = meetings.filter((m) => m.meetingType !== "onsite").length;
-            const typeData = [
-              { name: "Onsite",  value: onsiteCount,  color: "#0d9488" },
-              { name: "Online",  value: onlineCount,  color: "#6366f1" },
-            ].filter((d) => d.value > 0);
-
-            return (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Meeting status donut */}
-                {statusData.length > 0 && (
-                  <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5">
-                    <p className="text-sm font-semibold text-foreground mb-1">Meeting Status</p>
-                    <p className="text-xs text-muted-foreground mb-4">Breakdown of all {stats.total} meeting{stats.total !== 1 ? "s" : ""}</p>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={statusData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={80}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {statusData.map((entry, i) => (
-                            <Cell key={i} fill={entry.color} stroke="transparent" />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }}
-                          formatter={(val: number, name: string) => [`${val}`, name]}
-                        />
-                        <Legend
-                          iconType="circle"
-                          iconSize={8}
-                          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-                {/* Meeting type pie */}
-                {typeData.length > 1 && (
-                  <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-5">
-                    <p className="text-sm font-semibold text-foreground mb-1">Meeting Type</p>
-                    <p className="text-xs text-muted-foreground mb-4">Onsite vs. Online split</p>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={typeData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={80}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {typeData.map((entry, i) => (
-                            <Cell key={i} fill={entry.color} stroke="transparent" />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }}
-                          formatter={(val: number, name: string) => [`${val}`, name]}
-                        />
-                        <Legend
-                          iconType="circle"
-                          iconSize={8}
-                          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* Notifications */}
-          <div
-            ref={notifSectionRef}
-            className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden"
-          >
-            <button
-              onClick={() => setNotifOpen((v) => !v)}
-              className="w-full px-6 py-4 border-b border-border/50 flex items-center justify-between hover:bg-muted/30 transition-colors"
-              data-testid="toggle-notifications"
-            >
-              <div className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-accent" />
-                <span className="text-sm font-semibold text-foreground">Notifications</span>
-                {unreadCount > 0 && (
-                  <span className="text-xs font-bold bg-violet-500 text-white rounded-full px-2 py-0.5">{unreadCount}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                {unreadCount > 0 && (
-                  <span
-                    className="text-xs text-accent underline underline-offset-2 hover:opacity-80"
-                    onClick={(e) => { e.stopPropagation(); markAllRead.mutate(); }}
-                    data-testid="btn-mark-all-read"
-                  >
-                    Mark all read
-                  </span>
-                )}
-                {notifOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-              </div>
-            </button>
-
-            {notifOpen && (
-              notifications.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-2">
-                  <BellOff className="h-8 w-8 opacity-20" />
-                  <p className="text-sm">No notifications yet.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border/40 max-h-[400px] overflow-y-auto">
-                  {notifications.map((n) => {
-                    const icon = notifIcons[n.type] || { icon: Bell, color: "text-muted-foreground", label: "Notification" };
-                    return (
-                      <div
-                        key={n.id}
-                        className={cn("px-6 py-4 flex items-start gap-4 hover:bg-muted/20 transition-colors cursor-pointer relative", !n.isRead && "bg-violet-50/30")}
-                        onClick={() => !n.isRead && markRead.mutate(n.id)}
-                        data-testid={`notif-row-${n.id}`}
-                      >
-                        {!n.isRead && <div className="absolute left-0 top-0 bottom-0 w-1 bg-violet-500" />}
-                        <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border border-border/40 bg-white", icon.color)}>
-                          <icon.icon className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground">{icon.label}</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                            {n.attendeeName} from <span className="font-medium text-foreground">{n.attendeeCompany}</span>
-                          </p>
-                          <p className="text-xs text-muted-foreground">{n.eventName} · {n.date} at {fmt12(n.time)}</p>
-                        </div>
-                        <span className="text-[10px] font-medium text-muted-foreground/60 whitespace-nowrap mt-1">
-                          {format(parseISO(n.createdAt), "MMM d, h:mm a")}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            )}
-          </div>
-
-          {/* Meeting list */}
-          <div ref={meetingsSectionRef} className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Handshake className="h-4 w-4 text-accent" /> Your Meetings
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {meetings.length} meeting{meetings.length !== 1 ? "s" : ""} · {event.name}
-                </p>
-              </div>
-            </div>
-
-            {meetings.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
-                <Handshake className="h-8 w-8 opacity-20" />
-                <p className="text-sm">No meetings scheduled yet.</p>
-              </div>
-            ) : (
-              <>
-                <div className="hidden sm:grid grid-cols-[120px_1fr_140px_90px_90px_90px_150px] gap-3 px-6 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  <span>Date / Time</span>
-                  <span>Attendee</span>
-                  <span>Company</span>
-                  <span>Type</span>
-                  <span>Location</span>
-                  <span>Status</span>
-                  <span>Actions</span>
-                </div>
-                <div className="divide-y divide-border/40">
-                  {[...meetings]
-                    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
-                    .map((m) => {
-                      const isOnline = m.meetingType === "online_request";
-                      const canExport = m.status === "Scheduled" || m.status === "Confirmed" || m.status === "Completed";
-                      const isConfirming = confirmingId === m.id;
-                      const isBusy = updateStatus.isPending;
-                      return (
-                        <div
-                          key={m.id}
-                          className="px-6 py-4 flex flex-col sm:grid sm:grid-cols-[120px_1fr_140px_90px_90px_90px_150px] sm:items-start gap-3 hover:bg-muted/30 transition-colors"
-                          data-testid={`meeting-row-${m.id}`}
-                        >
-                          {/* Date + Time + ICS */}
-                          <div className="shrink-0">
-                            <p className="text-sm font-semibold text-foreground">{m.date}</p>
-                            <p className="text-xs text-muted-foreground">{fmt12(m.time)}</p>
-                            {canExport && !isOnline && (
-                              <div className="flex items-center gap-2 mt-1">
-                                <button
-                                  onClick={() => downloadICS({
-                                    meetingId:    m.id,
-                                    sponsorName:  sponsor.name,
-                                    attendeeName: m.attendee.name,
-                                    eventName:    event.name,
-                                    eventSlug:    event.slug,
-                                    date:         m.date,
-                                    time:         m.time,
-                                    location:     m.location,
-                                    meetingType:  "onsite",
-                                  })}
-                                  className="text-[10px] text-accent hover:underline flex items-center gap-0.5"
-                                  title="Download .ics"
-                                  data-testid={`btn-ics-${m.id}`}
-                                >
-                                  <Download className="h-3 w-3" /> .ics
-                                </button>
-                                <a
-                                  href={googleCalendarUrl({
-                                    meetingId:    m.id,
-                                    sponsorName:  sponsor.name,
-                                    attendeeName: m.attendee.name,
-                                    eventName:    event.name,
-                                    eventSlug:    event.slug,
-                                    date:         m.date,
-                                    time:         m.time,
-                                    location:     m.location,
-                                    meetingType:  "onsite",
-                                  })}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] text-accent hover:underline flex items-center gap-0.5"
-                                  title="Add to Google Calendar"
-                                  data-testid={`link-gcal-${m.id}`}
-                                >
-                                  <ExternalLink className="h-3 w-3" /> GCal
-                                </a>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Attendee */}
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-semibold text-foreground" data-testid={`text-attendee-name-${m.id}`}>{m.attendee.name}</p>
-                              {m.attendee.linkedinUrl && (
-                                <a href={m.attendee.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                                  className="text-[#0077B5] hover:opacity-80" title="LinkedIn"
-                                  data-testid={`link-linkedin-${m.id}`}>
-                                  <Linkedin className="h-3.5 w-3.5" />
-                                </a>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground">{m.attendee.title}</p>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Mail className="h-3 w-3" />{m.attendee.email}
-                            </p>
-                          </div>
-
-                          {/* Company */}
-                          <div className="min-w-0">
-                            <p className="text-sm text-foreground truncate" data-testid={`text-attendee-company-${m.id}`}>{m.attendee.company}</p>
-                          </div>
-
-                          {/* Type */}
-                          <div>
-                            <span className={cn(
-                              "text-xs font-semibold px-2 py-0.5 rounded-full border w-fit block",
-                              isOnline ? "bg-violet-100 text-violet-700 border-violet-200" : "bg-blue-50 text-blue-700 border-blue-200"
-                            )}>
-                              {isOnline ? "Online" : "Onsite"}
-                            </span>
-                            {isOnline && m.platform && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5">{m.platform}</p>
-                            )}
-                          </div>
-
-                          {/* Location */}
-                          <div className="flex items-start gap-1.5 text-xs text-muted-foreground min-w-0">
-                            {isOnline ? <Video className="h-3.5 w-3.5 shrink-0 mt-0.5" /> : <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />}
-                            <span className="truncate">{isOnline ? (m.platform || "Online") : m.location}</span>
-                          </div>
-
-                          {/* Status */}
-                          <div>
-                            {canEdit ? (
-                              <Select
-                                value={m.status}
-                                onValueChange={(newStatus) => updateStatus.mutate({ meetingId: m.id, status: newStatus })}
-                                disabled={isBusy}
-                              >
-                                <SelectTrigger
-                                  className={cn(
-                                    "h-7 text-xs font-semibold px-2 py-0 rounded-full border w-fit min-w-[100px]",
-                                    statusColors[m.status] ?? "bg-muted text-muted-foreground border-muted"
-                                  )}
-                                  data-testid={`status-select-${m.id}`}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {["Scheduled", "Confirmed", "Completed", "Cancelled", "No-Show"].map((s) => (
-                                    <SelectItem key={s} value={s} className="text-xs">
-                                      {s}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <span className={cn(
-                                "text-xs font-semibold px-2.5 py-1 rounded-full border w-fit block",
-                                statusColors[m.status] ?? "bg-muted text-muted-foreground border-muted"
-                              )} data-testid={`status-badge-${m.id}`}>
-                                {m.status}
-                              </span>
-                            )}
-                            {m.meetingLink && (
-                              <a href={m.meetingLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-0.5 mt-1" data-testid={`link-meeting-link-${m.id}`}>
-                                <Link2 className="h-2.5 w-2.5" /> Meeting link
-                              </a>
-                            )}
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex flex-col gap-1 min-w-0" data-testid={`actions-${m.id}`}>
-                            {/* For viewers only: action buttons (owners/editors use the status dropdown) */}
-                            {!canEdit && ((m.status === "Scheduled" && !isOnline) || m.status === "Confirmed") && (
-                              <>
-                                <button
-                                  onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Completed" })}
-                                  disabled={isBusy}
-                                  className="text-xs px-2 py-1 rounded-md bg-green-100 text-green-700 hover:bg-green-200 border border-green-200 transition-colors disabled:opacity-50 w-full text-left"
-                                  data-testid={`btn-complete-${m.id}`}
-                                >
-                                  Mark Completed
-                                </button>
-                                <button
-                                  onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Cancelled" })}
-                                  disabled={isBusy}
-                                  className="text-xs px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors disabled:opacity-50 w-full text-left"
-                                  data-testid={`btn-cancel-${m.id}`}
-                                >
-                                  Cancel
-                                </button>
-                              </>
-                            )}
-
-                            {/* Online Pending → Confirm / Decline / Cancel */}
-                            {m.status === "Pending" && isOnline && (
-                              isConfirming ? (
-                                <div className="flex flex-col gap-1.5">
-                                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                    <Link2 className="h-2.5 w-2.5" /> Meeting link (optional)
-                                  </div>
-                                  <input
-                                    type="text"
-                                    placeholder="https://..."
-                                    value={linkInput}
-                                    onChange={(e) => setLinkInput(e.target.value)}
-                                    className="text-xs px-2 py-1 rounded-md border border-input bg-background w-full"
-                                    data-testid={`input-meeting-link-${m.id}`}
-                                    autoFocus
-                                  />
-                                  <div className="flex gap-1">
-                                    <button
-                                      onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Confirmed", meetingLink: linkInput })}
-                                      disabled={isBusy}
-                                      className="flex-1 text-xs px-2 py-1 rounded-md bg-teal-600 text-white hover:bg-teal-700 transition-colors disabled:opacity-50"
-                                      data-testid={`btn-confirm-submit-${m.id}`}
-                                    >
-                                      Confirm
-                                    </button>
-                                    <button
-                                      onClick={() => { setConfirmingId(null); setLinkInput(""); }}
-                                      className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
-                                      data-testid={`btn-confirm-cancel-${m.id}`}
-                                    >
-                                      <XIcon className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => { setConfirmingId(m.id); setLinkInput(""); }}
-                                    className="text-xs px-2 py-1 rounded-md bg-teal-100 text-teal-700 hover:bg-teal-200 border border-teal-200 transition-colors w-full text-left"
-                                    data-testid={`btn-confirm-${m.id}`}
-                                  >
-                                    Confirm
-                                  </button>
-                                  <button
-                                    onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Declined" })}
-                                    disabled={isBusy}
-                                    className="text-xs px-2 py-1 rounded-md bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 transition-colors disabled:opacity-50 w-full text-left"
-                                    data-testid={`btn-decline-${m.id}`}
-                                  >
-                                    Decline Request
-                                  </button>
-                                  <button
-                                    onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Cancelled" })}
-                                    disabled={isBusy}
-                                    className="text-xs px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors disabled:opacity-50 w-full text-left"
-                                    data-testid={`btn-cancel-${m.id}`}
-                                  >
-                                    Cancel
-                                  </button>
-                                </>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Leads table */}
-          <div ref={leadsSectionRef} className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-            <button
-              onClick={() => setLeadsOpen((v) => !v)}
-              className="w-full px-6 py-4 border-b border-border/50 flex items-center justify-between hover:bg-muted/30 transition-colors"
-              data-testid="toggle-leads"
-            >
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <UserCheck className="h-4 w-4 text-accent" />
-                Lead Contacts
-                <span className="text-xs font-normal text-muted-foreground">({leads.length} unique)</span>
-              </h2>
-              <div className="flex items-center gap-3">
-                {leads.length > 0 && canExport && (
-                  <span
-                    className="text-xs text-accent underline underline-offset-2 hover:opacity-80 flex items-center gap-1"
-                    onClick={(e) => { e.stopPropagation(); exportLeadsCSV(); }}
-                    data-testid="btn-export-leads"
-                  >
-                    <Download className="h-3.5 w-3.5" /> Export CSV
-                  </span>
-                )}
-                {leadsOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-              </div>
-            </button>
-
-            {leadsOpen && (
-              leads.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-2">
-                  <Users className="h-8 w-8 opacity-20" />
-                  <p className="text-sm">No leads yet.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="hidden sm:grid grid-cols-[1fr_140px_140px_160px_40px] gap-3 px-6 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    <span>Name / Title</span>
-                    <span>Company</span>
-                    <span>Email</span>
-                    <span>LinkedIn</span>
-                    <span>#</span>
-                  </div>
-                  <div className="divide-y divide-border/40">
-                    {leads.map((lead, i) => (
-                      <div
-                        key={lead.email || i}
-                        className="px-6 py-3 flex flex-col sm:grid sm:grid-cols-[1fr_140px_140px_160px_40px] sm:items-center gap-2 hover:bg-muted/20 transition-colors"
-                        data-testid={`lead-row-${i}`}
-                      >
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{lead.name}</p>
-                          <p className="text-xs text-muted-foreground">{lead.title}</p>
-                        </div>
-                        <p className="text-sm text-foreground truncate">{lead.company}</p>
-                        <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
-                        <div>
-                          {lead.linkedinUrl ? (
-                            <a href={lead.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-[#0077B5] hover:underline flex items-center gap-1"
-                              data-testid={`lead-linkedin-${i}`}>
-                              <Linkedin className="h-3.5 w-3.5" /> LinkedIn
-                            </a>
-                          ) : (
-                            <span className="text-xs text-muted-foreground/40">—</span>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground font-mono">{lead.meetings}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )
-            )}
-          </div>
-          {/* ── Information Requests section ──────────────────────────────── */}
-          <div ref={infoRequestsSectionRef} className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-            <button
-              onClick={() => setInfoRequestsOpen((v) => !v)}
-              className="w-full px-6 py-4 border-b border-border/50 flex items-center justify-between hover:bg-muted/30 transition-colors"
-              data-testid="toggle-info-requests"
-            >
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-accent" />
-                Information Requests
-                <span className="text-xs font-normal text-muted-foreground">({infoRequests.length} total)</span>
-              </h2>
-              <div className="flex items-center gap-3">
-                {infoRequestsOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-              </div>
-            </button>
-
-            {infoRequestsOpen && (
-              infoRequests.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-2">
-                  <MessageSquare className="h-8 w-8 opacity-20" />
-                  <p className="text-sm">No information requests yet.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="hidden sm:grid grid-cols-[1fr_140px_160px_180px_80px] gap-3 px-6 py-2.5 bg-muted/40 border-b border-border/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    <span>Name / Title</span>
-                    <span>Company</span>
-                    <span>Email</span>
-                    <span>Status</span>
-                    <span>Source</span>
-                  </div>
-                  <div className="divide-y divide-border/40">
-                    {[...infoRequests]
-                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                      .map((req) => {
-                        const statusColor =
-                          req.status === "New"              ? "bg-blue-100 text-blue-700 border-blue-200" :
-                          req.status === "Open"             ? "bg-blue-100 text-blue-700 border-blue-200" :
-                          req.status === "Contacted"        ? "bg-amber-100 text-amber-700 border-amber-200" :
-                          req.status === "Email Sent"       ? "bg-amber-100 text-amber-700 border-amber-200" :
-                          req.status === "Meeting Scheduled"? "bg-teal-100 text-teal-700 border-teal-200" :
-                          req.status === "Not Qualified"    ? "bg-orange-100 text-orange-700 border-orange-200" :
-                                                             "bg-gray-100 text-gray-600 border-gray-200";
-                        return (
-                          <div
-                            key={req.id}
-                            className="px-6 py-4 flex flex-col sm:grid sm:grid-cols-[1fr_140px_160px_180px_80px] sm:items-center gap-3 hover:bg-muted/30 transition-colors"
-                            data-testid={`info-req-row-${req.id}`}
-                          >
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">{req.attendeeFirstName} {req.attendeeLastName}</p>
-                              <p className="text-xs text-muted-foreground">{req.attendeeTitle}</p>
-                              {req.message && (
-                                <p className="text-xs text-muted-foreground/70 mt-1 line-clamp-2 italic">"{req.message}"</p>
-                              )}
-                            </div>
-                            <p className="text-sm text-foreground truncate">{req.attendeeCompany}</p>
-                            <p className="text-xs text-muted-foreground truncate">{req.attendeeEmail}</p>
-                            <div>
-                              <select
-                                value={req.status}
-                                onChange={(e) => updateInfoStatus.mutate({ id: req.id, status: e.target.value })}
-                                disabled={updateInfoStatus.isPending}
-                                data-testid={`select-status-${req.id}`}
-                                className={cn(
-                                  "text-xs font-medium border rounded-full px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer disabled:opacity-50 appearance-none",
-                                  statusColor,
-                                )}
-                              >
-                                {SPONSOR_INFO_REQUEST_STATUSES.map((s) => (
-                                  <option key={s} value={s}>{s}</option>
-                                ))}
-                                {!SPONSOR_INFO_REQUEST_STATUSES.includes(req.status as any) && (
-                                  <option value={req.status}>{req.status}</option>
-                                )}
-                              </select>
-                            </div>
-                            <p className="text-xs text-muted-foreground">{req.source}</p>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </>
-              )
-            )}
-          </div>
-
-          {/* ── Performance Report section ─────────────────────────────────── */}
-          <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-accent" /> Sponsor Performance Report
-              </h2>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Metrics grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { label: "Total Meetings",           value: stats.total,                                              icon: Handshake,   color: "bg-card border-border/60" },
-                  { label: "Completed",                 value: stats.completed,                                          icon: CheckCircle2, color: "bg-green-50 border-green-200 text-green-800" },
-                  { label: "Pending Online Requests",   value: stats.pendingOnline,                                      icon: Video,        color: "bg-violet-50 border-violet-200 text-violet-800" },
-                  { label: "Cancelled / No-Show",       value: stats.cancelled,                                          icon: AlertCircle,  color: "bg-red-50 border-red-200 text-red-800" },
-                  { label: "Unique Companies Met",      value: stats.companies,                                          icon: Users,        color: "bg-teal-50 border-teal-200 text-teal-800" },
-                  { label: "Total Leads Captured",      value: (() => { const s = new Set(meetings.map((m) => m.attendee.email || m.attendee.name)); return s.size; })(), icon: UserCheck, color: "bg-indigo-50 border-indigo-200 text-indigo-800" },
-                  { label: "Onsite Meetings",           value: meetings.filter((m) => m.meetingType !== "online_request").length, icon: Monitor, color: "bg-blue-50 border-blue-200 text-blue-800" },
-                  { label: "Online Meetings",           value: meetings.filter((m) => m.meetingType === "online_request").length, icon: Video,  color: "bg-violet-50 border-violet-200 text-violet-800" },
-                ].map(({ label, value, icon: Icon, color }) => (
-                  <div key={label} className={cn("rounded-xl border p-4 flex flex-col gap-2", color)}>
-                    <Icon className="h-4 w-4 opacity-70" />
-                    <div>
-                      <p className="text-xl font-display font-bold leading-none">{value}</p>
-                      <p className="text-[11px] font-medium mt-1 opacity-75 leading-tight">{label}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Top Companies */}
-              {(() => {
-                const cmap: Record<string, number> = {};
-                for (const m of meetings) {
-                  if (m.attendee.company && m.attendee.company !== "—") {
-                    cmap[m.attendee.company] = (cmap[m.attendee.company] ?? 0) + 1;
-                  }
-                }
-                const top5 = Object.entries(cmap).sort((a, b) => b[1] - a[1]).slice(0, 5);
-                if (top5.length === 0) return null;
-                return (
-                  <div>
-                    <h3 className="text-xs font-semibold text-foreground flex items-center gap-2 mb-3">
-                      <TrendingUp className="h-3.5 w-3.5 text-accent" /> Top Companies Met
-                    </h3>
-                    <div className="space-y-2">
-                      {top5.map(([company, count], i) => {
-                        const max = top5[0][1];
-                        return (
-                          <div key={company}>
-                            <div className="flex items-center justify-between text-xs mb-1">
-                              <span className="text-foreground font-medium">{i + 1}. {company}</span>
-                              <span className="text-muted-foreground">{count} meeting{count !== 1 ? "s" : ""}</span>
-                            </div>
-                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div className="h-full bg-accent rounded-full" style={{ width: `${(count / max) * 100}%` }} />
-                            </div>
-                          </div>
-                        );
-                      })}
                     </div>
                   </div>
                 );
               })()}
 
-              {/* Action buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-border/40">
-                {canExport && (
-                  <a
-                    href={`/api/sponsor-report/pdf?token=${token}`}
-                    download
-                    className="flex-1"
-                    data-testid="link-download-pdf"
-                  >
-                    <Button className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
-                      <FileDown className="h-4 w-4" />
-                      Download PDF Report
-                    </Button>
-                  </a>
-                )}
-                {canExport && (
-                  <Button
-                    variant="outline"
-                    className="flex-1 gap-2"
-                    onClick={exportLeadsCSV}
-                    data-testid="btn-export-leads-report"
-                  >
-                    <Download className="h-4 w-4" />
-                    Export Leads CSV
-                  </Button>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div ref={notifSectionRef} className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden flex flex-col h-[400px]">
+                  <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between shrink-0">
+                    <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-accent" />
+                      Activity Log
+                    </h2>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={() => markAllRead.mutate()}
+                        disabled={markAllRead.isPending}
+                        className="text-[10px] font-bold uppercase tracking-wider text-accent hover:opacity-80 transition-opacity"
+                        data-testid="btn-mark-all-read"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex-1 overflow-y-auto divide-y divide-border/40 scrollbar-thin scrollbar-thumb-border/40">
+                    {notifications.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-10 text-center">
+                        <BellOff className="h-10 w-10 opacity-20 mb-3" />
+                        <p className="text-sm">No notifications yet.</p>
+                      </div>
+                    ) : (
+                      notifications.map((n) => {
+                        const cfg = notifIcons[n.type] || { icon: Bell, color: "text-muted-foreground", label: "Update" };
+                        const Icon = cfg.icon;
+                        return (
+                          <div
+                            key={n.id}
+                            className={cn(
+                              "px-6 py-4 flex items-start gap-4 transition-colors relative",
+                              !n.isRead && "bg-accent/5",
+                            )}
+                            onClick={() => !n.isRead && markRead.mutate(n.id)}
+                            data-testid={`notif-item-${n.id}`}
+                          >
+                            <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0", cfg.color.replace("text-", "bg-").replace("-500", "-100"))}>
+                              <Icon className={cn("h-4 w-4", cfg.color)} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-foreground mb-0.5">{cfg.label}</p>
+                              <p className="text-sm text-muted-foreground leading-snug">
+                                <span className="font-medium text-foreground">{n.attendeeName}</span> from <span className="font-medium text-foreground">{n.attendeeCompany}</span>
+                                {n.type === "onsite_booked" ? " booked an onsite meeting." :
+                                 n.type === "online_request_submitted" ? " requested an online meeting." :
+                                 n.type === "information_request" ? " submitted an info request." :
+                                 n.type === "meeting_cancelled" ? " cancelled a meeting." :
+                                 n.type === "request_confirmed" ? " had their request confirmed." :
+                                 n.type === "request_declined" ? " had their request declined." :
+                                 n.type === "meeting_completed" ? " meeting was marked completed." : "."}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground/60 mt-1.5 flex items-center gap-1.5 font-medium">
+                                <Clock className="h-2.5 w-2.5" />
+                                {format(parseISO(n.createdAt), "MMM d, h:mm a")}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6 flex flex-col h-[400px]">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-6">
+                    <TrendingUp className="h-4 w-4 text-accent" />
+                    Engagement Overview
+                  </h2>
+                  <div className="flex-1 space-y-6 overflow-y-auto pr-2">
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-border/40">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-blue-100 flex items-center justify-center">
+                          <Eye className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{analytics?.profileViews || 0}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Profile Views</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-border/40">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-teal-100 flex items-center justify-center">
+                          <MousePointerClick className="h-5 w-5 text-teal-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{analytics?.meetingCtaClicks || 0}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Meeting Button Clicks</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-border/40">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-violet-100 flex items-center justify-center">
+                          <Video className="h-5 w-5 text-violet-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{stats.pendingOnline}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Pending Online Requests</p>
+                        </div>
+                      </div>
+                      {stats.pendingOnline > 0 && (
+                        <Button size="sm" variant="outline" className="h-8 text-[10px] font-bold uppercase tracking-tight" onClick={() => setActiveTab("meetings")}>Review</Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="meetings" className="outline-none">
+              <div ref={meetingsSectionRef} className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden min-h-[500px]">
+                <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-accent" />
+                    Meetings Schedule
+                    <span className="text-xs font-normal text-muted-foreground">({meetings.length} total)</span>
+                  </h2>
+                </div>
+                {meetings.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+                    <CalendarX className="h-12 w-12 opacity-10" />
+                    <p className="text-sm font-medium">No meetings scheduled yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-muted-foreground uppercase bg-muted/30 border-b border-border/40">
+                        <tr>
+                          <th className="px-6 py-3 font-semibold">Date & Time</th>
+                          <th className="px-6 py-3 font-semibold">Type</th>
+                          <th className="px-6 py-3 font-semibold">Attendee</th>
+                          <th className="px-6 py-3 font-semibold">Location</th>
+                          <th className="px-6 py-3 font-semibold">Status</th>
+                          <th className="px-6 py-3 font-semibold text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/40">
+                        {meetings
+                          .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+                          .map((m) => {
+                            const isOnline = m.meetingType === "online_request";
+                            const isBusy = updateStatus.isPending;
+                            const isConfirming = confirmingId === m.id;
+
+                            return (
+                              <tr key={m.id} className="hover:bg-muted/10 transition-colors" data-testid={`meeting-row-${m.id}`}>
+                                <td className="px-6 py-4">
+                                  <p className="font-bold text-foreground">{format(parseISO(m.date), "MMM d")}</p>
+                                  <p className="text-[10px] text-muted-foreground font-medium">{fmt12(m.time)}</p>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className={cn("text-[10px] font-bold uppercase tracking-tight px-1.5 py-0.5 rounded border", isOnline ? "bg-violet-50 text-violet-700 border-violet-200" : "bg-blue-50 text-blue-700 border-blue-200")}>
+                                    {isOnline ? "Online" : "Onsite"}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <p className="font-semibold text-foreground truncate">{m.attendee.name}</p>
+                                  <p className="text-[11px] text-muted-foreground truncate">{m.attendee.company}</p>
+                                </td>
+                                <td className="px-6 py-4">
+                                  {isOnline ? (
+                                    m.meetingLink ? (
+                                      <a href={m.meetingLink.startsWith("http") ? m.meetingLink : `https://${m.meetingLink}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="text-accent hover:underline flex items-center gap-1 font-medium"
+                                        data-testid={`meeting-link-${m.id}`}>
+                                        <Link2 className="h-3 w-3" /> Online
+                                      </a>
+                                    ) : <span className="text-muted-foreground/60 italic">Pending Link</span>
+                                  ) : (
+                                    <span className="text-foreground font-medium flex items-center gap-1">
+                                      <MapPin className="h-3 w-3 text-accent" /> {m.location}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4">
+                                  {canEdit ? (
+                                    <select
+                                      value={m.status}
+                                      onChange={(e) => updateStatus.mutate({ meetingId: m.id, status: e.target.value })}
+                                      disabled={isBusy}
+                                      className={cn(
+                                        "text-[10px] font-bold uppercase tracking-tight border rounded-full px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer disabled:opacity-50 appearance-none bg-white",
+                                        statusColors[m.status] || "bg-muted text-muted-foreground"
+                                      )}
+                                      data-testid={`select-status-${m.id}`}
+                                    >
+                                      <option value="Scheduled">Scheduled</option>
+                                      <option value="Confirmed">Confirmed</option>
+                                      <option value="Completed">Completed</option>
+                                      <option value="Cancelled">Cancelled</option>
+                                      <option value="NoShow">No-Show</option>
+                                      {isOnline && <option value="Pending">Pending</option>}
+                                      {isOnline && <option value="Declined">Declined</option>}
+                                    </select>
+                                  ) : (
+                                    <span className={cn("text-[10px] font-bold uppercase tracking-tight px-2 py-0.5 rounded-full border", statusColors[m.status])}>
+                                      {m.status}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  {m.status === "Pending" && isOnline && canEdit && (
+                                    isConfirming ? (
+                                      <div className="flex flex-col gap-1.5 w-40 ml-auto">
+                                        <input
+                                          type="text"
+                                          placeholder="Meeting Link"
+                                          value={linkInput}
+                                          onChange={(e) => setLinkInput(e.target.value)}
+                                          className="text-[10px] px-1.5 py-1 rounded border border-input w-full"
+                                          autoFocus
+                                        />
+                                        <div className="flex gap-1">
+                                          <Button size="sm" className="h-6 text-[10px] flex-1 px-1 bg-teal-600 hover:bg-teal-700" onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Confirmed", meetingLink: linkInput })} disabled={isBusy}>Confirm</Button>
+                                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setConfirmingId(null); setLinkInput(""); }}><XIcon className="h-3 w-3" /></Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <Button size="sm" variant="outline" className="h-7 text-[10px] border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100" onClick={() => setConfirmingId(m.id)}>Review</Button>
+                                    )
+                                  )}
+                                  {(!isOnline || m.status !== "Pending") && (
+                                     <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8 text-muted-foreground hover:text-accent"
+                                        onClick={() => {
+                                          downloadICS({
+                                            meetingId:    m.id,
+                                            sponsorName:  sponsor.name,
+                                            attendeeName: m.attendee.name,
+                                            eventName:    event.name,
+                                            eventSlug:    event.slug,
+                                            date:         m.date,
+                                            time:         m.time,
+                                            location:     m.location,
+                                            meetingType:  m.meetingType as any,
+                                          });
+                                        }}
+                                     >
+                                        <Calendar className="h-4 w-4" />
+                                     </Button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
-            </div>
-          </div>
+            </TabsContent>
 
+            <TabsContent value="info-requests" className="outline-none">
+              <div ref={infoRequestsSectionRef} className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden min-h-[500px]">
+                <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-accent" />
+                    Information Requests
+                    <span className="text-xs font-normal text-muted-foreground">({infoRequests.length} total)</span>
+                  </h2>
+                </div>
+                {infoRequests.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+                    <MessageSquare className="h-12 w-12 opacity-10" />
+                    <p className="text-sm font-medium">No information requests yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-muted-foreground uppercase bg-muted/30 border-b border-border/40">
+                        <tr>
+                          <th className="px-6 py-3 font-semibold">Attendee</th>
+                          <th className="px-6 py-3 font-semibold">Company</th>
+                          <th className="px-6 py-3 font-semibold">Status</th>
+                          <th className="px-6 py-3 font-semibold">Source</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/40">
+                        {[...infoRequests]
+                          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                          .map((req) => {
+                            const statusColor =
+                              req.status === "New"              ? "bg-blue-100 text-blue-700 border-blue-200" :
+                              req.status === "Open"             ? "bg-blue-100 text-blue-700 border-blue-200" :
+                              req.status === "Contacted"        ? "bg-amber-100 text-amber-700 border-amber-200" :
+                              req.status === "Email Sent"       ? "bg-amber-100 text-amber-700 border-amber-200" :
+                              req.status === "Meeting Scheduled"? "bg-teal-100 text-teal-700 border-teal-200" :
+                              req.status === "Not Qualified"    ? "bg-orange-100 text-orange-700 border-orange-200" :
+                                                                 "bg-gray-100 text-gray-600 border-gray-200";
+                            return (
+                              <tr key={req.id} className="hover:bg-muted/10 transition-colors" data-testid={`info-req-row-${req.id}`}>
+                                <td className="px-6 py-4">
+                                  <p className="font-semibold text-foreground">{req.attendeeFirstName} {req.attendeeLastName}</p>
+                                  <p className="text-[11px] text-muted-foreground">{req.attendeeTitle}</p>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <p className="text-foreground truncate">{req.attendeeCompany}</p>
+                                  <p className="text-[11px] text-muted-foreground truncate">{req.attendeeEmail}</p>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <select
+                                    value={req.status}
+                                    onChange={(e) => updateInfoStatus.mutate({ id: req.id, status: e.target.value })}
+                                    disabled={updateInfoStatus.isPending || !canEdit}
+                                    className={cn(
+                                      "text-[10px] font-bold uppercase tracking-tight border rounded-full px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer disabled:opacity-50 appearance-none bg-white",
+                                      statusColor
+                                    )}
+                                    data-testid={`select-status-${req.id}`}
+                                  >
+                                    {SPONSOR_INFO_REQUEST_STATUSES.map((s) => (
+                                      <option key={s} value={s}>{s}</option>
+                                    ))}
+                                    {!SPONSOR_INFO_REQUEST_STATUSES.includes(req.status as any) && (
+                                      <option value={req.status}>{req.status}</option>
+                                    )}
+                                  </select>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">{req.source}</span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="leads" className="outline-none">
+              <div ref={leadsSectionRef} className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden min-h-[500px]">
+                <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-accent" />
+                    Lead Contacts
+                    <span className="text-xs font-normal text-muted-foreground">({leads.length} unique)</span>
+                  </h2>
+                  {leads.length > 0 && canExport && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2 h-8 text-[10px] font-bold uppercase tracking-wider"
+                      onClick={exportLeadsCSV}
+                      data-testid="btn-export-leads"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Export CSV
+                    </Button>
+                  )}
+                </div>
+                {leads.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+                    <Users className="h-12 w-12 opacity-10" />
+                    <p className="text-sm font-medium">No leads captured yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-muted-foreground uppercase bg-muted/30 border-b border-border/40">
+                        <tr>
+                          <th className="px-6 py-3 font-semibold">Name / Title</th>
+                          <th className="px-6 py-3 font-semibold">Company</th>
+                          <th className="px-6 py-3 font-semibold">Email</th>
+                          <th className="px-6 py-3 font-semibold">LinkedIn</th>
+                          <th className="px-6 py-3 font-semibold text-right">Meetings</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/40">
+                        {leads.map((lead, i) => (
+                          <tr key={lead.email || i} className="hover:bg-muted/10 transition-colors" data-testid={`lead-row-${i}`}>
+                            <td className="px-6 py-4">
+                              <p className="font-semibold text-foreground">{lead.name}</p>
+                              <p className="text-[11px] text-muted-foreground">{lead.title}</p>
+                            </td>
+                            <td className="px-6 py-4 text-foreground truncate">{lead.company}</td>
+                            <td className="px-6 py-4 text-muted-foreground truncate">{lead.email}</td>
+                            <td className="px-6 py-4">
+                              {lead.linkedinUrl ? (
+                                <a href={lead.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[#0077B5] hover:underline flex items-center gap-1.5 font-medium" data-testid={`lead-linkedin-${i}`}>
+                                  <Linkedin className="h-3.5 w-3.5" /> LinkedIn
+                                </a>
+                              ) : (
+                                <span className="text-[11px] text-muted-foreground/30">—</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <span className="text-xs text-muted-foreground font-mono font-bold bg-muted/30 px-2 py-0.5 rounded">{lead.meetings}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="reports" className="outline-none">
+              <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden min-h-[500px]">
+                <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-accent" />
+                    Performance Report
+                  </h2>
+                </div>
+
+                <div className="p-8 space-y-10">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                      { label: "Total Meetings",           value: stats.total,                                              icon: Handshake,   color: "bg-card border-border/60" },
+                      { label: "Completed",                 value: stats.completed,                                          icon: CheckCircle2, color: "bg-green-50 border-green-200 text-green-800" },
+                      { label: "Pending Online",            value: stats.pendingOnline,                                      icon: Video,        color: "bg-violet-50 border-violet-200 text-violet-800" },
+                      { label: "Cancelled",                 value: stats.cancelled,                                          icon: AlertCircle,  color: "bg-red-50 border-red-200 text-red-800" },
+                      { label: "Unique Companies",          value: stats.companies,                                          icon: Users,        color: "bg-teal-50 border-teal-200 text-teal-800" },
+                      { label: "Total Leads",               value: leads.length,                                             icon: UserCheck,    color: "bg-indigo-50 border-indigo-200 text-indigo-800" },
+                      { label: "Onsite Sessions",           value: meetings.filter((m) => m.meetingType !== "online_request").length, icon: MapPin, color: "bg-blue-50 border-blue-200 text-blue-800" },
+                      { label: "Online Sessions",           value: meetings.filter((m) => m.meetingType === "online_request").length, icon: Video,  color: "bg-violet-50 border-violet-200 text-violet-800" },
+                    ].map(({ label, value, icon: Icon, color }) => (
+                      <div key={label} className={cn("rounded-xl border p-5 flex flex-col gap-3 transition-all hover:shadow-md", color)}>
+                        <div className="h-8 w-8 rounded-lg bg-background/50 flex items-center justify-center">
+                          <Icon className="h-4 w-4 opacity-70" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-display font-bold leading-none">{value}</p>
+                          <p className="text-[11px] font-bold uppercase tracking-wider mt-1.5 opacity-60 leading-tight">{label}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    {(() => {
+                      const cmap: Record<string, number> = {};
+                      for (const m of meetings) {
+                        if (m.attendee.company && m.attendee.company !== "—") {
+                          cmap[m.attendee.company] = (cmap[m.attendee.company] ?? 0) + 1;
+                        }
+                      }
+                      const top5 = Object.entries(cmap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                      if (top5.length === 0) return null;
+                      return (
+                        <div className="space-y-6">
+                          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-accent" /> Top Companies Met
+                          </h3>
+                          <div className="space-y-4">
+                            {top5.map(([company, count], i) => {
+                              const max = top5[0][1];
+                              return (
+                                <div key={company} className="group">
+                                  <div className="flex items-center justify-between text-xs mb-1.5 font-bold">
+                                    <span className="text-foreground">{i + 1}. {company}</span>
+                                    <span className="text-accent">{count} meeting{count !== 1 ? "s" : ""}</span>
+                                  </div>
+                                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${(count / max) * 100}%` }}
+                                      className="h-full bg-accent rounded-full group-hover:bg-accent/80 transition-colors"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="space-y-6">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                        <Download className="h-4 w-4 text-accent" /> Export & Share
+                      </h3>
+                      <div className="flex flex-col gap-3">
+                        {canExport && (
+                          <a href={`/api/sponsor-report/pdf?token=${token}`} download className="w-full" data-testid="link-download-pdf">
+                            <Button className="w-full h-12 gap-3 bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/20 rounded-xl">
+                              <FileDown className="h-5 w-5" />
+                              Download Executive PDF Report
+                            </Button>
+                          </a>
+                        )}
+                        {canExport && (
+                          <Button variant="outline" className="w-full h-12 gap-3 rounded-xl border-border/60 hover:bg-muted/50" onClick={exportLeadsCSV} data-testid="btn-export-leads-report">
+                            <Download className="h-5 w-5 text-accent" />
+                            Export Leads Data (CSV)
+                          </Button>
+                        )}
+                        <p className="text-[10px] text-muted-foreground text-center italic mt-2">
+                          * Export permissions are limited to Sponsor Owners and Editors.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </motion.div>
       </main>
 

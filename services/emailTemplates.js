@@ -258,3 +258,25 @@ export function sponsorMagicLoginEmail({ sponsorName, contactName, eventName, lo
     <p style="color:#94a3b8;font-size:12px;margin:24px 0 0;">This link is unique to your account — please do not share it. If you did not expect this email, you can safely ignore it.</p>
   `);
 }
+
+export function meetingReminderEmail({ recipientFirstName, sponsorName, eventName, meetingDate, meetingTime, meetingLocation, meetingType, windowLabel }) {
+  const isVirtual = meetingType === "online_request";
+  const timeUntil = windowLabel === "24h" ? "tomorrow" : "in about 2 hours";
+  const urgency = windowLabel === "2h" ? "⏰ " : "📅 ";
+  return wrap(`
+    <p style="color:#475569;font-size:16px;font-weight:600;margin:0 0 6px;">${urgency}Meeting Reminder</p>
+    <p style="color:#475569;font-size:15px;margin:0 0 24px;">Hi ${recipientFirstName || "there"}, this is a reminder that your meeting${sponsorName ? ` with <strong>${sponsorName}</strong>` : ""} is ${timeUntil}.</p>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+      <table style="width:100%;border-collapse:collapse;">
+        ${eventName ? `<tr><td style="color:#94a3b8;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:4px 0;width:100px;">Event</td><td style="color:#0f172a;font-size:14px;font-weight:500;padding:4px 0;">${eventName}</td></tr>` : ""}
+        ${meetingDate ? `<tr><td style="color:#94a3b8;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:4px 0;">Date</td><td style="color:#0f172a;font-size:14px;font-weight:500;padding:4px 0;">${fmtDate(meetingDate)}</td></tr>` : ""}
+        ${meetingTime ? `<tr><td style="color:#94a3b8;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:4px 0;">Time</td><td style="color:#0f172a;font-size:14px;font-weight:500;padding:4px 0;">${fmt12(meetingTime)}</td></tr>` : ""}
+        ${!isVirtual && meetingLocation ? `<tr><td style="color:#94a3b8;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:4px 0;">Location</td><td style="color:#0f172a;font-size:14px;font-weight:500;padding:4px 0;">${meetingLocation}</td></tr>` : ""}
+        <tr><td style="color:#94a3b8;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:4px 0;">Format</td><td style="color:#0f172a;font-size:14px;font-weight:500;padding:4px 0;">${isVirtual ? "Virtual / Online" : "In-Person"}</td></tr>
+      </table>
+    </div>
+
+    <p style="color:#94a3b8;font-size:12px;margin:0;">If you have questions, please contact your event coordinator.</p>
+  `);
+}

@@ -7,6 +7,7 @@ import { format, parseISO } from "date-fns";
 import {
   ArrowLeft, RefreshCw, Plus, Pencil, Trash2, RotateCcw, CheckCircle2,
   AlertCircle, Clock, Ban, FileCheck, Users, Gem, Send,
+  Upload, Download, Archive, Link2, ExternalLink, File as FileIcon, X, Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,7 @@ import { cn } from "@/lib/utils";
 import {
   DELIVERABLE_CATEGORIES, DELIVERABLE_STATUSES, DELIVERABLE_OWNER_TYPES,
   DELIVERABLE_FULFILLMENT_TYPES, DELIVERABLE_DUE_TIMING_TYPES,
+  FILE_CATEGORIES,
   type AgreementDeliverable,
 } from "@shared/schema";
 import type { Sponsor, Event } from "@shared/schema";
@@ -83,6 +85,335 @@ const DUE_LABELS: Record<string, string> = {
   specific_date: "Specific Date",
   not_applicable: "N/A",
 };
+
+// ── FilesLinksTab ─────────────────────────────────────────────────────────────
+
+interface FileAsset {
+  id: string; category: string; originalFileName: string; mimeType: string;
+  sizeBytes: number | null; uploadedByRole: string; uploadedAt: string;
+  deliverableId: string | null; title: string | null; status: string;
+}
+interface DeliverableLink {
+  id: string; deliverableId: string; title: string; url: string;
+  visibility: string; addedAt: string;
+}
+
+const CATEGORY_LABEL: Record<string, string> = {
+  "logos": "Logo", "headshots": "Headshots", "company-assets": "Company Assets",
+  "social-graphics": "Social Graphics", "session-assets": "Session Assets",
+  "promo-assets": "Promo Assets", "attendee-reports": "Attendee Reports",
+  "sponsor-reports": "Sponsor Reports", "contracts": "Contracts", "internal": "Internal",
+};
+
+function formatBytes(n: number | null): string {
+  if (!n) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function FilesLinksTab({
+  sponsorId, eventId, deliverables,
+}: {
+  sponsorId: string; eventId: string; deliverables: AgreementDeliverable[];
+}) {
+  const { toast } = useToast();
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadCategory, setUploadCategory] = useState<string>("logos");
+  const [uploadDeliverable, setUploadDeliverable] = useState<string>("__none__");
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [linkDeliverable, setLinkDeliverable] = useState<string>("");
+  const [linkTitle, setLinkTitle] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [replaceTarget, setReplaceTarget] = useState<string | null>(null);
+
+  const filesKey = ["/api/files", sponsorId, eventId];
+  const { data: files = [], isLoading: filesLoading } = useQuery<FileAsset[]>({
+    queryKey: filesKey,
+    queryFn: () => fetch(`/api/files?sponsorId=${sponsorId}&eventId=${eventId}&status=active`).then(r => r.json()),
+  });
+
+  const linksKey = ["/api/agreement/deliverables", linkDeliverable, "links"];
+  const { data: links = [] } = useQuery<DeliverableLink[]>({
+    queryKey: linksKey,
+    queryFn: () => fetch(`/api/agreement/deliverables/${linkDeliverable}/links`).then(r => r.json()),
+    enabled: !!linkDeliverable,
+  });
+
+  const archiveFile = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/files/${id}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: filesKey }); toast({ title: "File archived" }); },
+    onError: () => toast({ title: "Failed to archive file", variant: "destructive" }),
+  });
+
+  const addLink = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/agreement/deliverables/${linkDeliverable}/links`, { title: linkTitle, url: linkUrl }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: linksKey });
+      toast({ title: "Link added" });
+      setLinkTitle(""); setLinkUrl("");
+    },
+    onError: () => toast({ title: "Failed to add link", variant: "destructive" }),
+  });
+
+  const deleteLink = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/agreement/deliverables/${linkDeliverable}/links/${id}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: linksKey }); toast({ title: "Link removed" }); },
+    onError: () => toast({ title: "Failed to remove link", variant: "destructive" }),
+  });
+
+  async function handleDownload(file: FileAsset) {
+    try {
+      const res = await fetch(`/api/files/${file.id}/download-url`);
+      if (!res.ok) throw new Error("Failed to get download URL");
+      const { downloadURL, fileName } = await res.json();
+      const a = document.createElement("a");
+      a.href = downloadURL; a.download = fileName ?? file.originalFileName; a.target = "_blank";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch (e) { toast({ title: "Download failed", variant: "destructive" }); }
+  }
+
+  async function handleUpload() {
+    if (!uploadFile) return;
+    setUploading(true);
+    try {
+      const urlRes = await apiRequest("POST", "/api/files/upload-url", {
+        category: uploadCategory, originalFileName: uploadFile.name,
+        mimeType: uploadFile.type, sizeBytes: uploadFile.size,
+        sponsorId, eventId,
+        deliverableId: uploadDeliverable !== "__none__" ? uploadDeliverable : null,
+      });
+      const { uploadURL, fileId, objectKey, storedFileName } = urlRes;
+      const putRes = await fetch(uploadURL, {
+        method: "PUT", body: uploadFile,
+        headers: { "Content-Type": uploadFile.type },
+      });
+      if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status}`);
+      const confirmPayload: Record<string, unknown> = {
+        fileId, objectKey, storedFileName, category: uploadCategory,
+        originalFileName: uploadFile.name, mimeType: uploadFile.type,
+        sizeBytes: uploadFile.size, sponsorId, eventId, visibility: "sponsor_private",
+        title: uploadTitle || null,
+        deliverableId: uploadDeliverable !== "__none__" ? uploadDeliverable : null,
+      };
+      if (replaceTarget) confirmPayload.replacesFileAssetId = replaceTarget;
+      await apiRequest("POST", "/api/files/confirm", confirmPayload);
+      queryClient.invalidateQueries({ queryKey: filesKey });
+      toast({ title: "File uploaded successfully" });
+      setUploadOpen(false);
+      setUploadFile(null); setUploadTitle(""); setUploadDeliverable("__none__"); setReplaceTarget(null);
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } finally { setUploading(false); }
+  }
+
+  return (
+    <div className="mt-4 space-y-6">
+      {/* ── Files Section ──────────────────────────────────────────────────── */}
+      <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
+        <div className="px-5 py-3 border-b border-border/50 flex items-center justify-between">
+          <h3 className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
+            <FileIcon className="h-4 w-4 text-muted-foreground" /> Files
+          </h3>
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" data-testid="button-upload-file"
+            onClick={() => { setUploadOpen(true); setReplaceTarget(null); }}>
+            <Upload className="h-3.5 w-3.5" /> Upload File
+          </Button>
+        </div>
+        {filesLoading ? (
+          <div className="px-5 py-8 text-center text-muted-foreground text-sm">Loading files…</div>
+        ) : files.length === 0 ? (
+          <div className="px-5 py-8 text-center text-muted-foreground text-sm" data-testid="files-empty">
+            <FileIcon className="h-8 w-8 mx-auto mb-2 opacity-30" />
+            No files uploaded yet for this sponsorship.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/20">
+                  {["File", "Category", "Size", "Deliverable", "Uploaded By", "Date", "Actions"].map(h => (
+                    <th key={h} className="text-left px-4 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {files.map(file => {
+                  const linkedDel = deliverables.find(d => d.id === file.deliverableId);
+                  return (
+                    <tr key={file.id} className="border-t border-border/30 hover:bg-muted/10" data-testid={`row-file-${file.id}`}>
+                      <td className="px-4 py-2.5 max-w-xs">
+                        <span className="truncate block font-medium text-foreground">{file.title || file.originalFileName}</span>
+                        {file.title && <span className="text-xs text-muted-foreground truncate block">{file.originalFileName}</span>}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <Badge variant="outline" className="text-xs">{CATEGORY_LABEL[file.category] ?? file.category}</Badge>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{formatBytes(file.sizeBytes)}</td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground max-w-[160px]">
+                        <span className="truncate block">{linkedDel?.deliverableName ?? "—"}</span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={cn("text-xs px-1.5 py-0.5 rounded font-medium",
+                          file.uploadedByRole === "admin" ? "bg-purple-50 text-purple-700" : "bg-blue-50 text-blue-700"
+                        )}>{file.uploadedByRole === "admin" ? "Converge" : "Sponsor"}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                        {format(new Date(file.uploadedAt), "MMM d, yyyy")}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-1">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Download"
+                            data-testid={`btn-download-file-${file.id}`} onClick={() => handleDownload(file)}>
+                            <Download className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Replace file"
+                            data-testid={`btn-replace-file-${file.id}`}
+                            onClick={() => {
+                              setReplaceTarget(file.id);
+                              setUploadCategory(file.category);
+                              setUploadDeliverable(file.deliverableId ?? "__none__");
+                              setUploadOpen(true);
+                            }}>
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive/70 hover:text-destructive" title="Archive"
+                            data-testid={`btn-archive-file-${file.id}`}
+                            onClick={() => { if (confirm("Archive this file?")) archiveFile.mutate(file.id); }}>
+                            <Archive className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── Links Section ─────────────────────────────────────────────────── */}
+      <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
+        <div className="px-5 py-3 border-b border-border/50 flex items-center gap-2">
+          <Paperclip className="h-4 w-4 text-muted-foreground" />
+          <h3 className="font-display font-semibold text-sm text-foreground">Links by Deliverable</h3>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Select a deliverable to manage links</Label>
+            <Select value={linkDeliverable} onValueChange={setLinkDeliverable}>
+              <SelectTrigger className="max-w-sm" data-testid="select-link-deliverable">
+                <SelectValue placeholder="Choose deliverable…" />
+              </SelectTrigger>
+              <SelectContent>
+                {deliverables.map(d => (
+                  <SelectItem key={d.id} value={d.id}>{d.deliverableName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {linkDeliverable && (
+            <div className="space-y-3">
+              {links.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No links for this deliverable yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {links.map(link => (
+                    <div key={link.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2" data-testid={`link-row-${link.id}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <a href={link.url} target="_blank" rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline truncate flex items-center gap-1">
+                          {link.title}
+                          <ExternalLink className="h-3 w-3 opacity-60" />
+                        </a>
+                      </div>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground shrink-0"
+                        data-testid={`btn-delete-link-${link.id}`}
+                        onClick={() => deleteLink.mutate(link.id)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Add a link</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input placeholder="Link title" value={linkTitle} onChange={e => setLinkTitle(e.target.value)}
+                    className="h-8 text-xs" data-testid="input-link-title" />
+                  <Input placeholder="https://…" value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
+                    className="h-8 text-xs" data-testid="input-link-url" />
+                </div>
+                <Button size="sm" className="h-7 text-xs" disabled={!linkTitle.trim() || !linkUrl.trim() || addLink.isPending}
+                  data-testid="button-add-link" onClick={() => addLink.mutate()}>
+                  <Plus className="h-3 w-3 mr-1" /> Add Link
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Upload Dialog ──────────────────────────────────────────────────── */}
+      <Dialog open={uploadOpen} onOpenChange={o => { if (!o && !uploading) { setUploadOpen(false); setUploadFile(null); setReplaceTarget(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{replaceTarget ? "Replace File" : "Upload File"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            {replaceTarget && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                This will replace the existing file. The old file will be archived.
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                <SelectTrigger data-testid="select-upload-category"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FILE_CATEGORIES.map(c => <SelectItem key={c} value={c}>{CATEGORY_LABEL[c] ?? c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Deliverable (optional)</Label>
+              <Select value={uploadDeliverable} onValueChange={setUploadDeliverable}>
+                <SelectTrigger data-testid="select-upload-deliverable"><SelectValue placeholder="Not linked to a deliverable" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Not linked</SelectItem>
+                  {deliverables.map(d => <SelectItem key={d.id} value={d.id}>{d.deliverableName}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Title (optional)</Label>
+              <Input placeholder="e.g. Company Logo (Dark)" value={uploadTitle} onChange={e => setUploadTitle(e.target.value)}
+                data-testid="input-upload-title" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>File</Label>
+              <input type="file" data-testid="input-upload-file"
+                className="block w-full text-sm text-muted-foreground file:mr-3 file:py-1 file:px-3 file:rounded-md file:border file:border-border file:text-xs file:bg-white file:text-foreground hover:file:bg-muted cursor-pointer"
+                onChange={e => setUploadFile(e.target.files?.[0] ?? null)} />
+              {uploadFile && <p className="text-xs text-muted-foreground">{uploadFile.name} ({formatBytes(uploadFile.size)})</p>}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setUploadOpen(false); setUploadFile(null); setReplaceTarget(null); }} disabled={uploading}>Cancel</Button>
+            <Button onClick={handleUpload} disabled={!uploadFile || uploading} data-testid="button-confirm-upload">
+              {uploading ? "Uploading…" : replaceTarget ? "Replace" : "Upload"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
 function emptyEditForm(d?: AgreementDeliverable): EditDeliverableForm {
   return {
@@ -326,7 +657,7 @@ export default function SponsorAgreementDetailPage() {
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="deliverables" data-testid="tab-deliverables">Deliverables</TabsTrigger>
           <TabsTrigger value="sponsor-inputs" data-testid="tab-sponsor-inputs">Sponsor Inputs</TabsTrigger>
-          <TabsTrigger value="files" disabled className="opacity-50">Files & Links</TabsTrigger>
+          <TabsTrigger value="files" data-testid="tab-files">Files & Links</TabsTrigger>
         </TabsList>
 
         {/* Overview tab */}
@@ -606,6 +937,15 @@ export default function SponsorAgreementDetailPage() {
               </div>
             );
           })()}
+        </TabsContent>
+
+        {/* Files & Links tab */}
+        <TabsContent value="files">
+          {sponsorId && eventId ? (
+            <FilesLinksTab sponsorId={sponsorId} eventId={eventId} deliverables={deliverables} />
+          ) : (
+            <div className="py-12 text-center text-muted-foreground text-sm">Loading…</div>
+          )}
         </TabsContent>
       </Tabs>
 

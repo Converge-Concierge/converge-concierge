@@ -4,6 +4,7 @@ import {
   CheckCircle2, Clock, AlertTriangle, PackageCheck, FileText,
   ChevronDown, ChevronUp, Plus, Trash2, Save, X, Users, Mic,
   Briefcase, CalendarDays, Megaphone, BarChart2, ShieldCheck,
+  Upload, Download, RefreshCw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,13 +105,22 @@ function isActionRequired(d: SponsorDeliverable): boolean {
   return d.sponsorEditable && ACTION_REQUIRED_STATUSES.has(d.status);
 }
 
-type InputType = "registrants" | "speakers" | "text" | "none";
+type InputType = "registrants" | "speakers" | "text" | "file_upload" | "none";
 
 function getInputType(d: SponsorDeliverable): InputType {
   if (!d.sponsorEditable) return "none";
+  if (d.fulfillmentType === "file_upload") return "file_upload";
   if (d.fulfillmentType === "quantity_progress") return "registrants";
   if (d.category === "Speaking & Content") return "speakers";
   return "text";
+}
+
+// ── File category guess from deliverable category ─────────────────────────────
+
+function guessFileCategory(d: SponsorDeliverable): string {
+  if (d.category === "Marketing & Branding") return "logos";
+  if (d.category === "Speaking & Content") return "headshots";
+  return "company-assets";
 }
 
 function dueLabelStr(d: SponsorDeliverable): string | null {
@@ -125,6 +135,139 @@ function dueLabelStr(d: SponsorDeliverable): string | null {
     not_applicable: "",
   };
   return map[d.dueTiming] ?? null;
+}
+
+// ── FileUploadEditor ──────────────────────────────────────────────────────────
+
+interface UploadedFile {
+  id: string; originalFileName: string; mimeType: string;
+  sizeBytes: number | null; uploadedAt: string; uploadedByRole: string; title: string | null;
+}
+
+function formatBytes(n: number | null): string {
+  if (!n) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function FileUploadEditor({
+  deliverable, token, canEdit, onSaved,
+}: { deliverable: SponsorDeliverable; token: string; canEdit: boolean; onSaved: () => void }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const filesKey = ["/api/sponsor-dashboard/files", token, deliverable.id];
+  const { data: files = [], isLoading } = useQuery<UploadedFile[]>({
+    queryKey: filesKey,
+    queryFn: async () => {
+      const res = await fetch(`/api/sponsor-dashboard/files?token=${token}&deliverableId=${deliverable.id}`);
+      if (!res.ok) throw new Error("Failed to load files");
+      return res.json();
+    },
+    enabled: !!token && !!deliverable.id,
+  });
+
+  async function handleDownload(file: UploadedFile) {
+    try {
+      const res = await fetch(`/api/files/${file.id}/download-url?token=${token}`);
+      if (!res.ok) throw new Error("Download unavailable");
+      const { downloadURL, fileName } = await res.json();
+      const a = document.createElement("a");
+      a.href = downloadURL; a.download = fileName ?? file.originalFileName; a.target = "_blank";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch { toast({ title: "Download unavailable", variant: "destructive" }); }
+  }
+
+  async function handleUpload(replaceId?: string) {
+    if (!selectedFile) return;
+    setUploading(true);
+    const category = guessFileCategory(deliverable);
+    try {
+      const urlRes = await fetch("/api/sponsor-dashboard/files/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-sponsor-token": token },
+        body: JSON.stringify({ category, originalFileName: selectedFile.name, mimeType: selectedFile.type, sizeBytes: selectedFile.size }),
+      });
+      if (!urlRes.ok) {
+        const err = await urlRes.json().catch(() => ({ message: "Upload failed" }));
+        throw new Error(err.message || "Upload failed");
+      }
+      const { uploadURL, fileId, objectKey, storedFileName } = await urlRes.json();
+      const putRes = await fetch(uploadURL, { method: "PUT", body: selectedFile, headers: { "Content-Type": selectedFile.type } });
+      if (!putRes.ok) throw new Error("Storage upload failed");
+      const confirmBody: Record<string, unknown> = {
+        fileId, objectKey, storedFileName, category, originalFileName: selectedFile.name,
+        mimeType: selectedFile.type, sizeBytes: selectedFile.size, deliverableId: deliverable.id,
+      };
+      if (replaceId) confirmBody.replacesFileAssetId = replaceId;
+      const confRes = await fetch("/api/sponsor-dashboard/files/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-sponsor-token": token },
+        body: JSON.stringify(confirmBody),
+      });
+      if (!confRes.ok) throw new Error("Confirmation failed");
+      await qc.invalidateQueries({ queryKey: filesKey });
+      await qc.invalidateQueries({ queryKey: ["/api/sponsor-dashboard/agreement-deliverables", token] });
+      toast({ title: "File uploaded", description: "Your file has been submitted successfully." });
+      setSelectedFile(null); onSaved();
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } finally { setUploading(false); }
+  }
+
+  const latestFile = files[0] ?? null;
+
+  return (
+    <div className="mt-3 space-y-3">
+      {isLoading ? (
+        <p className="text-xs text-muted-foreground">Loading files…</p>
+      ) : files.length > 0 ? (
+        <div className="space-y-2">
+          {files.map(file => (
+            <div key={file.id} className="flex items-center justify-between gap-3 rounded-lg border bg-white px-3 py-2" data-testid={`sponsor-file-${file.id}`}>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{file.title || file.originalFileName}</p>
+                <p className="text-xs text-muted-foreground">{formatBytes(file.sizeBytes)} · {new Date(file.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+              </div>
+              <Button variant="outline" size="sm" className="h-7 text-xs shrink-0 gap-1"
+                data-testid={`btn-download-sponsor-file-${file.id}`} onClick={() => handleDownload(file)}>
+                <Download className="h-3 w-3" /> Download
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {canEdit && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <input type="file" id={`file-input-${deliverable.id}`}
+              className="block flex-1 text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-border file:text-xs file:bg-white file:text-foreground hover:file:bg-muted"
+              data-testid={`file-input-${deliverable.id}`}
+              onChange={e => setSelectedFile(e.target.files?.[0] ?? null)} />
+          </div>
+          {selectedFile && (
+            <div className="flex items-center gap-2">
+              <Button size="sm" className="h-7 text-xs gap-1" disabled={uploading}
+                data-testid={`btn-upload-file-${deliverable.id}`}
+                onClick={() => handleUpload(latestFile?.id)}>
+                {uploading ? <><RefreshCw className="h-3 w-3 animate-spin" /> Uploading…</> : <><Upload className="h-3 w-3" /> {latestFile ? "Replace File" : "Upload File"}</>}
+              </Button>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedFile(null)} disabled={uploading}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+          {!selectedFile && files.length === 0 && (
+            <p className="text-xs text-muted-foreground">Select a file above to upload.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -489,6 +632,9 @@ function DeliverableRow({
           {!isCOI && inputType === "speakers" && (
             <SpeakerEditor deliverable={deliverable} token={token} canEdit={canEdit} />
           )}
+          {inputType === "file_upload" && (
+            <FileUploadEditor deliverable={deliverable} token={token} canEdit={canEdit} onSaved={() => setExpanded(false)} />
+          )}
         </div>
       )}
     </div>
@@ -506,6 +652,7 @@ function ActionCard({
 
   const ctaLabel = inputType === "registrants" ? "Provide Names" :
     inputType === "speakers" ? "Add Speaker Details" :
+    inputType === "file_upload" ? "Upload File" :
     "Provide Details";
 
   return (
@@ -552,6 +699,9 @@ function ActionCard({
           )}
           {inputType === "registrants" && <RegistrantEditor deliverable={deliverable} token={token} canEdit={canEdit} />}
           {inputType === "speakers" && <SpeakerEditor deliverable={deliverable} token={token} canEdit={canEdit} />}
+          {inputType === "file_upload" && (
+            <FileUploadEditor deliverable={deliverable} token={token} canEdit={canEdit} onSaved={() => setExpanded(false)} />
+          )}
         </div>
       )}
     </div>

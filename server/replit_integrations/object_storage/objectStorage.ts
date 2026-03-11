@@ -206,6 +206,32 @@ export class ObjectStorageService {
     return `/objects/${entityId}`;
   }
 
+  // Generate a presigned PUT URL for a specific object key (relative to PRIVATE_OBJECT_DIR).
+  async getSignedUploadURL(relativeKey: string, ttlSec: number = 900): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const fullPath = `${privateObjectDir}/${relativeKey}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    return signObjectURL({ bucketName, objectName, method: "PUT", ttlSec });
+  }
+
+  // Generate a presigned GET URL for a specific object key (relative to PRIVATE_OBJECT_DIR).
+  async getSignedDownloadURL(relativeKey: string, ttlSec: number = 3600): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const fullPath = `${privateObjectDir}/${relativeKey}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    return signObjectURL({ bucketName, objectName, method: "GET", ttlSec });
+  }
+
+  // Delete an object from storage by relative key.
+  async deleteFileObject(relativeKey: string): Promise<void> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const fullPath = `${privateObjectDir}/${relativeKey}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    await file.delete({ ignoreNotFound: true });
+  }
+
   // Tries to set the ACL policy for the object entity and return the normalized path.
   async trySetObjectEntityAclPolicy(
     rawPath: string,

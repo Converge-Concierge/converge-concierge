@@ -20,6 +20,8 @@ import {
   type AgreementDeliverableRegistrant, type InsertAgreementDeliverableRegistrant,
   type AgreementDeliverableSpeaker, type InsertAgreementDeliverableSpeaker,
   type AgreementDeliverableReminder, type InsertAgreementDeliverableReminder,
+  type FileAsset, type InsertFileAsset,
+  type DeliverableLink, type InsertDeliverableLink,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -250,6 +252,19 @@ export interface IStorage {
   listDeliverableReminders(filters: { sponsorId?: string; eventId?: string }): Promise<AgreementDeliverableReminder[]>;
   getLastDeliverableReminder(sponsorId: string, eventId: string): Promise<AgreementDeliverableReminder | undefined>;
   createDeliverableReminder(data: InsertAgreementDeliverableReminder): Promise<AgreementDeliverableReminder>;
+
+  // ── File Assets ────────────────────────────────────────────────────────────
+  listFileAssets(filters: { sponsorId?: string; eventId?: string; deliverableId?: string; status?: string }): Promise<FileAsset[]>;
+  getFileAsset(id: string): Promise<FileAsset | undefined>;
+  createFileAsset(data: InsertFileAsset): Promise<FileAsset>;
+  updateFileAsset(id: string, data: Partial<InsertFileAsset>): Promise<FileAsset>;
+  archiveFileAsset(id: string): Promise<FileAsset>;
+  replaceFileAsset(oldId: string, newData: InsertFileAsset): Promise<FileAsset>;
+
+  // ── Deliverable Links ──────────────────────────────────────────────────────
+  listDeliverableLinks(deliverableId: string): Promise<DeliverableLink[]>;
+  createDeliverableLink(data: InsertDeliverableLink): Promise<DeliverableLink>;
+  deleteDeliverableLink(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -880,6 +895,17 @@ export class MemStorage implements IStorage {
   async listDeliverableReminders(_filters: { sponsorId?: string; eventId?: string }): Promise<AgreementDeliverableReminder[]> { return []; }
   async getLastDeliverableReminder(_sponsorId: string, _eventId: string): Promise<AgreementDeliverableReminder | undefined> { return undefined; }
   async createDeliverableReminder(data: InsertAgreementDeliverableReminder): Promise<AgreementDeliverableReminder> { return { id: randomUUID(), ...data, sentByUserId: data.sentByUserId ?? null, errorMessage: data.errorMessage ?? null, createdAt: new Date() } as AgreementDeliverableReminder; }
+
+  async listFileAssets(_filters: { sponsorId?: string; eventId?: string; deliverableId?: string; status?: string }): Promise<FileAsset[]> { return []; }
+  async getFileAsset(_id: string): Promise<FileAsset | undefined> { return undefined; }
+  async createFileAsset(data: InsertFileAsset): Promise<FileAsset> { return { id: randomUUID(), ...data, eventId: data.eventId ?? null, sponsorId: data.sponsorId ?? null, deliverableId: data.deliverableId ?? null, uploadedByUserId: data.uploadedByUserId ?? null, sizeBytes: data.sizeBytes ?? null, title: data.title ?? null, description: data.description ?? null, replacesFileAssetId: data.replacesFileAssetId ?? null, uploadedAt: new Date(), updatedAt: new Date() } as FileAsset; }
+  async updateFileAsset(_id: string, _data: Partial<InsertFileAsset>): Promise<FileAsset> { return this.createFileAsset({ category: "", originalFileName: "", storedFileName: "", objectKey: "", mimeType: "" }); }
+  async archiveFileAsset(_id: string): Promise<FileAsset> { return this.createFileAsset({ category: "", originalFileName: "", storedFileName: "", objectKey: "", mimeType: "" }); }
+  async replaceFileAsset(_oldId: string, newData: InsertFileAsset): Promise<FileAsset> { return this.createFileAsset(newData); }
+
+  async listDeliverableLinks(_deliverableId: string): Promise<DeliverableLink[]> { return []; }
+  async createDeliverableLink(data: InsertDeliverableLink): Promise<DeliverableLink> { return { id: randomUUID(), ...data, addedByUserId: data.addedByUserId ?? null, addedAt: new Date() } as DeliverableLink; }
+  async deleteDeliverableLink(_id: string): Promise<void> {}
 }
 
 export const storage = new DatabaseStorage();

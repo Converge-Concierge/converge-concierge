@@ -3128,5 +3128,273 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
+  // ── File Assets ───────────────────────────────────────────────────────────
+
+  const CATEGORY_RULES: Record<string, { allowedMime: string[]; maxBytes: number }> = {
+    "logos":           { allowedMime: ["image/png","image/jpeg","image/jpg","image/svg+xml"], maxBytes: 5*1024*1024 },
+    "headshots":       { allowedMime: ["image/png","image/jpeg","image/jpg"], maxBytes: 5*1024*1024 },
+    "company-assets":  { allowedMime: ["application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document"], maxBytes: 10*1024*1024 },
+    "social-graphics": { allowedMime: ["image/png","image/jpeg","image/jpg","application/pdf"], maxBytes: 10*1024*1024 },
+    "session-assets":  { allowedMime: ["image/png","image/jpeg","image/jpg","application/pdf"], maxBytes: 10*1024*1024 },
+    "promo-assets":    { allowedMime: ["application/pdf","image/png","image/jpeg","image/jpg"], maxBytes: 10*1024*1024 },
+    "attendee-reports":{ allowedMime: ["text/csv","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/pdf"], maxBytes: 15*1024*1024 },
+    "sponsor-reports": { allowedMime: ["application/pdf","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"], maxBytes: 15*1024*1024 },
+    "contracts":       { allowedMime: ["application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document"], maxBytes: 10*1024*1024 },
+    "internal":        { allowedMime: ["application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document"], maxBytes: 10*1024*1024 },
+  };
+
+  const SPONSOR_UPLOADABLE_CATEGORIES = ["logos","headshots","company-assets"];
+  const ADMIN_ONLY_CATEGORIES = ["attendee-reports","sponsor-reports","contracts","internal"];
+
+  function sanitizeFilename(name: string): string {
+    return name.replace(/[^a-zA-Z0-9._-]/g, "_").substring(0, 200);
+  }
+
+  // POST /api/files/upload-url — generate presigned PUT URL + pending metadata
+  app.post("/api/files/upload-url", requireAuth, async (req, res) => {
+    try {
+      const { category, originalFileName, mimeType, sizeBytes, eventId, sponsorId, deliverableId, visibility, title } = req.body;
+      const { ObjectStorageService } = await import("./replit_integrations/object_storage/objectStorage.js");
+      const objService = new ObjectStorageService();
+
+      if (!category || !originalFileName || !mimeType) return res.status(400).json({ message: "category, originalFileName, mimeType required" });
+
+      const rules = CATEGORY_RULES[category];
+      if (!rules) return res.status(400).json({ message: `Unknown category: ${category}` });
+      if (!rules.allowedMime.includes(mimeType)) return res.status(400).json({ message: `File type ${mimeType} not allowed for category ${category}` });
+      if (sizeBytes && sizeBytes > rules.maxBytes) return res.status(400).json({ message: `File too large. Max ${rules.maxBytes / 1024 / 1024}MB for ${category}` });
+
+      const user = req.user as any;
+      if (ADMIN_ONLY_CATEGORIES.includes(category) && user?.role !== "admin" && user?.role !== "manager") {
+        return res.status(403).json({ message: "Only admins can upload to this category" });
+      }
+
+      const { randomUUID } = await import("crypto");
+      const fileId = randomUUID();
+      const storedFileName = sanitizeFilename(originalFileName);
+      const objectKey = `file-assets/${fileId}/${storedFileName}`;
+
+      const uploadURL = await objService.getSignedUploadURL(objectKey, 900);
+
+      res.json({ uploadURL, fileId, objectKey, storedFileName });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // POST /api/files/confirm — confirm upload completed + create DB record
+  app.post("/api/files/confirm", requireAuth, async (req, res) => {
+    try {
+      const { fileId, objectKey, storedFileName, category, originalFileName, mimeType, sizeBytes, eventId, sponsorId, deliverableId, visibility, title, description, replacesFileAssetId } = req.body;
+      if (!fileId || !objectKey || !category || !originalFileName || !mimeType) return res.status(400).json({ message: "Missing required fields" });
+
+      const user = req.user as any;
+      const uploadedByRole = (user?.role === "admin" || user?.role === "manager") ? "admin" : "sponsor";
+
+      let fileAsset;
+      if (replacesFileAssetId) {
+        fileAsset = await storage.replaceFileAsset(replacesFileAssetId, {
+          eventId: eventId || null, sponsorId: sponsorId || null, deliverableId: deliverableId || null,
+          uploadedByUserId: user?.id || null, uploadedByRole,
+          category, originalFileName, storedFileName: storedFileName || originalFileName, objectKey, mimeType,
+          sizeBytes: sizeBytes || null, visibility: visibility || "sponsor_private",
+          accessScope: "deliverable", title: title || null, description: description || null,
+          status: "active", isLatestVersion: true,
+        });
+      } else {
+        fileAsset = await storage.createFileAsset({
+          eventId: eventId || null, sponsorId: sponsorId || null, deliverableId: deliverableId || null,
+          uploadedByUserId: user?.id || null, uploadedByRole,
+          category, originalFileName, storedFileName: storedFileName || originalFileName, objectKey, mimeType,
+          sizeBytes: sizeBytes || null, visibility: visibility || "sponsor_private",
+          accessScope: "deliverable", title: title || null, description: description || null,
+          status: "active", isLatestVersion: true, replacesFileAssetId: null,
+        });
+      }
+
+      // Auto-update deliverable status if sponsor uploaded a file-based item
+      if (deliverableId && uploadedByRole === "sponsor") {
+        const deliverable = await storage.getAgreementDeliverable(deliverableId);
+        if (deliverable && ["Not Started","Needed","Awaiting Sponsor Input"].includes(deliverable.status)) {
+          await storage.updateAgreementDeliverable(deliverableId, { status: "Submitted" });
+        }
+      }
+
+      res.json(fileAsset);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // GET /api/files/:id/download-url — generate signed GET URL
+  app.get("/api/files/:id/download-url", requireAuth, async (req, res) => {
+    try {
+      const file = await storage.getFileAsset(req.params.id);
+      if (!file) return res.status(404).json({ message: "File not found" });
+      if (file.status === "archived") return res.status(410).json({ message: "File has been archived" });
+
+      const { ObjectStorageService } = await import("./replit_integrations/object_storage/objectStorage.js");
+      const objService = new ObjectStorageService();
+      const downloadURL = await objService.getSignedDownloadURL(file.objectKey, 3600);
+      res.json({ downloadURL, fileName: file.originalFileName, mimeType: file.mimeType });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // GET /api/files — list files (admin)
+  app.get("/api/files", requireAuth, async (req, res) => {
+    try {
+      const { sponsorId, eventId, deliverableId, status } = req.query as Record<string, string>;
+      const files = await storage.listFileAssets({ sponsorId, eventId, deliverableId, status: status || "active" });
+      res.json(files);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // DELETE /api/files/:id — archive a file
+  app.delete("/api/files/:id", requireAuth, async (req, res) => {
+    try {
+      const file = await storage.getFileAsset(req.params.id);
+      if (!file) return res.status(404).json({ message: "File not found" });
+      const archived = await storage.archiveFileAsset(req.params.id);
+      res.json(archived);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Deliverable Links ──────────────────────────────────────────────────────
+
+  // GET /api/agreement/deliverables/:deliverableId/links
+  app.get("/api/agreement/deliverables/:deliverableId/links", requireAuth, async (req, res) => {
+    try {
+      const links = await storage.listDeliverableLinks(req.params.deliverableId);
+      res.json(links);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // POST /api/agreement/deliverables/:deliverableId/links
+  app.post("/api/agreement/deliverables/:deliverableId/links", requireAuth, async (req, res) => {
+    try {
+      const { title, url, visibility } = req.body;
+      if (!title || !url) return res.status(400).json({ message: "title and url required" });
+      const user = req.user as any;
+      const link = await storage.createDeliverableLink({
+        deliverableId: req.params.deliverableId, title, url,
+        visibility: visibility || "sponsor_private", addedByUserId: user?.id || null,
+      });
+      res.json(link);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // DELETE /api/agreement/deliverables/:deliverableId/links/:linkId
+  app.delete("/api/agreement/deliverables/:deliverableId/links/:linkId", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteDeliverableLink(req.params.linkId);
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  function extractSponsorToken(req: any): string | undefined {
+    return (req.headers["x-sponsor-token"] as string) ?? (req.query.token as string);
+  }
+
+  // Sponsor-facing: GET /api/sponsor-dashboard/files — list files for a sponsor
+  app.get("/api/sponsor-dashboard/files", async (req, res) => {
+    try {
+      const token = extractSponsorToken(req);
+      if (!token) return res.status(401).json({ message: "Unauthorized" });
+      const validation = await validateSponsorToken(token);
+      if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+      const { tokenRecord } = validation;
+      const { deliverableId } = req.query as Record<string, string>;
+      if (!deliverableId) return res.status(400).json({ message: "deliverableId required" });
+      const files = await storage.listFileAssets({ deliverableId, status: "active" });
+      const visible = files.filter(f => f.visibility !== "admin_private");
+      res.json(visible);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Sponsor-facing: GET /api/sponsor-dashboard/deliverable-links/:deliverableId
+  app.get("/api/sponsor-dashboard/deliverable-links/:deliverableId", async (req, res) => {
+    try {
+      const token = extractSponsorToken(req);
+      if (!token) return res.status(401).json({ message: "Unauthorized" });
+      const validation = await validateSponsorToken(token);
+      if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+      const links = await storage.listDeliverableLinks(req.params.deliverableId);
+      const visible = links.filter(l => l.visibility !== "admin_private");
+      res.json(visible);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Sponsor-facing: POST /api/sponsor-dashboard/files/upload-url — sponsor file upload
+  app.post("/api/sponsor-dashboard/files/upload-url", async (req, res) => {
+    try {
+      const token = extractSponsorToken(req);
+      if (!token) return res.status(401).json({ message: "Unauthorized" });
+      const validation = await validateSponsorToken(token);
+      if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+      const { tokenRecord } = validation;
+
+      // Check access level — viewer cannot upload
+      const sponsorUser = await storage.getSponsorUserById(tokenRecord.sponsorUserId);
+      if (sponsorUser && sponsorUser.accessLevel === "viewer") return res.status(403).json({ message: "Viewer access cannot upload files" });
+
+      const { category, originalFileName, mimeType, sizeBytes } = req.body;
+      if (!category || !originalFileName || !mimeType) return res.status(400).json({ message: "category, originalFileName, mimeType required" });
+      if (!SPONSOR_UPLOADABLE_CATEGORIES.includes(category)) return res.status(403).json({ message: `Sponsors cannot upload to category: ${category}` });
+
+      const rules = CATEGORY_RULES[category];
+      if (!rules.allowedMime.includes(mimeType)) return res.status(400).json({ message: `File type ${mimeType} not allowed for category ${category}` });
+      if (sizeBytes && sizeBytes > rules.maxBytes) return res.status(400).json({ message: `File too large. Max ${rules.maxBytes / 1024 / 1024}MB for ${category}` });
+
+      const { ObjectStorageService } = await import("./replit_integrations/object_storage/objectStorage.js");
+      const { randomUUID } = await import("crypto");
+      const objService = new ObjectStorageService();
+      const fileId = randomUUID();
+      const storedFileName = sanitizeFilename(originalFileName);
+      const objectKey = `file-assets/${fileId}/${storedFileName}`;
+      const uploadURL = await objService.getSignedUploadURL(objectKey, 900);
+      res.json({ uploadURL, fileId, objectKey, storedFileName });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Sponsor-facing: POST /api/sponsor-dashboard/files/confirm
+  app.post("/api/sponsor-dashboard/files/confirm", async (req, res) => {
+    try {
+      const token = extractSponsorToken(req);
+      if (!token) return res.status(401).json({ message: "Unauthorized" });
+      const validation = await validateSponsorToken(token);
+      if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+      const { tokenRecord } = validation;
+
+      const { fileId, objectKey, storedFileName, category, originalFileName, mimeType, sizeBytes, deliverableId, eventId, title, replacesFileAssetId } = req.body;
+      if (!fileId || !objectKey || !category || !originalFileName || !mimeType) return res.status(400).json({ message: "Missing required fields" });
+
+      let fileAsset;
+      if (replacesFileAssetId) {
+        fileAsset = await storage.replaceFileAsset(replacesFileAssetId, {
+          eventId: eventId || null, sponsorId: tokenRecord.sponsorId, deliverableId: deliverableId || null,
+          uploadedByUserId: null, uploadedByRole: "sponsor",
+          category, originalFileName, storedFileName: storedFileName || originalFileName, objectKey, mimeType,
+          sizeBytes: sizeBytes || null, visibility: "sponsor_private",
+          accessScope: "deliverable", title: title || null, description: null,
+          status: "active", isLatestVersion: true,
+        });
+      } else {
+        fileAsset = await storage.createFileAsset({
+          eventId: eventId || null, sponsorId: tokenRecord.sponsorId, deliverableId: deliverableId || null,
+          uploadedByUserId: null, uploadedByRole: "sponsor",
+          category, originalFileName, storedFileName: storedFileName || originalFileName, objectKey, mimeType,
+          sizeBytes: sizeBytes || null, visibility: "sponsor_private",
+          accessScope: "deliverable", title: title || null, description: null,
+          status: "active", isLatestVersion: true, replacesFileAssetId: null,
+        });
+      }
+
+      if (deliverableId) {
+        const deliverable = await storage.getAgreementDeliverable(deliverableId);
+        if (deliverable && ["Not Started","Needed","Awaiting Sponsor Input"].includes(deliverable.status)) {
+          await storage.updateAgreementDeliverable(deliverableId, { status: "Submitted" });
+        }
+      }
+
+      res.json(fileAsset);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   return httpServer;
 }

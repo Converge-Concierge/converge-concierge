@@ -837,6 +837,51 @@ export const insertAgreementDeliverableSpeakerSchema = createInsertSchema(agreem
 export type InsertAgreementDeliverableSpeaker = z.infer<typeof insertAgreementDeliverableSpeakerSchema>;
 export type AgreementDeliverableSpeaker = typeof agreementDeliverableSpeakers.$inferSelect;
 
+// 2E — File Assets (files uploaded to Object Storage, linked to sponsors/events/deliverables)
+export const FILE_CATEGORIES = ["logos", "headshots", "company-assets", "social-graphics", "session-assets", "promo-assets", "attendee-reports", "sponsor-reports", "contracts", "internal"] as const;
+export type FileCategory = typeof FILE_CATEGORIES[number];
+
+export const fileAssets = pgTable("file_assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id"),
+  sponsorId: varchar("sponsor_id"),
+  deliverableId: varchar("deliverable_id"),
+  uploadedByUserId: varchar("uploaded_by_user_id"),
+  uploadedByRole: varchar("uploaded_by_role").notNull().default("admin"),
+  category: varchar("category").notNull(),
+  originalFileName: varchar("original_file_name").notNull(),
+  storedFileName: varchar("stored_file_name").notNull(),
+  objectKey: varchar("object_key").notNull(),
+  mimeType: varchar("mime_type").notNull(),
+  sizeBytes: integer("size_bytes"),
+  visibility: varchar("visibility").notNull().default("sponsor_private"),
+  accessScope: varchar("access_scope").notNull().default("deliverable"),
+  title: varchar("title"),
+  description: text("description"),
+  status: varchar("status").notNull().default("active"),
+  isLatestVersion: boolean("is_latest_version").notNull().default(true),
+  replacesFileAssetId: varchar("replaces_file_asset_id"),
+  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+export const insertFileAssetSchema = createInsertSchema(fileAssets).omit({ id: true, uploadedAt: true, updatedAt: true });
+export type InsertFileAsset = z.infer<typeof insertFileAssetSchema>;
+export type FileAsset = typeof fileAssets.$inferSelect;
+
+// 2E2 — Deliverable Links (sponsor-visible links attached to deliverables)
+export const deliverableLinks = pgTable("deliverable_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  deliverableId: varchar("deliverable_id").notNull(),
+  title: varchar("title").notNull(),
+  url: text("url").notNull(),
+  visibility: varchar("visibility").notNull().default("sponsor_private"),
+  addedByUserId: varchar("added_by_user_id"),
+  addedAt: timestamp("added_at").notNull().defaultNow(),
+});
+export const insertDeliverableLinkSchema = createInsertSchema(deliverableLinks).omit({ id: true, addedAt: true });
+export type InsertDeliverableLink = z.infer<typeof insertDeliverableLinkSchema>;
+export type DeliverableLink = typeof deliverableLinks.$inferSelect;
+
 // 2F — Reminder log (tracks all automated + manual reminder emails sent to sponsors)
 export const REMINDER_TYPES = ["weekly_automatic", "manual_admin"] as const;
 export type ReminderType = typeof REMINDER_TYPES[number];

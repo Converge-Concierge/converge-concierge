@@ -8,6 +8,7 @@ import {
   userPermissions, permissionAuditLogs, informationRequests, sponsorAnalytics, emailLogs,
   agreementPackageTemplates, agreementDeliverableTemplateItems, agreementDeliverables,
   agreementDeliverableRegistrants, agreementDeliverableSpeakers, agreementDeliverableReminders,
+  fileAssets, deliverableLinks,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -27,6 +28,8 @@ import {
   type AgreementDeliverableRegistrant, type InsertAgreementDeliverableRegistrant,
   type AgreementDeliverableSpeaker, type InsertAgreementDeliverableSpeaker,
   type AgreementDeliverableReminder, type InsertAgreementDeliverableReminder,
+  type FileAsset, type InsertFileAsset,
+  type DeliverableLink, type InsertDeliverableLink,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -1315,5 +1318,84 @@ export class DatabaseStorage implements IStorage {
       errorMessage: data.errorMessage ?? null,
     }).returning();
     return row;
+  }
+
+  // ── File Assets ────────────────────────────────────────────────────────────
+
+  async listFileAssets(filters: { sponsorId?: string; eventId?: string; deliverableId?: string; status?: string }): Promise<FileAsset[]> {
+    let query = db.select().from(fileAssets).$dynamic();
+    const conditions = [];
+    if (filters.sponsorId) conditions.push(eq(fileAssets.sponsorId, filters.sponsorId));
+    if (filters.eventId) conditions.push(eq(fileAssets.eventId, filters.eventId));
+    if (filters.deliverableId) conditions.push(eq(fileAssets.deliverableId, filters.deliverableId));
+    if (filters.status) conditions.push(eq(fileAssets.status, filters.status));
+    if (conditions.length > 0) query = query.where(and(...conditions));
+    return query.orderBy(desc(fileAssets.uploadedAt));
+  }
+
+  async getFileAsset(id: string): Promise<FileAsset | undefined> {
+    const [row] = await db.select().from(fileAssets).where(eq(fileAssets.id, id));
+    return row;
+  }
+
+  async createFileAsset(data: InsertFileAsset): Promise<FileAsset> {
+    const [row] = await db.insert(fileAssets).values({
+      ...data,
+      eventId: data.eventId ?? null,
+      sponsorId: data.sponsorId ?? null,
+      deliverableId: data.deliverableId ?? null,
+      uploadedByUserId: data.uploadedByUserId ?? null,
+      sizeBytes: data.sizeBytes ?? null,
+      title: data.title ?? null,
+      description: data.description ?? null,
+      replacesFileAssetId: data.replacesFileAssetId ?? null,
+    }).returning();
+    return row;
+  }
+
+  async updateFileAsset(id: string, data: Partial<InsertFileAsset>): Promise<FileAsset> {
+    const [row] = await db.update(fileAssets).set({ ...data, updatedAt: new Date() }).where(eq(fileAssets.id, id)).returning();
+    return row;
+  }
+
+  async archiveFileAsset(id: string): Promise<FileAsset> {
+    const [row] = await db.update(fileAssets).set({ status: "archived", updatedAt: new Date() }).where(eq(fileAssets.id, id)).returning();
+    return row;
+  }
+
+  async replaceFileAsset(oldId: string, newData: InsertFileAsset): Promise<FileAsset> {
+    await db.update(fileAssets).set({ status: "replaced", isLatestVersion: false, updatedAt: new Date() }).where(eq(fileAssets.id, oldId));
+    const [row] = await db.insert(fileAssets).values({
+      ...newData,
+      replacesFileAssetId: oldId,
+      status: "active",
+      isLatestVersion: true,
+      eventId: newData.eventId ?? null,
+      sponsorId: newData.sponsorId ?? null,
+      deliverableId: newData.deliverableId ?? null,
+      uploadedByUserId: newData.uploadedByUserId ?? null,
+      sizeBytes: newData.sizeBytes ?? null,
+      title: newData.title ?? null,
+      description: newData.description ?? null,
+    }).returning();
+    return row;
+  }
+
+  // ── Deliverable Links ──────────────────────────────────────────────────────
+
+  async listDeliverableLinks(deliverableId: string): Promise<DeliverableLink[]> {
+    return db.select().from(deliverableLinks).where(eq(deliverableLinks.deliverableId, deliverableId)).orderBy(deliverableLinks.addedAt);
+  }
+
+  async createDeliverableLink(data: InsertDeliverableLink): Promise<DeliverableLink> {
+    const [row] = await db.insert(deliverableLinks).values({
+      ...data,
+      addedByUserId: data.addedByUserId ?? null,
+    }).returning();
+    return row;
+  }
+
+  async deleteDeliverableLink(id: string): Promise<void> {
+    await db.delete(deliverableLinks).where(eq(deliverableLinks.id, id));
   }
 }

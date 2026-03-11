@@ -7,17 +7,9 @@ import {
   CalendarDays, Building2, Users, Handshake, TrendingUp,
   ArrowRight, Clock, CheckCircle2, XCircle, AlertCircle,
   MessageSquare, FileText, AlertTriangle, ShieldAlert,
-  ChevronDown,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 const statusColors: Record<string, string> = {
   Scheduled: "bg-blue-100 text-blue-700",
@@ -132,7 +124,6 @@ export default function DashboardPage() {
     return sponsors.filter(s => s.assignedEvents?.some(link => link.eventId === selectedEventId));
   }, [sponsors, selectedEventId]);
 
-  const activeEvents   = events.filter((e) => (e.archiveState ?? "active") === "active");
   const activeSponsors = filteredSponsors.filter((s) => (s.archiveState ?? "active") === "active");
 
   const statusCounts = useMemo(() => {
@@ -246,61 +237,57 @@ export default function DashboardPage() {
       className="space-y-8 max-w-7xl mx-auto"
     >
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Command center — activity, queue, and performance across all events.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Command center — activity, queue, and performance across events.
+        </p>
+      </div>
 
-        <div className="flex flex-col gap-1.5 min-w-[240px]">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">
-            Filter by Event
-          </label>
-          <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-            <SelectTrigger className="bg-card border-border/60 shadow-sm" data-testid="select-event-filter">
-              <SelectValue placeholder="Select Event" />
-            </SelectTrigger>
-            <SelectContent>
-              {sortedEventsForSelector.map((event) => (
-                <SelectItem key={event.id} value={event.id}>
-                  {event.name}
-                </SelectItem>
-              ))}
-              <SelectItem value="all">All Events</SelectItem>
-            </SelectContent>
-          </Select>
+      {/* Event Tabs */}
+      <div className="overflow-x-auto pb-1">
+        <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
+          {sortedEventsForSelector.map((event) => (
+            <button
+              key={event.id}
+              data-testid={`event-tab-${event.id}`}
+              onClick={() => setSelectedEventId(event.id)}
+              className={cn(
+                "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                selectedEventId === event.id
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+              )}
+            >
+              {event.slug ?? event.name}
+            </button>
+          ))}
+          <button
+            data-testid="event-tab-all"
+            onClick={() => setSelectedEventId("all")}
+            className={cn(
+              "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+              selectedEventId === "all"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+            )}
+          >
+            All Events
+          </button>
         </div>
       </div>
 
       {/* Context Helper */}
       <div className="flex items-center gap-2 px-4 py-2 bg-accent/5 border border-accent/10 rounded-lg text-xs font-medium text-accent">
         <div className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-        {selectedEventId === "all" 
-          ? "Showing data for all active events" 
+        {selectedEventId === "all"
+          ? "Showing data for all active events"
           : `Showing data for ${selectedEvent?.name}`
         }
       </div>
 
       {/* Top KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard
-          label="Total Meetings"
-          value={filteredMeetings.length}
-          icon={Handshake}
-          sub={`${statusCounts.Scheduled} scheduled`}
-          accent="bg-accent/10"
-          onClick={() => nav("/admin/meetings")}
-        />
-        <StatCard
-          label="Active Events"
-          value={activeEvents.length}
-          icon={CalendarDays}
-          sub={`${events.length} total`}
-          accent="bg-primary/10"
-          onClick={() => nav("/admin/events")}
-        />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Active Sponsors"
           value={activeSponsors.length}
@@ -310,12 +297,12 @@ export default function DashboardPage() {
           onClick={() => nav("/admin/sponsors")}
         />
         <StatCard
-          label="Attendees"
-          value={filteredAttendees.length}
-          icon={Users}
-          sub="registered"
-          accent="bg-green-100"
-          onClick={() => nav("/admin/attendees")}
+          label="Active Meetings"
+          value={statusCounts.Scheduled}
+          icon={Handshake}
+          sub="scheduled"
+          accent="bg-accent/10"
+          onClick={() => nav("/admin/meetings")}
         />
         <StatCard
           label="Info Requests"
@@ -324,6 +311,14 @@ export default function DashboardPage() {
           sub={`${filteredInfoRequests.filter((r) => r.status === "New" || r.status === "Open").length} open`}
           accent="bg-blue-100"
           onClick={() => nav("/admin/information-requests")}
+        />
+        <StatCard
+          label="Attendees"
+          value={filteredAttendees.length}
+          icon={Users}
+          sub="registered"
+          accent="bg-green-100"
+          onClick={() => nav("/admin/attendees")}
         />
       </div>
 

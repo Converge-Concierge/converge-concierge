@@ -1,0 +1,235 @@
+Replace Event Dropdown With Event Tabs + Reorder Dashboard KPI Cards
+
+The Admin Dashboard currently uses a dropdown selector for events. This should be replaced with horizontal event tabs, while still keeping the same event filtering logic already implemented.
+
+The goal is to make the dashboard easier to navigate and to match the tabbed UX style used in the Sponsor Dashboard.
+
+1. Replace Event Dropdown With Event Tabs
+
+Remove the visible dropdown selector in the dashboard header and replace it with horizontal event tabs.
+
+The filtering logic already implemented should remain unchanged.
+
+Event Tabs Layout
+
+Place the event tabs directly below the Dashboard title and helper text.
+
+Example layout:
+
+Dashboard
+Command center — activity, queue, and performance across events.
+
+[FRC 2026] [USBT 2026] [TLS 2026] [All Events]
+
+Tabs should be styled similar to the Sponsor Dashboard tabs.
+
+Event Tab Behavior
+
+Each tab should represent:
+
+one active or upcoming event
+
+the final tab should always be All Events
+
+Example order:
+
+[FRC 2026] [USBT 2026] [TLS 2026] [All Events]
+
+Rules:
+
+Upcoming or active events appear first.
+
+Order events by event date (soonest first).
+
+Completed events may appear after upcoming events if needed.
+
+All Events must always be the final tab.
+
+Default Selected Tab
+
+When the Admin Dashboard loads:
+
+Identify the closest event that has not yet been completed.
+
+Automatically select that event tab.
+
+Example:
+
+Events:
+
+Event	Status	Date
+FRC 2026	Upcoming	Mar 10
+USBT 2026	Upcoming	Jun 12
+TLS 2025	Completed	Oct 5
+
+Default tab should be:
+
+[FRC 2026]
+Tab Interaction
+
+When a tab is clicked:
+
+set that event as the active dashboard context
+
+refresh all dashboard metrics and sections
+
+update the "Showing data for..." indicator
+
+Example indicator:
+
+Showing data for The 2026 Fintech Risk & Compliance Forum
+Preserve State
+
+If an admin navigates between pages (Meetings, Sponsors, etc.):
+
+preserve the selected event context when possible.
+
+2. Keep Event Filtering Logic
+
+The filtering system already implemented using the dropdown must continue to function exactly the same, but now be triggered by tab selection.
+
+Each tab click should:
+
+setSelectedEvent(eventId)
+refreshDashboardData()
+
+The All Events tab should reset the filter.
+
+3. Remove the Dashboard Event Dropdown
+
+Remove this element:
+
+FILTER BY EVENT
+[dropdown]
+
+All event selection should now occur through the event tabs.
+
+4. Reorganize Dashboard KPI Info Boxes
+
+Reorder the dashboard KPI cards to reflect the most important operational metrics first.
+
+Current Order
+
+Total Meetings
+
+Active Events
+
+Active Sponsors
+
+Attendees
+
+Info Requests
+
+Replace With This Order
+
+Reorganize the KPI row as follows:
+
+Active Sponsors
+
+Active Meetings
+
+Info Requests
+
+Attendees
+
+Remove Active Events from the KPI row because the dashboard is already event-scoped by the tabs.
+
+KPI Definitions
+Active Sponsors
+
+Number of sponsors assigned to the selected event.
+
+Active Meetings
+
+Number of scheduled meetings for the selected event.
+
+Info Requests
+
+Total information requests submitted for the selected event.
+
+Attendees
+
+Total registered attendees for the selected event.
+
+Example Layout
+[ Active Sponsors ]   [ Active Meetings ]   [ Info Requests ]   [ Attendees ]
+
+Each KPI card should retain the existing styling used across the dashboard.
+
+5. Update Meeting KPI Label
+
+If the current KPI is labeled Total Meetings, rename it to:
+
+Active Meetings
+
+Subtext can remain:
+
+scheduled
+6. Maintain "Needs Attention" Section
+
+The Needs Attention block should remain directly below the KPI cards.
+
+This section should always reflect the currently selected event tab.
+
+Example:
+
+Needs Attention
+All clear — no issues detected.
+
+or
+
+Needs Attention
+1 sponsor has no meetings scheduled.
+7. Responsive Behavior
+
+If screen width is limited:
+
+allow event tabs to scroll horizontally
+
+maintain readability of tab labels
+
+ensure All Events remains visible at the end
+
+8. Final Layout Structure
+
+The Admin Dashboard header should appear in this order:
+
+Dashboard
+Command center — activity, queue, and performance across events.
+
+[Event Tabs]
+
+Showing data for [Selected Event]
+
+[KPI Cards]
+
+[Needs Attention]
+
+[Charts / Activity Sections]
+9. Acceptance Criteria
+
+The implementation is complete when:
+
+the dropdown event selector is removed
+
+event navigation uses horizontal tabs
+
+the closest upcoming event is the default selected tab
+
+All Events appears as the final tab
+
+KPI cards appear in this order:
+
+Active Sponsors
+
+Active Meetings
+
+Info Requests
+
+Attendees
+
+Active Events is removed from the KPI row
+
+tab selection updates dashboard data correctly
+
+the layout visually matches the clean tab style used in the Sponsor Dashboard.

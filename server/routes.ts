@@ -2048,7 +2048,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (primaryOwner) {
       return res.json({ sponsorUser: { id: primaryOwner.id, name: primaryOwner.name, email: primaryOwner.email, accessLevel: primaryOwner.accessLevel, isPrimary: primaryOwner.isPrimary, isActive: primaryOwner.isActive } });
     }
-    return res.json({ sponsorUser: { accessLevel: "owner", isPrimary: true, isActive: true, _fallback: true } });
+    return res.json({ sponsorUser: null });
   });
 
   // Sponsor dashboard: list information requests for this sponsor/event

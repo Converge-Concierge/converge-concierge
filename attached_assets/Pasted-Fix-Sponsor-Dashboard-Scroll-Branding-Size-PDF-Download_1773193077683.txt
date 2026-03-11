@@ -1,0 +1,507 @@
+Fix Sponsor Dashboard Scroll + Branding Size + PDF Download, and Add Email Template Editing in Email Center
+
+Implement the following fixes and enhancements in Concierge.
+
+These items are now required:
+
+Sponsor Dashboard
+
+fix page scroll behavior so users can scroll back to the top
+
+make sponsor and event logos 150% bigger
+
+fix the Download PDF Report function so it actually works
+
+Email Center
+
+add the ability to view and edit email templates inside the admin Email Center
+
+Part 1 — Sponsor Dashboard Fixes
+1. Fix Sponsor Dashboard Scroll Behavior
+Problem
+
+On the Sponsor Dashboard, when a user scrolls down and then tries to scroll back up, they cannot return to the top of the page properly.
+
+This suggests there is likely a layout or overflow issue such as:
+
+a nested scroll container
+
+overflow: hidden
+
+overflow-y: auto on the wrong wrapper
+
+a fixed-height content area trapping scroll
+
+body scroll being disabled while an inner container scrolls
+
+Required behavior
+
+The Sponsor Dashboard should scroll normally like a standard page.
+
+Users must be able to:
+
+scroll down through all dashboard content
+
+scroll back up to the top of the page
+
+do this smoothly on desktop and laptop browsers
+
+Required implementation steps
+
+Check the Sponsor Dashboard layout and its parent containers for:
+
+overflow: hidden
+
+fixed heights like height: 100vh
+
+nested scroll wrappers
+
+content wrappers that trap scroll
+
+Preferred fix
+
+Use normal page scroll on the main document whenever possible.
+
+If a custom content container is used, ensure:
+
+only one vertical scroll container exists
+
+it allows both downward and upward scrolling
+
+the header / nav layout does not block scrolling
+
+Acceptance criteria
+
+user can scroll down through sponsor dashboard
+
+user can scroll back to the top without getting stuck
+
+no content area traps the scroll unexpectedly
+
+2. Make Sponsor and Event Logos 150% Bigger
+Problem
+
+The sponsor and event logos on the Sponsor Dashboard are too small and do not have enough visual presence.
+
+Required behavior
+
+Increase the size of:
+
+sponsor logo
+
+event logo
+
+to approximately 150% of their current displayed size.
+
+Do this in a balanced way so the header still feels clean and not crowded.
+
+Layout requirements
+
+When increasing the logo size:
+
+maintain aspect ratio
+
+do not stretch logos
+
+keep spacing clean
+
+ensure the header still aligns well on desktop
+
+preserve responsive behavior on smaller screens
+
+Recommended implementation
+
+Increase the rendered logo container size, not just the raw image.
+
+Examples to review:
+
+logo wrapper width/height
+
+image max-width / max-height
+
+flex alignment
+
+spacing between logo and surrounding text
+
+Acceptance criteria
+
+sponsor logo is noticeably larger
+
+event logo is noticeably larger
+
+logos still look sharp and properly aligned
+
+header remains visually balanced
+
+3. Fix “Download PDF Report” on Sponsor Dashboard
+Problem
+
+The Download PDF Report action on the Sponsor Dashboard does not currently work.
+
+Required behavior
+
+When an authorized sponsor user clicks Download PDF Report, the system should:
+
+generate or retrieve the sponsor performance PDF
+
+return a valid downloadable PDF
+
+download successfully in the browser
+
+This must work for the authorized sponsor user.
+
+Required checks
+
+Investigate whether the issue is caused by:
+
+broken route
+
+missing auth handling
+
+incorrect sponsor_id / event_id
+
+bad file generation
+
+failed response headers
+
+server error during PDF build
+
+front-end click handler not calling the correct endpoint
+
+Required implementation steps
+
+Validate end-to-end:
+
+button click triggers correct action
+
+request reaches correct sponsor report endpoint
+
+server generates or fetches PDF successfully
+
+response is returned with proper PDF headers
+
+browser downloads file correctly
+
+PDF download requirements
+
+Set correct response headers such as:
+
+Content-Type: application/pdf
+
+Content-Disposition: attachment; filename="Sponsor_Report.pdf"
+
+Use a meaningful filename when possible, such as:
+
+[SPONSOR]_[EVENT]_Sponsor_Report.pdf
+
+Example:
+
+Winnow_FRC2026_Sponsor_Report.pdf
+Permission requirement
+
+Keep the export/download permission rule already defined:
+
+only the primary Owner sponsor user can download/export data
+
+Editors and Viewers should still be blocked.
+
+Acceptance criteria
+
+authorized sponsor owner can click Download PDF Report
+
+valid PDF downloads successfully
+
+unauthorized sponsor users cannot download it
+
+no broken or empty file is returned
+
+Part 2 — Email Center Template Editing
+4. Add Email Template Editing to Email Center
+Problem
+
+Inside the Email Center, admins can review email activity, but there is currently no visible ability to edit email templates.
+
+We need admins to be able to:
+
+see all templates
+
+open a template
+
+edit subject
+
+edit HTML content
+
+preview
+
+save changes
+
+send test emails
+
+5. Add “Templates” Tab to Email Center
+
+Inside Admin → Email Center, add tab navigation if it does not already exist.
+
+Required tabs
+
+Logs
+
+Templates
+
+The Templates tab should be clearly visible and easy to access.
+
+6. Build Email Templates List View
+
+In Email Center → Templates, show all templates in a structured list or table.
+
+Recommended columns
+
+Display Name
+
+Template Key
+
+Subject
+
+Last Updated
+
+Actions
+
+Required actions
+
+View
+
+Edit
+
+Preview
+
+Send Test
+
+7. Build Template Edit Screen / Modal
+
+When admin clicks Edit, open a template editor.
+
+Required editable fields
+
+Subject Template
+
+HTML Body
+
+Plain Text Body if supported
+
+Description if supported
+
+Buttons
+
+Save
+
+Cancel
+
+Preview
+
+Send Test Email
+
+8. Show Available Variables in Template Editor
+
+Admins need to know which merge fields are supported.
+
+Inside the template editor, show a helper panel with variables such as:
+
+{{attendee_first_name}}
+{{attendee_full_name}}
+{{sponsor_name}}
+{{event_name}}
+{{event_code}}
+{{event_schedule_url}}
+{{meeting_date}}
+{{meeting_time}}
+{{meeting_location}}
+{{status}}
+
+Only show variables relevant to the template if possible.
+
+This should be visible in the editor UI so admins do not have to guess placeholder names.
+
+9. Add Template Preview
+
+Admins should be able to preview the template using sample data.
+
+Required preview modes
+
+rendered preview
+
+source view if already supported in Email Detail patterns
+
+Use realistic sample values for preview.
+
+Example:
+
+Sponsor: eGain
+
+Event: The 2026 Fintech Risk & Compliance Forum
+
+Attendee: Dan Carmody
+
+Status: Request Submitted
+
+10. Add “Send Test Email” From Template Editor
+
+Inside the template edit screen, add Send Test Email.
+
+Required behavior
+
+Admin can:
+
+enter a recipient email
+
+send a test email using the current template
+
+use sample data or selected preview data
+
+log the send in Email Center
+
+Show clear success/error messaging.
+
+11. Use Database-Backed Templates With Fallback
+
+If not already implemented, store editable templates in a table such as:
+
+email_templates
+
+Suggested fields:
+
+id
+template_key
+display_name
+subject_template
+html_template
+text_template
+description
+is_active
+created_at
+updated_at
+Required behavior
+
+When sending an email:
+
+try to load template from DB
+
+render variables
+
+send email
+
+if template is missing, fallback to code default
+
+This prevents email breakage during rollout.
+
+12. Seed Core Templates
+
+Ensure at minimum these templates exist in the Templates tab:
+
+Meeting Confirmation (Attendee)
+
+Meeting Notification (Sponsor)
+
+Information Request Notification (Sponsor)
+
+Information Request Confirmation (Attendee)
+
+Sponsor Magic Login
+
+Password Reset
+
+Test Email
+
+13. Permissions
+
+Only authorized admin users should be able to:
+
+view templates
+
+edit templates
+
+send test emails
+
+Add or use Email Center permissions such as:
+
+View Email Templates
+
+Edit Email Templates
+
+Send Test Emails
+
+Part 3 — Recommended Implementation Order
+
+Implement in this order:
+
+Step 1
+
+Fix Sponsor Dashboard scroll issue
+
+Step 2
+
+Increase sponsor and event logo size by 150%
+
+Step 3
+
+Fix Sponsor Dashboard Download PDF Report end-to-end
+
+Step 4
+
+Add Email Center → Templates tab
+
+Step 5
+
+Add templates list view
+
+Step 6
+
+Add template edit modal/page
+
+Step 7
+
+Add preview + send test email
+
+Step 8
+
+Connect template editing to live email sending with DB fallback
+
+Part 4 — Acceptance Criteria
+
+This task is complete when:
+
+Sponsor Dashboard
+
+user can scroll down and back up normally
+
+sponsor logo is 150% bigger
+
+event logo is 150% bigger
+
+Download PDF Report works for authorized sponsor owners
+
+unauthorized users still cannot download
+
+Email Center
+
+Templates tab exists
+
+admins can see all email templates
+
+admins can edit subject/body
+
+admins can preview templates
+
+admins can send test emails
+
+saved template changes are used in real email sends
+
+fallback to code defaults exists if DB template missing
+
+Part 5 — Success Standard
+
+After this update:
+
+the Sponsor Dashboard should feel more polished and usable
+
+the PDF report download should function reliably
+
+the Email Center should become a true admin tool for managing email templates instead of a read-only log viewer

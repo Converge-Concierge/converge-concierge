@@ -333,7 +333,7 @@ export default function SponsorDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-background relative flex flex-col">
       <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-accent/10 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
 
@@ -397,12 +397,12 @@ export default function SponsorDashboardPage() {
             <div className="p-5">
             <div className="flex flex-col sm:flex-row sm:items-start gap-4">
               {/* Left: sponsor logo */}
-              <div className="h-16 w-16 rounded-xl bg-white border border-border/70 flex items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-sponsor-logo-card">
+              <div className="h-24 w-24 rounded-xl bg-white border border-border/70 flex items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-sponsor-logo-card">
                 {sponsor.logoUrl ? (
-                  <img src={sponsor.logoUrl} alt={sponsor.name} className="h-14 max-w-[60px] object-contain p-1" />
+                  <img src={sponsor.logoUrl} alt={sponsor.name} className="h-20 max-w-[88px] object-contain p-1.5" />
                 ) : (
                   <div className="flex flex-col items-center justify-center w-full h-full bg-muted/50">
-                    <Building2 className="h-7 w-7 text-muted-foreground/40" />
+                    <Building2 className="h-10 w-10 text-muted-foreground/40" />
                   </div>
                 )}
               </div>
@@ -466,8 +466,8 @@ export default function SponsorDashboardPage() {
               {/* Right: event logo */}
               {event.logoUrl && (
                 <div className="hidden sm:flex flex-col items-end gap-1 shrink-0">
-                  <div className="h-14 border border-border/50 bg-white rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-sm" data-testid="img-event-logo-header">
-                    <img src={event.logoUrl} alt={event.name} className="h-10 max-w-[100px] object-contain" />
+                  <div className="h-[84px] w-[84px] border border-border/50 bg-white rounded-xl p-2.5 flex items-center justify-center overflow-hidden shadow-sm" data-testid="img-event-logo-header">
+                    <img src={event.logoUrl} alt={event.name} className="h-full max-w-full object-contain" />
                   </div>
                 </div>
               )}

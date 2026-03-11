@@ -1,0 +1,544 @@
+Incorporate Brevo Email Service Into Converge Concierge
+
+We already have a working Brevo email service using:
+
+noreply@concierge.convergeevents.com
+
+Now we need to integrate email into the actual Concierge workflows so the system automatically sends the right emails at the right times.
+
+The goal is to make email part of the core platform workflow for:
+
+meetings
+
+information requests
+
+sponsor notifications
+
+attendee confirmations
+
+admin alerts
+
+sponsor report delivery later
+
+Phase 1: Create Reusable Email Templates
+
+Create a new file:
+
+services/emailTemplates.js
+
+Add reusable HTML template functions for the first required email types.
+
+Include at minimum these templates:
+
+1. Meeting confirmation for attendee
+
+Use variables like:
+
+attendee first name
+
+sponsor name
+
+event name
+
+date
+
+time
+
+location or platform
+
+meeting type
+
+2. New meeting notification for sponsor
+
+Use variables like:
+
+sponsor name
+
+attendee full name
+
+attendee company
+
+attendee title
+
+date
+
+time
+
+meeting type
+
+location or platform
+
+3. Information request notification for sponsor
+
+Use variables like:
+
+sponsor name
+
+attendee full name
+
+attendee email
+
+attendee company
+
+attendee title
+
+optional message
+
+event name
+
+4. Information request confirmation for attendee
+
+Use variables like:
+
+attendee first name
+
+sponsor name
+
+event name
+
+Use clean, branded HTML with:
+
+Converge Concierge header
+
+simple spacing
+
+readable typography
+
+footer line such as:
+
+Sent by Converge Concierge for Converge Events
+
+Phase 2: Expand the Email Service
+
+Update:
+
+services/emailService.js
+
+Keep the generic sendEmail() function, but add workflow-specific helper functions.
+
+Add functions for:
+
+1. sendMeetingConfirmationToAttendee(attendee, sponsor, meeting, event)
+
+Sends the meeting confirmation email to the attendee.
+
+2. sendMeetingNotificationToSponsor(attendee, sponsor, meeting, event)
+
+Sends the new meeting alert to the sponsor.
+
+3. sendInformationRequestNotificationToSponsor(attendee, sponsor, infoRequest, event)
+
+Sends the new information request alert to the sponsor.
+
+4. sendInformationRequestConfirmationToAttendee(attendee, sponsor, event)
+
+Sends confirmation to the attendee that the request was sent.
+
+Each helper should:
+
+generate HTML using the template file
+
+call the shared sendEmail() method
+
+use clear subject lines
+
+Example subject lines:
+
+Attendee meeting confirmation
+Your meeting with [Sponsor Name] is confirmed
+Sponsor new meeting alert
+New meeting scheduled with [Attendee Name]
+Sponsor information request alert
+New information request from [Attendee Name]
+Attendee information request confirmation
+Your information request has been sent
+Phase 3: Add Email Logging
+
+Create a new database table or collection for email logs.
+
+Suggested name:
+
+email_logs
+
+Suggested fields:
+
+id
+email_type
+recipient_email
+subject
+event_id nullable
+sponsor_id nullable
+attendee_id nullable
+status
+error_message nullable
+sent_at
+created_at
+
+Update services/emailService.js so every email send attempt logs:
+
+success
+
+failure
+
+email type
+
+recipient
+
+related sponsor / attendee / event if available
+
+This is important for:
+
+debugging
+
+reporting
+
+support
+
+admin visibility later
+
+Do not block the user flow if email logging fails, but do log the send result if possible.
+
+Phase 4: Trigger Emails From Meeting Creation Workflow
+
+Find the code path where a meeting is successfully created.
+
+This may be inside:
+
+a meetings controller
+
+a scheduling route
+
+a meeting service
+
+attendee scheduling submission logic
+
+After the meeting is successfully saved, trigger these emails:
+
+1. Attendee meeting confirmation
+
+Send to the attendee.
+
+2. Sponsor new meeting notification
+
+Send to the sponsor contact email.
+
+Important:
+
+only send after the meeting record is successfully created
+
+do not send before DB success
+
+if sponsor email is missing, still create the meeting and log a warning
+
+Use the sponsor contact email stored on the sponsor record.
+
+Do not let email failure roll back the meeting creation in this phase.
+Meeting creation is primary. Email is secondary.
+
+If email sending fails:
+
+log it
+
+return success for the meeting
+
+optionally surface a non-blocking internal error log
+
+Phase 5: Trigger Emails From Information Request Workflow
+
+Find the code path where an Information Request is successfully submitted.
+
+After the Information Request record is created:
+
+1. Send sponsor notification
+
+Send to the sponsor contact email.
+
+2. Send attendee confirmation
+
+Send to the attendee email.
+
+Only do this after the Information Request is saved successfully.
+
+Important:
+
+if sponsor email is missing, still save the request
+
+log missing sponsor email in server logs or admin warning logs
+
+do not block request submission due to email issue
+
+Phase 6: Make Event and Sponsor Data Available to Email Functions
+
+Ensure the workflow passes enough data into the email service.
+
+Each send function should receive the objects or fields needed to render useful emails.
+
+At minimum, make sure these are available when sending:
+
+Event
+
+event name
+
+event code if useful
+
+event date range
+
+event location
+
+Sponsor
+
+sponsor name
+
+sponsor contact email
+
+sponsor logo optional for later
+
+Attendee
+
+first name
+
+last name
+
+email
+
+company
+
+title
+
+Meeting
+
+date
+
+start time
+
+end time
+
+meeting type
+
+location or platform
+
+Information Request
+
+message
+
+status
+
+source
+
+created_at
+
+If fields are missing, do not show broken blank labels in the email.
+Handle optional fields gracefully.
+
+Phase 7: Create a Test Route for Each Email Type
+
+Add temporary test routes or admin-only actions so each email can be tested individually.
+
+Examples:
+
+/test-email/meeting-confirmation
+/test-email/meeting-sponsor-notification
+/test-email/info-request-sponsor
+/test-email/info-request-attendee
+
+Each test route should:
+
+load sample data or use hardcoded test data temporarily
+
+send the email
+
+return a success/error response
+
+These routes are for development only.
+
+Once testing is complete:
+
+remove them
+
+or protect them behind admin-only access
+
+Do not leave open public test email routes in production.
+
+Phase 8: Use Clean Date and Time Formatting
+
+All email templates must use clean human-readable formatting.
+
+Do not send raw date strings like:
+
+Mon May 18 2026 17:00:00 GMT+0000
+
+Use formats like:
+
+May 18, 2026
+11:30 AM
+May 18–20, 2026
+
+If there is already a shared date formatting utility in the project, use that.
+If not, create one small reusable formatter.
+
+This is required for:
+
+meeting confirmations
+
+sponsor notifications
+
+information request timestamps if shown
+
+Phase 9: Add Smart Links Back Into Concierge
+
+Where useful, include buttons or links in the emails back into Concierge.
+
+Examples:
+
+Attendee meeting confirmation
+
+Include:
+
+View Event Schedule
+
+View Sponsor Page if appropriate
+
+Sponsor new meeting alert
+
+Include:
+
+Open Sponsor Dashboard
+
+Sponsor information request alert
+
+Include:
+
+View Information Requests
+
+Use the current known URLs for the live app.
+
+If secure tokenized links do not exist yet, use normal app links for now.
+Do not delay this phase waiting on magic-link authentication.
+
+Phase 10: Build the First Four Core Email Automations Only
+
+For now, implement only these production email flows:
+
+1. Meeting confirmation to attendee
+2. New meeting notification to sponsor
+3. Information request notification to sponsor
+4. Information request confirmation to attendee
+
+Do not build reminders, digests, or admin alerts yet unless they are trivial.
+
+We want the first release focused and reliable.
+
+Phase 11: Add Non-Blocking Error Handling
+
+Email should enhance Concierge, not break it.
+
+Required behavior:
+
+meeting creation should still succeed even if email fails
+
+information request submission should still succeed even if email fails
+
+email failures should be logged
+
+console/server logs should clearly identify send failures
+
+Use try/catch around email sends.
+
+Recommended pattern:
+
+save record
+
+attempt email
+
+log success/failure
+
+return successful user action response
+
+Phase 12: Add Admin Visibility Later
+
+Structure the email logging so we can later build:
+
+email activity report
+
+failed email queue
+
+sponsor communication history
+
+admin diagnostics
+
+Do not build the admin UI now unless easy.
+Just make sure the underlying email log data exists.
+
+Phase 13: Acceptance Criteria
+
+This task is complete when:
+
+Meeting workflow
+
+attendee receives confirmation email after a meeting is created
+
+sponsor receives new meeting alert after a meeting is created
+
+Information request workflow
+
+sponsor receives new information request email after request submission
+
+attendee receives confirmation email after request submission
+
+Logging
+
+every email attempt is logged to email_logs
+
+failures are logged without breaking the primary workflow
+
+Content quality
+
+emails use clean formatting
+
+dates/times are human-readable
+
+subject lines are clear
+
+emails feel branded and professional
+
+Phase 14: File / Component Summary
+
+Expected files added or updated:
+
+services/emailService.js
+services/emailTemplates.js
+utils/dateFormat.js              (if needed)
+models/emailLog.js               (or DB migration/schema update)
+meeting creation workflow file
+information request submission workflow file
+Phase 15: Recommended Execution Order
+
+Implement in this order:
+
+Step 1
+
+Create services/emailTemplates.js
+
+Step 2
+
+Expand services/emailService.js with workflow-specific helper methods
+
+Step 3
+
+Create email_logs model/table and logging helper
+
+Step 4
+
+Wire emails into meeting creation workflow
+
+Step 5
+
+Wire emails into information request workflow
+
+Step 6
+
+Add temporary test routes and verify delivery
+
+Step 7
+
+Polish subjects, formatting, and links

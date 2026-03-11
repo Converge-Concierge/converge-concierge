@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS } from "@shared/schema";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
+import { sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee } from "../services/emailService";
 import multer from "multer";
 import path from "path";
 import { randomBytes } from "crypto";
@@ -710,6 +711,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const notifType: SponsorNotificationType =
       meeting.meetingType === "online_request" ? "online_request_submitted" : "onsite_booked";
     fireNotification(notifType, meeting.id, meeting.sponsorId, meeting.eventId, meeting.attendeeId, meeting.date, meeting.time);
+
+    // Send emails (fire-and-forget — never block the meeting response)
+    ;(async () => {
+      try {
+        const [meetingAttendee, meetingSponsor, meetingEvent] = await Promise.all([
+          storage.getAttendee(meeting.attendeeId),
+          storage.getSponsor(meeting.sponsorId),
+          storage.getEvent(meeting.eventId),
+        ]);
+        // Look up a sponsor token for dashboard link
+        const sponsorTokens = await storage.getSponsorTokensBySponsor(meeting.sponsorId).catch(() => []);
+        const activeToken = sponsorTokens.find((t: any) => t.isActive && t.eventId === meeting.eventId);
+        await Promise.all([
+          sendMeetingConfirmationToAttendee(storage, meetingAttendee, meetingSponsor, meeting, meetingEvent),
+          sendMeetingNotificationToSponsor(storage, meetingAttendee, meetingSponsor, meeting, meetingEvent, activeToken?.token ?? null),
+        ]);
+      } catch (err: any) {
+        console.error(`[EMAIL] Error sending meeting emails for meeting ${meeting.id}:`, err?.message ?? err);
+      }
+    })();
 
     res.status(201).json(meeting);
   });
@@ -1711,31 +1732,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     const record = await storage.createInformationRequest(parsed.data);
 
-    // Notify sponsor by email (logged to console — connect an email service to send for real)
-    const eventName = parsed.data.eventId ? (await storage.getEvent(parsed.data.eventId))?.name ?? "an event" : "an event";
-    const contactEmail = sponsor.contactEmail ?? null;
-    const msgBody = [
-      `New information request received.`,
-      ``,
-      `Sponsor: ${sponsor.name}`,
-      `Event: ${eventName}`,
-      ``,
-      `From: ${parsed.data.attendeeFirstName} ${parsed.data.attendeeLastName}`,
-      `Title: ${parsed.data.attendeeTitle}`,
-      `Company: ${parsed.data.attendeeCompany}`,
-      `Email: ${parsed.data.attendeeEmail}`,
-      parsed.data.message ? `Message: ${parsed.data.message}` : null,
-      ``,
-      `Submitted: ${new Date().toISOString()}`,
-      ``,
-      `Please follow up with this attendee directly by email.`,
-    ].filter(Boolean).join("\n");
-
-    if (contactEmail) {
-      console.log(`[INFO REQUEST EMAIL] To: ${contactEmail}\nSubject: New information request from an event attendee\n\n${msgBody}`);
-    } else {
-      console.warn(`[INFO REQUEST] Sponsor "${sponsor.name}" has no contact email — request ${record.id} stored but no email sent.`);
-    }
+    // Send emails (fire-and-forget — never block the info request response)
+    ;(async () => {
+      try {
+        const irEvent = parsed.data.eventId ? await storage.getEvent(parsed.data.eventId) : null;
+        const sponsorTokens = await storage.getSponsorTokensBySponsor(sponsor.id).catch(() => []);
+        const activeToken = sponsorTokens.find((t: any) => t.isActive && t.eventId === parsed.data.eventId);
+        await Promise.all([
+          sendInformationRequestNotificationToSponsor(storage, null, sponsor, record, irEvent, activeToken?.token ?? null),
+          sendInformationRequestConfirmationToAttendee(storage, record, sponsor, irEvent),
+        ]);
+      } catch (err: any) {
+        console.error(`[EMAIL] Error sending info request emails for request ${record.id}:`, err?.message ?? err);
+      }
+    })();
 
     res.status(201).json(record);
   });
@@ -1813,6 +1823,80 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (sponsorId) filters.sponsorId = sponsorId;
     const requests = await storage.listInformationRequests(filters);
     res.json(requests);
+  });
+
+  // ── Email Test Routes (admin-only) ────────────────────────────────────────
+  // These routes are for development/QA testing of email templates.
+  // Protected behind requireAdmin — do not remove auth guard.
+
+  app.get("/api/admin/test-email/meeting-confirmation", requireAdmin, async (req, res) => {
+    try {
+      const meetings = await storage.getMeetings();
+      const meeting = meetings[0];
+      if (!meeting) return res.status(404).json({ error: "No meetings found to test with" });
+      const [attendee, sponsor, event] = await Promise.all([
+        storage.getAttendee(meeting.attendeeId),
+        storage.getSponsor(meeting.sponsorId),
+        storage.getEvent(meeting.eventId),
+      ]);
+      await sendMeetingConfirmationToAttendee(storage, attendee, sponsor, meeting, event);
+      res.json({ ok: true, sentTo: attendee?.email, meeting: meeting.id });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message ?? String(err) });
+    }
+  });
+
+  app.get("/api/admin/test-email/meeting-sponsor-notification", requireAdmin, async (req, res) => {
+    try {
+      const meetings = await storage.getMeetings();
+      const meeting = meetings[0];
+      if (!meeting) return res.status(404).json({ error: "No meetings found to test with" });
+      const [attendee, sponsor, event] = await Promise.all([
+        storage.getAttendee(meeting.attendeeId),
+        storage.getSponsor(meeting.sponsorId),
+        storage.getEvent(meeting.eventId),
+      ]);
+      const tokens = await storage.getSponsorTokensBySponsor(meeting.sponsorId).catch(() => []);
+      const token = tokens.find((t: any) => t.isActive)?.token ?? null;
+      await sendMeetingNotificationToSponsor(storage, attendee, sponsor, meeting, event, token);
+      res.json({ ok: true, sentTo: sponsor?.contactEmail, meeting: meeting.id });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message ?? String(err) });
+    }
+  });
+
+  app.get("/api/admin/test-email/info-request-sponsor", requireAdmin, async (req, res) => {
+    try {
+      const requests = await storage.listInformationRequests({});
+      const request = requests[0];
+      if (!request) return res.status(404).json({ error: "No information requests found to test with" });
+      const [sponsor, event] = await Promise.all([
+        storage.getSponsor(request.sponsorId),
+        request.eventId ? storage.getEvent(request.eventId) : Promise.resolve(null),
+      ]);
+      const tokens = await storage.getSponsorTokensBySponsor(request.sponsorId).catch(() => []);
+      const token = tokens.find((t: any) => t.isActive)?.token ?? null;
+      await sendInformationRequestNotificationToSponsor(storage, null, sponsor, request, event, token);
+      res.json({ ok: true, sentTo: sponsor?.contactEmail, requestId: request.id });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message ?? String(err) });
+    }
+  });
+
+  app.get("/api/admin/test-email/info-request-attendee", requireAdmin, async (req, res) => {
+    try {
+      const requests = await storage.listInformationRequests({});
+      const request = requests[0];
+      if (!request) return res.status(404).json({ error: "No information requests found to test with" });
+      const [sponsor, event] = await Promise.all([
+        storage.getSponsor(request.sponsorId),
+        request.eventId ? storage.getEvent(request.eventId) : Promise.resolve(null),
+      ]);
+      await sendInformationRequestConfirmationToAttendee(storage, request, sponsor, event);
+      res.json({ ok: true, sentTo: request.attendeeEmail, requestId: request.id });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message ?? String(err) });
+    }
   });
 
   return httpServer;

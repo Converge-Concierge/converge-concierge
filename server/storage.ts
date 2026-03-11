@@ -173,6 +173,9 @@ export interface IStorage {
   // Sponsor analytics
   createAnalyticsEvent(data: { sponsorId: string; eventId: string; eventType: string }): Promise<void>;
   getAnalyticsSummary(sponsorId: string, eventId: string): Promise<{ profileViews: number; meetingCtaClicks: number }>;
+
+  // Email logs
+  createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null }): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -724,6 +727,8 @@ export class MemStorage implements IStorage {
   async getAnalyticsSummary(_sponsorId: string, _eventId: string): Promise<{ profileViews: number; meetingCtaClicks: number }> {
     return { profileViews: 0, meetingCtaClicks: 0 };
   }
+
+  async createEmailLog(_data: { emailType: string; recipientEmail: string; subject: string; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null }): Promise<void> {}
 }
 
 export const storage = new DatabaseStorage();

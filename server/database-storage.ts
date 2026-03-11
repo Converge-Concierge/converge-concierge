@@ -4,7 +4,7 @@ import { db } from "./db";
 import {
   users, events, sponsors, attendees, meetings,
   sponsorTokens, sponsorNotifications, passwordResetTokens, appConfig, dataExchangeLogs,
-  userPermissions, permissionAuditLogs, informationRequests, sponsorAnalytics,
+  userPermissions, permissionAuditLogs, informationRequests, sponsorAnalytics, emailLogs,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -743,5 +743,21 @@ export class DatabaseStorage implements IStorage {
       profileViews: rows.filter((r) => r.eventType === "profile_view").length,
       meetingCtaClicks: rows.filter((r) => r.eventType === "meeting_cta_click").length,
     };
+  }
+
+  async createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null }): Promise<void> {
+    await db.insert(emailLogs).values({
+      id: randomUUID(),
+      emailType: data.emailType,
+      recipientEmail: data.recipientEmail,
+      subject: data.subject,
+      eventId: data.eventId ?? null,
+      sponsorId: data.sponsorId ?? null,
+      attendeeId: data.attendeeId ?? null,
+      status: data.status,
+      errorMessage: data.errorMessage ?? null,
+      sentAt: new Date(),
+      createdAt: new Date(),
+    });
   }
 }

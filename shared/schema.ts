@@ -578,6 +578,33 @@ export const insertSponsorAnalyticsSchema = createInsertSchema(sponsorAnalytics)
 export type InsertSponsorAnalytics = z.infer<typeof insertSponsorAnalyticsSchema>;
 export type SponsorAnalytics = typeof sponsorAnalytics.$inferSelect;
 
+// ── Email Logs ────────────────────────────────────────────────────────────────
+
+export const EMAIL_LOG_TYPES = [
+  "meeting_confirmation_attendee",
+  "meeting_notification_sponsor",
+  "info_request_notification_sponsor",
+  "info_request_confirmation_attendee",
+] as const;
+export type EmailLogType = typeof EMAIL_LOG_TYPES[number];
+
+export const emailLogs = pgTable("email_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  emailType: text("email_type").notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  subject: text("subject").notNull(),
+  eventId: varchar("event_id"),
+  sponsorId: varchar("sponsor_id"),
+  attendeeId: varchar("attendee_id"),
+  status: text("status", { enum: ["sent", "failed"] }).notNull(),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type EmailLog = typeof emailLogs.$inferSelect;
+export type InsertEmailLog = typeof emailLogs.$inferInsert;
+
 // ── Password Reset Tokens ─────────────────────────────────────────────────────
 
 export const passwordResetTokens = pgTable("password_reset_tokens", {

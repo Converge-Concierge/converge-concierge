@@ -1,0 +1,169 @@
+Add Selected Event Dates and Countdown Under “Dashboard” (Keep Current Layout Unchanged)
+
+Keep the current Admin Dashboard layout exactly as it is.
+
+Do not move:
+
+the Dashboard title
+
+the event tabs
+
+the event logo
+
+the KPI cards
+
+any existing section layout
+
+The only change is to add a small event context line immediately under “Dashboard” when a specific event tab is selected.
+
+1. Add Event Date and Countdown Under “Dashboard”
+
+When a specific event tab is selected, display a compact line of event context directly under the Dashboard title.
+
+Required content
+
+Show:
+
+selected event date range
+
+countdown in days until the first day of the event
+
+Example:
+
+February 5–7, 2027 • Starts in 312 days
+
+This should appear immediately under:
+
+Dashboard
+2. Keep Layout the Same
+
+Do not reposition any existing elements.
+
+The new line should simply sit between:
+
+Dashboard title
+
+event tabs
+
+Example layout:
+
+Dashboard
+February 5–7, 2027 • Starts in 312 days
+
+[FRC2026] [TLS2026] [USBT2026] [CUGI2027] [AllEvents]
+
+Everything else on the page stays exactly where it is.
+
+3. Behavior by Tab Selection
+When a specific event tab is selected
+
+Show:
+
+the event’s formatted date range
+
+countdown to the first day of the event
+
+Examples
+
+If event is upcoming:
+
+May 18–20, 2026 • Starts in 68 days
+
+If event is currently happening:
+
+May 18–20, 2026 • Event in progress
+
+If event is completed:
+
+May 18–20, 2026 • Event completed
+When “All Events” is selected
+
+Do not show this event date/countdown line.
+
+The line should only appear when a single event tab is active.
+
+4. Date Formatting
+
+Use clean human-readable date formatting.
+
+Preferred format
+Month Day–Day, Year
+
+Examples:
+
+May 18–20, 2026
+
+February 5–7, 2027
+
+If an event starts and ends in different months, format appropriately:
+
+May 30 – June 1, 2026
+
+Do not show raw timestamp strings.
+
+5. Countdown Logic
+
+The countdown should be based on the number of days until the first day of the selected event.
+
+Rules
+
+if event start date is in the future:
+
+show Starts in X days
+
+if current date is between event start and end:
+
+show Event in progress
+
+if event end date is in the past:
+
+show Event completed
+
+Use the event’s actual date fields already stored in the system.
+
+6. Styling Requirements
+
+The new line should be visually lighter than the Dashboard title, but still clearly readable.
+
+Recommended styling
+
+smaller than the Dashboard title
+
+medium weight or normal weight
+
+subtle color, consistent with existing admin UI text styling
+
+optional dot separator between date and countdown
+
+Example:
+
+February 5–7, 2027 • Starts in 312 days
+
+Do not style it as a banner or badge.
+It should feel like supportive context text.
+
+7. Acceptance Criteria
+
+This update is complete when:
+
+the current dashboard layout remains unchanged
+
+a selected event’s date range appears directly under “Dashboard”
+
+the countdown to the first day of the event appears on the same line
+
+the line updates when a different event tab is selected
+
+the line disappears when All Events is selected
+
+completed and in-progress events show appropriate status text
+
+8. Success Standard
+
+After this update, admins should be able to glance at the top of the dashboard and immediately see:
+
+which event is selected
+
+when it takes place
+
+how close it is

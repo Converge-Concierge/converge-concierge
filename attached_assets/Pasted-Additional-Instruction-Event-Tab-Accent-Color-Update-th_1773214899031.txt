@@ -1,0 +1,95 @@
+Additional Instruction — Event Tab Accent Color
+
+Update the event tabs so the active tab uses the accent color from that event’s color scheme.
+
+This will make the dashboard feel more event-branded and visually consistent with the event identity.
+
+1. Active Tab Color Behavior
+
+When an event tab is selected, the tab should adopt that event’s accent color.
+
+Example mapping:
+
+Event	Tab Accent Color
+FRC2026	FRC primary brand color
+TLS2026	TLS primary brand color
+USBT2026	USBT primary brand color
+CUGI2027	CUGI primary brand color
+All Events	default Concierge / Converge brand color
+2. Styling Rules for Active Tab
+
+The active tab should visually change using the event accent color.
+
+Recommended behavior:
+
+Active tab should include:
+
+background color = event accent color
+
+text color adjusted for readability
+
+rounded tab style preserved
+
+subtle shadow or border retained if already present
+
+Example visual concept:
+
+[FRC2026]   TLS2026   USBT2026   CUGI2027   All Events
+
+Where FRC2026 tab background = FRC brand color.
+
+3. Inactive Tab Styling
+
+Inactive tabs should remain neutral.
+
+Requirements:
+
+light gray or default tab styling
+
+no event color applied
+
+hover state may lightly tint but should not adopt full event color
+
+This keeps the UI clean and prevents color overload.
+
+4. Color Source
+
+Each event should already have a defined primary color or accent color from the event branding.
+
+Use the event’s configured color value from the event settings or branding configuration.
+
+If no color is defined:
+
+fallback to the default Concierge brand color.
+
+5. All Events Tab Behavior
+
+When All Events is selected:
+
+apply the default Converge / Concierge primary brand color
+
+do not use any specific event color.
+
+6. Acceptance Criteria
+
+This enhancement is complete when:
+
+selecting an event tab changes the active tab background to the event’s accent color
+
+inactive tabs remain neutral
+
+switching tabs dynamically updates the tab color
+
+the All Events tab uses the default Concierge brand color
+
+readability and accessibility are preserved
+
+7. UX Goal
+
+This change should make the Admin Dashboard feel:
+
+more visually connected to the selected event
+
+more polished and branded
+
+easier to visually identify which event is active.

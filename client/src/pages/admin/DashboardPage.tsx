@@ -106,6 +106,37 @@ export default function DashboardPage() {
   , [selectedEventId, events]);
 
   const accentBarColor = selectedEvent?.accentColor ?? branding?.accentColor ?? "#0D9488";
+  const defaultTabColor = branding?.accentColor ?? "#0D9488";
+
+  // Formatted event date range + countdown shown under the title
+  const eventContextLine = useMemo(() => {
+    if (!selectedEvent?.startDate) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(selectedEvent.startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = selectedEvent.endDate ? new Date(selectedEvent.endDate) : new Date(start);
+    end.setHours(0, 0, 0, 0);
+
+    let dateStr: string;
+    if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+      dateStr = `${format(start, "MMMM d")}–${format(end, "d")}, ${format(end, "yyyy")}`;
+    } else {
+      dateStr = `${format(start, "MMMM d")} – ${format(end, "MMMM d")}, ${format(end, "yyyy")}`;
+    }
+
+    let countdownStr: string;
+    if (today > end) {
+      countdownStr = "Event completed";
+    } else if (today >= start && today <= end) {
+      countdownStr = "Event in progress";
+    } else {
+      const diffDays = Math.ceil((start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      countdownStr = `Starts in ${diffDays} day${diffDays !== 1 ? "s" : ""}`;
+    }
+
+    return `${dateStr} · ${countdownStr}`;
+  }, [selectedEvent]);
 
   const headerLogoUrl = useMemo(() => {
     if (selectedEventId !== "all" && selectedEvent?.logoUrl) return selectedEvent.logoUrl;
@@ -253,8 +284,15 @@ export default function DashboardPage() {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
+          {eventContextLine && (
+            <p className="text-sm text-muted-foreground mt-1" data-testid="text-event-context-line">
+              {eventContextLine}
+            </p>
+          )}
+        </div>
         <div className="flex items-center justify-end h-24 shrink-0">
           <img
             src={headerLogoUrl}
@@ -269,30 +307,32 @@ export default function DashboardPage() {
       {/* Event Tabs */}
       <div className="overflow-x-auto pb-1">
         <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
-          {sortedEventsForSelector.map((event) => (
-            <button
-              key={event.id}
-              data-testid={`event-tab-${event.id}`}
-              onClick={() => setSelectedEventId(event.id)}
-              className={cn(
-                "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
-                selectedEventId === event.id
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
-              )}
-            >
-              {event.slug ?? event.name}
-            </button>
-          ))}
+          {sortedEventsForSelector.map((event) => {
+            const isActive = selectedEventId === event.id;
+            const tabColor = event.accentColor ?? defaultTabColor;
+            return (
+              <button
+                key={event.id}
+                data-testid={`event-tab-${event.id}`}
+                onClick={() => setSelectedEventId(event.id)}
+                className={cn(
+                  "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                  isActive ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                )}
+                style={isActive ? { backgroundColor: tabColor, color: "#ffffff" } : undefined}
+              >
+                {event.slug ?? event.name}
+              </button>
+            );
+          })}
           <button
             data-testid="event-tab-all"
             onClick={() => setSelectedEventId("all")}
             className={cn(
               "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
-              selectedEventId === "all"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+              selectedEventId === "all" ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
             )}
+            style={selectedEventId === "all" ? { backgroundColor: defaultTabColor, color: "#ffffff" } : undefined}
           >
             All Events
           </button>

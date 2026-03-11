@@ -7,6 +7,7 @@ import {
   sponsorUsers, sponsorLoginTokens, emailTemplates,
   userPermissions, permissionAuditLogs, informationRequests, sponsorAnalytics, emailLogs,
   agreementPackageTemplates, agreementDeliverableTemplateItems, agreementDeliverables,
+  agreementDeliverableRegistrants, agreementDeliverableSpeakers,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -23,6 +24,8 @@ import {
   type PackageTemplate, type InsertPackageTemplate,
   type DeliverableTemplateItem, type InsertDeliverableTemplateItem,
   type AgreementDeliverable, type InsertAgreementDeliverable,
+  type AgreementDeliverableRegistrant, type InsertAgreementDeliverableRegistrant,
+  type AgreementDeliverableSpeaker, type InsertAgreementDeliverableSpeaker,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -1233,5 +1236,55 @@ export class DatabaseStorage implements IStorage {
       created.push(row);
     }
     return created;
+  }
+
+  async listDeliverableRegistrants(agreementDeliverableId: string): Promise<AgreementDeliverableRegistrant[]> {
+    return db.select().from(agreementDeliverableRegistrants)
+      .where(eq(agreementDeliverableRegistrants.agreementDeliverableId, agreementDeliverableId))
+      .orderBy(agreementDeliverableRegistrants.createdAt);
+  }
+
+  async createDeliverableRegistrant(data: InsertAgreementDeliverableRegistrant): Promise<AgreementDeliverableRegistrant> {
+    const [row] = await db.insert(agreementDeliverableRegistrants).values({
+      ...data, title: data.title ?? null, email: data.email ?? null,
+    }).returning();
+    return row;
+  }
+
+  async updateDeliverableRegistrant(id: string, data: Partial<InsertAgreementDeliverableRegistrant>): Promise<AgreementDeliverableRegistrant> {
+    const [row] = await db.update(agreementDeliverableRegistrants)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(agreementDeliverableRegistrants.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteDeliverableRegistrant(id: string): Promise<void> {
+    await db.delete(agreementDeliverableRegistrants).where(eq(agreementDeliverableRegistrants.id, id));
+  }
+
+  async listDeliverableSpeakers(agreementDeliverableId: string): Promise<AgreementDeliverableSpeaker[]> {
+    return db.select().from(agreementDeliverableSpeakers)
+      .where(eq(agreementDeliverableSpeakers.agreementDeliverableId, agreementDeliverableId))
+      .orderBy(agreementDeliverableSpeakers.createdAt);
+  }
+
+  async createDeliverableSpeaker(data: InsertAgreementDeliverableSpeaker): Promise<AgreementDeliverableSpeaker> {
+    const [row] = await db.insert(agreementDeliverableSpeakers).values({
+      ...data, speakerTitle: data.speakerTitle ?? null, speakerBio: data.speakerBio ?? null,
+    }).returning();
+    return row;
+  }
+
+  async updateDeliverableSpeaker(id: string, data: Partial<InsertAgreementDeliverableSpeaker>): Promise<AgreementDeliverableSpeaker> {
+    const [row] = await db.update(agreementDeliverableSpeakers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(agreementDeliverableSpeakers.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteDeliverableSpeaker(id: string): Promise<void> {
+    await db.delete(agreementDeliverableSpeakers).where(eq(agreementDeliverableSpeakers.id, id));
   }
 }

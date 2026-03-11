@@ -2103,6 +2103,214 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(updated);
   });
 
+  // ── Sponsor Dashboard: Agreement Deliverables (Phase 2) ───────────────────
+
+  // GET /api/sponsor-dashboard/agreement-deliverables — list sponsor-visible deliverables with child records
+  app.get("/api/sponsor-dashboard/agreement-deliverables", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const all = await storage.listAgreementDeliverables({ sponsorId: tokenRecord.sponsorId, eventId: tokenRecord.eventId });
+    const visible = all.filter((d) => d.sponsorVisible);
+
+    // Attach child records for each deliverable in parallel
+    const withChildren = await Promise.all(visible.map(async (d) => {
+      const { internalNote: _drop, ...safe } = d as typeof d & { internalNote: unknown };
+      const registrants = await storage.listDeliverableRegistrants(d.id);
+      const speakers = await storage.listDeliverableSpeakers(d.id);
+      return { ...safe, registrants, speakers };
+    }));
+
+    res.json(withChildren);
+  });
+
+  // PATCH /api/sponsor-dashboard/agreement-deliverables/:id — sponsor updates text input or status
+  app.patch("/api/sponsor-dashboard/agreement-deliverables/:id", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const deliverable = await storage.getAgreementDeliverable(req.params.id);
+    if (!deliverable) return res.status(404).json({ error: "Not found" });
+    if (deliverable.sponsorId !== tokenRecord.sponsorId || deliverable.eventId !== tokenRecord.eventId) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    if (!deliverable.sponsorEditable) return res.status(403).json({ error: "This deliverable is not sponsor-editable" });
+
+    const allowed: Record<string, unknown> = {};
+    if (req.body.deliverableDescription !== undefined) allowed.deliverableDescription = req.body.deliverableDescription;
+    if (req.body.sponsorFacingNote !== undefined) allowed.sponsorFacingNote = req.body.sponsorFacingNote;
+    if (req.body.status !== undefined) allowed.status = req.body.status;
+
+    const updated = await storage.updateAgreementDeliverable(req.params.id, allowed);
+    const { internalNote: _drop, ...safe } = updated as typeof updated & { internalNote: unknown };
+    res.json(safe);
+  });
+
+  // GET /api/sponsor-dashboard/agreement-deliverables/:id/registrants
+  app.get("/api/sponsor-dashboard/agreement-deliverables/:id/registrants", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const deliverable = await storage.getAgreementDeliverable(req.params.id);
+    if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
+
+    res.json(await storage.listDeliverableRegistrants(req.params.id));
+  });
+
+  // POST /api/sponsor-dashboard/agreement-deliverables/:id/registrants
+  app.post("/api/sponsor-dashboard/agreement-deliverables/:id/registrants", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const deliverable = await storage.getAgreementDeliverable(req.params.id);
+    if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
+    if (!deliverable.sponsorEditable) return res.status(403).json({ error: "Not editable" });
+
+    const { name, title, email } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: "name is required" });
+
+    const registrant = await storage.createDeliverableRegistrant({ agreementDeliverableId: req.params.id, name: name.trim(), title: title?.trim() ?? null, email: email?.trim() ?? null });
+
+    // Auto-update status if all quantity filled
+    const all = await storage.listDeliverableRegistrants(req.params.id);
+    if (deliverable.quantity && all.length >= deliverable.quantity) {
+      await storage.updateAgreementDeliverable(req.params.id, { status: "Submitted" });
+    } else if (deliverable.status === "Not Started" || deliverable.status === "Awaiting Sponsor Input") {
+      await storage.updateAgreementDeliverable(req.params.id, { status: "In Progress" });
+    }
+
+    res.json(registrant);
+  });
+
+  // PATCH /api/sponsor-dashboard/agreement-deliverables/:id/registrants/:rid
+  app.patch("/api/sponsor-dashboard/agreement-deliverables/:id/registrants/:rid", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const deliverable = await storage.getAgreementDeliverable(req.params.id);
+    if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
+    if (!deliverable.sponsorEditable) return res.status(403).json({ error: "Not editable" });
+
+    const { name, title, email } = req.body;
+    const updated = await storage.updateDeliverableRegistrant(req.params.rid, { name: name?.trim(), title: title?.trim() ?? null, email: email?.trim() ?? null });
+    res.json(updated);
+  });
+
+  // DELETE /api/sponsor-dashboard/agreement-deliverables/:id/registrants/:rid
+  app.delete("/api/sponsor-dashboard/agreement-deliverables/:id/registrants/:rid", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const deliverable = await storage.getAgreementDeliverable(req.params.id);
+    if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
+    if (!deliverable.sponsorEditable) return res.status(403).json({ error: "Not editable" });
+
+    await storage.deleteDeliverableRegistrant(req.params.rid);
+
+    // Update status if needed
+    const remaining = await storage.listDeliverableRegistrants(req.params.id);
+    if (remaining.length === 0) {
+      await storage.updateAgreementDeliverable(req.params.id, { status: "Awaiting Sponsor Input" });
+    } else if (deliverable.quantity && remaining.length < deliverable.quantity) {
+      await storage.updateAgreementDeliverable(req.params.id, { status: "In Progress" });
+    }
+
+    res.json({ ok: true });
+  });
+
+  // GET /api/sponsor-dashboard/agreement-deliverables/:id/speakers
+  app.get("/api/sponsor-dashboard/agreement-deliverables/:id/speakers", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const deliverable = await storage.getAgreementDeliverable(req.params.id);
+    if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
+
+    res.json(await storage.listDeliverableSpeakers(req.params.id));
+  });
+
+  // POST /api/sponsor-dashboard/agreement-deliverables/:id/speakers
+  app.post("/api/sponsor-dashboard/agreement-deliverables/:id/speakers", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const deliverable = await storage.getAgreementDeliverable(req.params.id);
+    if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
+    if (!deliverable.sponsorEditable) return res.status(403).json({ error: "Not editable" });
+
+    const { speakerName, speakerTitle, speakerBio } = req.body;
+    if (!speakerName?.trim()) return res.status(400).json({ error: "speakerName is required" });
+
+    const speaker = await storage.createDeliverableSpeaker({ agreementDeliverableId: req.params.id, speakerName: speakerName.trim(), speakerTitle: speakerTitle?.trim() ?? null, speakerBio: speakerBio?.trim() ?? null });
+
+    if (deliverable.status === "Not Started" || deliverable.status === "Awaiting Sponsor Input") {
+      await storage.updateAgreementDeliverable(req.params.id, { status: "Submitted" });
+    }
+
+    res.json(speaker);
+  });
+
+  // PATCH /api/sponsor-dashboard/agreement-deliverables/:id/speakers/:sid
+  app.patch("/api/sponsor-dashboard/agreement-deliverables/:id/speakers/:sid", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const deliverable = await storage.getAgreementDeliverable(req.params.id);
+    if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
+    if (!deliverable.sponsorEditable) return res.status(403).json({ error: "Not editable" });
+
+    const { speakerName, speakerTitle, speakerBio } = req.body;
+    const updated = await storage.updateDeliverableSpeaker(req.params.sid, { speakerName: speakerName?.trim(), speakerTitle: speakerTitle?.trim() ?? null, speakerBio: speakerBio?.trim() ?? null });
+    res.json(updated);
+  });
+
+  // DELETE /api/sponsor-dashboard/agreement-deliverables/:id/speakers/:sid
+  app.delete("/api/sponsor-dashboard/agreement-deliverables/:id/speakers/:sid", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const deliverable = await storage.getAgreementDeliverable(req.params.id);
+    if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
+    if (!deliverable.sponsorEditable) return res.status(403).json({ error: "Not editable" });
+
+    await storage.deleteDeliverableSpeaker(req.params.sid);
+    if (deliverable.status === "Submitted") {
+      await storage.updateAgreementDeliverable(req.params.id, { status: "Awaiting Sponsor Input" });
+    }
+
+    res.json({ ok: true });
+  });
+
   // Data Exchange: export information requests as JSON (frontend will convert to CSV)
   app.get("/api/admin/data-exchange/export/information-requests", requireAuth, async (req, res) => {
     const { eventId, sponsorId } = req.query as Record<string, string | undefined>;

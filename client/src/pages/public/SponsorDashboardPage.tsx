@@ -19,6 +19,7 @@ import { format, parseISO, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { downloadICS, googleCalendarUrl } from "@/lib/ics";
 import { SPONSOR_INFO_REQUEST_STATUSES } from "@shared/schema";
+import SponsorDeliverablesTab from "@/components/sponsor/SponsorDeliverablesTab";
 
 import { useToast } from "@/hooks/use-toast";
 
@@ -507,11 +508,12 @@ export default function SponsorDashboardPage() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 h-auto p-1 bg-muted/50 border border-border/40 rounded-xl mb-8">
+            <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-muted/50 border border-border/40 rounded-xl mb-8">
               <TabsTrigger value="overview" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Overview</TabsTrigger>
               <TabsTrigger value="meetings" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Meetings</TabsTrigger>
               <TabsTrigger value="info-requests" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Info Requests</TabsTrigger>
               <TabsTrigger value="leads" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Leads</TabsTrigger>
+              <TabsTrigger value="deliverables" data-testid="tab-deliverables" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Deliverables</TabsTrigger>
               <TabsTrigger value="reports" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Reports</TabsTrigger>
             </TabsList>
 
@@ -998,6 +1000,18 @@ export default function SponsorDashboardPage() {
                     </table>
                   </div>
                 )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="deliverables" className="outline-none">
+              <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden min-h-[500px]">
+                <div className="px-6 py-4 border-b border-border/50">
+                  <h2 className="text-sm font-semibold text-foreground">Agreement Deliverables</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Your sponsorship deliverables and action items</p>
+                </div>
+                <div className="p-6">
+                  <SponsorDeliverablesTab token={token} canEdit={canEdit} />
+                </div>
               </div>
             </TabsContent>
 

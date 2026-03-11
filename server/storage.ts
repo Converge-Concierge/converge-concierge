@@ -17,6 +17,8 @@ import {
   type PackageTemplate, type InsertPackageTemplate,
   type DeliverableTemplateItem, type InsertDeliverableTemplateItem,
   type AgreementDeliverable, type InsertAgreementDeliverable,
+  type AgreementDeliverableRegistrant, type InsertAgreementDeliverableRegistrant,
+  type AgreementDeliverableSpeaker, type InsertAgreementDeliverableSpeaker,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -233,6 +235,16 @@ export interface IStorage {
   updateAgreementDeliverable(id: string, data: Partial<InsertAgreementDeliverable>): Promise<AgreementDeliverable>;
   deleteAgreementDeliverable(id: string): Promise<void>;
   generateAgreementDeliverablesFromTemplate(sponsorId: string, eventId: string, packageTemplateId: string, sponsorshipLevel: string): Promise<AgreementDeliverable[]>;
+
+  listDeliverableRegistrants(agreementDeliverableId: string): Promise<AgreementDeliverableRegistrant[]>;
+  createDeliverableRegistrant(data: InsertAgreementDeliverableRegistrant): Promise<AgreementDeliverableRegistrant>;
+  updateDeliverableRegistrant(id: string, data: Partial<InsertAgreementDeliverableRegistrant>): Promise<AgreementDeliverableRegistrant>;
+  deleteDeliverableRegistrant(id: string): Promise<void>;
+
+  listDeliverableSpeakers(agreementDeliverableId: string): Promise<AgreementDeliverableSpeaker[]>;
+  createDeliverableSpeaker(data: InsertAgreementDeliverableSpeaker): Promise<AgreementDeliverableSpeaker>;
+  updateDeliverableSpeaker(id: string, data: Partial<InsertAgreementDeliverableSpeaker>): Promise<AgreementDeliverableSpeaker>;
+  deleteDeliverableSpeaker(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -849,6 +861,16 @@ export class MemStorage implements IStorage {
   async updateAgreementDeliverable(_id: string, _data: Partial<InsertAgreementDeliverable>): Promise<AgreementDeliverable> { return { id: _id, sponsorId: "", eventId: "", packageTemplateId: null, sponsorshipLevel: "", category: "", deliverableName: "", deliverableDescription: null, quantity: null, quantityUnit: null, ownerType: "Converge", sponsorEditable: false, sponsorVisible: true, fulfillmentType: "status_only", status: "Not Started", dueTiming: "not_applicable", dueDate: null, sponsorFacingNote: null, internalNote: null, isOverridden: false, isCustom: false, createdFromTemplateItemId: null, displayOrder: 0, completedAt: null, createdAt: new Date(), updatedAt: new Date() }; }
   async deleteAgreementDeliverable(_id: string): Promise<void> {}
   async generateAgreementDeliverablesFromTemplate(_sponsorId: string, _eventId: string, _packageTemplateId: string, _sponsorshipLevel: string): Promise<AgreementDeliverable[]> { return []; }
+
+  async listDeliverableRegistrants(_id: string): Promise<AgreementDeliverableRegistrant[]> { return []; }
+  async createDeliverableRegistrant(data: InsertAgreementDeliverableRegistrant): Promise<AgreementDeliverableRegistrant> { return { id: randomUUID(), ...data, title: data.title ?? null, email: data.email ?? null, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateDeliverableRegistrant(_id: string, _data: Partial<InsertAgreementDeliverableRegistrant>): Promise<AgreementDeliverableRegistrant> { return { id: _id, agreementDeliverableId: "", name: "", title: null, email: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async deleteDeliverableRegistrant(_id: string): Promise<void> {}
+
+  async listDeliverableSpeakers(_id: string): Promise<AgreementDeliverableSpeaker[]> { return []; }
+  async createDeliverableSpeaker(data: InsertAgreementDeliverableSpeaker): Promise<AgreementDeliverableSpeaker> { return { id: randomUUID(), ...data, speakerTitle: data.speakerTitle ?? null, speakerBio: data.speakerBio ?? null, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateDeliverableSpeaker(_id: string, _data: Partial<InsertAgreementDeliverableSpeaker>): Promise<AgreementDeliverableSpeaker> { return { id: _id, agreementDeliverableId: "", speakerName: "", speakerTitle: null, speakerBio: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async deleteDeliverableSpeaker(_id: string): Promise<void> {}
 }
 
 export const storage = new DatabaseStorage();

@@ -807,3 +807,31 @@ export const agreementDeliverables = pgTable("agreement_deliverables", {
 export const insertAgreementDeliverableSchema = createInsertSchema(agreementDeliverables).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertAgreementDeliverable = z.infer<typeof insertAgreementDeliverableSchema>;
 export type AgreementDeliverable = typeof agreementDeliverables.$inferSelect;
+
+// 2D — Sponsor-submitted registrant entries (e.g., VIP registrations)
+export const agreementDeliverableRegistrants = pgTable("agreement_deliverable_registrants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  agreementDeliverableId: varchar("agreement_deliverable_id").notNull(),
+  name: varchar("name").notNull(),
+  title: varchar("title"),
+  email: varchar("email"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+export const insertAgreementDeliverableRegistrantSchema = createInsertSchema(agreementDeliverableRegistrants).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAgreementDeliverableRegistrant = z.infer<typeof insertAgreementDeliverableRegistrantSchema>;
+export type AgreementDeliverableRegistrant = typeof agreementDeliverableRegistrants.$inferSelect;
+
+// 2E — Sponsor-submitted speaker details
+export const agreementDeliverableSpeakers = pgTable("agreement_deliverable_speakers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  agreementDeliverableId: varchar("agreement_deliverable_id").notNull(),
+  speakerName: varchar("speaker_name").notNull(),
+  speakerTitle: varchar("speaker_title"),
+  speakerBio: text("speaker_bio"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+export const insertAgreementDeliverableSpeakerSchema = createInsertSchema(agreementDeliverableSpeakers).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAgreementDeliverableSpeaker = z.infer<typeof insertAgreementDeliverableSpeakerSchema>;
+export type AgreementDeliverableSpeaker = typeof agreementDeliverableSpeakers.$inferSelect;

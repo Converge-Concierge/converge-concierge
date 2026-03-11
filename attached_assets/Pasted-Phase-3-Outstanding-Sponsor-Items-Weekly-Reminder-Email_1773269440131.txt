@@ -1,0 +1,607 @@
+Phase 3 — Outstanding Sponsor Items + Weekly Reminder Emails + Admin Follow-Up Workflow
+
+Phase 2 is being implemented. The next step is to operationalize Agreement Deliverables so Julie and the team can easily manage outstanding sponsor inputs and the system can automatically remind sponsors when action is needed.
+
+This phase should make Agreement Deliverables usable as an ongoing sponsor follow-up system, not just a dashboard display.
+
+Primary Goal
+
+Create an admin workflow where the team can:
+
+see all outstanding sponsor-responsible items across sponsors and events
+
+quickly identify which sponsors still owe inputs
+
+send manual reminders when needed
+
+automatically send a weekly reminder email if sponsor-owned deliverables remain incomplete
+
+This phase should improve sponsor activation and reduce manual back-and-forth.
+
+Scope for Phase 3
+Build now
+
+Agreement Deliverables → Outstanding Sponsor Items admin screen
+
+filters and actions for follow-up
+
+manual reminder send from admin
+
+weekly reminder email job
+
+reminder eligibility logic
+
+sponsor reminder email template
+
+reminder logging
+
+dashboard/alert tie-ins where appropriate
+
+Do not build yet
+
+Cloudflare R2 uploads
+
+deliverable file attachments
+
+Zoho Projects sync
+
+sponsor-facing activity timeline
+
+advanced analytics / trend charts
+
+SMS reminders
+
+1. Build Admin Screen: Outstanding Sponsor Items
+
+Inside:
+
+Agreement Deliverables → Outstanding Sponsor Items
+
+create a dedicated admin list view that shows all sponsor-responsible deliverables that are still incomplete.
+
+This should become Julie’s primary follow-up screen.
+
+1A. List purpose
+
+This screen should answer:
+
+which sponsors still owe something?
+
+what exactly is missing?
+
+is it overdue?
+
+has a reminder been sent?
+
+who should be contacted?
+
+1B. Table columns
+
+Use columns like:
+
+Event
+
+Sponsor
+
+Sponsorship Level
+
+Deliverable
+
+Category
+
+Status
+
+Due Date / Due Timing
+
+Last Sponsor Activity
+
+Last Reminder Sent
+
+Reminder Eligible
+
+Actions
+
+If needed on smaller screens, Category or Sponsorship Level can collapse.
+
+1C. Filters
+
+Add filters:
+
+Event
+
+Sponsor
+
+Sponsorship Level
+
+Category
+
+Status
+
+Overdue Only
+
+Reminder Eligible Only
+
+Search
+
+Keep filters compact and aligned.
+
+1D. Actions
+
+For each row include:
+
+Open Agreement
+
+Send Reminder
+
+Mark Received / Update Status
+
+Add Note
+
+If status editing is already handled better in the agreement detail view, keep this lightweight.
+
+2. Define Reminder Eligibility Logic
+
+Only certain deliverables should trigger reminder emails.
+
+The system should send reminders only for sponsor-responsible items that still require sponsor action.
+
+2A. Reminder-eligible deliverables
+
+A deliverable is eligible for reminder if:
+
+reminder_eligible = true
+
+sponsor_visible = true
+
+owner_type = Sponsor
+or
+
+owner_type = Shared AND currently blocked on sponsor input
+
+And the status is one of:
+
+Awaiting Sponsor Input
+
+Not Started
+
+Needed
+
+Issue Identified
+
+Blocked (only if blocked because of sponsor input)
+
+2B. Exclude from reminders if:
+
+status = Delivered
+
+status = Approved
+
+status = Scheduled (if no sponsor action needed)
+
+status = Available After Event
+
+owner_type = Converge only
+
+sponsor has no active sponsor users
+
+2C. COI logic
+
+For Certificate of Insurance, include in reminders only when status is:
+
+Needed
+
+Issue Identified
+
+Exclude when:
+
+Received
+
+Under Review
+
+Approved
+
+3. Add Reminder Tracking Fields
+
+Extend the deliverable or reminder logging structure so the system can track reminder activity.
+
+You may choose either:
+
+reminder fields directly on agreement_deliverables
+
+a separate reminder log table
+
+Preferred: separate reminder log table for cleaner history.
+
+3A. Create reminder log table
+
+Suggested name:
+
+agreement_deliverable_reminders
+
+Suggested fields:
+
+id
+agreement_deliverable_id
+sponsor_id
+event_id
+recipient_email
+reminder_type
+sent_by_role
+sent_by_user_id nullable
+sent_at
+status
+error_message nullable
+created_at
+reminder_type values
+
+weekly_automatic
+
+manual_admin
+
+This table will support auditability and future reporting.
+
+4. Build Weekly Reminder Email Job
+
+Implement a scheduled process that runs once per week and sends reminder emails to sponsors with outstanding sponsor-owned deliverables.
+
+4A. Frequency
+
+Run weekly on a fixed schedule.
+
+Recommended:
+
+every Tuesday morning
+or
+
+every Wednesday morning
+
+Pick one and keep it consistent.
+
+4B. Recipient logic
+
+Initially send reminders to:
+
+the primary sponsor Owner only
+
+Later you may optionally include Editors, but do not do that now.
+
+4C. Weekly reminder grouping
+
+Do not send one email per deliverable.
+
+Instead:
+
+group all outstanding reminder-eligible items for a sponsor + event into one weekly email
+
+This is cleaner and more professional.
+
+Example:
+
+Winnow / FRC2026 gets one reminder email listing all outstanding items
+
+4D. Do not send if:
+
+sponsor has no outstanding reminder-eligible items
+
+sponsor has no active owner user
+
+reminder was already sent in the same weekly cycle if you track cycles
+
+sponsorship is inactive / archived if such a concept exists
+
+5. Build Reminder Email Template
+
+Create a new email template:
+
+agreement_deliverables_reminder
+
+This template should be admin-editable later through Email Center if possible, but at minimum implement it now.
+
+5A. Subject line
+
+Use:
+
+Action Needed: Outstanding Sponsorship Items for [Event Name]
+
+Example:
+
+Action Needed: Outstanding Sponsorship Items for The 2026 Fintech Risk & Compliance Forum
+5B. Email body
+
+Keep the email concise and useful.
+
+Recommended structure:
+
+sponsor greeting
+
+short explanation
+
+list of outstanding items
+
+due dates if available
+
+direct link to Sponsor Dashboard Agreement Deliverables tab
+
+Example body logic:
+
+Hello [Name],
+
+To help finalize your sponsorship setup for [Event Name], the following items still need your attention:
+
+Company Logo
+
+VIP Registrations
+
+Speaker Details
+
+Certificate of Insurance
+
+[Open Sponsor Dashboard]
+
+Thank you,
+Converge Concierge
+Converge Events
+
+5C. Dashboard link
+
+Link directly to the sponsor dashboard, ideally to the Agreement Deliverables tab.
+
+If the dashboard supports tab query params or anchors, use them.
+
+Example concept:
+
+/sponsor/dashboard?tab=agreement-deliverables
+
+Use your actual route structure.
+
+6. Build Manual Reminder Send
+
+On the admin side, allow manual sending of reminders.
+
+This should work from:
+
+Outstanding Sponsor Items list
+
+Sponsor Agreement detail screen
+
+6A. Manual send behavior
+
+When admin clicks Send Reminder:
+
+gather all outstanding reminder-eligible items for that sponsor/event
+
+send one grouped reminder email
+
+log it in agreement_deliverable_reminders
+
+show success/failure message
+
+Do not send just for the selected row unless that is the only eligible item.
+The better sponsor experience is one grouped reminder email.
+
+6B. Confirmation text
+
+Use a confirmation modal:
+
+Send a reminder to [Sponsor Name] for all outstanding sponsorship items for [Event Name]?
+
+Buttons:
+
+Cancel
+
+Send Reminder
+
+7. Add “Last Reminder Sent” Visibility
+
+This is important for Julie.
+
+In both:
+
+Outstanding Sponsor Items list
+
+Sponsor Agreement detail screen
+
+show:
+
+Last Reminder Sent date
+
+reminder type if helpful
+
+This prevents accidental over-reminding.
+
+8. Add Admin Agreement Detail Improvements
+
+Extend the existing Sponsor Agreement detail view with a lightweight operational follow-up section.
+
+8A. Overview tab additions
+
+Add a block:
+
+Outstanding Sponsor Items
+
+Show:
+
+count of items awaiting sponsor input
+
+last reminder sent
+
+button: Send Reminder
+
+Optionally show the top few outstanding items directly.
+
+8B. Sponsor Inputs tab
+
+If a Sponsor Inputs tab was stubbed earlier, make it functional now.
+
+This tab should show only:
+
+Sponsor-owned items
+
+Shared items waiting on sponsor
+
+Columns:
+
+Deliverable
+
+Status
+
+Due Date
+
+Last Sponsor Activity
+
+Last Reminder Sent
+
+Actions
+
+Actions:
+
+Send Reminder
+
+Open Deliverable
+
+Update Status
+
+This tab may become Julie’s main sponsor-level follow-up view.
+
+9. Add Admin Dashboard Tie-Ins
+
+Agreement Deliverables should start surfacing into the main Admin Dashboard.
+
+Do not overbuild, but add at least one operational tie-in.
+
+9A. Needs Attention section
+
+Add alert types such as:
+
+Sponsors with outstanding sponsorship inputs
+
+Sponsors missing COI
+
+Sponsors with incomplete Agreement Deliverables
+
+Each alert should deep-link to:
+
+Outstanding Sponsor Items
+or
+
+filtered Sponsor Agreements
+
+9B. Example alert text
+
+4 sponsors have outstanding sponsorship inputs
+
+2 sponsors still need Certificate of Insurance
+
+3 sponsors have not completed required setup items
+
+Keep CTAs actionable.
+
+10. Add Reminder Status Filtering
+
+In Outstanding Sponsor Items, add quick filters such as:
+
+Never Reminded
+
+Reminded This Week
+
+Reminder Eligible
+
+Overdue
+
+This will make the screen far more useful operationally.
+
+11. Add Simple “Overdue” Logic
+
+If a deliverable has a specific due_date and the current date has passed, mark it as overdue in the admin UI.
+
+Do not change status automatically unless you already have that pattern.
+
+Instead:
+
+add visual overdue indicator
+
+make it filterable
+
+This helps prioritize follow-up.
+
+12. Reminder Logging in Email Center
+
+If practical, log reminder emails into the existing Email Center as well.
+
+Use email type such as:
+
+agreement_deliverables_reminder
+
+This will help admins troubleshoot delivery.
+
+If this is already naturally handled by your email service layer, just ensure the type is distinguishable.
+
+13. Access Control
+
+Only admins with appropriate permissions should be able to:
+
+view Outstanding Sponsor Items
+
+send reminders
+
+update sponsor-owned deliverable statuses
+
+Sponsors should never access the admin reminder tools.
+
+If permissions are already granular, add or reuse:
+
+View Agreement Deliverables
+
+Edit Agreement Deliverables
+
+Send Deliverable Reminders
+
+14. Keep File Support Out of Scope
+
+Some reminder-eligible items will eventually involve uploads (logo, headshot, etc.), but in this phase do not implement actual file upload.
+
+The reminder system should work purely off:
+
+status
+
+sponsor-editable text/structured inputs
+
+sponsor-visible deliverables
+
+This keeps the phase focused.
+
+15. Acceptance Criteria
+
+Phase 3 is complete when:
+
+admin can open Outstanding Sponsor Items
+
+the list correctly shows sponsor-responsible incomplete deliverables
+
+admin can filter and review outstanding items
+
+manual grouped reminder emails can be sent
+
+weekly grouped reminder emails send automatically
+
+reminder eligibility logic works correctly
+
+COI is handled as a status-only compliance item
+
+last reminder sent is visible in admin
+
+reminder emails are logged
+
+16. Success Standard
+
+After Phase 3, Julie and the team should be able to:
+
+quickly see what sponsors still owe
+
+remind sponsors without manual email drafting
+
+trust the system to send weekly follow-ups automatically
+
+reduce missed sponsorship inputs and improve sponsor activation
+
+That is the standard this phase should meet.

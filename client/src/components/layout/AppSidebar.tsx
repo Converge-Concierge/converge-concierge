@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Mail,
   Inbox,
+  ClipboardList,
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,6 +39,7 @@ const mainItems = [
   { title: "Attendees", url: "/admin/attendees", icon: Users },
   { title: "Meetings", url: "/admin/meetings", icon: Handshake },
   { title: "Info Requests", url: "/admin/information-requests", icon: Mail },
+  { title: "Agreement Deliverables", url: "/admin/agreement", icon: ClipboardList },
   { title: "Email Center", url: "/admin/email-center", icon: Inbox },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
   { title: "Data Exchange", url: "/admin/data-exchange", icon: ArrowLeftRight },
@@ -83,7 +85,9 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainItems.map((item) => {
-                const isActive = location === item.url;
+                const isActive = item.url === "/admin"
+                  ? location === item.url
+                  : location === item.url || location.startsWith(item.url + "/");
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton

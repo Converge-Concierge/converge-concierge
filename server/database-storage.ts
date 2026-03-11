@@ -6,6 +6,7 @@ import {
   sponsorTokens, sponsorNotifications, passwordResetTokens, appConfig, dataExchangeLogs,
   sponsorUsers, sponsorLoginTokens, emailTemplates,
   userPermissions, permissionAuditLogs, informationRequests, sponsorAnalytics, emailLogs,
+  agreementPackageTemplates, agreementDeliverableTemplateItems, agreementDeliverables,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -19,6 +20,9 @@ import {
   type EmailLog,
   type SponsorUser, type SponsorLoginToken,
   type EmailTemplate,
+  type PackageTemplate, type InsertPackageTemplate,
+  type DeliverableTemplateItem, type InsertDeliverableTemplateItem,
+  type AgreementDeliverable, type InsertAgreementDeliverable,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -1028,5 +1032,206 @@ export class DatabaseStorage implements IStorage {
   async getEmailLog(id: string): Promise<EmailLog | undefined> {
     const rows = await db.select().from(emailLogs).where(eq(emailLogs.id, id));
     return rows[0];
+  }
+
+  // ── Agreement Package Templates ────────────────────────────────────────────
+
+  async listPackageTemplates(filters?: { sponsorshipLevel?: string; isArchived?: boolean }): Promise<PackageTemplate[]> {
+    const rows = await db.select().from(agreementPackageTemplates).orderBy(agreementPackageTemplates.sponsorshipLevel, agreementPackageTemplates.packageName);
+    return rows.filter((r) => {
+      if (filters?.sponsorshipLevel && r.sponsorshipLevel !== filters.sponsorshipLevel) return false;
+      if (filters?.isArchived !== undefined && r.isArchived !== filters.isArchived) return false;
+      return true;
+    });
+  }
+
+  async getPackageTemplate(id: string): Promise<PackageTemplate | undefined> {
+    const [row] = await db.select().from(agreementPackageTemplates).where(eq(agreementPackageTemplates.id, id)).limit(1);
+    return row;
+  }
+
+  async createPackageTemplate(data: InsertPackageTemplate): Promise<PackageTemplate> {
+    const [row] = await db.insert(agreementPackageTemplates).values({
+      id: randomUUID(),
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return row;
+  }
+
+  async updatePackageTemplate(id: string, data: Partial<InsertPackageTemplate>): Promise<PackageTemplate> {
+    const [row] = await db.update(agreementPackageTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(agreementPackageTemplates.id, id))
+      .returning();
+    return row;
+  }
+
+  async archivePackageTemplate(id: string): Promise<PackageTemplate> {
+    const [row] = await db.update(agreementPackageTemplates)
+      .set({ isArchived: true, isActive: false, updatedAt: new Date() })
+      .where(eq(agreementPackageTemplates.id, id))
+      .returning();
+    return row;
+  }
+
+  async duplicatePackageTemplate(id: string, newName: string): Promise<PackageTemplate> {
+    const original = await this.getPackageTemplate(id);
+    if (!original) throw new Error("Package template not found");
+    const items = await this.listDeliverableTemplateItems(id);
+    const [newTemplate] = await db.insert(agreementPackageTemplates).values({
+      id: randomUUID(),
+      packageName: newName,
+      sponsorshipLevel: original.sponsorshipLevel,
+      eventId: original.eventId,
+      eventFamily: original.eventFamily,
+      year: original.year,
+      description: original.description,
+      isActive: true,
+      isArchived: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    for (const item of items) {
+      await db.insert(agreementDeliverableTemplateItems).values({
+        id: randomUUID(),
+        packageTemplateId: newTemplate.id,
+        category: item.category,
+        deliverableName: item.deliverableName,
+        deliverableDescription: item.deliverableDescription,
+        defaultQuantity: item.defaultQuantity,
+        quantityUnit: item.quantityUnit,
+        ownerType: item.ownerType,
+        sponsorEditable: item.sponsorEditable,
+        sponsorVisible: item.sponsorVisible,
+        fulfillmentType: item.fulfillmentType,
+        reminderEligible: item.reminderEligible,
+        dueTiming: item.dueTiming,
+        dueOffsetDays: item.dueOffsetDays,
+        displayOrder: item.displayOrder,
+        isActive: item.isActive,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+    return newTemplate;
+  }
+
+  // ── Deliverable Template Items ─────────────────────────────────────────────
+
+  async listDeliverableTemplateItems(packageTemplateId: string): Promise<DeliverableTemplateItem[]> {
+    return db.select().from(agreementDeliverableTemplateItems)
+      .where(eq(agreementDeliverableTemplateItems.packageTemplateId, packageTemplateId))
+      .orderBy(agreementDeliverableTemplateItems.category, agreementDeliverableTemplateItems.displayOrder);
+  }
+
+  async getDeliverableTemplateItem(id: string): Promise<DeliverableTemplateItem | undefined> {
+    const [row] = await db.select().from(agreementDeliverableTemplateItems).where(eq(agreementDeliverableTemplateItems.id, id)).limit(1);
+    return row;
+  }
+
+  async createDeliverableTemplateItem(data: InsertDeliverableTemplateItem): Promise<DeliverableTemplateItem> {
+    const [row] = await db.insert(agreementDeliverableTemplateItems).values({
+      id: randomUUID(),
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return row;
+  }
+
+  async updateDeliverableTemplateItem(id: string, data: Partial<InsertDeliverableTemplateItem>): Promise<DeliverableTemplateItem> {
+    const [row] = await db.update(agreementDeliverableTemplateItems)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(agreementDeliverableTemplateItems.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteDeliverableTemplateItem(id: string): Promise<void> {
+    await db.delete(agreementDeliverableTemplateItems).where(eq(agreementDeliverableTemplateItems.id, id));
+  }
+
+  // ── Agreement Deliverables ─────────────────────────────────────────────────
+
+  async listAgreementDeliverables(filters: { sponsorId?: string; eventId?: string; packageTemplateId?: string }): Promise<AgreementDeliverable[]> {
+    const conditions = [];
+    if (filters.sponsorId) conditions.push(eq(agreementDeliverables.sponsorId, filters.sponsorId));
+    if (filters.eventId) conditions.push(eq(agreementDeliverables.eventId, filters.eventId));
+    if (filters.packageTemplateId) conditions.push(eq(agreementDeliverables.packageTemplateId, filters.packageTemplateId));
+    const query = db.select().from(agreementDeliverables);
+    const rows = conditions.length > 0
+      ? await query.where(and(...conditions)).orderBy(agreementDeliverables.category, agreementDeliverables.displayOrder)
+      : await query.orderBy(agreementDeliverables.category, agreementDeliverables.displayOrder);
+    return rows;
+  }
+
+  async getAgreementDeliverable(id: string): Promise<AgreementDeliverable | undefined> {
+    const [row] = await db.select().from(agreementDeliverables).where(eq(agreementDeliverables.id, id)).limit(1);
+    return row;
+  }
+
+  async createAgreementDeliverable(data: InsertAgreementDeliverable): Promise<AgreementDeliverable> {
+    const [row] = await db.insert(agreementDeliverables).values({
+      id: randomUUID(),
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return row;
+  }
+
+  async updateAgreementDeliverable(id: string, data: Partial<InsertAgreementDeliverable>): Promise<AgreementDeliverable> {
+    const [row] = await db.update(agreementDeliverables)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(agreementDeliverables.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteAgreementDeliverable(id: string): Promise<void> {
+    await db.delete(agreementDeliverables).where(eq(agreementDeliverables.id, id));
+  }
+
+  async generateAgreementDeliverablesFromTemplate(
+    sponsorId: string, eventId: string, packageTemplateId: string, sponsorshipLevel: string
+  ): Promise<AgreementDeliverable[]> {
+    const existing = await this.listAgreementDeliverables({ sponsorId, eventId });
+    if (existing.length > 0) return existing;
+    const items = await this.listDeliverableTemplateItems(packageTemplateId);
+    const created: AgreementDeliverable[] = [];
+    for (const item of items.filter((i) => i.isActive)) {
+      const [row] = await db.insert(agreementDeliverables).values({
+        id: randomUUID(),
+        sponsorId,
+        eventId,
+        packageTemplateId,
+        sponsorshipLevel,
+        category: item.category,
+        deliverableName: item.deliverableName,
+        deliverableDescription: item.deliverableDescription,
+        quantity: item.defaultQuantity,
+        quantityUnit: item.quantityUnit,
+        ownerType: item.ownerType,
+        sponsorEditable: item.sponsorEditable,
+        sponsorVisible: item.sponsorVisible,
+        fulfillmentType: item.fulfillmentType,
+        status: "Not Started",
+        dueTiming: item.dueTiming,
+        dueDate: null,
+        sponsorFacingNote: null,
+        internalNote: null,
+        isOverridden: false,
+        isCustom: false,
+        createdFromTemplateItemId: item.id,
+        displayOrder: item.displayOrder,
+        completedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning();
+      created.push(row);
+    }
+    return created;
   }
 }

@@ -678,3 +678,132 @@ export const emailTemplates = pgTable("email_templates", {
 export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
+
+// ── Agreement Deliverables ─────────────────────────────────────────────────────
+
+export const DELIVERABLE_CATEGORIES = [
+  "Company Profile",
+  "Event Participation",
+  "Speaking & Content",
+  "Meetings & Introductions",
+  "Marketing & Branding",
+  "Post-Event Deliverables",
+  "Compliance",
+] as const;
+export type DeliverableCategory = typeof DELIVERABLE_CATEGORIES[number];
+
+export const DELIVERABLE_OWNER_TYPES = ["Sponsor", "Converge", "Shared"] as const;
+export type DeliverableOwnerType = typeof DELIVERABLE_OWNER_TYPES[number];
+
+export const DELIVERABLE_FULFILLMENT_TYPES = [
+  "status_only",
+  "file_upload",
+  "link_proof",
+  "quantity_progress",
+  "mixed",
+] as const;
+export type DeliverableFulfillmentType = typeof DELIVERABLE_FULFILLMENT_TYPES[number];
+
+export const DELIVERABLE_DUE_TIMING_TYPES = [
+  "before_event",
+  "during_event",
+  "after_event",
+  "specific_date",
+  "not_applicable",
+] as const;
+export type DeliverableDueTimingType = typeof DELIVERABLE_DUE_TIMING_TYPES[number];
+
+export const DELIVERABLE_STATUSES = [
+  "Not Started",
+  "Awaiting Sponsor Input",
+  "In Progress",
+  "Scheduled",
+  "Delivered",
+  "Available After Event",
+  "Blocked",
+  "Approved",
+  "Issue Identified",
+  "Needed",
+  "Received",
+  "Under Review",
+] as const;
+export type DeliverableStatus = typeof DELIVERABLE_STATUSES[number];
+
+// 2A — Package Templates
+export const agreementPackageTemplates = pgTable("agreement_package_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  packageName: varchar("package_name").notNull(),
+  sponsorshipLevel: varchar("sponsorship_level").notNull(),
+  eventId: varchar("event_id"),
+  eventFamily: varchar("event_family"),
+  year: varchar("year"),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  isArchived: boolean("is_archived").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertPackageTemplateSchema = createInsertSchema(agreementPackageTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertPackageTemplate = z.infer<typeof insertPackageTemplateSchema>;
+export type PackageTemplate = typeof agreementPackageTemplates.$inferSelect;
+
+// 2B — Deliverable Template Items
+export const agreementDeliverableTemplateItems = pgTable("agreement_deliverable_template_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  packageTemplateId: varchar("package_template_id").notNull(),
+  category: varchar("category").notNull(),
+  deliverableName: varchar("deliverable_name").notNull(),
+  deliverableDescription: text("deliverable_description"),
+  defaultQuantity: integer("default_quantity"),
+  quantityUnit: varchar("quantity_unit"),
+  ownerType: varchar("owner_type").notNull().default("Converge"),
+  sponsorEditable: boolean("sponsor_editable").notNull().default(false),
+  sponsorVisible: boolean("sponsor_visible").notNull().default(true),
+  fulfillmentType: varchar("fulfillment_type").notNull().default("status_only"),
+  reminderEligible: boolean("reminder_eligible").notNull().default(false),
+  dueTiming: varchar("due_timing").notNull().default("not_applicable"),
+  dueOffsetDays: integer("due_offset_days"),
+  displayOrder: integer("display_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertDeliverableTemplateItemSchema = createInsertSchema(agreementDeliverableTemplateItems).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertDeliverableTemplateItem = z.infer<typeof insertDeliverableTemplateItemSchema>;
+export type DeliverableTemplateItem = typeof agreementDeliverableTemplateItems.$inferSelect;
+
+// 2C — Sponsor Agreement Deliverables (live instances)
+export const agreementDeliverables = pgTable("agreement_deliverables", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sponsorId: varchar("sponsor_id").notNull(),
+  eventId: varchar("event_id").notNull(),
+  packageTemplateId: varchar("package_template_id"),
+  sponsorshipLevel: varchar("sponsorship_level").notNull(),
+  category: varchar("category").notNull(),
+  deliverableName: varchar("deliverable_name").notNull(),
+  deliverableDescription: text("deliverable_description"),
+  quantity: integer("quantity"),
+  quantityUnit: varchar("quantity_unit"),
+  ownerType: varchar("owner_type").notNull().default("Converge"),
+  sponsorEditable: boolean("sponsor_editable").notNull().default(false),
+  sponsorVisible: boolean("sponsor_visible").notNull().default(true),
+  fulfillmentType: varchar("fulfillment_type").notNull().default("status_only"),
+  status: varchar("status").notNull().default("Not Started"),
+  dueTiming: varchar("due_timing").notNull().default("not_applicable"),
+  dueDate: timestamp("due_date"),
+  sponsorFacingNote: text("sponsor_facing_note"),
+  internalNote: text("internal_note"),
+  isOverridden: boolean("is_overridden").notNull().default(false),
+  isCustom: boolean("is_custom").notNull().default(false),
+  createdFromTemplateItemId: varchar("created_from_template_item_id"),
+  displayOrder: integer("display_order").notNull().default(0),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertAgreementDeliverableSchema = createInsertSchema(agreementDeliverables).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAgreementDeliverable = z.infer<typeof insertAgreementDeliverableSchema>;
+export type AgreementDeliverable = typeof agreementDeliverables.$inferSelect;

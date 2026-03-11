@@ -1,0 +1,594 @@
+Phase 2 — Sponsor Dashboard Agreement Deliverables Tab + Sponsor-Editable Inputs
+
+Phase 1 is now working in Replit. The next step is to make Agreement Deliverables visible and useful to sponsors inside the Sponsor Dashboard.
+
+This phase should focus on:
+
+adding a new Agreement Deliverables tab to the Sponsor Dashboard
+
+showing sponsors a clean, structured deliverables view
+
+allowing sponsors to complete/edit only the fields they are responsible for
+
+surfacing Action Required items clearly
+
+Do not build Cloudflare R2 uploads yet.
+Do not build weekly reminder emails yet.
+Do not sync with Zoho Projects.
+Do not expose internal notes.
+
+Primary Goal
+
+Sponsors should be able to log in and clearly see:
+
+what is included in their sponsorship
+
+what has already been delivered
+
+what is in progress
+
+what still requires their input
+
+what will be delivered after the event
+
+They should also be able to directly complete sponsor-owned text/data inputs where appropriate.
+
+This should make Concierge feel like a sponsor fulfillment portal, not just a meetings platform.
+
+Scope for Phase 2
+Build now
+
+Sponsor Dashboard tab: Agreement Deliverables
+
+Deliverables summary cards
+
+Action Required section
+
+deliverables grouped by category
+
+sponsor-facing status display
+
+sponsor-editable inputs for text/structured fields
+
+access-level permissions for Owner / Editor / Viewer
+
+sponsor-visible notes
+
+Do not build yet
+
+R2 uploads
+
+file download management
+
+weekly reminder emails
+
+admin activity timeline in sponsor view
+
+sponsor-side custom deliverable creation
+
+deep proof-of-delivery attachments
+
+COI file upload
+
+1. Add New Sponsor Dashboard Tab
+
+Add a new tab in the Sponsor Dashboard:
+
+Overview
+
+Meetings
+
+Info Requests
+
+Leads
+
+Agreement Deliverables
+
+Reports
+
+Place Agreement Deliverables before Reports.
+
+Keep the current tabbed layout style and visual design consistent with the Sponsor Dashboard.
+
+2. Agreement Deliverables Tab Structure
+
+Inside the new Agreement Deliverables tab, use this layout:
+
+Section 1
+
+Summary cards
+
+Section 2
+
+Action Required From You
+
+Section 3
+
+Deliverables grouped by category
+
+This should all be above-the-fold as much as possible on standard desktop/laptop screens.
+
+3. Summary Cards
+
+At the top of the Agreement Deliverables tab, show high-level progress cards.
+
+Recommended cards:
+
+Total Deliverables
+
+Delivered
+
+In Progress
+
+Awaiting Your Input
+
+Optional additional card:
+
+Available After Event
+
+These values should be based only on sponsor-visible deliverables for that sponsor and selected event.
+
+4. Action Required From You Section
+
+This is one of the most important parts of the page.
+
+Create a section titled:
+
+Action Required From You
+
+This section should only show sponsor-visible deliverables where:
+
+owner_type = Sponsor
+or
+
+owner_type = Shared and currently blocked on sponsor input
+
+And status is one of:
+
+Awaiting Sponsor Input
+
+Not Started
+
+Needed
+
+Issue Identified
+
+Blocked (only if blocked due to sponsor input)
+
+Action Required card/list fields
+
+For each item show:
+
+Deliverable Name
+
+short description / sponsor-facing note
+
+due timing or due date if available
+
+current status
+
+CTA button
+
+CTA button examples
+
+Complete Now
+
+Review
+
+Update
+
+Provide Details
+
+The CTA should open the relevant inline form or edit modal.
+
+5. Group Deliverables by Category
+
+Below the Action Required section, display all sponsor-visible deliverables grouped under these categories:
+
+Company Profile
+
+Event Participation
+
+Speaking & Content
+
+Meetings & Introductions
+
+Marketing & Branding
+
+Post-Event Deliverables
+
+Compliance
+
+Only show categories that actually contain sponsor-visible deliverables for that sponsor.
+
+6. Deliverable Card / Row Design
+
+Within each category, each deliverable should appear as a clean row or card.
+
+Each deliverable should show:
+
+Deliverable Name
+
+Quantity / quantity progress if applicable
+
+Status
+
+sponsor-facing note or short description
+
+due timing / due date if relevant
+
+edit action if sponsor-editable
+
+Optional but recommended:
+
+status badge color
+
+subtle icon by fulfillment type
+
+Example deliverable row
+
+VIP Registrations
+Status: Awaiting Sponsor Input
+Progress: 1 of 3 submitted
+Note: Please provide the names of your attendee representatives.
+[Complete Now]
+
+7. Sponsor-Editable Inputs
+
+For Phase 2, allow sponsors to directly edit only safe structured fields and text fields.
+
+Do not expose every field for editing.
+
+7A. Sponsor-editable deliverables to support now
+
+Build sponsor-editable input forms for these types of items:
+
+Company Profile
+
+Company Description
+
+Three-Word Company Categories
+
+Event Participation
+
+VIP Registrations / Registrations
+
+representative names
+
+title
+
+email if appropriate
+
+Speaking & Content
+
+Speaker Name
+
+Speaker Title
+
+Speaker Bio
+
+optional headshot placeholder field for later file upload support
+
+Basic Representative info
+
+Sponsor Representatives
+
+name
+
+title
+
+email
+
+7B. Do not allow sponsor editing yet for:
+
+session title set by producer
+
+attendee list status
+
+social graphics status
+
+social post links
+
+promo codes
+
+exhibit assignment
+
+COI file/document itself
+
+These are admin/Converge-controlled.
+
+8. Input UI Behavior
+
+Use one of these patterns:
+
+Preferred
+
+Inline expandable editor per deliverable row
+
+Acceptable
+
+Edit modal launched from the deliverable row
+
+Keep the UX fast and simple.
+
+Example editable experiences
+Company Description
+
+Open text area editor with:
+
+current value
+
+Save
+
+Cancel
+
+Categories
+
+Multi-select limited to 3 categories
+
+VIP Registrations
+
+Simple repeatable rows for attendee names
+
+Speaker details
+
+Text inputs for speaker name/title/bio
+
+9. Save Behavior
+
+When a sponsor updates an editable deliverable input:
+
+save the sponsor-facing data
+
+update the associated agreement_deliverables record if appropriate
+
+update status if the item is now sufficiently completed
+
+Examples
+
+Company Description submitted → status becomes Submitted or In Progress
+
+3 of 3 VIP attendee names entered → status becomes Submitted or Provided
+
+Speaker details entered → status becomes Submitted
+
+Use whichever status naming aligns with your live status model, but keep it consistent.
+
+10. Status Display Rules for Sponsors
+
+Sponsors should only see statuses that are meaningful externally.
+
+Use sponsor-friendly wording.
+
+Recommended visible statuses:
+
+Awaiting Your Input
+
+In Progress
+
+Scheduled
+
+Delivered
+
+Available After Event
+
+Approved
+
+Under Review
+
+Issue Identified
+
+For internal-only statuses, either map them to sponsor-friendly equivalents or hide them.
+
+11. COI Handling
+
+For Certificate of Insurance, use status-only display.
+
+Do not show an upload control.
+
+Sponsor-facing COI display
+
+Deliverable Name:
+Certificate of Insurance (Liability & Workers Comp)
+
+Show:
+
+current status
+
+sponsor-facing note
+
+Example note:
+Please have your insurance provider email the certificate to Converge Events.
+
+Possible statuses:
+
+Needed
+
+Received
+
+Under Review
+
+Approved
+
+Issue Identified
+
+No upload field in this phase.
+
+12. Role Permissions in Sponsor Dashboard
+
+Respect sponsor access levels.
+
+Owner
+
+Can:
+
+view all sponsor-visible deliverables
+
+edit sponsor-editable inputs
+
+Editor
+
+Can:
+
+view all sponsor-visible deliverables
+
+edit sponsor-editable inputs
+
+Viewer
+
+Can:
+
+view all sponsor-visible deliverables
+
+cannot edit anything
+
+For Viewer:
+
+hide edit buttons
+
+show rows as read-only
+
+13. Sponsor Notes vs Internal Notes
+
+Only show:
+
+sponsor-facing note
+
+sponsor-facing description
+
+Do not show:
+
+internal notes
+
+admin operational comments
+
+Zoho-style execution details
+
+This is critical.
+
+14. Deliverable Progress Calculations
+
+Where useful, show quantity progress.
+
+Examples:
+
+VIP Registrations
+
+2 of 3 submitted
+
+Social Graphics
+
+If sponsor-visible:
+1 of 2 delivered
+
+Social Announcements
+
+2 of 2 posted
+
+This will make the tab much more useful than status badges alone.
+
+15. Empty States
+
+If a category has no sponsor-visible items, do not show it.
+
+If the sponsor has no action-required items, show:
+
+You’re all set for now. No sponsor action is currently needed.
+
+If the whole Agreement Deliverables tab somehow has no visible items, show:
+
+No deliverables are currently available for this sponsorship.
+
+16. Optional Small Enhancements for Phase 2
+
+If easy, add:
+
+progress bar at top
+
+completed count percentage
+
+subtle badge for Custom deliverables if sponsor-visible
+
+Do not overcomplicate it.
+
+17. Required Data Handling
+
+Use the existing Phase 1 data model.
+
+Do not create a second sponsor-facing deliverables model.
+
+Use:
+
+agreement_deliverables
+
+sponsor visibility rules
+
+sponsor-editable fields / associated data structures
+
+If needed, add supporting tables for structured sponsor input data such as registration entries or speaker details.
+
+18. Recommended Supporting Tables (if needed)
+
+If you need structured child records, add them now.
+
+Examples:
+
+Sponsor registration entries
+agreement_deliverable_registrants
+id
+agreement_deliverable_id
+name
+title
+email
+created_at
+updated_at
+Speaker details
+
+If not stored directly on the agreement deliverable:
+
+agreement_deliverable_speakers
+id
+agreement_deliverable_id
+speaker_name
+speaker_title
+speaker_bio
+created_at
+updated_at
+
+Only add child tables where the data is truly structured and repeatable.
+
+19. Acceptance Criteria
+
+Phase 2 is complete when:
+
+Sponsor Dashboard includes an Agreement Deliverables tab
+
+the tab shows summary cards
+
+the tab shows an Action Required From You section
+
+deliverables are grouped by category
+
+sponsors can edit appropriate sponsor-owned inputs
+
+COI appears as a status item only
+
+Owner and Editor can edit allowed items
+
+Viewer is read-only
+
+internal notes are not exposed
+
+20. Success Standard
+
+After Phase 2, a sponsor should be able to log into Concierge and clearly understand:
+
+what their sponsorship includes
+
+what has been delivered
+
+what still needs their input
+
+what they can complete directly inside the dashboard
+
+That is the standard this phase should meet.

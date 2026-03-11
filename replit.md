@@ -34,7 +34,7 @@ The platform employs a modern web stack with a clear separation between frontend
 ### Shared & Data Models
 
 - **Schema**: `shared/schema.ts` defines all data types and Drizzle table definitions.
-- **Key Entities**: `events`, `sponsors`, `attendees`, `meetings`, `PasswordResetToken`, `SponsorNotification`, `sponsorUsers` (with `accessLevel` + `isPrimary`), `sponsorLoginTokens`, `emailTemplates`.
+- **Key Entities**: `events`, `sponsors`, `attendees`, `meetings`, `PasswordResetToken`, `SponsorNotification`, `sponsorUsers` (with `accessLevel` + `isPrimary`), `sponsorLoginTokens`, `emailTemplates`, `agreementPackageTemplates`, `agreementDeliverableTemplateItems`, `agreementDeliverables`.
 - **Sponsorship Level**: Per-event, stored in `sponsors.assignedEvents` JSONB.
 - **Event Scheduling Logic**: Includes conflict detection, cascade archiving/unarchiving, and attendee resolution. Features per-event scheduling shutoff (`schedulingEnabled`, `schedulingShutoffAt`) with external handoff options.
 - **Event Management**: Admin panel supports comprehensive CRUD operations, including a `MeetingBlocksEditor` and event cloning (`POST /api/events/:id/copy`) with options to copy sponsors.
@@ -61,6 +61,7 @@ The platform employs a modern web stack with a clear separation between frontend
 - **Branding**: Public branding endpoint for displaying `appLogoUrl` and `appName`.
 - **Legal**: Dedicated pages for Terms of Use and Privacy Policy.
 - **Eventzilla Webhook**: `POST /api/integrations/eventzilla/registration` for attendee registration events.
+- **Agreement Deliverables Module (Phase 1)**: Full lifecycle management for sponsorship agreement deliverables. Three DB tables: `agreementPackageTemplates` (reusable per-level templates), `agreementDeliverableTemplateItems` (categorized items per template), `agreementDeliverables` (sponsor-specific instances). Admin UI at `/admin/agreement` with tabs: Package Templates (CRUD + archive + duplicate), Sponsor Agreements (summary view with completion stats), Outstanding Items (stub). Package template editor at `/admin/agreement/package-templates/:id` with categorized item tables (8 categories: Company Profile, Branding & Visibility, Content Creation, Speaking & Programming, Event Experience, Lead Generation, Post-Event, Compliance). Sponsor agreement detail at `/admin/agreement/sponsor-agreements/:sponsorId/:eventId` with Overview + Deliverables tabs, inline edit/delete/reset per deliverable, custom deliverable creation, and regenerate-from-template. API endpoints: `GET|POST /api/agreement/package-templates`, `PATCH|POST|DELETE /api/agreement/package-templates/:id`, `GET /api/agreement/deliverables` (summaries), `GET /api/agreement/deliverables/detail` (per sponsor+event), `POST /api/agreement/generate`, `POST /api/agreement/generate/regenerate`, `POST /api/agreement/deliverables/:id/reset`, `POST /api/agreement/seed-templates` (idempotent). Seeded FRC 2026 Platinum/Gold/Silver/Bronze templates with 11–14 items each.
 
 ## External Dependencies
 

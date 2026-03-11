@@ -2428,5 +2428,343 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // ── Agreement Deliverables ─────────────────────────────────────────────────
+
+  // Package Templates
+  app.get("/api/agreement/package-templates", requireAuth, async (req, res) => {
+    try {
+      const { sponsorshipLevel, isArchived } = req.query;
+      const filters: { sponsorshipLevel?: string; isArchived?: boolean } = {};
+      if (sponsorshipLevel) filters.sponsorshipLevel = String(sponsorshipLevel);
+      if (isArchived !== undefined) filters.isArchived = isArchived === "true";
+      const templates = await storage.listPackageTemplates(filters);
+      const result = await Promise.all(templates.map(async (t) => {
+        const items = await storage.listDeliverableTemplateItems(t.id);
+        return { ...t, deliverableCount: items.filter((i) => i.isActive).length };
+      }));
+      res.json(result);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/agreement/package-templates/:id", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.getPackageTemplate(req.params.id);
+      if (!template) return res.status(404).json({ message: "Not found" });
+      const items = await storage.listDeliverableTemplateItems(req.params.id);
+      res.json({ ...template, items });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/agreement/package-templates", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.createPackageTemplate(req.body);
+      res.status(201).json(template);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.patch("/api/agreement/package-templates/:id", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.updatePackageTemplate(req.params.id, req.body);
+      res.json(template);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/agreement/package-templates/:id/archive", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.archivePackageTemplate(req.params.id);
+      res.json(template);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/agreement/package-templates/:id/duplicate", requireAuth, async (req, res) => {
+    try {
+      const { newName } = req.body;
+      if (!newName) return res.status(400).json({ message: "newName is required" });
+      const template = await storage.duplicatePackageTemplate(req.params.id, newName);
+      res.status(201).json(template);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Deliverable Template Items
+  app.get("/api/agreement/package-templates/:id/items", requireAuth, async (req, res) => {
+    try {
+      const items = await storage.listDeliverableTemplateItems(req.params.id);
+      res.json(items);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/agreement/package-templates/:id/items", requireAuth, async (req, res) => {
+    try {
+      const item = await storage.createDeliverableTemplateItem({ ...req.body, packageTemplateId: req.params.id });
+      res.status(201).json(item);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.patch("/api/agreement/template-items/:id", requireAuth, async (req, res) => {
+    try {
+      const item = await storage.updateDeliverableTemplateItem(req.params.id, req.body);
+      res.json(item);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/agreement/template-items/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteDeliverableTemplateItem(req.params.id);
+      res.json({ ok: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Agreement Deliverables (sponsor-specific instances)
+  app.get("/api/agreement/deliverables", requireAuth, async (req, res) => {
+    try {
+      const { sponsorId, eventId, packageTemplateId } = req.query;
+      const filters: { sponsorId?: string; eventId?: string; packageTemplateId?: string } = {};
+      if (sponsorId) filters.sponsorId = String(sponsorId);
+      if (eventId) filters.eventId = String(eventId);
+      if (packageTemplateId) filters.packageTemplateId = String(packageTemplateId);
+
+      // Enrich with sponsor/event names
+      const [deliverables, allSponsors, allEvents] = await Promise.all([
+        storage.listAgreementDeliverables(filters),
+        storage.getSponsors(),
+        storage.getEvents(),
+      ]);
+      const sponsorMap = new Map(allSponsors.map((s) => [s.id, s.name]));
+      const eventMap = new Map(allEvents.map((e) => [e.id, e.name]));
+      // Group by sponsor+event for summary
+      const groups = new Map<string, { sponsorId: string; eventId: string; items: typeof deliverables }>();
+      for (const d of deliverables) {
+        const key = `${d.sponsorId}__${d.eventId}`;
+        if (!groups.has(key)) groups.set(key, { sponsorId: d.sponsorId, eventId: d.eventId, items: [] });
+        groups.get(key)!.items.push(d);
+      }
+      const summaries = Array.from(groups.values()).map(({ sponsorId: sid, eventId: eid, items }) => {
+        const level = items[0]?.sponsorshipLevel ?? "";
+        const templateId = items[0]?.packageTemplateId ?? null;
+        const delivered = items.filter((i) => i.status === "Delivered" || i.status === "Approved").length;
+        const awaitingSponsor = items.filter((i) => i.status === "Awaiting Sponsor Input").length;
+        return {
+          sponsorId: sid, eventId: eid,
+          sponsorName: sponsorMap.get(sid) ?? sid,
+          eventName: eventMap.get(eid) ?? eid,
+          sponsorshipLevel: level,
+          packageTemplateId: templateId,
+          totalDeliverables: items.length,
+          deliveredCount: delivered,
+          awaitingSponsorCount: awaitingSponsor,
+          lastUpdated: items.reduce((max, i) => i.updatedAt > max ? i.updatedAt : max, items[0]?.updatedAt ?? new Date()),
+        };
+      });
+      res.json(summaries);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/agreement/deliverables/detail", requireAuth, async (req, res) => {
+    try {
+      const { sponsorId, eventId } = req.query;
+      if (!sponsorId || !eventId) return res.status(400).json({ message: "sponsorId and eventId required" });
+      const deliverables = await storage.listAgreementDeliverables({ sponsorId: String(sponsorId), eventId: String(eventId) });
+      res.json(deliverables);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/agreement/deliverables/:id", requireAuth, async (req, res) => {
+    try {
+      const d = await storage.getAgreementDeliverable(req.params.id);
+      if (!d) return res.status(404).json({ message: "Not found" });
+      res.json(d);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/agreement/deliverables", requireAuth, async (req, res) => {
+    try {
+      const d = await storage.createAgreementDeliverable(req.body);
+      res.status(201).json(d);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.patch("/api/agreement/deliverables/:id", requireAuth, async (req, res) => {
+    try {
+      const updates = { ...req.body, isOverridden: true };
+      const d = await storage.updateAgreementDeliverable(req.params.id, updates);
+      res.json(d);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/agreement/deliverables/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteAgreementDeliverable(req.params.id);
+      res.json({ ok: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/agreement/generate", requireAuth, async (req, res) => {
+    try {
+      const { sponsorId, eventId, packageTemplateId, sponsorshipLevel } = req.body;
+      if (!sponsorId || !eventId || !packageTemplateId || !sponsorshipLevel) {
+        return res.status(400).json({ message: "sponsorId, eventId, packageTemplateId, sponsorshipLevel required" });
+      }
+      const deliverables = await storage.generateAgreementDeliverablesFromTemplate(sponsorId, eventId, packageTemplateId, sponsorshipLevel);
+      res.status(201).json(deliverables);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/agreement/generate/regenerate", requireAuth, async (req, res) => {
+    try {
+      const { sponsorId, eventId, packageTemplateId, sponsorshipLevel } = req.body;
+      if (!sponsorId || !eventId || !packageTemplateId || !sponsorshipLevel) {
+        return res.status(400).json({ message: "sponsorId, eventId, packageTemplateId, sponsorshipLevel required" });
+      }
+      // Delete existing then regenerate
+      const existing = await storage.listAgreementDeliverables({ sponsorId, eventId });
+      for (const d of existing) {
+        await storage.deleteAgreementDeliverable(d.id);
+      }
+      const deliverables = await storage.generateAgreementDeliverablesFromTemplate(sponsorId, eventId, packageTemplateId, sponsorshipLevel);
+      res.status(201).json(deliverables);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Reset a deliverable to its template defaults
+  app.post("/api/agreement/deliverables/:id/reset", requireAuth, async (req, res) => {
+    try {
+      const d = await storage.getAgreementDeliverable(req.params.id);
+      if (!d) return res.status(404).json({ message: "Not found" });
+      if (!d.createdFromTemplateItemId) return res.status(400).json({ message: "No source template item" });
+      const templateItem = await storage.getDeliverableTemplateItem(d.createdFromTemplateItemId);
+      if (!templateItem) return res.status(404).json({ message: "Template item not found" });
+      const updated = await storage.updateAgreementDeliverable(d.id, {
+        deliverableName: templateItem.deliverableName,
+        deliverableDescription: templateItem.deliverableDescription,
+        quantity: templateItem.defaultQuantity,
+        quantityUnit: templateItem.quantityUnit,
+        ownerType: templateItem.ownerType,
+        sponsorEditable: templateItem.sponsorEditable,
+        sponsorVisible: templateItem.sponsorVisible,
+        fulfillmentType: templateItem.fulfillmentType,
+        dueTiming: templateItem.dueTiming,
+        dueDate: null,
+        sponsorFacingNote: null,
+        internalNote: null,
+        isOverridden: false,
+      });
+      res.json(updated);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Seed initial package templates (idempotent)
+  app.post("/api/agreement/seed-templates", requireAuth, async (req, res) => {
+    try {
+      const existing = await storage.listPackageTemplates();
+      if (existing.length > 0) return res.json({ message: "Templates already seeded", count: existing.length });
+
+      type ItemDef = { name: string; category: string; qty?: number; unit?: string; ownerType?: string; sponsorEditable?: boolean; fulfillmentType?: string; dueTiming?: string; reminderEligible?: boolean };
+      const companyProfile = (items: ItemDef[]) => items;
+      const CATEGORIES = { CP: "Company Profile", EP: "Event Participation", SC: "Speaking & Content", MI: "Meetings & Introductions", MB: "Marketing & Branding", PED: "Post-Event Deliverables", CO: "Compliance" };
+
+      const sharedItems: ItemDef[] = [
+        { name: "Company Logo", category: CATEGORIES.CP, ownerType: "Sponsor", sponsorEditable: true, fulfillmentType: "file_upload", dueTiming: "before_event" },
+        { name: "Company Description", category: CATEGORIES.CP, ownerType: "Sponsor", sponsorEditable: true, fulfillmentType: "file_upload", dueTiming: "before_event" },
+        { name: "Sponsor Representatives", category: CATEGORIES.CP, ownerType: "Sponsor", sponsorEditable: true, fulfillmentType: "status_only", dueTiming: "before_event" },
+        { name: "Three-Word Company Categories", category: CATEGORIES.CP, ownerType: "Sponsor", sponsorEditable: true, fulfillmentType: "status_only", dueTiming: "before_event" },
+        { name: "Meeting Introductions (Pre-Event)", category: CATEGORIES.MI, ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event" },
+        { name: "Email Introductions (Post-Event)", category: CATEGORIES.MI, ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "after_event" },
+        { name: "Company Logo on Website and Event Signage", category: CATEGORIES.MB, ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event" },
+        { name: "Full Attendee Contact List", category: CATEGORIES.PED, ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "after_event" },
+        { name: "Certificate of Insurance", category: CATEGORIES.CO, ownerType: "Sponsor", sponsorEditable: false, fulfillmentType: "status_only", dueTiming: "before_event", reminderEligible: true },
+      ];
+
+      const seedData: { level: string; name: string; items: ItemDef[] }[] = [
+        {
+          level: "Platinum", name: "FRC 2026 Platinum",
+          items: [
+            ...sharedItems.slice(0, 4),
+            { name: "VIP Registrations", category: CATEGORIES.EP, qty: 4, unit: "registrations", ownerType: "Converge", fulfillmentType: "quantity_progress", dueTiming: "before_event" },
+            { name: "Premium Exhibit Table", category: CATEGORIES.EP, ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "during_event" },
+            { name: "Speaking Engagement", category: CATEGORIES.SC, qty: 2, unit: "sessions", ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event", reminderEligible: true },
+            ...sharedItems.slice(4, 6),
+            ...sharedItems.slice(6, 7),
+            { name: "Customized Social Media Graphics", category: CATEGORIES.MB, qty: 2, unit: "graphics", ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event" },
+            { name: "Social Media Sponsorship Announcements", category: CATEGORIES.MB, qty: 2, unit: "posts", ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event" },
+            ...sharedItems.slice(7, 9),
+          ],
+        },
+        {
+          level: "Gold", name: "FRC 2026 Gold",
+          items: [
+            ...sharedItems.slice(0, 4),
+            { name: "VIP Registrations", category: CATEGORIES.EP, qty: 3, unit: "registrations", ownerType: "Converge", fulfillmentType: "quantity_progress", dueTiming: "before_event" },
+            { name: "Premium Exhibit Table", category: CATEGORIES.EP, ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "during_event" },
+            { name: "Speaking Engagement", category: CATEGORIES.SC, qty: 1, unit: "sessions", ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event", reminderEligible: true },
+            ...sharedItems.slice(4, 6),
+            ...sharedItems.slice(6, 7),
+            { name: "Customized Social Media Graphics", category: CATEGORIES.MB, qty: 2, unit: "graphics", ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event" },
+            { name: "Social Media Sponsorship Announcements", category: CATEGORIES.MB, qty: 2, unit: "posts", ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event" },
+            ...sharedItems.slice(7, 9),
+          ],
+        },
+        {
+          level: "Silver", name: "FRC 2026 Silver",
+          items: [
+            ...sharedItems.slice(0, 4),
+            { name: "Registrations", category: CATEGORIES.EP, qty: 2, unit: "registrations", ownerType: "Converge", fulfillmentType: "quantity_progress", dueTiming: "before_event" },
+            { name: "General Exhibit Table", category: CATEGORIES.EP, ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "during_event" },
+            ...sharedItems.slice(4, 6),
+            ...sharedItems.slice(6, 7),
+            { name: "Customized Social Media Graphic", category: CATEGORIES.MB, qty: 1, unit: "graphic", ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event" },
+            { name: "Social Media Sponsorship Announcement", category: CATEGORIES.MB, qty: 1, unit: "post", ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event" },
+            ...sharedItems.slice(7, 9),
+          ],
+        },
+        {
+          level: "Bronze", name: "FRC 2026 Bronze",
+          items: [
+            ...sharedItems.slice(0, 4),
+            { name: "Registrations", category: CATEGORIES.EP, qty: 2, unit: "registrations", ownerType: "Converge", fulfillmentType: "quantity_progress", dueTiming: "before_event" },
+            { name: "General Exhibit Table", category: CATEGORIES.EP, ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "during_event" },
+            ...sharedItems.slice(6, 7),
+            { name: "Customized Social Media Graphic", category: CATEGORIES.MB, qty: 1, unit: "graphic", ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event" },
+            { name: "Social Media Sponsorship Announcement", category: CATEGORIES.MB, qty: 1, unit: "post", ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "before_event" },
+            { name: "Partial Attendee Contact List", category: CATEGORIES.PED, ownerType: "Converge", fulfillmentType: "status_only", dueTiming: "after_event" },
+            ...sharedItems.slice(8, 9),
+          ],
+        },
+      ];
+
+      const createdTemplates = [];
+      for (const { level, name, items } of seedData) {
+        const template = await storage.createPackageTemplate({
+          packageName: name,
+          sponsorshipLevel: level,
+          eventFamily: "FRC",
+          year: "2026",
+          isActive: true,
+          isArchived: false,
+        });
+        let order = 0;
+        for (const item of items) {
+          await storage.createDeliverableTemplateItem({
+            packageTemplateId: template.id,
+            category: item.category,
+            deliverableName: item.name,
+            defaultQuantity: item.qty ?? null,
+            quantityUnit: item.unit ?? null,
+            ownerType: (item.ownerType ?? "Converge") as string,
+            sponsorEditable: item.sponsorEditable ?? false,
+            sponsorVisible: true,
+            fulfillmentType: (item.fulfillmentType ?? "status_only") as string,
+            reminderEligible: item.reminderEligible ?? false,
+            dueTiming: (item.dueTiming ?? "not_applicable") as string,
+            displayOrder: order++,
+            isActive: true,
+          });
+        }
+        createdTemplates.push(template);
+      }
+
+      res.status(201).json({ message: "Templates seeded", count: createdTemplates.length });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   return httpServer;
 }

@@ -1,0 +1,910 @@
+Phase 1 — Agreement Deliverables Foundation + Package Templates Admin
+
+Build the Phase 1 foundation for the new Agreement Deliverables system in Concierge.
+
+This phase is focused on:
+
+data structure
+
+admin package template management
+
+sponsor agreement generation from templates
+
+negotiated override support
+
+Do not build sponsor-facing deliverables UI yet.
+Do not build Cloudflare R2 uploads yet.
+Do not build weekly reminder emails yet.
+
+This phase should give us a clean admin-side system that Julie can manage later.
+
+Primary Goal
+
+Create a structured system where:
+
+each sponsorship level has an editable package template
+
+each package template contains structured deliverable items
+
+assigning a sponsor to a package generates a sponsor-specific agreement deliverables set
+
+sponsor-specific negotiated changes can be made without changing the underlying template
+
+This is the core architecture for Agreement Deliverables.
+
+Scope for Phase 1
+Build now
+
+Agreement Deliverables admin module shell
+
+Sponsorship Package Templates admin UI
+
+Deliverable Template Items model and editor
+
+Sponsor Agreement Deliverables data model
+
+Generate sponsor agreement deliverables from template
+
+Override / custom deliverable support
+
+Admin list and detail screens
+
+Do not build yet
+
+sponsor dashboard Deliverables tab
+
+sponsor editing/uploading
+
+Cloudflare R2 file upload/storage integration
+
+weekly reminder emails
+
+Zoho Projects sync
+
+advanced reporting
+
+automation beyond initial generation
+
+1. Create New Admin Module: Agreement Deliverables
+
+Add a new admin navigation item:
+
+Agreement Deliverables
+
+Place it in the main admin nav with the other operational modules.
+
+Inside Agreement Deliverables, create three sub-areas:
+
+Package Templates
+
+Sponsor Agreements
+
+Outstanding Sponsor Items
+
+For Phase 1, fully implement:
+
+Package Templates
+
+Sponsor Agreements
+
+You may stub Outstanding Sponsor Items if needed, but it does not need to be functional yet.
+
+2. Create Data Models / Tables
+
+Build the foundational models for Agreement Deliverables.
+
+2A. Package Templates
+
+Create a table/model such as:
+
+agreement_package_templates
+
+Suggested fields:
+
+id
+event_id nullable
+event_family nullable
+year nullable
+package_name
+sponsorship_level
+description nullable
+is_active
+is_archived
+created_at
+updated_at
+Notes
+
+package templates may be event/year specific
+
+this should support templates like:
+
+FRC 2026 Platinum
+
+FRC 2026 Gold
+
+USBT 2026 Silver
+
+If your system is not yet ready for event-family logic, event_id + year is sufficient.
+
+2B. Deliverable Template Items
+
+Create a table/model such as:
+
+agreement_deliverable_template_items
+
+Suggested fields:
+
+id
+package_template_id
+category
+deliverable_name
+deliverable_description nullable
+default_quantity nullable
+quantity_unit nullable
+owner_type
+sponsor_editable
+sponsor_visible
+fulfillment_type
+reminder_eligible
+due_timing_type
+due_offset_days nullable
+display_order
+is_active
+created_at
+updated_at
+Supported values
+category
+
+Use these initial categories:
+
+Company Profile
+
+Event Participation
+
+Speaking & Content
+
+Meetings & Introductions
+
+Marketing & Branding
+
+Post-Event Deliverables
+
+Compliance
+
+owner_type
+
+Sponsor
+
+Converge
+
+Shared
+
+fulfillment_type
+
+status_only
+
+file_upload
+
+link_proof
+
+quantity_progress
+
+mixed
+
+due_timing_type
+
+before_event
+
+during_event
+
+after_event
+
+specific_date
+
+not_applicable
+
+2C. Sponsor Agreement Deliverables
+
+Create a table/model such as:
+
+agreement_deliverables
+
+This is the sponsor/event-specific live instance created from the template.
+
+Suggested fields:
+
+id
+sponsor_id
+event_id
+package_template_id nullable
+sponsorship_level
+category
+deliverable_name
+deliverable_description nullable
+quantity nullable
+quantity_unit nullable
+owner_type
+sponsor_editable
+sponsor_visible
+fulfillment_type
+status
+due_timing_type
+due_date nullable
+sponsor_facing_note nullable
+internal_note nullable
+is_overridden
+is_custom
+created_from_template_item_id nullable
+display_order
+completed_at nullable
+created_at
+updated_at
+Notes
+
+is_overridden = true when edited away from template defaults
+
+is_custom = true when manually added outside the template
+
+created_from_template_item_id should link back to the original template row when applicable
+
+3. Seed Initial Package Templates
+
+Create initial package templates for the currently defined sponsorship levels.
+
+At minimum, seed one set for your current event model, such as FRC 2026.
+
+Create these package templates:
+
+Platinum
+
+Gold
+
+Silver
+
+Bronze
+
+If you are not ready to hard-seed them via migration, create them manually in admin once the UI exists. But the system must support these structures immediately.
+
+4. Seed Initial Deliverable Template Items
+
+Use the structured deliverables already defined in planning.
+
+At minimum, create template items for:
+
+Platinum
+
+Company Logo
+
+Company Description
+
+Sponsor Representatives
+
+Three-Word Company Categories
+
+VIP Registrations (4)
+
+Premium Exhibit Table
+
+Speaking Engagement (2)
+
+Meeting Introductions (Pre-Event)
+
+Email Introductions (Post-Event)
+
+Company Logo on Website and Event Signage
+
+Customized Social Media Graphics (2)
+
+Social Media Sponsorship Announcements (2)
+
+Full Attendee Contact List
+
+Certificate of Insurance
+
+Gold
+
+Same as Platinum except:
+
+VIP Registrations (3)
+
+Speaking Engagement (1)
+
+Silver
+
+Company Logo
+
+Company Description
+
+Sponsor Representatives
+
+Three-Word Company Categories
+
+Registrations (2)
+
+General Exhibit Table
+
+Meeting Introductions (Pre-Event)
+
+Email Introductions (Post-Event)
+
+Company Logo on Website and Event Signage
+
+Customized Social Media Graphic (1)
+
+Social Media Sponsorship Announcement (1)
+
+Full Attendee Contact List
+
+Certificate of Insurance
+
+Bronze
+
+Company Logo
+
+Company Description
+
+Sponsor Representatives
+
+Three-Word Company Categories
+
+Registrations (2)
+
+General Exhibit Table
+
+Company Logo on Website and Event Signage
+
+Customized Social Media Graphic (1)
+
+Social Media Sponsorship Announcement (1)
+
+Partial Attendee Contact List
+
+Certificate of Insurance
+
+COI note
+
+For Certificate of Insurance:
+
+owner_type = Sponsor
+
+fulfillment_type = status_only
+
+sponsor_editable = false
+
+sponsor_visible = true
+
+5. Build Admin UI: Package Templates List
+
+Create the first admin screen:
+
+Agreement Deliverables → Package Templates
+
+Show a table with:
+
+Package Name
+
+Sponsorship Level
+
+Event / Year
+
+Deliverable Count
+
+Active
+
+Last Updated
+
+Actions
+
+Actions:
+
+View
+
+Edit
+
+Duplicate
+
+Archive
+
+Add a button:
+
+Create Package Template
+
+This screen should be clean and fast to scan.
+
+6. Build Admin UI: Package Template Editor
+
+When admin opens a package template, show:
+
+Header
+
+Package Name
+
+Sponsorship Level
+
+Event / Year
+
+Active / Archived
+
+Actions
+
+Save
+
+Duplicate
+
+Archive
+
+Preview Sponsor View (can be stubbed for now)
+
+Main content
+
+A categorized deliverables editor.
+
+Group deliverables by category:
+
+Company Profile
+
+Event Participation
+
+Speaking & Content
+
+Meetings & Introductions
+
+Marketing & Branding
+
+Post-Event Deliverables
+
+Compliance
+
+Within each category, show rows for each deliverable template item.
+
+Template row columns
+
+Deliverable Name
+
+Quantity
+
+Unit
+
+Owner Type
+
+Sponsor Editable
+
+Reminder Eligible
+
+Fulfillment Type
+
+Due Timing
+
+Actions
+
+Actions:
+
+Edit
+
+Duplicate
+
+Delete
+
+Move Up / Down
+
+Each category should have:
+
+Add Deliverable
+
+7. Build Deliverable Template Item Editor
+
+When admin edits or adds a deliverable template item, open a modal or drawer.
+
+Fields:
+
+Deliverable Name
+
+Description
+
+Category
+
+Default Quantity
+
+Quantity Unit
+
+Owner Type
+
+Sponsor Editable
+
+Sponsor Visible
+
+Fulfillment Type
+
+Reminder Eligible
+
+Due Timing Type
+
+Due Offset Days (optional)
+
+Display Order
+
+Buttons:
+
+Save
+
+Cancel
+
+This editor should be simple enough for Julie to maintain without confusion.
+
+8. Build Sponsor Agreement Generation Logic
+
+When a sponsor is assigned to a package template for an event, the system should generate the sponsor-specific agreement deliverables.
+
+Create a reusable service function like:
+
+generateAgreementDeliverablesFromTemplate(sponsorId, eventId, packageTemplateId)
+
+This should:
+
+load the selected package template
+
+load all active deliverable template items
+
+create sponsor/event-specific agreement_deliverables
+
+copy template values into the live instance
+
+set is_overridden = false
+
+set is_custom = false
+
+Do not regenerate automatically if agreement deliverables already exist unless explicitly triggered.
+
+9. Build Admin UI: Sponsor Agreements List
+
+Create:
+
+Agreement Deliverables → Sponsor Agreements
+
+Show a table with:
+
+Event
+
+Sponsor
+
+Sponsorship Level
+
+Template Source
+
+Total Deliverables
+
+Delivered Count
+
+Awaiting Sponsor Input Count
+
+Last Updated
+
+Actions
+
+Actions:
+
+Open Agreement
+
+Regenerate from Template
+
+View Sponsor Dashboard (can be stubbed if needed)
+
+Add filters:
+
+Event
+
+Sponsor
+
+Sponsorship Level
+
+Status / Completion
+
+Search
+
+For Phase 1, simple filters are enough.
+
+10. Build Admin UI: Sponsor Agreement Detail Screen
+
+This is Julie’s main live management screen.
+
+Header
+
+Show:
+
+Sponsor Name
+
+Event
+
+Sponsorship Level
+
+Template Source
+
+Completion %
+
+Awaiting Sponsor Input count
+
+Delivered count
+
+Actions
+
+Save Changes
+
+Add Custom Deliverable
+
+Regenerate from Template
+
+Preview Sponsor View (stub ok)
+
+Summary cards
+
+Show:
+
+Total Deliverables
+
+Delivered
+
+In Progress
+
+Awaiting Sponsor Input
+
+Blocked
+
+Compliance Issues
+
+If not all statuses are active yet, calculate from currently used statuses.
+
+Main content tabs
+
+For Phase 1, implement at least:
+
+Overview
+
+Deliverables
+
+Optional placeholders for later:
+
+Sponsor Inputs
+
+Files & Links
+
+Activity
+
+11. Sponsor Agreement Overview Tab
+
+Show a concise summary:
+
+package template source
+
+override count
+
+custom deliverables count
+
+items awaiting sponsor input
+
+compliance items needing attention
+
+recent status updates if available
+
+This does not need to be fancy in Phase 1, but it should be useful.
+
+12. Sponsor Agreement Deliverables Tab
+
+Show the live sponsor/event deliverables in a categorized table.
+
+Columns:
+
+Category
+
+Deliverable
+
+Quantity
+
+Owner
+
+Status
+
+Due Timing / Due Date
+
+Sponsor Visible
+
+Override
+
+Actions
+
+Actions:
+
+Edit
+
+Change Status
+
+Add Note
+
+Remove
+
+Duplicate as Custom
+
+Rows should support:
+
+Default
+
+Overridden
+
+Custom badges
+
+13. Build Override Behavior
+
+This is critical.
+
+Editing a sponsor agreement item must not change the package template.
+
+When editing a live sponsor agreement item, admin should be able to override:
+
+quantity
+
+description
+
+due date
+
+sponsor note
+
+internal note
+
+owner type if absolutely needed
+
+sponsor visibility
+
+When saved:
+
+set is_overridden = true
+
+Add a button:
+
+Reset to Template Default
+
+This should restore the values from the linked template item when available.
+
+14. Build Custom Deliverable Flow
+
+Add button:
+
+Add Custom Deliverable
+
+This opens a modal with fields:
+
+Deliverable Name
+
+Category
+
+Description
+
+Quantity
+
+Unit
+
+Owner Type
+
+Sponsor Visible
+
+Fulfillment Type
+
+Status
+
+Due Timing
+
+When saved:
+
+create a new agreement_deliverables record
+
+mark is_custom = true
+
+mark is_overridden = true
+
+This is required for negotiated one-offs.
+
+15. Initial Status Model
+
+For Phase 1, support these statuses globally:
+
+Not Started
+
+Awaiting Sponsor Input
+
+In Progress
+
+Scheduled
+
+Delivered
+
+Available After Event
+
+Blocked
+
+Approved
+
+Issue Identified
+
+For COI specifically, use:
+
+Needed
+
+Received
+
+Under Review
+
+Approved
+
+Issue Identified
+
+If needed, normalize COI into the same system while allowing special labels.
+
+16. Do Not Build Files Yet
+
+Even though some deliverables will eventually support files and links, do not build upload/download/file management in Phase 1.
+
+For now:
+
+keep fulfillment_type in the model
+
+keep placeholders for file/link support later
+
+do not integrate R2 yet
+
+This phase is about structure and admin workflow only.
+
+17. Do Not Build Sponsor-Facing UI Yet
+
+Do not add the Agreement Deliverables tab to the Sponsor Dashboard in this phase.
+
+However, structure the data and wording so a sponsor-facing tab can be added cleanly in Phase 2.
+
+18. Keep Zoho Projects Out of Scope
+
+Agreement Deliverables should remain a sponsor-facing and admin-facing communication/fulfillment layer.
+
+Do not try to:
+
+sync Zoho tasks
+
+duplicate Zoho workflows
+
+build task dependencies
+
+build internal project management logic
+
+Julie will continue managing execution in Zoho Projects.
+
+19. Acceptance Criteria
+
+Phase 1 is complete when:
+
+Agreement Deliverables admin module exists
+
+admins can create/edit/archive package templates
+
+package templates can contain structured deliverable template items
+
+admins can assign/generate sponsor agreement deliverables from a template
+
+sponsor agreement detail screens exist
+
+admins can override live agreement deliverables without affecting the template
+
+admins can add custom deliverables
+
+initial Platinum / Gold / Silver / Bronze package structures are supported
+
+20. Success Standard
+
+After Phase 1, Julie should be able to:
+
+maintain standard sponsorship package templates
+
+assign a package to a sponsor for an event
+
+generate the live agreement deliverables
+
+adjust negotiated differences cleanly
+
+update live agreement items without changing the master package
+
+That is the standard this phase should meet.

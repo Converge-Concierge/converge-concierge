@@ -14,6 +14,9 @@ import {
   type EmailLog,
   type SponsorUser, type SponsorLoginToken,
   type EmailTemplate,
+  type PackageTemplate, type InsertPackageTemplate,
+  type DeliverableTemplateItem, type InsertDeliverableTemplateItem,
+  type AgreementDeliverable, type InsertAgreementDeliverable,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -209,6 +212,27 @@ export interface IStorage {
   getEmailTemplateById(id: string): Promise<EmailTemplate | undefined>;
   upsertEmailTemplate(data: { templateKey: string; displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate?: string | null; description?: string | null; variables?: string[]; isActive?: boolean }): Promise<EmailTemplate>;
   updateEmailTemplate(id: string, data: Partial<{ displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean }>): Promise<EmailTemplate>;
+
+  // ── Agreement Deliverables ────────────────────────────────────────────────
+  listPackageTemplates(filters?: { sponsorshipLevel?: string; isArchived?: boolean }): Promise<PackageTemplate[]>;
+  getPackageTemplate(id: string): Promise<PackageTemplate | undefined>;
+  createPackageTemplate(data: InsertPackageTemplate): Promise<PackageTemplate>;
+  updatePackageTemplate(id: string, data: Partial<InsertPackageTemplate>): Promise<PackageTemplate>;
+  archivePackageTemplate(id: string): Promise<PackageTemplate>;
+  duplicatePackageTemplate(id: string, newName: string): Promise<PackageTemplate>;
+
+  listDeliverableTemplateItems(packageTemplateId: string): Promise<DeliverableTemplateItem[]>;
+  getDeliverableTemplateItem(id: string): Promise<DeliverableTemplateItem | undefined>;
+  createDeliverableTemplateItem(data: InsertDeliverableTemplateItem): Promise<DeliverableTemplateItem>;
+  updateDeliverableTemplateItem(id: string, data: Partial<InsertDeliverableTemplateItem>): Promise<DeliverableTemplateItem>;
+  deleteDeliverableTemplateItem(id: string): Promise<void>;
+
+  listAgreementDeliverables(filters: { sponsorId?: string; eventId?: string; packageTemplateId?: string }): Promise<AgreementDeliverable[]>;
+  getAgreementDeliverable(id: string): Promise<AgreementDeliverable | undefined>;
+  createAgreementDeliverable(data: InsertAgreementDeliverable): Promise<AgreementDeliverable>;
+  updateAgreementDeliverable(id: string, data: Partial<InsertAgreementDeliverable>): Promise<AgreementDeliverable>;
+  deleteAgreementDeliverable(id: string): Promise<void>;
+  generateAgreementDeliverablesFromTemplate(sponsorId: string, eventId: string, packageTemplateId: string, sponsorshipLevel: string): Promise<AgreementDeliverable[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -805,6 +829,26 @@ export class MemStorage implements IStorage {
   async getEmailTemplateById(_id: string): Promise<EmailTemplate | undefined> { return undefined; }
   async upsertEmailTemplate(data: { templateKey: string; displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate?: string | null; description?: string | null; variables?: string[]; isActive?: boolean }): Promise<EmailTemplate> { return { id: randomUUID(), ...data, textTemplate: data.textTemplate ?? null, description: data.description ?? null, variables: data.variables ?? [], isActive: data.isActive ?? true, createdAt: new Date(), updatedAt: new Date() }; }
   async updateEmailTemplate(_id: string, _data: Partial<{ displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean }>): Promise<EmailTemplate> { return { id: _id, templateKey: "", displayName: "", subjectTemplate: "", htmlTemplate: "", textTemplate: null, description: null, variables: [], isActive: true, createdAt: new Date(), updatedAt: new Date() }; }
+
+  async listPackageTemplates(_filters?: { sponsorshipLevel?: string; isArchived?: boolean }): Promise<PackageTemplate[]> { return []; }
+  async getPackageTemplate(_id: string): Promise<PackageTemplate | undefined> { return undefined; }
+  async createPackageTemplate(data: InsertPackageTemplate): Promise<PackageTemplate> { return { id: randomUUID(), ...data, eventId: data.eventId ?? null, eventFamily: data.eventFamily ?? null, year: data.year ?? null, description: data.description ?? null, isActive: data.isActive ?? true, isArchived: data.isArchived ?? false, createdAt: new Date(), updatedAt: new Date() }; }
+  async updatePackageTemplate(_id: string, _data: Partial<InsertPackageTemplate>): Promise<PackageTemplate> { return { id: _id, packageName: "", sponsorshipLevel: "", eventId: null, eventFamily: null, year: null, description: null, isActive: true, isArchived: false, createdAt: new Date(), updatedAt: new Date() }; }
+  async archivePackageTemplate(_id: string): Promise<PackageTemplate> { return { id: _id, packageName: "", sponsorshipLevel: "", eventId: null, eventFamily: null, year: null, description: null, isActive: false, isArchived: true, createdAt: new Date(), updatedAt: new Date() }; }
+  async duplicatePackageTemplate(_id: string, _newName: string): Promise<PackageTemplate> { return { id: randomUUID(), packageName: _newName, sponsorshipLevel: "", eventId: null, eventFamily: null, year: null, description: null, isActive: true, isArchived: false, createdAt: new Date(), updatedAt: new Date() }; }
+
+  async listDeliverableTemplateItems(_packageTemplateId: string): Promise<DeliverableTemplateItem[]> { return []; }
+  async getDeliverableTemplateItem(_id: string): Promise<DeliverableTemplateItem | undefined> { return undefined; }
+  async createDeliverableTemplateItem(data: InsertDeliverableTemplateItem): Promise<DeliverableTemplateItem> { return { id: randomUUID(), ...data, deliverableDescription: data.deliverableDescription ?? null, defaultQuantity: data.defaultQuantity ?? null, quantityUnit: data.quantityUnit ?? null, dueOffsetDays: data.dueOffsetDays ?? null, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateDeliverableTemplateItem(_id: string, _data: Partial<InsertDeliverableTemplateItem>): Promise<DeliverableTemplateItem> { return { id: _id, packageTemplateId: "", category: "", deliverableName: "", deliverableDescription: null, defaultQuantity: null, quantityUnit: null, ownerType: "Converge", sponsorEditable: false, sponsorVisible: true, fulfillmentType: "status_only", reminderEligible: false, dueTiming: "not_applicable", dueOffsetDays: null, displayOrder: 0, isActive: true, createdAt: new Date(), updatedAt: new Date() }; }
+  async deleteDeliverableTemplateItem(_id: string): Promise<void> {}
+
+  async listAgreementDeliverables(_filters: { sponsorId?: string; eventId?: string; packageTemplateId?: string }): Promise<AgreementDeliverable[]> { return []; }
+  async getAgreementDeliverable(_id: string): Promise<AgreementDeliverable | undefined> { return undefined; }
+  async createAgreementDeliverable(data: InsertAgreementDeliverable): Promise<AgreementDeliverable> { return { id: randomUUID(), ...data, packageTemplateId: data.packageTemplateId ?? null, deliverableDescription: data.deliverableDescription ?? null, quantity: data.quantity ?? null, quantityUnit: data.quantityUnit ?? null, dueDate: data.dueDate ?? null, sponsorFacingNote: data.sponsorFacingNote ?? null, internalNote: data.internalNote ?? null, createdFromTemplateItemId: data.createdFromTemplateItemId ?? null, completedAt: data.completedAt ?? null, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateAgreementDeliverable(_id: string, _data: Partial<InsertAgreementDeliverable>): Promise<AgreementDeliverable> { return { id: _id, sponsorId: "", eventId: "", packageTemplateId: null, sponsorshipLevel: "", category: "", deliverableName: "", deliverableDescription: null, quantity: null, quantityUnit: null, ownerType: "Converge", sponsorEditable: false, sponsorVisible: true, fulfillmentType: "status_only", status: "Not Started", dueTiming: "not_applicable", dueDate: null, sponsorFacingNote: null, internalNote: null, isOverridden: false, isCustom: false, createdFromTemplateItemId: null, displayOrder: 0, completedAt: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async deleteAgreementDeliverable(_id: string): Promise<void> {}
+  async generateAgreementDeliverablesFromTemplate(_sponsorId: string, _eventId: string, _packageTemplateId: string, _sponsorshipLevel: string): Promise<AgreementDeliverable[]> { return []; }
 }
 
 export const storage = new DatabaseStorage();

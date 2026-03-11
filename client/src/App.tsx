@@ -70,6 +70,9 @@ function Router() {
       <Route path="/event/:slug/book/:rest*">
         {(params) => <Redirect to={`/event/${params.slug}`} />}
       </Route>
+      <Route path="/admin/agreement/package-templates/:id" component={AdminLayout} />
+      <Route path="/admin/agreement/sponsor-agreements/:sponsorId/:eventId" component={AdminLayout} />
+      <Route path="/admin/agreement" component={AdminLayout} />
       <Route path="/admin" component={AdminLayout} />
       <Route path="/admin/:rest*" component={AdminLayout} />
       <Route component={NotFound} />

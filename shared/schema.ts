@@ -615,3 +615,33 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
   used: boolean("used").notNull().default(false),
 });
+
+// ── Sponsor Users ─────────────────────────────────────────────────────────────
+
+export const sponsorUsers = pgTable("sponsor_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sponsorId: varchar("sponsor_id").notNull(),
+  name: varchar("name").notNull().default(""),
+  email: varchar("email").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type SponsorUser = typeof sponsorUsers.$inferSelect;
+export type InsertSponsorUser = typeof sponsorUsers.$inferInsert;
+
+// ── Sponsor Login Tokens (Magic Link) ─────────────────────────────────────────
+
+export const sponsorLoginTokens = pgTable("sponsor_login_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sponsorUserId: varchar("sponsor_user_id").notNull(),
+  sponsorId: varchar("sponsor_id").notNull(),
+  tokenHash: varchar("token_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type SponsorLoginToken = typeof sponsorLoginTokens.$inferSelect;

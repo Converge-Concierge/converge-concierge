@@ -12,6 +12,7 @@ import {
   type UserPermissions, type UserPermissionRecord, type PermissionAuditLog,
   type InformationRequest, type InsertInformationRequest, type InformationRequestStatus,
   type EmailLog,
+  type SponsorUser, type SponsorLoginToken,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -179,6 +180,16 @@ export interface IStorage {
   createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null }): Promise<string>;
   listEmailLogs(filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, limit?: number, offset?: number): Promise<EmailLog[]>;
   getEmailLog(id: string): Promise<EmailLog | undefined>;
+
+  // Sponsor Users & Magic Login
+  upsertSponsorUser(data: { sponsorId: string; name: string; email: string }): Promise<SponsorUser>;
+  getSponsorUserByEmail(email: string): Promise<SponsorUser | undefined>;
+  getSponsorUsersBySponsor(sponsorId: string): Promise<SponsorUser[]>;
+  updateSponsorUserLastLogin(id: string): Promise<void>;
+  createSponsorLoginToken(data: { sponsorUserId: string; sponsorId: string; tokenHash: string; expiresAt: Date }): Promise<SponsorLoginToken>;
+  getSponsorLoginTokenByHash(tokenHash: string): Promise<SponsorLoginToken | undefined>;
+  markSponsorLoginTokenUsed(id: string): Promise<void>;
+  invalidateSponsorLoginTokens(sponsorUserId: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -734,6 +745,15 @@ export class MemStorage implements IStorage {
   async createEmailLog(_data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null }): Promise<string> { return randomUUID(); }
   async listEmailLogs(_filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, _limit?: number, _offset?: number): Promise<EmailLog[]> { return []; }
   async getEmailLog(_id: string): Promise<EmailLog | undefined> { return undefined; }
+
+  async upsertSponsorUser(_data: { sponsorId: string; name: string; email: string }): Promise<SponsorUser> { return { id: randomUUID(), sponsorId: _data.sponsorId, name: _data.name, email: _data.email, isActive: true, lastLoginAt: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async getSponsorUserByEmail(_email: string): Promise<SponsorUser | undefined> { return undefined; }
+  async getSponsorUsersBySponsor(_sponsorId: string): Promise<SponsorUser[]> { return []; }
+  async updateSponsorUserLastLogin(_id: string): Promise<void> {}
+  async createSponsorLoginToken(_data: { sponsorUserId: string; sponsorId: string; tokenHash: string; expiresAt: Date }): Promise<SponsorLoginToken> { return { id: randomUUID(), ..._data, usedAt: null, createdAt: new Date() }; }
+  async getSponsorLoginTokenByHash(_tokenHash: string): Promise<SponsorLoginToken | undefined> { return undefined; }
+  async markSponsorLoginTokenUsed(_id: string): Promise<void> {}
+  async invalidateSponsorLoginTokens(_sponsorUserId: string): Promise<void> {}
 }
 
 export const storage = new DatabaseStorage();

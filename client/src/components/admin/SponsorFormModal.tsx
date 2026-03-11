@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sponsor, InsertSponsor, Event, EventSponsorLink, SPONSORSHIP_LEVELS, SponsorshipLevel } from "@shared/schema";
-import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem, CalendarDays, ChevronDown, ChevronUp } from "lucide-react";
+import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem, CalendarDays, ChevronDown, ChevronUp, Send, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 function fmt12(t: string) {
   const [h, m] = t.split(":").map(Number);
@@ -36,10 +39,35 @@ const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, isPending, readOnly }: SponsorFormModalProps) {
+  const { toast } = useToast();
   const [formData, setFormData] = useState<Partial<InsertSponsor>>({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false });
   const [dragOver, setDragOver] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: sponsorUserData, refetch: refetchSponsorUser } = useQuery<{ user: { lastLoginAt: string | null } | null }>({
+    queryKey: ["/api/admin/sponsors", sponsor?.id, "user"],
+    enabled: !!sponsor?.id && isOpen,
+    staleTime: 30000,
+  });
+
+  const sendAccessMutation = useMutation({
+    mutationFn: async (sponsorId: string) => {
+      const res = await apiRequest("POST", `/api/admin/sponsors/${sponsorId}/send-access-email`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.ok) {
+        toast({ title: "Access email sent", description: `Login link sent to ${data.sentTo}` });
+        refetchSponsorUser();
+      } else {
+        toast({ title: "Email failed", description: data.error ?? "Could not send access email.", variant: "destructive" });
+      }
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to send access email.", variant: "destructive" });
+    },
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -414,6 +442,12 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                     className="h-8 text-xs"
                     data-testid="input-sponsor-contact-email"
                   />
+                  {sponsorUserData?.user?.lastLoginAt && (
+                    <p className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1" data-testid="text-last-accessed">
+                      <Clock className="h-2.5 w-2.5" />
+                      Last accessed: {format(new Date(sponsorUserData.user.lastLoginAt), "MMM d, yyyy")}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="sp-contact-phone" className="text-xs flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> Phone</Label>
@@ -614,7 +648,23 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
           </form>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t border-border/30 bg-muted/20 shrink-0 flex gap-2">
+        <DialogFooter className="px-6 py-4 border-t border-border/30 bg-muted/20 shrink-0 flex flex-wrap gap-2">
+          {sponsor?.id && sponsor.contactEmail && (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2 mr-auto"
+              disabled={sendAccessMutation.isPending}
+              onClick={() => sendAccessMutation.mutate(sponsor.id)}
+              data-testid="btn-send-dashboard-access"
+            >
+              {sendAccessMutation.isPending ? (
+                <><span className="h-3.5 w-3.5 border-2 border-muted-foreground/40 border-t-muted-foreground rounded-full animate-spin" /> Sending…</>
+              ) : (
+                <><Send className="h-3.5 w-3.5" /> Send Dashboard Access</>
+              )}
+            </Button>
+          )}
           {readOnly ? (
             <Button variant="outline" onClick={onClose}>Close</Button>
           ) : (

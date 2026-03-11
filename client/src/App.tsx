@@ -18,6 +18,8 @@ import SponsorProfilePage from "@/pages/public/SponsorProfilePage";
 import WelcomePage from "@/pages/public/WelcomePage";
 import ResetPasswordPage from "@/pages/public/ResetPasswordPage";
 import HelpCenterPage from "@/pages/public/HelpCenterPage";
+import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
+import AdminResetPasswordPage from "@/pages/AdminResetPasswordPage";
 import TermsPage from "@/pages/TermsPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
@@ -53,6 +55,8 @@ function Router() {
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/login" component={LoginPage} />
+      <Route path="/admin/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/admin/reset-password" component={AdminResetPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/help" component={HelpCenterPage} />
       <Route path="/terms" component={TermsPage} />

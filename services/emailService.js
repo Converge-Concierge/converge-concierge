@@ -6,7 +6,13 @@ import {
   meetingNotificationForSponsor,
   infoRequestNotificationForSponsor,
   infoRequestConfirmationForAttendee,
+  passwordResetEmail,
+  sponsorMagicLoginEmail,
 } from "./emailTemplates.js";
+import {
+  buildMeetingIcs,
+  buildCalendarLinks,
+} from "./calendarService.js";
 
 const client = SibApiV3Sdk.ApiClient.instance;
 client.authentications["api-key"].apiKey = process.env.BREVO_API_KEY?.trim();
@@ -15,7 +21,7 @@ const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // ── Core send function ────────────────────────────────────────────────────────
 
-export async function sendEmail(to, subject, htmlContent) {
+export async function sendEmail(to, subject, htmlContent, attachments) {
   const email = {
     sender: {
       name: "Converge Concierge",
@@ -25,16 +31,22 @@ export async function sendEmail(to, subject, htmlContent) {
     subject: subject,
     htmlContent: htmlContent,
   };
+  if (attachments && attachments.length > 0) {
+    email.attachment = attachments.map(({ name, content }) => ({
+      name,
+      content,
+    }));
+  }
   return apiInstance.sendTransacEmail(email);
 }
 
 // ── Internal: send + log ──────────────────────────────────────────────────────
 
-async function sendAndLog(storage, { emailType, to, subject, html, eventId, sponsorId, attendeeId, resendOfId }) {
+async function sendAndLog(storage, { emailType, to, subject, html, eventId, sponsorId, attendeeId, resendOfId, attachments }) {
   let status = "sent";
   let errorMessage = null;
   try {
-    await sendEmail(to, subject, html);
+    await sendEmail(to, subject, html, attachments);
     console.log(`[EMAIL] Sent "${emailType}" to ${to} — Subject: ${subject}`);
   } catch (err) {
     status = "failed";
@@ -57,6 +69,23 @@ export async function sendMeetingConfirmationToAttendee(storage, attendee, spons
     console.warn(`[EMAIL] No attendee email — skipping meeting confirmation for meeting ${meeting?.id}`);
     return;
   }
+
+  // Build calendar support (non-blocking)
+  let calLinks = null;
+  let icsAttachment = null;
+  try {
+    calLinks = buildCalendarLinks(meeting, sponsor, attendee, event);
+    const icsContent = buildMeetingIcs(meeting, sponsor, attendee, event);
+    if (icsContent) {
+      const encoded = Buffer.from(icsContent, "utf-8").toString("base64");
+      const sponsorSlug = (sponsor?.name ?? "meeting").toLowerCase().replace(/[^a-z0-9]/g, "-");
+      const eventSlug = (event?.slug ?? event?.name ?? "event").toLowerCase().replace(/[^a-z0-9]/g, "-");
+      icsAttachment = { name: `${eventSlug}-${sponsorSlug}-meeting.ics`, content: encoded };
+    }
+  } catch (err) {
+    console.warn(`[EMAIL] Calendar generation failed for meeting ${meeting?.id}: ${err?.message ?? err}`);
+  }
+
   const subject = `Your meeting with ${sponsor?.name ?? "the sponsor"} is confirmed`;
   const html = meetingConfirmationForAttendee({
     attendeeFirstName: attendee.firstName || attendee.name?.split(" ")[0] || attendee.name,
@@ -67,7 +96,9 @@ export async function sendMeetingConfirmationToAttendee(storage, attendee, spons
     location: meeting?.location,
     meetingType: meeting?.meetingType,
     eventSlug: event?.slug ?? null,
+    calendarLinks: calLinks,
   });
+
   await sendAndLog(storage, {
     emailType: "meeting_confirmation_attendee",
     to: attendee.email,
@@ -76,6 +107,7 @@ export async function sendMeetingConfirmationToAttendee(storage, attendee, spons
     eventId: meeting?.eventId,
     sponsorId: meeting?.sponsorId,
     attendeeId: attendee?.id,
+    attachments: icsAttachment ? [icsAttachment] : [],
   });
 }
 
@@ -85,6 +117,23 @@ export async function sendMeetingNotificationToSponsor(storage, attendee, sponso
     console.warn(`[EMAIL] Sponsor "${sponsor?.name}" has no contact email — skipping meeting notification for meeting ${meeting?.id}`);
     return;
   }
+
+  // Build calendar support (non-blocking)
+  let calLinks = null;
+  let icsAttachment = null;
+  try {
+    calLinks = buildCalendarLinks(meeting, sponsor, attendee, event);
+    const icsContent = buildMeetingIcs(meeting, sponsor, attendee, event);
+    if (icsContent) {
+      const encoded = Buffer.from(icsContent, "utf-8").toString("base64");
+      const sponsorSlug = (sponsor?.name ?? "meeting").toLowerCase().replace(/[^a-z0-9]/g, "-");
+      const eventSlug = (event?.slug ?? event?.name ?? "event").toLowerCase().replace(/[^a-z0-9]/g, "-");
+      icsAttachment = { name: `${eventSlug}-${sponsorSlug}-meeting.ics`, content: encoded };
+    }
+  } catch (err) {
+    console.warn(`[EMAIL] Calendar generation failed (sponsor) for meeting ${meeting?.id}: ${err?.message ?? err}`);
+  }
+
   const attendeeName = attendee?.name || `${attendee?.firstName ?? ""} ${attendee?.lastName ?? ""}`.trim() || "Attendee";
   const subject = `New meeting scheduled with ${attendeeName}`;
   const html = meetingNotificationForSponsor({
@@ -99,7 +148,9 @@ export async function sendMeetingNotificationToSponsor(storage, attendee, sponso
     location: meeting?.location,
     eventName: event?.name ?? "",
     sponsorToken: sponsorToken ?? null,
+    calendarLinks: calLinks,
   });
+
   await sendAndLog(storage, {
     emailType: "meeting_notification_sponsor",
     to: contactEmail,
@@ -108,6 +159,7 @@ export async function sendMeetingNotificationToSponsor(storage, attendee, sponso
     eventId: meeting?.eventId,
     sponsorId: sponsor?.id,
     attendeeId: attendee?.id,
+    attachments: icsAttachment ? [icsAttachment] : [],
   });
 }
 
@@ -163,5 +215,47 @@ export async function sendInformationRequestConfirmationToAttendee(storage, info
     eventId: infoRequest?.eventId,
     sponsorId: sponsor?.id,
     attendeeId: infoRequest?.attendeeId ?? null,
+  });
+}
+
+export async function sendPasswordResetEmail(storage, user, rawToken, baseUrl) {
+  const toEmail = user?.email;
+  if (!toEmail) return;
+  const resetUrl = `${baseUrl}/admin/reset-password?token=${rawToken}`;
+  const subject = "Reset your Concierge password";
+  const html = passwordResetEmail({
+    userName: user?.name ?? user?.email ?? "Admin",
+    resetUrl,
+  });
+  await sendAndLog(storage, {
+    emailType: "password_reset",
+    to: toEmail,
+    subject,
+    html,
+    eventId: null,
+    sponsorId: null,
+    attendeeId: null,
+  });
+}
+
+export async function sendSponsorMagicLoginEmail(storage, sponsorUser, sponsor, rawToken, baseUrl, eventName) {
+  const toEmail = sponsorUser?.email;
+  if (!toEmail) return;
+  const loginUrl = `${baseUrl}/sponsor/auth/magic?token=${rawToken}`;
+  const subject = `Your Converge Concierge Sponsor Dashboard${eventName ? ` — ${eventName}` : ""}`;
+  const html = sponsorMagicLoginEmail({
+    sponsorName: sponsor?.name ?? "",
+    contactName: sponsorUser?.name || sponsor?.contactName || null,
+    eventName: eventName ?? null,
+    loginUrl,
+  });
+  await sendAndLog(storage, {
+    emailType: "sponsor_magic_login",
+    to: toEmail,
+    subject,
+    html,
+    sponsorId: sponsor?.id ?? null,
+    eventId: null,
+    attendeeId: null,
   });
 }

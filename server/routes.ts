@@ -7,7 +7,7 @@ import { buildSponsorReportPDF } from "./pdf-report";
 import { sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee } from "../services/emailService";
 import multer from "multer";
 import path from "path";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 import { objectStorageClient } from "./replit_integrations/object_storage/objectStorage";
 
 const upload = multer({
@@ -225,41 +225,72 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ── Password Recovery ─────────────────────────────────────────────────────
 
+  // In-memory rate limiting for forgot-password (3 requests per 15 min per email)
+  const forgotPasswordAttempts = new Map<string, { count: number; resetAt: number }>();
+  function checkForgotPasswordRateLimit(email: string): boolean {
+    const now = Date.now();
+    const record = forgotPasswordAttempts.get(email);
+    if (!record || now > record.resetAt) {
+      forgotPasswordAttempts.set(email, { count: 1, resetAt: now + 15 * 60 * 1000 });
+      return true;
+    }
+    if (record.count >= 3) return false;
+    record.count++;
+    return true;
+  }
+
   app.post("/api/auth/forgot-password", async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "Email is required" });
-    const user = await storage.getUserByEmail(email);
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const neutralMessage = "If an account exists for that email, a password reset link has been sent.";
+
+    if (!checkForgotPasswordRateLimit(normalizedEmail)) {
+      return res.status(429).json({ message: "Too many reset requests. Please wait 15 minutes before trying again." });
+    }
+
+    const user = await storage.getUserByEmail(normalizedEmail);
     if (!user || !user.isActive) {
-      if (process.env.NODE_ENV === "production") {
-        return res.json({ message: "If an account exists for that email, reset instructions have been logged to the server." });
-      }
-      return res.status(404).json({ message: "No account found with that email address" });
+      return res.json({ message: neutralMessage });
     }
+
     const tokenRecord = await storage.createPasswordResetToken(user.id);
-    console.log(`[PASSWORD RESET] Token generated for ${email} — token: ${tokenRecord.token} — expires: ${new Date(tokenRecord.expiresAt).toISOString()}`);
-    if (process.env.NODE_ENV === "production") {
-      res.json({
-        message: "If an account exists for that email, reset instructions have been logged to the server.",
+    console.log(`[PASSWORD RESET] Token generated for ${normalizedEmail} — expires: ${new Date(tokenRecord.expiresAt).toISOString()}`);
+
+    // Send email via Brevo (fire-and-forget)
+    const baseUrl = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : "https://concierge.convergeevents.com";
+    try {
+      const { sendPasswordResetEmail } = await import("../services/emailService.js");
+      sendPasswordResetEmail(storage, user, tokenRecord.token, baseUrl).catch((err: any) => {
+        console.error(`[PASSWORD RESET] Failed to send email to ${normalizedEmail}: ${err?.message ?? err}`);
       });
-    } else {
-      res.json({
-        message: "Reset token generated. Use it to set a new password.",
-        token: tokenRecord.token,
-        expiresAt: new Date(tokenRecord.expiresAt).toISOString(),
-      });
+    } catch (err: any) {
+      console.error(`[PASSWORD RESET] Email service import failed: ${err?.message ?? err}`);
     }
+
+    res.json({ message: neutralMessage });
   });
 
   app.post("/api/auth/reset-password", async (req, res) => {
     const { token, newPassword } = req.body;
     if (!token || !newPassword) return res.status(400).json({ message: "Token and newPassword are required" });
-    if (newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
+    if (newPassword.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters" });
+    const hasUpper = /[A-Z]/.test(newPassword);
+    const hasLower = /[a-z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+    if (!hasUpper || !hasLower || !hasNumber) {
+      return res.status(400).json({ message: "Password must contain at least one uppercase letter, one lowercase letter, and one number" });
+    }
     const record = await storage.getPasswordResetToken(token);
-    if (!record) return res.status(400).json({ message: "Invalid or expired reset token" });
-    if (record.used) return res.status(400).json({ message: "This reset token has already been used" });
-    if (Date.now() > record.expiresAt) return res.status(400).json({ message: "This reset token has expired" });
+    if (!record) return res.status(400).json({ message: "This password reset link is invalid or has expired." });
+    if (record.used) return res.status(400).json({ message: "This password reset link has already been used." });
+    if (Date.now() > record.expiresAt) return res.status(400).json({ message: "This password reset link has expired. Please request a new one." });
     await storage.updateUserPassword(record.userId, newPassword);
     await storage.markResetTokenUsed(token);
+    console.log(`[PASSWORD RESET] Password successfully reset for user ${record.userId}`);
     res.json({ message: "Password updated successfully" });
   });
 
@@ -840,6 +871,143 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     await storage.revokeSponsorToken(existing.token);
     const newToken = await storage.createSponsorToken(existing.sponsorId, existing.eventId);
     res.status(201).json(newToken);
+  });
+
+  // ── Sponsor Magic Login ───────────────────────────────────────────────────
+
+  // Rate limiting for sponsor login requests (3 per 15 min per email)
+  const sponsorLoginAttempts = new Map<string, { count: number; resetAt: number }>();
+  function checkSponsorLoginRateLimit(email: string): boolean {
+    const now = Date.now();
+    const record = sponsorLoginAttempts.get(email);
+    if (!record || now > record.resetAt) {
+      sponsorLoginAttempts.set(email, { count: 1, resetAt: now + 15 * 60 * 1000 });
+      return true;
+    }
+    if (record.count >= 3) return false;
+    record.count++;
+    return true;
+  }
+
+  app.post("/api/sponsor/login-request", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email is required" });
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const neutralMessage = "If an account exists for that email, a secure login link has been sent.";
+
+    if (!checkSponsorLoginRateLimit(normalizedEmail)) {
+      return res.status(429).json({ message: "Too many requests. Please wait 15 minutes before trying again." });
+    }
+
+    const sponsorUser = await storage.getSponsorUserByEmail(normalizedEmail);
+    if (!sponsorUser || !sponsorUser.isActive) {
+      return res.json({ message: neutralMessage });
+    }
+
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await storage.invalidateSponsorLoginTokens(sponsorUser.id);
+    await storage.createSponsorLoginToken({
+      sponsorUserId: sponsorUser.id,
+      sponsorId: sponsorUser.sponsorId,
+      tokenHash,
+      expiresAt,
+    });
+
+    const sponsor = await storage.getSponsor(sponsorUser.sponsorId);
+    const baseUrl = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : "https://concierge.convergeevents.com";
+
+    try {
+      const { sendSponsorMagicLoginEmail } = await import("../services/emailService.js");
+      sendSponsorMagicLoginEmail(storage, sponsorUser, sponsor, rawToken, baseUrl, null).catch((err: any) => {
+        console.error(`[SPONSOR MAGIC LOGIN] Email failed for ${normalizedEmail}: ${err?.message ?? err}`);
+      });
+    } catch (err: any) {
+      console.error(`[SPONSOR MAGIC LOGIN] Email service import failed: ${err?.message ?? err}`);
+    }
+
+    console.log(`[SPONSOR MAGIC LOGIN] Magic link generated for ${normalizedEmail}`);
+    res.json({ message: neutralMessage });
+  });
+
+  app.get("/api/sponsor/auth/magic", async (req, res) => {
+    const { token } = req.query as { token?: string };
+    if (!token) return res.redirect("/sponsor/login?error=missing_token");
+
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const tokenRecord = await storage.getSponsorLoginTokenByHash(tokenHash);
+
+    if (!tokenRecord) return res.redirect("/sponsor/login?error=invalid_token");
+    if (tokenRecord.usedAt) return res.redirect("/sponsor/login?error=token_used");
+    if (new Date(tokenRecord.expiresAt) < new Date()) return res.redirect("/sponsor/login?error=token_expired");
+
+    await storage.markSponsorLoginTokenUsed(tokenRecord.id);
+    await storage.updateSponsorUserLastLogin(tokenRecord.sponsorUserId);
+
+    // Find an active sponsor token to use for the dashboard
+    const tokens = await storage.getSponsorTokensBySponsor(tokenRecord.sponsorId);
+    const activeToken = tokens.find((t) => t.isActive && new Date(t.expiresAt) > new Date());
+
+    if (!activeToken) {
+      return res.redirect("/sponsor/login?error=no_dashboard_access");
+    }
+
+    return res.redirect(`/sponsor-access/${activeToken.token}`);
+  });
+
+  // Admin action: send dashboard access email to sponsor's primary contact
+  app.get("/api/admin/sponsors/:sponsorId/user", requireAdmin, async (req, res) => {
+    const sponsor = await storage.getSponsor(req.params.sponsorId);
+    if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+    if (!sponsor.contactEmail) return res.json({ user: null });
+    const sponsorUser = await storage.getSponsorUserByEmail(sponsor.contactEmail);
+    res.json({ user: sponsorUser ?? null });
+  });
+
+  app.post("/api/admin/sponsors/:sponsorId/send-access-email", requireAdmin, async (req, res) => {
+    const sponsor = await storage.getSponsor(req.params.sponsorId);
+    if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+    if (!sponsor.contactEmail) return res.status(400).json({ message: "Sponsor has no contact email configured" });
+
+    const sponsorUser = await storage.upsertSponsorUser({
+      sponsorId: sponsor.id,
+      name: sponsor.contactName || sponsor.name,
+      email: sponsor.contactEmail,
+    });
+
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await storage.invalidateSponsorLoginTokens(sponsorUser.id);
+    await storage.createSponsorLoginToken({
+      sponsorUserId: sponsorUser.id,
+      sponsorId: sponsor.id,
+      tokenHash,
+      expiresAt,
+    });
+
+    const baseUrl = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : "https://concierge.convergeevents.com";
+
+    let emailSent = false;
+    let emailError: string | null = null;
+    try {
+      const { sendSponsorMagicLoginEmail } = await import("../services/emailService.js");
+      await sendSponsorMagicLoginEmail(storage, sponsorUser, sponsor, rawToken, baseUrl, null);
+      emailSent = true;
+    } catch (err: any) {
+      emailError = err?.message ?? String(err);
+      console.error(`[SPONSOR ACCESS EMAIL] Failed for ${sponsor.contactEmail}: ${emailError}`);
+    }
+
+    console.log(`[SPONSOR ACCESS EMAIL] Sent to ${sponsor.contactEmail} for sponsor "${sponsor.name}"`);
+    res.json({ ok: emailSent, sentTo: sponsor.contactEmail, error: emailError });
   });
 
   // ── Sponsor Dashboard (public, token-validated) ───────────────────────────

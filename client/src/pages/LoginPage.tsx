@@ -288,14 +288,15 @@ export default function LoginPage() {
                         </button>
                       </Link>
                       <div className="text-center text-sm text-muted-foreground">
-                        <button
-                          type="button"
-                          onClick={() => { setStep("forgot-email"); setForgotEmail(email); }}
-                          className="text-foreground/70 hover:text-accent transition-colors underline underline-offset-4 text-sm"
-                          data-testid="btn-forgot-password"
-                        >
-                          Forgot password?
-                        </button>
+                        <Link href="/admin/forgot-password">
+                          <button
+                            type="button"
+                            className="text-foreground/70 hover:text-accent transition-colors underline underline-offset-4 text-sm"
+                            data-testid="btn-forgot-password"
+                          >
+                            Forgot password?
+                          </button>
+                        </Link>
                       </div>
                     </div>
                   </motion.div>

@@ -4,6 +4,7 @@ import { db } from "./db";
 import {
   users, events, sponsors, attendees, meetings,
   sponsorTokens, sponsorNotifications, passwordResetTokens, appConfig, dataExchangeLogs,
+  sponsorUsers, sponsorLoginTokens,
   userPermissions, permissionAuditLogs, informationRequests, sponsorAnalytics, emailLogs,
   type User, type InsertUser,
   type Event, type InsertEvent,
@@ -16,6 +17,7 @@ import {
   type UserPermissions, type UserPermissionRecord, type PermissionAuditLog,
   type InformationRequest, type InsertInformationRequest, type InformationRequestStatus,
   type EmailLog,
+  type SponsorUser, type SponsorLoginToken,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -744,6 +746,71 @@ export class DatabaseStorage implements IStorage {
       profileViews: rows.filter((r) => r.eventType === "profile_view").length,
       meetingCtaClicks: rows.filter((r) => r.eventType === "meeting_cta_click").length,
     };
+  }
+
+  // ── Sponsor Users & Magic Login ───────────────────────────────────────────
+
+  async upsertSponsorUser(data: { sponsorId: string; name: string; email: string }): Promise<SponsorUser> {
+    const normalizedEmail = data.email.toLowerCase().trim();
+    const existing = await db.select().from(sponsorUsers).where(eq(sponsorUsers.email, normalizedEmail)).limit(1);
+    if (existing[0]) {
+      const [updated] = await db.update(sponsorUsers)
+        .set({ sponsorId: data.sponsorId, name: data.name || existing[0].name, updatedAt: new Date() })
+        .where(eq(sponsorUsers.id, existing[0].id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(sponsorUsers).values({
+      id: randomUUID(),
+      sponsorId: data.sponsorId,
+      name: data.name,
+      email: normalizedEmail,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async getSponsorUserByEmail(email: string): Promise<SponsorUser | undefined> {
+    const [row] = await db.select().from(sponsorUsers).where(eq(sponsorUsers.email, email.toLowerCase().trim())).limit(1);
+    return row;
+  }
+
+  async getSponsorUsersBySponsor(sponsorId: string): Promise<SponsorUser[]> {
+    return db.select().from(sponsorUsers).where(eq(sponsorUsers.sponsorId, sponsorId));
+  }
+
+  async updateSponsorUserLastLogin(id: string): Promise<void> {
+    await db.update(sponsorUsers).set({ lastLoginAt: new Date(), updatedAt: new Date() }).where(eq(sponsorUsers.id, id));
+  }
+
+  async createSponsorLoginToken(data: { sponsorUserId: string; sponsorId: string; tokenHash: string; expiresAt: Date }): Promise<SponsorLoginToken> {
+    const [row] = await db.insert(sponsorLoginTokens).values({
+      id: randomUUID(),
+      sponsorUserId: data.sponsorUserId,
+      sponsorId: data.sponsorId,
+      tokenHash: data.tokenHash,
+      expiresAt: data.expiresAt,
+      usedAt: null,
+      createdAt: new Date(),
+    }).returning();
+    return row;
+  }
+
+  async getSponsorLoginTokenByHash(tokenHash: string): Promise<SponsorLoginToken | undefined> {
+    const [row] = await db.select().from(sponsorLoginTokens).where(eq(sponsorLoginTokens.tokenHash, tokenHash)).limit(1);
+    return row;
+  }
+
+  async markSponsorLoginTokenUsed(id: string): Promise<void> {
+    await db.update(sponsorLoginTokens).set({ usedAt: new Date() }).where(eq(sponsorLoginTokens.id, id));
+  }
+
+  async invalidateSponsorLoginTokens(sponsorUserId: string): Promise<void> {
+    await db.update(sponsorLoginTokens)
+      .set({ usedAt: new Date() })
+      .where(and(eq(sponsorLoginTokens.sponsorUserId, sponsorUserId), sql`used_at IS NULL`));
   }
 
   async createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null }): Promise<string> {

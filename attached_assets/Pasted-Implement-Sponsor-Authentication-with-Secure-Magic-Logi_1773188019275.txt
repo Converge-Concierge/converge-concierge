@@ -1,0 +1,613 @@
+Implement Sponsor Authentication with Secure Magic Login Links in Converge Concierge
+
+We need to secure the Sponsor Dashboard and related sponsor-only functionality using sponsor authentication.
+
+The preferred authentication model is:
+
+email-based sponsor access with secure magic login links
+
+This should protect sponsor data while minimizing friction.
+
+Do not require sponsors to create a traditional password as the default flow. Passwords can be added later as an optional enhancement, but this phase should focus on magic link authentication.
+
+Primary Goal
+
+Sponsors should be able to:
+
+receive an email invitation to access their Sponsor Dashboard
+
+click a secure magic login link
+
+be logged into their sponsor dashboard without creating a password
+
+only access data for their own sponsor account and assigned events
+
+This authentication system should be separate from the existing admin login.
+
+Scope for This Phase
+Do build
+
+sponsor user model
+
+sponsor login request page
+
+magic token generation
+
+magic login email
+
+secure sponsor session creation
+
+sponsor auth middleware
+
+sponsor invitation email flow
+
+sponsor logout
+
+sponsor last-login tracking
+
+Do not build yet
+
+password-based sponsor auth
+
+multi-factor authentication
+
+sponsor self-registration
+
+social login
+
+sponsor team invitations beyond the primary contact unless easy
+
+This phase is for secure sponsor access with low friction.
+
+1. Protect the Sponsor Dashboard
+
+The Sponsor Dashboard and all sponsor-only views must require authentication.
+
+Protected areas should include at minimum:
+
+Sponsor Dashboard
+
+sponsor meetings
+
+sponsor information requests
+
+sponsor reports
+
+sponsor lead data
+
+any sponsor-only exports
+
+Unauthenticated users should be redirected to a sponsor login page.
+
+2. Create Sponsor User Model
+
+Create a sponsor-specific user model/table.
+
+Suggested table name:
+
+sponsor_users
+
+Suggested fields:
+
+id
+sponsor_id
+name
+email
+role nullable
+is_active
+last_login_at nullable
+created_at
+updated_at
+Notes
+
+each sponsor should have at least one sponsor user
+
+start with the primary sponsor contact as the first sponsor user
+
+role can be simple for now, such as:
+
+owner
+
+manager
+
+viewer
+
+is_active should default to true
+
+If the sponsor record already contains contact name/email, use those fields to seed the first sponsor user.
+
+3. Create Magic Login Token Model
+
+Create a secure token model/table for sponsor login.
+
+Suggested table name:
+
+sponsor_login_tokens
+
+Suggested fields:
+
+id
+sponsor_user_id
+token_hash
+expires_at
+used_at nullable
+created_at
+Required rules
+
+token must be single-use
+
+token must expire
+
+token must be invalid once used
+
+token should not be stored in raw form if practical
+
+Recommended expiration
+24 hours
+
+If you want shorter, 1–4 hours is also acceptable, but 24 hours is user-friendly for sponsor invitations.
+
+4. Create Sponsor Login Request Page
+
+Create a sponsor-specific login page.
+
+Suggested route:
+
+/sponsor/login
+
+This page should not use the admin login form.
+
+Page content
+
+Title:
+Sponsor Dashboard Access
+
+Helper text:
+Enter your work email and we’ll send you a secure link to access your sponsor dashboard.
+
+Form
+
+Email
+
+Buttons
+
+Send Login Link
+
+Back to Event Site or Back to Home if appropriate
+
+Keep the page clean and sponsor-friendly.
+
+5. Sponsor Login Request Flow
+
+When the sponsor submits their email:
+
+normalize the email
+
+look up an active sponsor_user by email
+
+if found, create a magic login token
+
+send the magic login email
+
+always show a neutral success response
+
+Important security rule
+
+Do not reveal whether the email exists.
+
+Use a generic confirmation message like:
+
+If an account exists for that email, a secure login link has been sent.
+
+This prevents account enumeration.
+
+6. Create Magic Login Email
+
+Use the existing Brevo email integration.
+
+Add a new email template:
+
+sponsor_magic_login
+Subject
+
+Your Concierge Sponsor Dashboard Access
+
+Body content
+
+Include:
+
+sponsor contact name if available
+
+sponsor name
+
+event name if appropriate
+
+explanation that the link is secure
+
+expiration notice
+
+CTA button
+
+CTA button text
+
+Open Sponsor Dashboard
+
+The email should link to a route such as:
+
+/sponsor/auth/magic?token=...
+Include expiration note
+
+Example:
+This secure link expires in 24 hours.
+
+7. Build Magic Link Auth Route
+
+Create a route such as:
+
+/sponsor/auth/magic
+
+This route should:
+
+read token from query param
+
+validate token
+
+ensure token is not expired
+
+ensure token is not already used
+
+resolve the associated sponsor user
+
+create sponsor session
+
+mark token as used
+
+update last_login_at
+
+redirect to Sponsor Dashboard
+
+8. Create Sponsor Session / Auth State
+
+Implement sponsor session handling separate from admin auth.
+
+The sponsor session should store enough information to identify:
+
+sponsor_user_id
+sponsor_id
+role if used
+authenticated_at
+
+Use the same session framework already used in Concierge if possible, but keep sponsor auth logically separated from admin auth.
+
+Important
+
+Admin users and sponsor users should not share the same auth assumption unless the current auth system was explicitly designed for multi-role separation.
+
+9. Add Sponsor Auth Middleware
+
+Create middleware that protects sponsor-only routes.
+
+Example middleware behavior:
+
+if no valid sponsor session, redirect to /sponsor/login
+
+if valid sponsor session, continue
+
+ensure sponsor only sees data for their own sponsor account
+
+This middleware should be used on:
+
+sponsor dashboard routes
+
+sponsor export routes
+
+sponsor lead/report pages
+
+sponsor settings if any
+
+10. Restrict Sponsor Data by sponsor_id
+
+This is critical.
+
+Once logged in, sponsor users must only be able to access:
+
+their sponsor’s meetings
+
+their sponsor’s information requests
+
+their sponsor’s reports
+
+their sponsor’s analytics
+
+their sponsor’s lead contacts
+
+Every sponsor-facing query should be scoped by:
+
+sponsor_id = authenticated sponsor's sponsor_id
+
+Do not trust query params alone.
+Always enforce sponsor ownership server-side.
+
+11. Add Sponsor Logout
+
+Add a logout route:
+
+/sponsor/logout
+
+Behavior:
+
+clear sponsor session
+
+redirect to sponsor login page or a sponsor-friendly landing page
+
+12. Seed Sponsor Users from Sponsor Creation / Edit Flow
+
+When a sponsor is created in admin, if the sponsor has:
+
+primary contact name
+
+primary contact email
+
+then the system should create or update the sponsor’s primary sponsor_user.
+
+Required behavior
+
+During sponsor creation or sponsor edit:
+
+if no sponsor_user exists for primary contact email, create one
+
+if one exists for that sponsor, update basic fields as appropriate
+
+This ensures sponsor auth is tied to the sponsor setup workflow.
+
+13. Add “Send Dashboard Access Email” Admin Action
+
+In Admin → Sponsors, add an action such as:
+
+Send Dashboard Access
+
+This should send the sponsor magic login email to the sponsor’s primary contact.
+
+Recommended placement
+
+in sponsor row actions
+
+or inside sponsor detail / edit view
+
+This is important for onboarding sponsors and re-engaging them.
+
+14. Optional: Auto-Send Sponsor Access Email on Creation
+
+If practical, add an optional behavior:
+
+When a sponsor is created and has a valid contact email, allow admin to:
+
+send dashboard access immediately
+
+or send later manually
+
+Do not force automatic sending unless that aligns with your workflow.
+
+A checkbox during sponsor creation is acceptable:
+
+Send sponsor access email after save
+
+15. Track Sponsor Last Login / Dashboard Visits
+
+At minimum, track:
+
+last_login_at
+
+Recommended additional tracking if easy:
+
+dashboard visit count
+
+last dashboard visit
+
+This will later support admin monitoring such as:
+
+sponsors who have never logged in
+
+sponsors not engaging
+
+dashboards not visited recently
+
+16. Add Sponsor Login Visibility to Admin
+
+In Admin → Sponsors or Sponsor Detail, show:
+
+primary contact email
+
+sponsor dashboard access status if possible
+
+last login date if available
+
+This helps event staff monitor sponsor onboarding.
+
+17. Create a Sponsor Invitation Email Flow
+
+The initial sponsor invitation email should be a polished branded email.
+
+Suggested content:
+
+Subject
+
+Your Converge Concierge Sponsor Dashboard is Ready
+
+Body
+
+Hello [Name],
+
+Your sponsor dashboard for [Event Name] is ready.
+
+Use the secure link below to access your dashboard, where you can:
+
+view scheduled meetings
+
+review information requests
+
+track leads and sponsor engagement
+
+access sponsor reporting
+
+[Open Sponsor Dashboard]
+
+This secure link expires in 24 hours.
+
+Converge Concierge
+Converge Events
+
+Use the existing branded email template style.
+
+18. Add Email Logging
+
+Use the existing email_logs system.
+
+Log sponsor access emails with type:
+
+sponsor_magic_login
+
+This should record:
+
+recipient email
+
+sponsor_id
+
+sponsor_user_id
+
+sent_at
+
+status
+
+19. Add Basic Abuse Protection
+
+Add simple throttling for sponsor login requests.
+
+Example rules:
+
+limit repeated magic link requests for the same email
+
+limit repeated requests by IP if practical
+
+Example:
+
+max 3 requests in 15 minutes per email
+
+Keep it lightweight but present.
+
+20. UI / UX Requirements
+Sponsor login page
+
+Should feel polished and sponsor-oriented, not like the admin login page.
+
+Magic login email
+
+Should be branded and professional.
+
+Expired / invalid link page
+
+If the link is invalid or expired, show:
+
+This login link is invalid or has expired. Request a new secure access link below.
+
+Include a button:
+
+Request New Link
+
+21. Recommended Routes
+
+Suggested sponsor auth routes:
+
+/sponsor/login
+/sponsor/auth/magic
+/sponsor/logout
+
+If your routing scheme differs, stay consistent, but separate sponsor auth from admin auth.
+
+22. Suggested File / Component Changes
+
+Expected additions and updates may include:
+
+models/sponsorUser.js
+models/sponsorLoginToken.js
+services/emailTemplates.js
+services/emailService.js
+middleware/sponsorAuth.js
+routes/sponsorAuth.js
+pages/sponsor/login
+admin sponsor create/edit workflow
+admin sponsor actions UI
+
+If your stack uses different naming conventions, adapt accordingly.
+
+23. Recommended Implementation Order
+
+Implement in this order:
+
+Step 1
+
+Create sponsor_users model/table
+
+Step 2
+
+Create sponsor_login_tokens model/table
+
+Step 3
+
+Build sponsor login request page and route
+
+Step 4
+
+Create sponsor magic login email template and send logic
+
+Step 5
+
+Build token validation route and sponsor session creation
+
+Step 6
+
+Add sponsor auth middleware and protect sponsor routes
+
+Step 7
+
+Add sponsor logout
+
+Step 8
+
+Integrate sponsor user creation/update into sponsor admin workflow
+
+Step 9
+
+Add admin “Send Dashboard Access” action
+
+Step 10
+
+Add logging, error handling, and polish
+
+24. Acceptance Criteria
+
+This feature is complete when:
+
+Sponsor Dashboard is protected
+
+sponsors can request secure login links by email
+
+sponsor magic login emails are sent via Brevo
+
+clicking the magic link logs the sponsor in securely
+
+sponsor sessions are created and isolated from admin auth
+
+sponsors only see their own sponsor data
+
+sponsor logout works
+
+sponsor users are tied to sponsor records
+
+admins can send dashboard access emails
+
+25. Success Standard
+
+A sponsor should be able to receive a secure access email, click once, and land inside their own Sponsor Dashboard without needing to create or remember a password.
+
+That is the standard this implementation should meet.

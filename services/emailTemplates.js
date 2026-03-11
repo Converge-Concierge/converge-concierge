@@ -86,7 +86,20 @@ function ctaButton(label, url) {
     </div>`;
 }
 
-export function meetingConfirmationForAttendee({ attendeeFirstName, sponsorName, eventName, date, time, location, meetingType, eventSlug }) {
+function calendarLinks({ google, outlook } = {}) {
+  if (!google && !outlook) return "";
+  return `
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:20px 24px;margin-bottom:28px;">
+      <p style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 14px;">📅 Add to Calendar</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        ${google ? `<a href="${google}" target="_blank" style="display:inline-block;background:#ffffff;border:1px solid #d1fae5;color:#065f46;font-size:13px;font-weight:600;padding:9px 18px;border-radius:7px;text-decoration:none;">Google Calendar</a>` : ""}
+        ${outlook ? `<a href="${outlook}" target="_blank" style="display:inline-block;background:#ffffff;border:1px solid #dbeafe;color:#1e40af;font-size:13px;font-weight:600;padding:9px 18px;border-radius:7px;text-decoration:none;">Outlook Calendar</a>` : ""}
+        <span style="display:inline-block;color:#94a3b8;font-size:12px;padding:9px 0;line-height:1.4;">ICS file attached — open to add to any calendar app.</span>
+      </div>
+    </div>`;
+}
+
+export function meetingConfirmationForAttendee({ attendeeFirstName, sponsorName, eventName, date, time, location, meetingType, eventSlug, calendarLinks: links }) {
   const isOnline = meetingType === "online_request";
   const typeLabel = isOnline ? "Online Meeting Request" : "Onsite Meeting";
   const locationLabel = isOnline ? (location || "Online — details to follow") : location;
@@ -107,13 +120,15 @@ export function meetingConfirmationForAttendee({ attendeeFirstName, sponsorName,
       </table>
     </div>
 
+    ${calendarLinks(links)}
+
     ${eventSlug ? ctaButton("View Event Schedule", `${BASE_URL}/event/${eventSlug}`) : ""}
 
     <p style="color:#94a3b8;font-size:12px;margin:24px 0 0;">If you have any questions, please contact the event team directly.</p>
   `);
 }
 
-export function meetingNotificationForSponsor({ sponsorName, attendeeName, attendeeCompany, attendeeTitle, attendeeEmail, date, time, meetingType, location, eventName, sponsorToken }) {
+export function meetingNotificationForSponsor({ sponsorName, attendeeName, attendeeCompany, attendeeTitle, attendeeEmail, date, time, meetingType, location, eventName, sponsorToken, calendarLinks: links }) {
   const isOnline = meetingType === "online_request";
   const typeLabel = isOnline ? "Online Meeting Request" : "Onsite Meeting";
   const locationLabel = isOnline ? (location || "Online — details to follow") : location;
@@ -142,6 +157,8 @@ export function meetingNotificationForSponsor({ sponsorName, attendeeName, atten
         ${detailRow("Email", attendeeEmail)}
       </table>
     </div>
+
+    ${calendarLinks(links)}
 
     ${sponsorToken ? ctaButton("Open Sponsor Dashboard", `${BASE_URL}/sponsor-dashboard?token=${sponsorToken}`) : ""}
   `);
@@ -194,5 +211,50 @@ export function infoRequestConfirmationForAttendee({ attendeeFirstName, sponsorN
     ${eventSlug ? ctaButton("View Event Schedule", `${BASE_URL}/event/${eventSlug}`) : ""}
 
     <p style="color:#94a3b8;font-size:12px;margin:24px 0 0;">If you have questions, please contact the event team directly.</p>
+  `);
+}
+
+export function passwordResetEmail({ userName, resetUrl }) {
+  return wrap(`
+    <p style="color:#ef4444;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 8px;">Password Reset</p>
+    <h1 style="color:#0f172a;font-size:22px;font-weight:800;margin:0 0 6px;">Hi ${userName || "there"},</h1>
+    <p style="color:#475569;font-size:15px;margin:0 0 24px;">We received a request to reset your Converge Concierge admin password. Click the button below to create a new password.</p>
+
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px 24px;margin-bottom:28px;">
+      <p style="color:#991b1b;font-size:13px;margin:0;">⏱ This link expires in <strong>1 hour</strong>. If you did not request a password reset, you can safely ignore this email — your password will not change.</p>
+    </div>
+
+    ${ctaButton("Reset My Password", resetUrl)}
+
+    <p style="color:#94a3b8;font-size:12px;margin:24px 0 8px;">If the button above doesn't work, copy and paste this link into your browser:</p>
+    <p style="font-size:12px;margin:0;word-break:break-all;"><a href="${resetUrl}" style="color:#14b8a6;">${resetUrl}</a></p>
+
+    <p style="color:#94a3b8;font-size:12px;margin:24px 0 0;">This is an automated message from Converge Concierge. Please do not reply to this email.</p>
+  `);
+}
+
+export function sponsorMagicLoginEmail({ sponsorName, contactName, eventName, loginUrl }) {
+  return wrap(`
+    <p style="color:#14b8a6;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 8px;">Sponsor Dashboard Access</p>
+    <h1 style="color:#0f172a;font-size:22px;font-weight:800;margin:0 0 6px;">Hello${contactName ? ` ${contactName}` : ""},</h1>
+    <p style="color:#475569;font-size:15px;margin:0 0 24px;">Your Converge Concierge sponsor dashboard${eventName ? ` for <strong>${eventName}</strong>` : ""} is ready. Click the secure button below to access your dashboard.</p>
+
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:20px 24px;margin-bottom:28px;">
+      <p style="color:#064e3b;font-size:13px;font-weight:600;margin:0 0 10px;">From your dashboard you can:</p>
+      <ul style="color:#065f46;font-size:13px;margin:0;padding-left:20px;line-height:1.8;">
+        <li>View all scheduled meetings</li>
+        <li>Review information requests from attendees</li>
+        <li>Track leads and sponsor engagement</li>
+        <li>Access reporting and analytics</li>
+      </ul>
+    </div>
+
+    ${ctaButton("Open Sponsor Dashboard", loginUrl)}
+
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 20px;margin-top:24px;">
+      <p style="color:#92400e;font-size:12px;margin:0;">⏱ This secure link expires in <strong>24 hours</strong>. If you need a new link, contact your event coordinator or request another via the sponsor login page.</p>
+    </div>
+
+    <p style="color:#94a3b8;font-size:12px;margin:24px 0 0;">This link is unique to your account — please do not share it. If you did not expect this email, you can safely ignore it.</p>
   `);
 }

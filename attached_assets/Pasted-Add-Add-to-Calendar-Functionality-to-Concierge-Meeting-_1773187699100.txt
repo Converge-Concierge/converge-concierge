@@ -1,0 +1,492 @@
+Add “Add to Calendar” Functionality to Concierge Meeting Emails
+
+Enhance Concierge meeting emails so attendees and sponsors can easily add scheduled meetings to their calendars.
+
+Right now the email system sends transactional meeting emails, but it does not yet include calendar functionality.
+
+We need to add:
+
+ICS calendar attachment
+
+Google Calendar link
+
+Outlook calendar link if practical
+
+reusable calendar generation logic for meeting confirmation and reminder emails
+
+This should work for both:
+
+attendee meeting confirmation emails
+
+sponsor meeting notification emails
+
+meeting reminder emails later
+
+Primary Goal
+
+When Concierge sends a meeting email, the recipient should be able to:
+
+download an ICS file and add the meeting to calendar apps
+
+click a Google Calendar link
+
+optionally click an Outlook calendar link
+
+This should work for:
+
+onsite meetings
+
+online meetings
+
+Scope for This Phase
+Do build
+
+ICS file generation
+
+calendar link generation
+
+email template support for add-to-calendar links
+
+Brevo attachment support
+
+use in meeting confirmation emails
+
+Do not build yet
+
+recurring events
+
+meeting update / cancellation ICS sequencing if complex
+
+Apple-specific calendar links beyond ICS
+
+full RSVP workflow
+
+This phase is for single meeting calendar support.
+
+1. Create a Calendar Utility
+
+Create a new file:
+
+services/calendarService.js
+
+This file should handle:
+
+ICS content generation
+
+Google Calendar link generation
+
+Outlook calendar link generation
+
+2. Generate ICS File Content
+
+Create a function like:
+
+buildMeetingIcs(meeting, sponsor, attendee, event)
+
+It should return a valid ICS string.
+
+ICS content requirements
+
+Include:
+
+BEGIN:VCALENDAR
+
+VERSION:2.0
+
+BEGIN:VEVENT
+
+UID
+
+DTSTAMP
+
+DTSTART
+
+DTEND
+
+SUMMARY
+
+DESCRIPTION
+
+LOCATION
+
+END:VEVENT
+
+END:VCALENDAR
+
+2A. Meeting summary format
+
+Use a summary like:
+
+Meeting with [Sponsor Name] at [Event Name]
+
+Example:
+
+Meeting with Winnow at The 2026 Fintech Risk & Compliance Forum
+2B. Description format
+
+Use a clean description such as:
+
+Scheduled through Converge Concierge.
+
+Sponsor: [Sponsor Name]
+Attendee: [Attendee Name]
+Meeting Type: [Onsite / Online]
+Event: [Event Name]
+
+If online and a meeting link exists, include it in the description.
+
+If onsite, include the meeting location.
+
+2C. Location format
+
+For onsite meetings:
+
+use the physical location, e.g. VIP Lounge
+
+For online meetings:
+
+use the platform name, e.g. Zoom
+
+if a URL exists, include it in description and optionally in location if appropriate
+
+3. Format Dates Properly for ICS
+
+ICS dates must use the correct calendar format.
+
+Use UTC unless your current system has strong timezone support already implemented.
+
+Format like:
+
+YYYYMMDDTHHMMSSZ
+
+Example:
+
+20260518T163000Z
+3A. Meeting end time
+
+Use the meeting end time if stored.
+
+If the system stores only start time and duration, calculate end time based on duration.
+
+Default duration in Concierge is currently 20 minutes unless otherwise configured.
+
+Do not hardcode 30 minutes.
+
+4. Create Calendar Link Functions
+
+Inside services/calendarService.js, add functions such as:
+
+buildGoogleCalendarLink(meeting, sponsor, attendee, event)
+buildOutlookCalendarLink(meeting, sponsor, attendee, event)
+
+These should return valid URLs.
+
+4A. Google Calendar link
+
+Build a link using the standard Google Calendar template URL.
+
+Include:
+
+action=TEMPLATE
+
+text
+
+dates
+
+location
+
+details
+
+Use URL encoding properly.
+
+4B. Outlook link
+
+If practical, build an Outlook web calendar compose link.
+
+If Outlook link logic becomes inconsistent or brittle, prioritize:
+
+ICS attachment
+
+Google Calendar link
+
+ICS already works well for Outlook users.
+
+5. Support Attachments in Brevo Email Sending
+
+Update:
+
+services/emailService.js
+
+so sendEmail() can optionally accept attachments.
+
+Current sendEmail likely accepts:
+
+to
+
+subject
+
+htmlContent
+
+Extend it to also accept:
+
+attachments
+
+Brevo transactional email attachments should be sent in the format Brevo expects, typically including:
+
+name / filename
+
+base64 content
+
+5A. Attachment behavior
+
+When sending a meeting confirmation email, attach an ICS file:
+
+Filename example:
+
+meeting.ics
+
+Better filename example:
+
+FRC2026-winnow-meeting.ics
+6. Update Email Templates to Include Calendar Links
+
+Update:
+
+services/emailTemplates.js
+
+for meeting-related emails.
+
+Add a clear section like:
+
+Add to Calendar
+
+Include buttons or links for:
+
+Google Calendar
+
+Outlook Calendar if implemented
+
+Download ICS
+
+If you are attaching the ICS file, the “Download ICS” link can either:
+
+point to a downloadable route if one exists, or
+
+be omitted from the email body and rely on the attachment
+
+Preferred initial implementation:
+
+include Google Calendar link in body
+
+include ICS attachment in email
+
+6A. Example wording
+
+Use something like:
+
+Add this meeting to your calendar
+
+Buttons/links:
+
+Add to Google Calendar
+
+Add to Outlook
+
+ICS attached to this email
+
+7. Update Meeting Confirmation Email Workflows
+
+Use the new calendar functionality in:
+
+7A. Attendee meeting confirmation email
+
+When a meeting is created and attendee confirmation is sent:
+
+attach ICS file
+
+include Google Calendar link
+
+include Outlook link if implemented
+
+7B. Sponsor new meeting notification email
+
+Do the same for the sponsor notification email if it contains actual meeting details.
+
+Sponsors should also be able to add the meeting to calendar.
+
+8. Prepare for Meeting Reminder Emails
+
+Even if reminders are not fully implemented yet, structure the email/calendar utilities so they can be reused later for:
+
+24-hour reminder
+
+2-hour reminder
+
+The same ICS/calendar links should work there.
+
+9. Suggested File Changes
+
+Expected files to create/update:
+
+services/calendarService.js
+services/emailService.js
+services/emailTemplates.js
+meeting creation workflow file(s)
+
+If needed, also add:
+
+utils/dateFormat.js
+
+for consistent date handling.
+
+10. Handle Missing Data Gracefully
+
+If the meeting record is missing fields, do not generate broken calendar output.
+
+Required fallbacks
+
+if location missing for onsite, use event name or “Onsite Meeting”
+
+if online platform missing, use “Online Meeting”
+
+if event name missing, use sponsor name and general meeting label
+
+if end time missing, calculate from duration
+
+Do not let ICS generation crash the workflow.
+
+11. Use Clean Human-Readable Email Content
+
+In the email body, use readable formatting like:
+
+Date: May 18, 2026
+Time: 11:30 AM
+Location: VIP Lounge
+
+Do not expose raw timestamp strings.
+
+This is separate from the ICS internals, which must use ICS format.
+
+12. Log Calendar Email Sends Normally
+
+Continue using the existing email_logs approach.
+
+No separate logging model is required for ICS.
+
+Meeting confirmation email logs should still record:
+
+email type
+
+recipient
+
+subject
+
+status
+
+If attachment send fails, log the error.
+
+13. Non-Blocking Error Handling
+
+Calendar support should enhance the email, not break meeting creation.
+
+Required behavior:
+
+if meeting record is created successfully, do not roll it back because ICS generation failed
+
+log ICS or attachment errors
+
+still attempt to send the email if possible
+
+still allow meeting creation to succeed
+
+If necessary:
+
+send the email without attachment as fallback
+
+include calendar links if available
+
+14. Test Cases
+
+After implementation, test all of the following:
+
+14A. Onsite meeting
+
+attendee receives confirmation email
+
+email includes calendar links
+
+ICS opens correctly in Google / Outlook / Apple Calendar
+
+location shows correctly
+
+14B. Online meeting
+
+same as above
+
+description includes platform or meeting URL if available
+
+14C. Sponsor notification
+
+sponsor receives email
+
+ICS works correctly
+
+14D. Missing optional fields
+
+email still sends
+
+ICS still generates reasonable output
+
+15. Acceptance Criteria
+
+This task is complete when:
+
+meeting confirmation emails include add-to-calendar support
+
+ICS file is attached to meeting emails
+
+Google Calendar link is included in email body
+
+Outlook link is included if implemented, otherwise ICS must still support Outlook users
+
+both attendee and sponsor meeting emails support this functionality
+
+onsite and online meetings both work
+
+calendar generation failures do not break meeting creation
+
+16. Success Standard
+
+After this is implemented, a recipient of a Concierge meeting email should be able to add the meeting to their calendar in one click or one attachment open, making the platform feel much more complete and reducing missed meetings.
+
+17. Recommended Implementation Order
+
+Implement in this order:
+
+Step 1
+
+Create services/calendarService.js
+
+Step 2
+
+Build ICS generation function
+
+Step 3
+
+Build Google Calendar link generator
+
+Step 4
+
+Update sendEmail() to support attachments
+
+Step 5
+
+Update meeting email templates to include calendar links
+
+Step 6
+
+Wire ICS attachment and links into attendee and sponsor meeting emails
+
+Step 7
+
+Test onsite and online scenarios

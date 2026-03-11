@@ -1,0 +1,629 @@
+Redesign the Admin Dashboard with Event-Specific Tabs (Styled Similar to the Sponsor Dashboard)
+
+Redesign the Admin Dashboard so it is more useful, more organized, and more operationally actionable.
+
+The current Admin Dashboard is too aggregated and too static. It should be restructured so admins can quickly view and manage activity by specific event, while still allowing an All Events view.
+
+The new Admin Dashboard should use a tabbed interface, similar in style to the Sponsor Dashboard, so important information is easier to reach above the fold without requiring excessive scrolling.
+
+Primary Goal
+
+Create a new Admin Dashboard experience with:
+
+Event-specific dashboard tabs
+
+a clean tabbed layout similar to the Sponsor Dashboard
+
+a strong Overview-first design
+
+event-scoped metrics, alerts, and activity
+
+better use of space above the fold
+
+Core Design Principle
+
+The Admin Dashboard should answer two kinds of questions:
+
+Global question
+
+How are all events performing overall?
+
+Event-specific question
+
+What is happening right now for this specific event?
+
+The redesign should support both.
+
+1. Replace the Current Long Dashboard Layout with Tabs
+
+Create a tabbed Admin Dashboard structure.
+
+Required top-level tabs
+
+Overview
+
+Meetings
+
+Sponsors
+
+Info Requests
+
+Activity
+
+Reports
+
+If needed, a future tab may be added for:
+
+Email
+
+Deliverables
+
+Attendees
+
+But for now, keep the initial set focused.
+
+2. Add Event Context Selector at the Top
+
+At the top of the Admin Dashboard, add an event context selector.
+
+Required control
+Event: [All Events ▼]
+
+This selector should work together with the tabs.
+
+Required behavior
+
+The admin can choose:
+
+All Events
+
+a specific event such as FRC2026
+
+another event such as USBT2026
+
+etc.
+
+When a specific event is selected, all tab content should update to show only that event’s data where appropriate.
+
+When All Events is selected, show aggregate data.
+
+3. Use Sponsor Dashboard Visual Style as the Model
+
+The Admin Dashboard should follow the same general UX style as the Sponsor Dashboard:
+
+clear header area
+
+metric cards near the top
+
+tab navigation visible above the fold
+
+focused content within each tab
+
+less long scrolling
+
+cleaner information grouping
+
+Do not copy sponsor-specific content, but reuse the design language:
+
+tab bar
+
+KPI row
+
+clean cards
+
+consistent spacing
+
+more polished hierarchy
+
+4. Admin Dashboard Header Layout
+
+Create a cleaner dashboard header.
+
+Header should include
+
+Admin Dashboard title
+
+short helper text
+
+selected event context
+
+optional event logo when a specific event is selected
+
+key quick stats / active alerts summary if useful
+
+Suggested helper text
+
+For All Events:
+Monitor meetings, sponsor activity, requests, and operational issues across all events.
+
+For a selected event:
+Monitor activity and operational readiness for [Event Name].
+
+5. Tab 1 — Overview
+
+The Overview tab should be the default tab.
+
+It should show the most important high-level information for the selected event context.
+
+5A. KPI row
+
+At the top of the Overview tab, show KPI cards such as:
+
+Total Meetings
+
+Meetings Today
+
+Active Sponsors
+
+Attendees
+
+Open Info Requests
+
+Needs Attention Count
+
+Only show metrics that are supported by real data.
+
+If All Events is selected, show aggregate values.
+If an event is selected, show event-specific values.
+
+5B. Needs Attention section
+
+Place this high on the page.
+
+This section should remain highly visible and operational.
+
+Examples of issues:
+
+sponsors with no meetings
+
+info requests still open after X days
+
+sponsors who have not logged in
+
+sponsors with no meeting blocks assigned
+
+meetings approaching soon but still not confirmed
+
+incomplete sponsor setup
+
+Each alert should include a clear CTA:
+
+View Sponsors
+
+View Meetings
+
+View Info Requests
+
+These CTAs must deep-link to filtered content within the dashboard or related admin pages.
+
+5C. Recent activity / quick operational cards
+
+Show compact summary blocks such as:
+
+latest meetings scheduled
+
+newest info requests
+
+latest sponsor logins
+
+recent email failures if email tracking exists
+
+This should make the dashboard feel alive.
+
+5D. Optional charts
+
+If space allows, include 1–2 charts only.
+
+Recommended:
+
+Meeting Status Breakdown
+
+Meetings by Day or by Event
+
+Do not overload the Overview tab with too many charts.
+
+6. Tab 2 — Meetings
+
+This tab should focus on meeting operations.
+
+Required content
+
+upcoming meetings
+
+recent meetings
+
+meeting status summary
+
+meeting conflict / issue warnings if applicable
+
+Recommended sections
+Meetings KPI row
+
+Scheduled
+
+Confirmed
+
+Completed
+
+Cancelled
+
+No-Show
+
+Meeting table
+
+Show:
+
+Event
+
+Sponsor
+
+Attendee
+
+Date
+
+Time
+
+Location
+
+Type
+
+Status
+
+Actions
+
+If a specific event is selected, the Event column can be hidden or deemphasized.
+
+Filters
+
+Add filters such as:
+
+Status
+
+Sponsor
+
+Meeting Type
+
+Date Range
+
+Search
+
+Keep them compact and aligned.
+
+7. Tab 3 — Sponsors
+
+This tab should focus on sponsor performance and sponsor readiness.
+
+Required content
+
+sponsor engagement summary
+
+sponsor setup / onboarding status
+
+sponsors with no meetings
+
+sponsors with no dashboard login
+
+sponsors with no blocks configured
+
+sponsor table
+
+Recommended sections
+Sponsor KPIs
+
+Active Sponsors
+
+Sponsors with Meetings
+
+Sponsors with No Meetings
+
+Sponsors Not Logged In
+
+Sponsors with Open Info Requests
+
+Sponsor table
+
+Columns:
+
+Sponsor
+
+Level
+
+Meetings
+
+Info Requests
+
+Last Login
+
+Status / Attention Flags
+
+Actions
+
+If a specific event is selected, show sponsor status for that event only.
+
+8. Tab 4 — Info Requests
+
+This tab should make Information Requests a first-class operational object.
+
+Required content
+
+total info requests
+
+open
+
+email sent
+
+meeting scheduled
+
+closed
+
+not qualified
+
+Table columns
+
+Event
+
+Sponsor
+
+Name
+
+Company
+
+Email
+
+Status
+
+Source
+
+Submitted
+
+Last Updated
+
+Actions
+
+If a specific event is selected, scope accordingly.
+
+Filters
+
+Sponsor
+
+Status
+
+Date Range
+
+Search
+
+9. Tab 5 — Activity
+
+This tab should show recent platform activity.
+
+The purpose is to help admins understand what is happening across the system without having to inspect multiple modules.
+
+Include items such as
+
+recent meetings scheduled
+
+recent status changes
+
+recent info requests submitted
+
+sponsor dashboard logins
+
+sponsor access emails sent
+
+admin actions if useful
+
+email activity if useful
+
+This can be a timeline or structured activity feed.
+
+10. Tab 6 — Reports
+
+This tab should summarize links or shortcuts into the fuller Reports module.
+
+It does not need to duplicate every report, but it should provide quick access to key reports for the selected event.
+
+Include
+
+Meeting Data
+
+Sponsor Performance
+
+Info Requests
+
+PDF exports if useful
+
+shortcut buttons:
+
+Open Full Reports
+
+Export Meeting Data
+
+Export Info Requests
+
+This tab should be more of a launchpad / summary than a full replacement for the Reports module.
+
+11. Above-the-Fold Requirement
+
+The redesigned Admin Dashboard should keep the most important information visible without scrolling excessively.
+
+On common desktop/laptop screens, the user should see at load:
+
+dashboard header
+
+event selector
+
+KPI row
+
+tab bar
+
+top portion of the selected tab content
+
+This is one of the main reasons for the redesign.
+
+12. Deep Linking / Filtered Navigation
+
+When a user clicks a CTA from the dashboard, it should open the most relevant filtered view.
+
+Examples:
+
+“1 sponsor with no meetings” → Sponsors tab or Sponsors page filtered to no-meetings sponsors
+
+“7 open info requests” → Info Requests tab filtered to Open
+
+“Upcoming meetings” → Meetings tab filtered to upcoming
+
+Do not send the user to a generic page without context.
+
+13. Event-Specific Tabs Behavior
+
+Tabs should reuse the selected event context.
+
+Example:
+
+select FRC2026
+
+click Sponsors tab
+
+only FRC2026 sponsor data shown
+
+click Meetings tab
+
+only FRC2026 meeting data shown
+
+Do not force the admin to re-select the event after switching tabs.
+
+Preserve event context until changed manually.
+
+14. Optional Future Enhancement: True Event Tabs
+
+If desired later, you may support a second navigation layer such as:
+
+[All Events] [FRC2026] [TLS2026] [USBT2026]
+
+with content tabs underneath.
+
+However, for now, the preferred implementation is:
+
+event selector dropdown
+
+functional content tabs
+
+This is simpler and more scalable.
+
+15. Mobile / Smaller Screen Behavior
+
+On smaller widths:
+
+tab bar should wrap or scroll horizontally
+
+KPI cards should stack cleanly
+
+filters should wrap cleanly
+
+content should remain usable
+
+Do not let the dashboard collapse into clutter.
+
+16. Suggested Layout Structure
+
+Use this high-level structure:
+
+Dashboard shell
+
+Title / helper text
+
+Event selector
+
+KPI row
+
+Tab bar
+
+Tab content area
+
+Overview / Meetings / Sponsors / Info Requests / Activity / Reports
+
+This should feel similar in polish and clarity to the Sponsor Dashboard.
+
+17. Recommended Implementation Order
+
+Implement in this order:
+
+Step 1
+
+Add event selector and state management
+
+Step 2
+
+Create tabbed dashboard shell
+
+Step 3
+
+Move existing dashboard content into Overview tab
+
+Step 4
+
+Build Meetings tab
+
+Step 5
+
+Build Sponsors tab
+
+Step 6
+
+Build Info Requests tab
+
+Step 7
+
+Build Activity tab
+
+Step 8
+
+Build Reports tab / launchpad
+
+Step 9
+
+Add deep-link CTA behavior and filtered navigation
+
+Step 10
+
+Polish layout, spacing, and above-the-fold experience
+
+18. Acceptance Criteria
+
+This redesign is complete when:
+
+Admin Dashboard uses a tabbed layout
+
+event selector exists and scopes dashboard data
+
+Overview tab shows the most important event-level information
+
+Meetings tab provides meeting operations visibility
+
+Sponsors tab provides sponsor performance/readiness visibility
+
+Info Requests tab provides info request operations visibility
+
+Activity tab shows recent meaningful platform activity
+
+Reports tab provides quick reporting access
+
+the dashboard feels more like the Sponsor Dashboard in structure and polish
+
+important content is accessible above the fold
+
+19. Success Standard
+
+After this redesign, an admin should be able to open the dashboard, select an event, and immediately understand:
+
+how that event is performing
+
+what needs attention
+
+which sponsors are active or underperforming
+
+what requests are open
+
+what operational actions need to happen next
+
+That is the standard this dashboard redesign should meet.

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
@@ -71,12 +71,42 @@ function StatCard({
 export default function DashboardPage() {
   const [, nav] = useLocation();
   const [selectedEventId, setSelectedEventId] = useState<string>("all");
+  const hasAutoSelected = useRef(false);
 
   const { data: events      = [] } = useQuery<Event[]>             ({ queryKey: ["/api/events"]   });
   const { data: sponsors    = [] } = useQuery<Sponsor[]>           ({ queryKey: ["/api/sponsors"] });
   const { data: attendees   = [] } = useQuery<Attendee[]>          ({ queryKey: ["/api/attendees"] });
   const { data: meetings    = [] } = useQuery<Meeting[]>           ({ queryKey: ["/api/meetings"] });
   const { data: infoRequests = [] } = useQuery<InformationRequest[]>({ queryKey: ["/api/admin/information-requests"] });
+
+  // Auto-select closest upcoming (non-completed) event once when events first load
+  useEffect(() => {
+    if (hasAutoSelected.current || events.length === 0) return;
+    hasAutoSelected.current = true;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const upcoming = events
+      .filter(e => (e.archiveState ?? "active") === "active" && e.endDate && new Date(e.endDate) >= today)
+      .sort((a, b) => new Date(a.startDate ?? a.endDate ?? 0).getTime() - new Date(b.startDate ?? b.endDate ?? 0).getTime());
+    if (upcoming.length > 0) {
+      setSelectedEventId(upcoming[0].id);
+    }
+    // If no upcoming events, keep default "all"
+  }, [events]);
+
+  // Sorted events for selector: upcoming (soonest first) → completed (most recent first) → "All Events" last
+  const sortedEventsForSelector = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const activeOnly = events.filter(e => (e.archiveState ?? "active") === "active");
+    const upcoming = activeOnly
+      .filter(e => e.endDate && new Date(e.endDate) >= today)
+      .sort((a, b) => new Date(a.startDate ?? a.endDate ?? 0).getTime() - new Date(b.startDate ?? b.endDate ?? 0).getTime());
+    const completed = activeOnly
+      .filter(e => !e.endDate || new Date(e.endDate) < today)
+      .sort((a, b) => new Date(b.endDate ?? b.startDate ?? 0).getTime() - new Date(a.endDate ?? a.startDate ?? 0).getTime());
+    return [...upcoming, ...completed];
+  }, [events]);
 
   const selectedEvent = useMemo(() => 
     selectedEventId === "all" ? null : events.find(e => e.id === selectedEventId)
@@ -233,12 +263,12 @@ export default function DashboardPage() {
               <SelectValue placeholder="Select Event" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Events</SelectItem>
-              {activeEvents.map((event) => (
+              {sortedEventsForSelector.map((event) => (
                 <SelectItem key={event.id} value={event.id}>
                   {event.name}
                 </SelectItem>
               ))}
+              <SelectItem value="all">All Events</SelectItem>
             </SelectContent>
           </Select>
         </div>

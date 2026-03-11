@@ -1,0 +1,192 @@
+Replit Instructions
+Update Concierge Welcome Page Layout (Next Step Section + Topic Selection)
+
+Improve the Welcome / Registration Confirmation page so the Next Step section is more prominent and easier to understand.
+
+The goal is to make the attendee immediately recognize that selecting topics is the next action and visually connect those topics to the sponsors shown below.
+
+1. Make the "Next Step" Section More Prominent
+
+The Next Step section currently blends into the page and should be visually emphasized.
+
+Update styling
+
+Increase the prominence of the section header.
+
+Current
+NEXT STEP
+Make the most of your time at the conference.
+Required
+
+Use stronger styling for Next Step.
+
+Example improvements:
+
+increase font size
+
+use stronger weight
+
+maintain uppercase styling
+
+optionally add a small icon if consistent with design language
+
+Example:
+
+NEXT STEP
+Choose the topics you're interested in.
+
+or
+
+NEXT STEP
+Tell us what you're interested in.
+
+This should feel like a clear instruction.
+
+2. Delete the Instruction Sentence
+
+Remove the following sentence completely:
+
+Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.
+
+This sentence is redundant and makes the page feel cluttered.
+
+The interface itself will communicate the purpose.
+
+3. Combine the Heading Text
+
+Currently the page displays:
+
+Make the most of your time at the conference.
+
+and later:
+
+What are you interested in?
+
+These should be combined into a single clearer instruction.
+
+Replace both lines with:
+Make the most of your time at the conference.
+What topics are you interested in?
+
+Or preferably a single stronger line:
+
+Make the most of your time at the conference. What topics interest you?
+
+This reduces visual fragmentation.
+
+4. Move the Topic Selection Into the Lightly Shaded Section
+
+The topic selection buttons currently appear below the header but should instead appear inside the lightly shaded "Next Step" section.
+
+Required layout
+
+The shaded section should contain:
+
+NEXT STEP
+
+Make the most of your time at the conference. What topics interest you?
+
+[ AI ] [ Compliance ] [ Customer Service ] [ Legal ] [ Regulatory ]
+
+This visually groups the instruction and the action together.
+
+5. Ensure Topic Buttons Are Clearly Visible
+
+The topic buttons should remain styled as clickable filter chips.
+
+Requirements:
+
+keep current rounded chip style
+
+maintain spacing between buttons
+
+allow wrapping to multiple rows if needed
+
+maintain hover and selected states
+
+6. Improve Visual Hierarchy
+
+Within the shaded section the layout should be:
+
+Row 1
+NEXT STEP
+Row 2
+Make the most of your time at the conference. What topics interest you?
+Row 3
+
+Topic buttons
+
+[ AI ] [ Compliance ] [ Customer Service ] [ Legal ] [ Regulatory ]
+7. Maintain Section Background Styling
+
+Keep the lightly shaded background used for the "Next Step" area.
+
+This background visually separates the action step from:
+
+the registration confirmation header
+
+the sponsor section below
+
+8. Keep Sponsor Section Unchanged
+
+Do not modify the Meet With Our Sponsors section below.
+
+It should continue to display:
+
+sponsor cards
+
+sponsor levels
+
+meeting buttons
+
+request information options
+
+The only change is that topic selection now sits clearly above it.
+
+9. Final Layout Structure
+
+The page should appear in this order:
+
+[ Event Logo ]
+
+Registration Confirmation
+You're Registered for The 2026 Fintech Risk & Compliance Forum!
+
+--------------------------------
+
+NEXT STEP
+
+Make the most of your time at the conference. What topics interest you?
+
+[ AI ] [ Compliance ] [ Customer Service ] [ Legal ] [ Regulatory ]
+
+--------------------------------
+
+Meet With Our Sponsors
+
+[Sponsor Cards]
+10. Acceptance Criteria
+
+This update is complete when:
+
+the "Next Step" section is visually stronger
+
+the instruction sentence has been removed
+
+the topic selection appears inside the shaded section
+
+the two headings are combined into one clearer instruction
+
+the sponsor cards remain unchanged
+
+the page feels simpler and easier to understand
+
+UX Goal
+
+After this change, attendees should immediately understand:
+
+They are registered
+
+Their next action is selecting topics
+
+Sponsors shown below relate to those interests

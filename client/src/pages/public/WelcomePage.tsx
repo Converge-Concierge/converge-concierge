@@ -200,41 +200,24 @@ export default function WelcomePage() {
         </div>
       </div>
 
-      {/* ── CTA message ───────────────────────────────────────────────────── */}
+      {/* ── CTA message + Topic Selection ─────────────────────────────────── */}
       <div className="border-b border-border bg-muted/20">
-        <div className="max-w-5xl mx-auto px-6 py-4">
+        <div className="max-w-5xl mx-auto px-6 py-6 sm:py-8">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.25, delay: 0.05 }}
+            className="space-y-4"
           >
-            <p className="text-xs font-semibold uppercase tracking-widest text-accent mb-1">
-              Next step
+            <p className="text-xs font-black uppercase tracking-widest text-accent">
+              Next Step
             </p>
             <p className="text-xl sm:text-2xl font-display font-bold text-foreground">
-              Make the most of your time at the conference.
+              Make the most of your time at the conference. What topics interest you?
             </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Select the topics you're interested in and we'll highlight participating sponsors aligned with those areas.
-            </p>
-          </motion.div>
-        </div>
-      </div>
 
-      {/* ── Sponsor Discovery ─────────────────────────────────────────────── */}
-      <div id="sponsor-grid" className="flex-1 max-w-5xl mx-auto w-full px-6 py-5 sm:py-6">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.08 }}
-        >
-          {/* Interest filter */}
-          {attributesInUse.length > 0 && (
-            <div className="mb-6 space-y-3">
-              <h2 className="text-2xl font-display font-semibold text-foreground">
-                What are you interested in?
-              </h2>
-              <div className="flex flex-wrap gap-2 items-center">
+            {attributesInUse.length > 0 && (
+              <div className="flex flex-wrap gap-2 items-center pt-1">
                 {visibleFilters.map((attr) => {
                   const active = activeFilters.some((f) => f.toLowerCase() === attr.toLowerCase());
                   return (
@@ -274,9 +257,18 @@ export default function WelcomePage() {
                   </button>
                 )}
               </div>
-            </div>
-          )}
+            )}
+          </motion.div>
+        </div>
+      </div>
 
+      {/* ── Sponsor Discovery ─────────────────────────────────────────────── */}
+      <div id="sponsor-grid" className="flex-1 max-w-5xl mx-auto w-full px-6 py-5 sm:py-6">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.08 }}
+        >
           {/* Grid header */}
           <div className="flex items-end justify-between mb-3">
             <div>

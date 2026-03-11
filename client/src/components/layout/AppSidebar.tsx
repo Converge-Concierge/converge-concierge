@@ -37,7 +37,7 @@ const mainItems = [
   { title: "Sponsors", url: "/admin/sponsors", icon: Building2 },
   { title: "Attendees", url: "/admin/attendees", icon: Users },
   { title: "Meetings", url: "/admin/meetings", icon: Handshake },
-  { title: "Information Requests", url: "/admin/information-requests", icon: Mail },
+  { title: "Info Requests", url: "/admin/information-requests", icon: Mail },
   { title: "Email Center", url: "/admin/email-center", icon: Inbox },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
   { title: "Data Exchange", url: "/admin/data-exchange", icon: ArrowLeftRight },
@@ -99,20 +99,6 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
                   </SidebarMenuItem>
                 );
               })}
-              {isAdmin && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === "/admin/access-control"}
-                    className="transition-all duration-200"
-                  >
-                    <Link href="/admin/access-control">
-                      <ShieldCheck className="h-4 w-4" />
-                      <span>Access Control</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -151,6 +137,21 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
                     <Link href="/admin/users">
                       <UserCog className="h-4 w-4" />
                       <span>Users</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/admin/access-control"}
+                    className="transition-all duration-200"
+                  >
+                    <Link href="/admin/access-control">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Access Control</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

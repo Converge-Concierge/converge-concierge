@@ -1,0 +1,439 @@
+Improve Needs Attention navigation, update Sponsor Dashboard layout and meeting status editing, and adjust Admin menu labels/order
+
+Implement the following improvements in Concierge.
+
+These changes affect:
+
+Admin Dashboard
+
+Sponsor Dashboard
+
+Admin left navigation
+
+1. Admin Dashboard — “Needs Attention” → “View Sponsors” must open the relevant filtered sponsor results
+Problem
+
+On the Admin Dashboard, clicking:
+
+Needs Attention → View Sponsors
+
+currently just opens the general Sponsors admin page.
+
+It does not identify which sponsor(s) have no meetings, which makes the alert much less useful.
+
+Required behavior
+
+When the user clicks:
+
+View Sponsors
+
+from the dashboard alert:
+
+1 sponsor with no meetings
+
+the system should open the Sponsors page already filtered to the relevant sponsor set.
+
+The user should immediately be able to tell:
+
+which sponsor(s) triggered the alert
+
+why they are in the result set
+
+Recommended implementation
+
+Use one of these approaches:
+
+Preferred approach
+
+Route to Sponsors page with a query/filter state such as:
+
+/sponsors?attention=no-meetings
+
+Then the Sponsors page should:
+
+apply the filter automatically
+
+show only sponsors with zero meetings across the relevant scope
+
+show a filter pill / label indicating the active alert filter
+
+Example helper text at top of table:
+
+Showing sponsors with no meetings
+
+Acceptable alternative
+
+If server-side filtering is harder, route to the Sponsors page and apply a client-side filter based on the alert condition.
+
+But the page must still clearly show that the sponsor list is filtered.
+
+Required visual indication
+
+Once on the Sponsors page, show a visible indicator that a special filter is active.
+
+Examples:
+
+filter chip:
+
+No Meetings
+
+banner:
+
+Showing sponsors with no meetings
+
+badge near search/filter controls
+
+Do not silently route to the same full sponsor list.
+
+Required filter logic
+
+At minimum, the filter should identify sponsors who currently have:
+
+zero meetings across all events
+or
+
+zero meetings in the current dashboard scope if your dashboard is event-scoped
+
+Use the same logic as the dashboard alert so the counts match.
+
+Acceptance criteria
+
+clicking View Sponsors from the alert opens a filtered sponsor list
+
+the relevant sponsor(s) are visible immediately
+
+the Sponsors page clearly indicates the active “no meetings” filter
+
+the result set matches the dashboard alert count
+
+2. Sponsor Dashboard — Make sponsor and event logos 100% bigger and center the text between them
+Problem
+
+On the Sponsor Dashboard, the sponsor and event logos still need more visual presence and better balance.
+
+Required behavior
+
+Increase both:
+
+sponsor logo
+
+event logo
+
+to approximately 100% bigger than their current size.
+
+This means roughly doubling the current displayed size.
+
+Layout requirement
+
+Rework the sponsor dashboard header so the layout feels balanced:
+
+Desired layout
+
+sponsor logo on the left
+
+event logo on the right
+
+sponsor/event text content centered between them
+
+The text block should feel visually centered between the two logos, not left-heavy.
+
+Text block should include
+
+sponsor name
+
+sponsor level badge
+
+sponsor description
+
+event code / event name if still shown
+
+event dates
+
+event location
+
+countdown badge if still used
+
+Do not reintroduce unnecessary clutter such as Website / LinkedIn links.
+
+Responsive requirement
+
+On smaller widths, maintain clean stacking behavior:
+
+logos should still be prominent
+
+text should remain readable
+
+layout should not break or overlap
+
+Acceptance criteria
+
+sponsor logo is about 100% bigger
+
+event logo is about 100% bigger
+
+text content is visually centered between the two logos
+
+header feels balanced and cleaner
+
+3. Sponsor Dashboard — “Your Meetings” statuses should be editable / reversible
+Problem
+
+On the Sponsor Dashboard, in Your Meetings, the meeting status behaves too much like a fixed label.
+
+We need it to work more like Information Requests, where the status can be changed directly.
+
+Required behavior
+
+Inside the Your Meetings section on the Sponsor Dashboard, allow authorized sponsor users to update meeting status inline.
+
+This should be similar to how Information Request status editing works.
+
+Recommended editable meeting statuses
+
+Use the actual meeting statuses supported by Concierge.
+
+Recommended list:
+
+Scheduled
+
+Confirmed
+
+Completed
+
+Cancelled
+
+No-Show
+
+Pending
+
+Use only statuses that already fit the actual meeting model in Concierge.
+
+If “Pending” is not valid for confirmed meetings in your current model, exclude it.
+
+Recommended default list for sponsor dashboard
+
+If aligned with current system, use:
+
+Scheduled
+
+Confirmed
+
+Completed
+
+Cancelled
+
+No-Show
+
+UI behavior
+
+Replace fixed status display with one of these:
+
+Preferred
+
+Inline dropdown / select in the Status column
+
+Acceptable
+
+Click status badge → open status menu
+
+The interaction should be fast and clean.
+
+Permission requirements
+
+Meeting status editing should respect sponsor access levels.
+
+Owner
+
+Can edit meeting status
+
+Editor
+
+Can edit meeting status
+
+Viewer
+
+Cannot edit meeting status
+
+For viewers:
+
+show status as read-only
+
+do not show edit controls
+
+Reversible / editable requirement
+
+The status should be changeable, not locked after first update.
+
+Example:
+
+Scheduled → Completed
+
+Completed → Confirmed
+
+Confirmed → Cancelled
+
+This means status updates must be reversible if a sponsor or admin needs to correct them.
+
+Audit / logging requirement
+
+If audit logging exists, log:
+
+old status
+
+new status
+
+updated by
+
+timestamp
+
+If not already available, at least update cleanly in DB and preserve updated_at.
+
+Acceptance criteria
+
+sponsor owners and editors can update meeting status from the Sponsor Dashboard
+
+viewers cannot edit status
+
+meeting status can be changed more than once
+
+updated status saves correctly and persists on reload
+
+4. Admin Panel Menu — Rename “Information Requests” to “Info Requests”
+Required behavior
+
+In the Admin left navigation, rename:
+
+Information Requests
+
+to:
+
+Info Requests
+
+This is a menu-label change only unless the page title is also intentionally being shortened.
+
+Recommended scope
+
+At minimum update:
+
+left nav label
+
+Optional:
+
+breadcrumb label
+
+section title where brevity is preferred
+
+Do not break route names or internal identifiers unless necessary.
+
+Acceptance criteria
+
+left nav now shows Info Requests
+
+route/page still works normally
+
+5. Admin Panel Menu — Move Access Control below Users
+Current problem
+
+Access Control is currently placed in the Management section above Branding/Settings/Users.
+
+We want it repositioned.
+
+Required behavior
+
+Move Access Control so it appears below Users in the left navigation.
+
+Desired order
+
+Management
+
+Dashboard
+
+Events
+
+Sponsors
+
+Attendees
+
+Meetings
+
+Info Requests
+
+Email Center
+
+Reports
+
+Data Exchange
+
+Configuration
+
+Branding
+
+Settings
+
+Users
+
+Access Control
+
+This is the preferred final order.
+
+Acceptance criteria
+
+Access Control appears below Users
+
+menu order matches requested structure
+
+nav styling and active states still work correctly
+
+6. Recommended Implementation Order
+
+Implement in this order:
+
+Step 1
+
+Update the dashboard “View Sponsors” action to open the filtered sponsor list
+
+Step 2
+
+Add visible “No Meetings” filtered-state indication on Sponsors page
+
+Step 3
+
+Enlarge sponsor and event logos on Sponsor Dashboard and recenter header text layout
+
+Step 4
+
+Make Sponsor Dashboard “Your Meetings” status editable based on sponsor access level
+
+Step 5
+
+Rename nav label to Info Requests
+
+Step 6
+
+Move Access Control below Users in the admin left nav
+
+7. Acceptance Summary
+
+This update is complete when:
+
+dashboard alert links to the relevant sponsor subset instead of generic Sponsors page
+
+sponsor dashboard logos are 100% bigger and header text is centered between them
+
+meeting statuses in Sponsor Dashboard are editable like Information Requests
+
+admin left nav label reads Info Requests
+
+Access Control is moved below Users
+
+8. Success Standard
+
+After this update:
+
+the Admin Dashboard “Needs Attention” area becomes actionable
+
+the Sponsor Dashboard header feels more polished and balanced
+
+sponsor users can manage meeting statuses more effectively
+
+the admin navigation feels cleaner and more intentional

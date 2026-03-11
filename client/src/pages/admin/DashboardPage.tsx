@@ -141,7 +141,7 @@ export default function DashboardPage() {
         severity: "info",
         title: `${zeroMeetingSponsors.length} sponsor${zeroMeetingSponsors.length !== 1 ? "s" : ""} with no meetings`,
         desc: "These sponsors have no meetings scheduled across any event.",
-        link: "/admin/sponsors",
+        link: "/admin/sponsors?attention=no-meetings",
         linkText: "View Sponsors",
       });
     }

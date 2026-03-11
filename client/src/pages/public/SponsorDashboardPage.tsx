@@ -13,6 +13,7 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { downloadICS, googleCalendarUrl } from "@/lib/ics";
@@ -167,6 +168,7 @@ export default function SponsorDashboardPage() {
     retry: false,
   });
   const canExport = meData === undefined ? true : (meData.sponsorUser?.accessLevel === "owner" && meData.sponsorUser?.isPrimary === true);
+  const canEdit = meData === undefined ? true : (meData.sponsorUser === null || meData.sponsorUser.accessLevel === "owner" || meData.sponsorUser.accessLevel === "editor");
 
   const markAllRead = useMutation({
     mutationFn: () => fetch(`/api/sponsor-notifications/read-all?token=${token}`, { method: "PATCH" }).then((r) => r.json()),
@@ -394,84 +396,109 @@ export default function SponsorDashboardPage() {
         >
           {/* Sponsor + Event header */}
           <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-            <div className="p-5">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-              {/* Left: sponsor logo */}
-              <div className="h-24 w-24 rounded-xl bg-white border border-border/70 flex items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-sponsor-logo-card">
-                {sponsor.logoUrl ? (
-                  <img src={sponsor.logoUrl} alt={sponsor.name} className="h-20 max-w-[88px] object-contain p-1.5" />
-                ) : (
-                  <div className="flex flex-col items-center justify-center w-full h-full bg-muted/50">
-                    <Building2 className="h-10 w-10 text-muted-foreground/40" />
-                  </div>
-                )}
-              </div>
-
-              {/* Center: sponsor info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-sponsor-name">{sponsor.name}</h1>
-                  {sponsor.level && (
-                    <span className={cn("text-xs font-semibold border px-2.5 py-0.5 rounded-full inline-flex items-center gap-1", levelBadge[sponsor.level] || "bg-muted text-muted-foreground border-border")}>
-                      {sponsor.level === "Platinum" && <Gem className="h-3 w-3" />}
-                      {sponsor.level} Sponsor
-                    </span>
+            <div className="p-6">
+              {/* Mobile: logos row above text */}
+              <div className="flex items-center justify-between sm:hidden mb-4">
+                <div className="h-24 w-24 rounded-xl bg-white border border-border/70 flex items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-sponsor-logo-card-mobile">
+                  {sponsor.logoUrl ? (
+                    <img src={sponsor.logoUrl} alt={sponsor.name} className="h-20 max-w-[88px] object-contain p-1" />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full bg-muted/50">
+                      <Building2 className="h-10 w-10 text-muted-foreground/40" />
+                    </div>
                   )}
                 </div>
-                {sponsor.shortDescription && (
-                  <p className="text-sm text-muted-foreground mb-2">{sponsor.shortDescription}</p>
-                )}
-                <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                  <span className="font-mono text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20">
-                    {event.slug}
-                  </span>
-                  <span className="text-xs font-medium text-foreground">{event.name}</span>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-accent" />
-                    {format(parseISO(event.startDate), "MMMM d")} – {format(parseISO(event.endDate), "MMMM d, yyyy")}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5" />{event.location}
-                  </span>
-                  {(() => {
-                    const today = new Date();
-                    const start = parseISO(event.startDate);
-                    const end = parseISO(event.endDate);
-                    if (today < start) {
-                      const daysUntil = differenceInDays(start, today);
-                      return (
-                        <span className="font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
-                          Starts in {daysUntil}d
-                        </span>
-                      );
-                    } else if (today <= end) {
-                      return (
-                        <span className="font-medium px-2 py-0.5 rounded-full border bg-green-50 text-green-700 border-green-200">
-                          In progress
-                        </span>
-                      );
-                    } else {
-                      return (
-                        <span className="font-medium px-2 py-0.5 rounded-full border bg-gray-100 text-gray-600 border-gray-200">
-                          Completed
-                        </span>
-                      );
-                    }
-                  })()}
+                <div className="h-20 w-20 border border-border/50 bg-white rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-sm" data-testid="img-event-logo-header-mobile">
+                  {event.logoUrl ? (
+                    <img src={event.logoUrl} alt={event.name} className="h-full max-w-full object-contain" />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full bg-muted/50">
+                      <Calendar className="h-8 w-8 text-muted-foreground/30" />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Right: event logo */}
-              {event.logoUrl && (
-                <div className="hidden sm:flex flex-col items-end gap-1 shrink-0">
-                  <div className="h-[84px] w-[84px] border border-border/50 bg-white rounded-xl p-2.5 flex items-center justify-center overflow-hidden shadow-sm" data-testid="img-event-logo-header">
-                    <img src={event.logoUrl} alt={event.name} className="h-full max-w-full object-contain" />
+              {/* Desktop: 3-column layout (logo | text | logo) */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-8">
+                {/* Left: sponsor logo (desktop only) */}
+                <div className="hidden sm:flex h-48 w-48 rounded-2xl bg-white border border-border/70 items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-sponsor-logo-card">
+                  {sponsor.logoUrl ? (
+                    <img src={sponsor.logoUrl} alt={sponsor.name} className="h-44 max-w-[184px] object-contain p-2" />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full bg-muted/50">
+                      <Building2 className="h-20 w-20 text-muted-foreground/40" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Center: sponsor + event info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-sponsor-name">{sponsor.name}</h1>
+                    {sponsor.level && (
+                      <span className={cn("text-xs font-semibold border px-2.5 py-0.5 rounded-full inline-flex items-center gap-1", levelBadge[sponsor.level] || "bg-muted text-muted-foreground border-border")}>
+                        {sponsor.level === "Platinum" && <Gem className="h-3 w-3" />}
+                        {sponsor.level} Sponsor
+                      </span>
+                    )}
+                  </div>
+                  {sponsor.shortDescription && (
+                    <p className="text-sm text-muted-foreground mb-3">{sponsor.shortDescription}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <span className="font-mono text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20">
+                      {event.slug}
+                    </span>
+                    <span className="text-xs font-medium text-foreground">{event.name}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-accent" />
+                      {format(parseISO(event.startDate), "MMMM d")} – {format(parseISO(event.endDate), "MMMM d, yyyy")}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5" />{event.location}
+                    </span>
+                    {(() => {
+                      const today = new Date();
+                      const start = parseISO(event.startDate);
+                      const end = parseISO(event.endDate);
+                      if (today < start) {
+                        const daysUntil = differenceInDays(start, today);
+                        return (
+                          <span className="font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                            Starts in {daysUntil}d
+                          </span>
+                        );
+                      } else if (today <= end) {
+                        return (
+                          <span className="font-medium px-2 py-0.5 rounded-full border bg-green-50 text-green-700 border-green-200">
+                            In progress
+                          </span>
+                        );
+                      } else {
+                        return (
+                          <span className="font-medium px-2 py-0.5 rounded-full border bg-gray-100 text-gray-600 border-gray-200">
+                            Completed
+                          </span>
+                        );
+                      }
+                    })()}
                   </div>
                 </div>
-              )}
-            </div>
+
+                {/* Right: event logo (desktop only) */}
+                <div className="hidden sm:flex h-40 w-40 border border-border/50 bg-white rounded-2xl p-3 items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-event-logo-header">
+                  {event.logoUrl ? (
+                    <img src={event.logoUrl} alt={event.name} className="h-full max-w-full object-contain" />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full bg-muted/50">
+                      <Calendar className="h-16 w-16 text-muted-foreground/30" />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -937,12 +964,37 @@ export default function SponsorDashboardPage() {
 
                           {/* Status */}
                           <div>
-                            <span className={cn(
-                              "text-xs font-semibold px-2.5 py-1 rounded-full border w-fit block",
-                              statusColors[m.status] ?? "bg-muted text-muted-foreground border-muted"
-                            )} data-testid={`status-badge-${m.id}`}>
-                              {m.status}
-                            </span>
+                            {canEdit ? (
+                              <Select
+                                value={m.status}
+                                onValueChange={(newStatus) => updateStatus.mutate({ meetingId: m.id, status: newStatus })}
+                                disabled={isBusy}
+                              >
+                                <SelectTrigger
+                                  className={cn(
+                                    "h-7 text-xs font-semibold px-2 py-0 rounded-full border w-fit min-w-[100px]",
+                                    statusColors[m.status] ?? "bg-muted text-muted-foreground border-muted"
+                                  )}
+                                  data-testid={`status-select-${m.id}`}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {["Scheduled", "Confirmed", "Completed", "Cancelled", "No-Show"].map((s) => (
+                                    <SelectItem key={s} value={s} className="text-xs">
+                                      {s}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span className={cn(
+                                "text-xs font-semibold px-2.5 py-1 rounded-full border w-fit block",
+                                statusColors[m.status] ?? "bg-muted text-muted-foreground border-muted"
+                              )} data-testid={`status-badge-${m.id}`}>
+                                {m.status}
+                              </span>
+                            )}
                             {m.meetingLink && (
                               <a href={m.meetingLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-0.5 mt-1" data-testid={`link-meeting-link-${m.id}`}>
                                 <Link2 className="h-2.5 w-2.5" /> Meeting link
@@ -952,9 +1004,8 @@ export default function SponsorDashboardPage() {
 
                           {/* Actions */}
                           <div className="flex flex-col gap-1 min-w-0" data-testid={`actions-${m.id}`}>
-                            {/* Onsite Scheduled or Online Confirmed → Complete / Cancel */}
-                            {((m.status === "Scheduled" && !isOnline) ||
-                              (m.status === "Confirmed")) && (
+                            {/* For viewers only: action buttons (owners/editors use the status dropdown) */}
+                            {!canEdit && ((m.status === "Scheduled" && !isOnline) || m.status === "Confirmed") && (
                               <>
                                 <button
                                   onClick={() => updateStatus.mutate({ meetingId: m.id, status: "Completed" })}

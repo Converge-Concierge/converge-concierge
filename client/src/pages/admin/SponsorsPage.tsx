@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useSearch, useLocation } from "wouter";
 import { Sponsor, InsertSponsor, Event } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { SponsorsTable } from "@/components/admin/SponsorsTable";
@@ -23,6 +24,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+interface Meeting { sponsorId: string; }
+
 export default function SponsorsPage() {
   const { isAdmin } = useAuth();
   const [tab, setTab] = useState<"active" | "archived">("active");
@@ -34,9 +37,19 @@ export default function SponsorsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const { toast } = useToast();
+  const search = useSearch();
+  const [, nav] = useLocation();
+
+  const searchParams = new URLSearchParams(search);
+  const attentionFilter = searchParams.get("attention");
+  const isNoMeetingsFilter = attentionFilter === "no-meetings";
 
   const { data: sponsors = [], isLoading } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
+  const { data: meetings = [] } = useQuery<Meeting[]>({
+    queryKey: ["/api/meetings"],
+    enabled: isNoMeetingsFilter,
+  });
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertSponsor) => {
@@ -116,9 +129,20 @@ export default function SponsorsPage() {
     toast({ title: "Sponsor re-activated", description: `"${sponsor.name}" is now active.` });
   };
 
+  const clearAttentionFilter = () => {
+    nav("/admin/sponsors");
+  };
+
   const match = (s: Sponsor) => s.name.toLowerCase().includes(searchQuery.toLowerCase());
 
-  const activeSponsors = sponsors.filter((s) => (s.archiveState ?? "active") === "active" && match(s));
+  const sponsorsWithMeetings = new Set(meetings.map((m) => m.sponsorId));
+
+  const activeSponsors = sponsors.filter((s) => {
+    if ((s.archiveState ?? "active") !== "active") return false;
+    if (!match(s)) return false;
+    if (isNoMeetingsFilter && sponsorsWithMeetings.has(s.id)) return false;
+    return true;
+  });
   const archivedSponsors = sponsors.filter((s) => s.archiveState === "archived" && match(s));
   const displayedSponsors = tab === "active" ? activeSponsors : archivedSponsors;
 
@@ -142,6 +166,23 @@ export default function SponsorsPage() {
           <Plus className="mr-2 h-4 w-4" /> Add Sponsor
         </Button>
       </div>
+
+      {isNoMeetingsFilter && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800" data-testid="filter-no-meetings-banner">
+          <span className="font-medium">Filtered:</span>
+          <span className="inline-flex items-center gap-1.5 bg-amber-100 border border-amber-300 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full" data-testid="chip-no-meetings">
+            No Meetings
+          </span>
+          <span className="text-amber-700">— showing sponsors with no meetings scheduled across any event</span>
+          <button
+            onClick={clearAttentionFilter}
+            className="ml-auto flex items-center gap-1 text-xs text-amber-600 hover:text-amber-900 hover:underline"
+            data-testid="btn-clear-attention-filter"
+          >
+            <X className="h-3.5 w-3.5" /> Clear filter
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row items-center gap-4 bg-card p-4 rounded-xl shadow-sm border border-border/50">
         <div className="relative w-full flex-1">
@@ -187,14 +228,12 @@ export default function SponsorsPage() {
         />
       )}
 
-      {/* Sponsor Users modal */}
       <SponsorUsersModal
         sponsor={usersModalSponsor}
         open={!!usersModalSponsor}
         onClose={() => setUsersModalSponsor(null)}
       />
 
-      {/* Edit / Create modal */}
       <SponsorFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -204,7 +243,6 @@ export default function SponsorsPage() {
         isPending={createMutation.isPending || updateMutation.isPending}
       />
 
-      {/* View (read-only) modal */}
       <SponsorFormModal
         isOpen={!!viewingSponsor}
         onClose={() => setViewingSponsor(undefined)}

@@ -1194,9 +1194,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     // Validate allowed status transitions per meeting type/status
     const allowedTransitions: Record<string, string[]> = {
-      Scheduled:  ["Completed", "Cancelled"],
-      Pending:    ["Confirmed", "Declined", "Cancelled"],
-      Confirmed:  ["Completed", "Cancelled"],
+      Scheduled:  ["Confirmed", "Completed", "Cancelled", "No-Show"],
+      Pending:    ["Confirmed", "Declined", "Cancelled", "Scheduled"],
+      Confirmed:  ["Scheduled", "Completed", "Cancelled", "No-Show"],
+      Completed:  ["Scheduled", "Confirmed", "Cancelled"],
+      Cancelled:  ["Scheduled", "Confirmed", "Completed"],
+      "No-Show":  ["Scheduled", "Confirmed", "Cancelled"],
+      Declined:   ["Scheduled", "Confirmed"],
     };
     const allowed = allowedTransitions[existing.status as string] ?? [];
     if (!allowed.includes(status)) {

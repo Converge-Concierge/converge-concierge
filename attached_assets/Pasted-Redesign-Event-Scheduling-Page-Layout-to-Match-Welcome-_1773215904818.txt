@@ -1,0 +1,180 @@
+Redesign Event Scheduling Page Layout to Match Welcome Page
+
+The event scheduling page should follow the same structural layout as the Welcome Page so users experience a consistent interface.
+
+Current problems:
+
+Hero section is oversized
+
+Topics section is missing visual emphasis
+
+Sponsor section spacing is inconsistent
+
+Layout hierarchy differs from the welcome page
+
+We will rebuild the page using the same component layout as the Welcome Page.
+
+1. Page Layout Structure
+
+Replace the current page structure with the following order:
+
+Event Header
+Topic Selection Section
+Sponsor List Section
+
+This must mirror the Welcome page.
+
+2. Event Header (Match Welcome Page)
+
+Reduce the header height and simplify the design.
+
+Structure:
+
+[Event Logo]
+
+Meeting Scheduling
+
+Browse Sponsors and Schedule Meetings for
+The 2026 U.S. BankTech Summit
+
+April 2 – April 4, 2026 • Austin, TX
+Event Website
+
+Rules:
+
+Reduce vertical padding
+
+Use the same card style used on the Welcome page
+
+Logo size should match the Welcome page logo
+
+3. Remove the Action Explanation Block
+
+Delete this section entirely:
+
+Available actions include:
+• Schedule an onsite meeting during the conference
+• Request an online meeting
+• Ask a sponsor to send you more information
+
+Reason:
+
+This creates unnecessary visual noise and does not exist on the welcome page.
+
+4. Topic Selection Section (Copy Welcome Page Layout)
+
+Directly under the header add the same topic section used on the welcome page.
+
+Structure:
+
+NEXT STEP
+
+Make the most of your time at the conference. What topics interest you?
+
+[AI] [Compliance] [Customer Service] [Legal] [Regulatory]
+
+Styling requirements:
+
+identical topic pill design
+
+same spacing
+
+same typography
+
+same section background tone
+
+This must visually match the welcome page.
+
+5. Rename the Sponsor Section
+
+Replace:
+
+Meet With Our Sponsors
+
+With:
+
+Sponsors Available for Meetings
+
+This keeps the flow consistent with the meeting action.
+
+6. Sponsor Card Layout
+
+Sponsor cards should remain the same but spacing should match the welcome page grid.
+
+Ensure:
+
+cards appear immediately under the topic section
+
+no extra explanatory blocks
+
+consistent grid spacing
+
+Example layout:
+
+NEXT STEP
+Topic Selection
+
+[Topic Pills]
+
+Sponsors Available for Meetings
+
+[ Sponsor Card ]  [ Sponsor Card ]
+7. Section Spacing
+
+Match the welcome page spacing values:
+
+Section	Top Margin
+Header → Topics	32px
+Topics → Sponsors	24px
+
+Remove excessive padding currently present in the scheduling page.
+
+8. Typography Consistency
+
+Ensure headings match the welcome page styles.
+
+Element	Style
+Section label	small uppercase
+Main headline	H2
+Topic section title	H3
+9. Resulting UX Flow
+
+The page should now visually match the welcome page:
+
+Event Header
+
+NEXT STEP
+Topic Selection
+
+Sponsors Available for Meetings
+
+Sponsor Cards
+
+This creates a clear action path:
+
+1️⃣ See event
+2️⃣ Select interests
+3️⃣ Meet sponsors
+
+10. Acceptance Criteria
+
+Implementation is complete when:
+
+page layout visually mirrors the welcome page
+
+topic selection appears immediately after the event header
+
+action explanation text is removed
+
+sponsor cards appear directly below topics
+
+spacing and typography match the welcome page.
+
+Important UX Insight
+
+Right now your scheduling page is actually doing two jobs:
+
+1️⃣ orientation for new users
+2️⃣ booking interface
+
+A small improvement later will be to add a progress indicator, which can increase interaction rates significantly.

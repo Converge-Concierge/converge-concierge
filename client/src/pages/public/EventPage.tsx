@@ -851,10 +851,6 @@ export default function EventPage() {
                     </a>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Select topics you're interested in to discover sponsors aligned with your priorities.
-                  You can request meetings, schedule online sessions, or ask for more information.
-                </p>
               </div>
             </div>
           </div>
@@ -1047,33 +1043,18 @@ export default function EventPage() {
           ) : (
             <>
               <div className="flex items-end justify-between mb-2">
-                <div>
-                  <h3
-                    className="text-xl font-display font-semibold text-foreground"
-                    data-testid="text-sponsor-results-label"
-                  >
-                    {activeFilters.length > 0 ? "Sponsors Matching Your Interests" : "Meet With Our Sponsors"}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Choose a sponsor below to schedule a meeting or request more information.
-                  </p>
-                </div>
+                <h3
+                  className="text-xl font-display font-semibold text-foreground"
+                  data-testid="text-sponsor-results-label"
+                >
+                  {activeFilters.length > 0 ? "Sponsors Matching Your Interests" : "Sponsors Available for Meetings"}
+                </h3>
                 {eventSponsors.length > 0 && (
                   <span className="text-xs text-muted-foreground shrink-0 ml-3">
                     {filteredSponsors.length} of {eventSponsors.length} sponsor{eventSponsors.length !== 1 ? "s" : ""}
                   </span>
                 )}
               </div>
-              {!eventEnded && !schedulingDisabled && !showExternalHandoff && (
-                <div className="mb-4 text-sm text-muted-foreground space-y-0.5">
-                  <p className="font-medium text-foreground/80">Available actions include:</p>
-                  <ul className="list-disc list-inside space-y-0.5 pl-1 text-xs">
-                    <li>Schedule an onsite meeting during the conference</li>
-                    <li>Request an online meeting</li>
-                    <li>Ask a sponsor to send you more information</li>
-                  </ul>
-                </div>
-              )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredSponsors.map((sponsor, i) => (
                 <motion.div

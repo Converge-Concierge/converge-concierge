@@ -1,0 +1,225 @@
+1. Define Export Permission Rule
+
+Use a single clear rule:
+
+Export/download allowed only if:
+
+sponsor user is authenticated
+
+sponsor user belongs to the correct sponsor
+
+sponsor user access level = owner
+
+sponsor user is active
+
+If you also use is_primary, you may require:
+
+access_level = owner
+
+and/or is_primary = true
+
+Recommended model:
+Treat the primary owner as the only export-capable user.
+
+So require:
+
+access_level = owner
+AND
+is_primary = true
+AND
+is_active = true
+
+This matches the business requirement that only the main sponsor user should download data.
+
+2. Hide Export / Download Buttons in the Sponsor Dashboard UI
+
+On the sponsor dashboard, hide export/download actions for unauthorized users.
+
+Buttons/actions to restrict
+
+Examples:
+
+Export Leads CSV
+
+Download Sponsor PDF Report
+
+Export any sponsor data
+
+Download report files
+
+Required UI behavior
+
+show these buttons only to the authenticated primary owner
+
+do not show them to Editors or Viewers
+
+do not show them to inactive users
+
+Preferred behavior:
+hide buttons entirely rather than showing disabled buttons
+
+This keeps the experience cleaner.
+
+3. Add Server-Side Authorization Middleware / Guard
+
+UI hiding is not enough.
+
+Protect all sponsor export/download routes server-side.
+
+Create or extend sponsor auth middleware with an export guard such as:
+
+requireSponsorPrimaryOwner
+
+This middleware should verify:
+
+sponsor session exists
+
+sponsor user exists
+
+sponsor user is active
+
+sponsor user belongs to the correct sponsor
+
+sponsor user is primary owner
+
+If any condition fails:
+
+block the request
+
+return 403 or redirect with a permission message
+
+4. Protect All Export/Download Endpoints
+
+Apply the export permission guard to every sponsor-facing endpoint that exposes downloadable data.
+
+At minimum protect
+
+sponsor leads CSV export
+
+sponsor report PDF download
+
+any sponsor dashboard CSV export
+
+any sponsor dashboard report export
+
+Do not assume the front-end alone will protect these.
+
+5. Error / Denied Behavior
+
+If an unauthorized sponsor user somehow reaches an export/download endpoint:
+
+Recommended behavior
+
+Return:
+
+403 Forbidden for API routes
+
+or redirect back to sponsor dashboard with a message:
+
+You do not have permission to download sponsor data.
+
+Do not expose raw auth errors.
+
+6. Add a Small Permission Helper in Sponsor Session Logic
+
+Add a reusable helper such as:
+
+canSponsorDownloadData(user)
+
+Logic should return true only if:
+
+user exists
+
+user is active
+
+user access_level = owner
+
+user is_primary = true
+
+Use this helper in:
+
+sponsor dashboard rendering
+
+export button rendering
+
+server route authorization
+
+This keeps permission logic consistent.
+
+7. Check Data Ownership Before Export
+
+Even for Owner users, still verify that the export belongs to the sponsor they are authenticated under.
+
+Example:
+
+Owner of Winnow should not be able to request eGain’s export by manipulating IDs
+
+Required server-side rule:
+
+requested sponsor_id must equal authenticated sponsor session sponsor_id
+
+Always enforce this in export/download endpoints.
+
+8. Suggested Routes to Protect
+
+Examples may include routes like:
+
+/sponsor/export/leads
+/sponsor/export/report
+/sponsor/report/pdf
+/sponsor/leads/export
+
+Adapt to your actual routes, but ensure every sponsor-facing export/download route is protected.
+
+9. Recommended UI Conditions
+
+Use these UI rules:
+
+Owner + Primary
+
+Show:
+
+Export Leads CSV
+
+Download Sponsor PDF Report
+
+Owner but not Primary (if such a case exists)
+
+Hide export buttons unless business rules later change
+
+Editor
+
+Hide export buttons
+
+Viewer
+
+Hide export buttons
+
+This keeps the business rule very clear.
+
+10. Add Admin Visibility Later if Useful
+
+Optional later:
+In the Sponsor Users admin interface, show a note such as:
+
+Only the Primary Owner can export dashboard data and download reports.
+
+This can help admins understand the permission model.
+
+11. Acceptance Criteria
+
+This work is complete when:
+
+only the primary Owner sponsor user sees export/download buttons
+
+Editors and Viewers do not see export/download buttons
+
+server-side routes block unauthorized export/download access
+
+sponsor users cannot export another sponsor’s data by changing IDs
+
+unauthorized attempts return a clean denied response
+
+12. Success Standard
+
+After this update, sponsor data exports and report downloads are limited to the main sponsor owner only, both in the UI and in backend authorization.

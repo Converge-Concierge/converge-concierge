@@ -9,6 +9,7 @@ import { Sponsor, InsertSponsor, Event } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { SponsorsTable } from "@/components/admin/SponsorsTable";
 import { SponsorFormModal } from "@/components/admin/SponsorFormModal";
+import { SponsorUsersModal } from "@/components/admin/SponsorUsersModal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -29,6 +30,7 @@ export default function SponsorsPage() {
   const [editingSponsor, setEditingSponsor] = useState<Sponsor | undefined>();
   const [viewingSponsor, setViewingSponsor] = useState<Sponsor | undefined>();
   const [deletingSponsor, setDeletingSponsor] = useState<Sponsor | null>(null);
+  const [usersModalSponsor, setUsersModalSponsor] = useState<Sponsor | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -180,9 +182,17 @@ export default function SponsorsPage() {
           onReactivate={handleReactivate}
           onDelete={setDeletingSponsor}
           onCopy={handleCopy}
+          onManageUsers={(sponsor) => setUsersModalSponsor(sponsor)}
           copyingId={copyingId}
         />
       )}
+
+      {/* Sponsor Users modal */}
+      <SponsorUsersModal
+        sponsor={usersModalSponsor}
+        open={!!usersModalSponsor}
+        onClose={() => setUsersModalSponsor(null)}
+      />
 
       {/* Edit / Create modal */}
       <SponsorFormModal

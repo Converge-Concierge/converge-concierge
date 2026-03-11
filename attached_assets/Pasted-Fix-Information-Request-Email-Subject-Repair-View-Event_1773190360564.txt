@@ -1,0 +1,502 @@
+Fix Information Request Email Subject, Repair “View Event Schedule” Button, and Add Admin Email Template Management
+
+Implement the following email-related improvements in Concierge.
+
+We need to correct the Information Request attendee confirmation email, fix the broken CTA link, and add a proper admin email template management function so all templates can be viewed and edited inside Concierge.
+
+1. Update the Information Request Confirmation Email Subject
+
+The attendee confirmation email for an information request currently uses the subject:
+
+Your information request has been sent
+
+We need this to be more specific and useful.
+
+Required new subject format
+
+Change the subject to:
+
+Your information request has been sent to [Sponsor Name]
+Example
+Your information request has been sent to eGain
+Required behavior
+
+Wherever the attendee confirmation email for Information Requests is generated:
+
+pass the sponsor name into the subject builder
+
+use the sponsor display name from the sponsor record
+
+do not hardcode the sponsor name
+
+if sponsor name is missing, fall back to:
+
+Your information request has been sent
+
+But the normal path should always use the sponsor name.
+
+2. Fix the “View Event Schedule” Button in the Email
+
+The View Event Schedule button in the attendee confirmation email is currently not working.
+
+We need to fix the CTA so it routes to the correct attendee-facing event scheduling page.
+
+Required behavior
+
+The button should link to the attendee-facing scheduling page for the relevant event.
+
+Use the correct live route in Concierge for the event schedule page.
+
+Example target pattern
+
+Use something like:
+
+/events/[event-code]/schedule
+
+or whatever your actual attendee-facing scheduling route is.
+
+The button should resolve dynamically based on the event tied to the Information Request.
+
+Required implementation steps
+2A. Determine the correct attendee-facing schedule URL
+
+Identify the real public attendee-facing schedule route in the app.
+
+The link must not point to:
+
+admin routes
+
+sponsor dashboard routes
+
+placeholder routes
+
+undefined URLs
+
+It must point to the actual event sponsor discovery / meeting scheduling page.
+
+2B. Pass event context into the email template
+
+When generating the information request confirmation email, ensure the template has access to:
+
+event id
+
+event code or slug
+
+event name
+
+correct public schedule URL
+
+2C. Generate CTA URL centrally
+
+Add or use a helper function such as:
+
+buildEventScheduleUrl(event)
+
+This function should generate the correct public scheduling URL.
+
+Use this helper inside the email template.
+
+Do not hardcode event links in template HTML.
+
+2D. If attendee prefill links already exist
+
+If attendee-facing event pages support email lookup or secure token access, use that when generating the schedule URL.
+
+For example, if your system already supports:
+
+email query prefill
+
+secure attendee token
+
+event-specific personalized access
+
+then include the appropriate parameter in the CTA link.
+
+If that is not ready yet, just link to the correct public event scheduling page for now.
+
+Required fallback behavior
+
+If a valid event schedule URL cannot be generated, do not render a broken button.
+
+Fallback options:
+
+hide the button
+
+or render a plain text message without CTA
+
+Do not allow dead links in production email.
+
+3. Add Admin Email Template Management
+
+We need admins to be able to see and edit all email templates inside Concierge.
+
+This should live inside the Email Center admin function.
+
+Required new capability
+
+Inside Admin → Email Center, add an Email Templates area where admins can:
+
+view all templates
+
+open a specific template
+
+edit subject
+
+edit HTML body
+
+edit plain text body if supported
+
+save updates
+
+preview template
+
+send test email from template if possible
+
+This should not require editing source code for normal template changes.
+
+4. Add Email Templates Tab in Email Center
+
+Inside the existing Email Center module, add tab navigation such as:
+
+Logs
+
+Templates
+
+If Email Center currently only supports logs, expand it.
+
+Recommended structure
+Email Center
+
+[ Logs ] [ Templates ]
+
+The Templates tab should list all editable templates.
+
+5. Create Email Template Registry / Storage Model
+
+Move email templates into a structured editable system.
+
+Use either:
+
+database-backed templates
+
+or a template config model with seeded defaults
+
+Preferred approach:
+Store editable templates in a database table.
+
+Suggested table
+email_templates
+Suggested fields
+id
+template_key
+display_name
+subject_template
+html_template
+text_template nullable
+description nullable
+is_active
+created_at
+updated_at
+5A. Seed the existing core templates
+
+Seed existing templates into this model.
+
+At minimum include:
+
+Meeting Confirmation (Attendee)
+
+Meeting Notification (Sponsor)
+
+Information Request Notification (Sponsor)
+
+Information Request Confirmation (Attendee)
+
+Sponsor Magic Login
+
+Password Reset
+
+Test Email
+
+6. Admin Email Template List View
+
+In Email Center → Templates, show a list/table of templates.
+
+Recommended columns
+
+Display Name
+
+Template Key
+
+Subject
+
+Last Updated
+
+Actions
+
+Actions
+
+View
+
+Edit
+
+Preview
+
+Send Test
+
+7. Admin Template Edit View
+
+When admin clicks Edit, open a template editor.
+
+Required editable fields
+
+Display Name (optional editable or read-only)
+
+Subject Template
+
+HTML Body
+
+Plain Text Body if supported
+
+Description
+
+Buttons
+
+Save
+
+Cancel
+
+Preview
+
+Send Test Email
+
+7A. Variable placeholder guidance
+
+Display available variables for each template.
+
+Example placeholders:
+
+{{attendee_first_name}}
+{{attendee_full_name}}
+{{sponsor_name}}
+{{event_name}}
+{{event_code}}
+{{event_schedule_url}}
+{{meeting_date}}
+{{meeting_time}}
+{{meeting_location}}
+{{status}}
+
+Show these in a help panel or reference block in the editor.
+
+Do not force admins to guess variable names.
+
+8. Template Rendering Logic
+
+Update the email sending system so it uses stored editable templates instead of only hardcoded template functions.
+
+Required behavior
+
+When sending an email:
+
+load template by template_key
+
+substitute variables
+
+render subject
+
+render HTML body
+
+send email
+
+If a DB template is missing, fallback to the code default so email delivery does not break.
+
+This makes the system safer during rollout.
+
+9. Add Preview Support
+
+Admins should be able to preview email templates before sending or saving.
+
+Required preview modes
+
+Rendered preview
+
+Source view
+
+This matches what is already being used in Email Detail and will help admins validate layout.
+
+9A. Preview with sample data
+
+The preview should use reasonable sample data if real entity data is not selected.
+
+Example sample preview data:
+
+Sponsor: eGain
+
+Event: The 2026 Fintech Risk & Compliance Forum
+
+Attendee: Dan Carmody
+
+Status: Request Submitted
+
+This makes preview meaningful.
+
+10. Add “Send Test Email” from Template Editor
+
+Admins should be able to send a test email for a selected template.
+
+Required behavior
+
+In the template edit/view screen:
+
+include a Send Test Email button
+
+prompt for recipient email if needed
+
+use sample or selected preview data
+
+send the email through Brevo
+
+log the send to Email Center
+
+This is especially important for validating template edits.
+
+11. Update the Information Request Confirmation Template
+
+Specifically update the attendee Information Request confirmation template so that:
+
+Subject
+
+Uses:
+
+Your information request has been sent to {{sponsor_name}}
+CTA button
+
+Uses:
+
+{{event_schedule_url}}
+Button label
+
+Keep:
+
+View Event Schedule
+
+Only if the URL is valid.
+
+12. Test Cases Required
+
+After implementation, test all of the following:
+
+Subject test
+
+Submit an Information Request and confirm the attendee email subject becomes:
+
+Your information request has been sent to eGain
+CTA test
+
+Click View Event Schedule from the email and confirm it opens the correct attendee-facing event schedule page.
+
+Template management test
+
+In Admin → Email Center → Templates:
+
+open template list
+
+edit Information Request Confirmation template
+
+save changes
+
+preview updated version
+
+send test email
+
+verify changes appear in the email
+
+Fallback test
+
+If a template is missing from the DB, the system should still send the email using default template logic.
+
+13. Access Control
+
+Only authorized admin users should be able to:
+
+view templates
+
+edit templates
+
+send test emails from templates
+
+Add permissions if Email Center permissions already exist.
+
+Suggested permissions:
+
+View Email Templates
+
+Edit Email Templates
+
+Send Test Emails
+
+Sponsors and attendees should not have access to template editing.
+
+14. Recommended Implementation Order
+
+Implement in this order:
+
+Step 1
+
+Fix Information Request attendee subject line to include sponsor name
+
+Step 2
+
+Create correct buildEventScheduleUrl(event) helper and fix the email CTA link
+
+Step 3
+
+Add Templates tab to Email Center
+
+Step 4
+
+Create email_templates storage model and seed core templates
+
+Step 5
+
+Update email sending system to load DB-backed templates with fallback to code defaults
+
+Step 6
+
+Add template list view, edit view, preview, and send test functionality
+
+Step 7
+
+Test end-to-end with the Information Request confirmation email
+
+15. Acceptance Criteria
+
+This task is complete when:
+
+attendee Information Request confirmation subject reads:
+
+Your information request has been sent to [Sponsor Name]
+
+the View Event Schedule button opens the correct attendee-facing schedule page
+
+admins can view all email templates in Email Center
+
+admins can edit template subject and content
+
+admins can preview templates
+
+admins can send test emails from templates
+
+email delivery still works even if a DB template is missing
+
+16. Success Standard
+
+After this update:
+
+attendee confirmation emails feel more specific and polished
+
+email CTAs actually work
+
+Concierge has a real admin-managed email template system instead of relying on source-code-only edits
+
+That is the standard this implementation should meet.

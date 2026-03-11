@@ -623,6 +623,8 @@ export const sponsorUsers = pgTable("sponsor_users", {
   sponsorId: varchar("sponsor_id").notNull(),
   name: varchar("name").notNull().default(""),
   email: varchar("email").notNull(),
+  accessLevel: varchar("access_level").notNull().default("owner"),
+  isPrimary: boolean("is_primary").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -645,3 +647,23 @@ export const sponsorLoginTokens = pgTable("sponsor_login_tokens", {
 });
 
 export type SponsorLoginToken = typeof sponsorLoginTokens.$inferSelect;
+
+// ── Email Templates ────────────────────────────────────────────────────────────
+
+export const emailTemplates = pgTable("email_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateKey: varchar("template_key").notNull().unique(),
+  displayName: varchar("display_name").notNull(),
+  subjectTemplate: varchar("subject_template").notNull(),
+  htmlTemplate: text("html_template").notNull().default(""),
+  textTemplate: text("text_template"),
+  description: text("description"),
+  variables: text("variables").array().notNull().default(sql`'{}'::text[]`),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+export type EmailTemplate = typeof emailTemplates.$inferSelect;

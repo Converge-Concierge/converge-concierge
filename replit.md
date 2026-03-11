@@ -34,7 +34,7 @@ The platform employs a modern web stack with a clear separation between frontend
 ### Shared & Data Models
 
 - **Schema**: `shared/schema.ts` defines all data types and Drizzle table definitions.
-- **Key Entities**: `events`, `sponsors`, `attendees`, `meetings`, `PasswordResetToken`, `SponsorNotification`, `sponsorUsers`, `sponsorLoginTokens`.
+- **Key Entities**: `events`, `sponsors`, `attendees`, `meetings`, `PasswordResetToken`, `SponsorNotification`, `sponsorUsers` (with `accessLevel` + `isPrimary`), `sponsorLoginTokens`, `emailTemplates`.
 - **Sponsorship Level**: Per-event, stored in `sponsors.assignedEvents` JSONB.
 - **Event Scheduling Logic**: Includes conflict detection, cascade archiving/unarchiving, and attendee resolution. Features per-event scheduling shutoff (`schedulingEnabled`, `schedulingShutoffAt`) with external handoff options.
 - **Event Management**: Admin panel supports comprehensive CRUD operations, including a `MeetingBlocksEditor` and event cloning (`POST /api/events/:id/copy`) with options to copy sponsors.
@@ -43,7 +43,7 @@ The platform employs a modern web stack with a clear separation between frontend
 - **Reporting**: Detailed meeting statistics and filterable tables with CSV export.
 - **Data Exchange Module**: Centralized `/admin/data-exchange` for CSV import/export of Sponsors, Attendees, and Meetings with validation, preview, and audit logging. Includes Nunify Meeting Sync for event-specific import/export.
 - **Access Control**: Per-user permission system (`/admin/access-control`) replacing broad role flags, with detailed module and entity-level permissions.
-- **Email Integration**: Transactional emails sent via Brevo for meeting confirmations and info requests. An Admin Email Center (`/admin/email-center`) provides an audit log, resend functionality, and test email capabilities. Meeting emails include ICS calendar attachments and Google Calendar/Outlook links.
+- **Email Integration**: Transactional emails sent via Brevo for meeting confirmations and info requests. An Admin Email Center (`/admin/email-center`) provides an audit log, resend functionality, and test email capabilities. Meeting emails include ICS calendar attachments and Google Calendar/Outlook links. The Email Center includes a **Templates tab** with DB-backed template management — list/edit/preview (iframe with sample data substitution)/send-test for 7 core templates seeded via `server/email-template-seeder.ts`. Templates stored in `emailTemplates` table. Info request confirmation subject includes sponsor name.
 - **Password Recovery**: Token-based password reset with real Brevo email delivery. Rate-limited (3/15 min). Dedicated pages at `/admin/forgot-password` and `/admin/reset-password`. Password strength enforced (8+ chars, upper/lower/number).
 - **Sponsor Magic Login**: Email-based magic link authentication for sponsors. Admin can send dashboard access email from sponsor edit modal ("Send Dashboard Access" button). `POST /api/sponsor/login-request` + `GET /api/sponsor/auth/magic?token=` flow. Login tokens stored as SHA-256 hashes with 24h expiry.
 
@@ -51,7 +51,7 @@ The platform employs a modern web stack with a clear separation between frontend
 
 - **Public Scheduling Flow**: Two distinct flows at `/event/:slug`: Onsite (5 steps) and Online request (6 steps).
 - **Admin Panel**: Comprehensive CRUD for all entities, specialized pages for reports, bulk actions, and system configuration.
-- **Sponsor Features**: Sponsor dashboard with notifications, meeting status updates, and CSV export. Magic link login via email (no password required). Admin can send access emails from sponsor edit modal; last login shown on sponsor contact card.
+- **Sponsor Features**: Sponsor dashboard with notifications, meeting status updates, and CSV export. Magic link login via email (no password required). Admin can send access emails from sponsor edit modal; last login shown on sponsor contact card. **Multi-User Sponsor Access**: `sponsorUsers` table extended with `accessLevel` ("owner"|"editor"|"viewer") and `isPrimary` (bool). Admin → Sponsors page has "Manage Users" button per sponsor row that opens `SponsorUsersModal` (CRUD, per-user magic link, set-primary). Export buttons (CSV/PDF) on sponsor dashboard are hidden for non-primary-owner users; `GET /api/sponsor-dashboard/me` returns user context. `GET /api/sponsor-report/pdf` enforces primary-owner-only server-side. Backward compatible: sponsors with no users configured get full access.
 - **Calendar Integration**: ICS file generation, Google Calendar URL, and Outlook URL via `services/calendarService.js`. Meeting confirmation emails include ICS attachment + calendar link buttons.
 - **Branding**: Public branding endpoint for displaying `appLogoUrl` and `appName`.
 - **Legal**: Dedicated pages for Terms of Use and Privacy Policy.

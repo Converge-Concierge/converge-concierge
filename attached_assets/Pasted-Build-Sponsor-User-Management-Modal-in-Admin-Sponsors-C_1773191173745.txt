@@ -1,0 +1,433 @@
+Build Sponsor User Management Modal in Admin → Sponsors
+
+Create a clean admin modal for managing authorized sponsor users for each sponsor.
+
+This modal should open from the new Sponsor Users button in Admin → Sponsors.
+
+The purpose of this modal is to let admins:
+
+view all sponsor users for a sponsor
+
+add a new sponsor user
+
+edit an existing sponsor user
+
+assign access level
+
+set the primary sponsor user
+
+resend dashboard access email
+
+deactivate a sponsor user
+
+This modal is the main control panel for sponsor dashboard access.
+
+1. Entry Point
+
+In Admin → Sponsors, add a new action button next to the existing Edit button.
+
+Button / tooltip
+
+Users
+
+or icon button with tooltip:
+
+Manage Sponsor Users
+
+Clicking this button should open the Sponsor User Management modal for that sponsor.
+
+2. Modal Title and Header
+Title
+
+Authorized Sponsor Users
+
+Subtitle
+
+Manage who can access this sponsor dashboard and what each user is allowed to do.
+
+In the modal header also show:
+
+Sponsor name
+
+optional sponsor logo if already easy to render
+
+primary contact email if helpful
+
+Keep the header compact.
+
+3. Modal Layout
+
+Use a two-part layout:
+
+Top section
+
+Current sponsor users table/list
+
+Bottom section
+
+Add / edit sponsor user form
+
+If space is limited, editing can open in an inline form, drawer, or secondary state inside the same modal.
+
+Preferred approach:
+
+list on top
+
+form below or in right-side panel
+
+4. Sponsor Users Table / List
+
+Display existing sponsor users in a structured table.
+
+Columns
+
+Name
+
+Email
+
+Access Level
+
+Primary
+
+Status
+
+Last Login
+
+Actions
+
+Column behavior
+Name
+
+Show sponsor user full name.
+
+Email
+
+Show email address.
+
+Access Level
+
+Badge or pill:
+
+Owner
+
+Editor
+
+Viewer
+
+Primary
+
+Show:
+
+Yes / Primary badge
+
+blank if not primary
+
+Status
+
+Show:
+
+Active
+
+Inactive
+
+Last Login
+
+Show clean formatted date/time if available.
+If never logged in, show:
+
+Never
+
+Actions
+
+Include:
+
+Edit
+
+Send Access Email
+
+Set Primary
+
+Deactivate
+
+If user is already primary, hide or disable Set Primary.
+
+5. Add Sponsor User Form
+
+Inside the modal, include an Add Sponsor User section.
+
+Section title
+
+Add Sponsor User
+
+Fields
+
+Name
+
+Email
+
+Access Level
+
+Set as Primary User checkbox
+
+Active checkbox
+
+Access Level options
+
+Owner
+
+Editor
+
+Viewer
+
+Buttons
+
+Save User
+
+Cancel
+
+6. Edit Sponsor User Form
+
+When admin clicks Edit for an existing sponsor user, allow editing of:
+
+Name
+
+Email
+
+Access Level
+
+Primary status
+
+Active status
+
+This can reuse the same add form in edit mode.
+
+Edit mode title
+
+Edit Sponsor User
+
+Buttons
+
+Save Changes
+
+Cancel
+
+7. Access Level Rules
+
+Use these rules in the admin UI and enforce them server-side.
+
+Owner
+
+full sponsor dashboard access
+
+can export/download sponsor data
+
+can update dashboard workflow fields
+
+Editor
+
+can access dashboard
+
+can update workflow/status fields
+
+cannot export/download sponsor data
+
+Viewer
+
+can access dashboard
+
+cannot edit
+
+cannot export/download sponsor data
+
+Display a short helper note below the access level field if useful.
+
+Example:
+
+Only Owners can export sponsor data and download reports.
+
+8. Primary User Rules
+
+Only one sponsor user should be primary at a time.
+
+Required behavior
+
+If admin selects Set as Primary User for a user:
+
+automatically remove primary status from the current primary user
+
+confirm change if helpful
+
+If no primary exists
+
+Allow creating one.
+
+If the current primary user is deactivated
+
+Require the admin to assign a new primary user or show a warning.
+
+9. Send Access Email Action
+
+Each active sponsor user row should have:
+
+Send Access Email
+
+This sends the sponsor magic login email to that user.
+
+Required behavior
+
+send email via existing sponsor auth magic-link flow
+
+show success toast/message:
+
+Access email sent
+
+show error if send fails
+
+Do not block modal use if sending fails.
+
+10. Deactivate Action
+
+Admins should be able to deactivate sponsor users.
+
+Behavior
+
+When clicking Deactivate:
+
+confirm action
+
+set user status to Inactive
+
+inactive users cannot log in
+
+Confirmation text
+
+Deactivate this sponsor user? They will no longer be able to access the sponsor dashboard.
+
+Buttons:
+
+Cancel
+
+Deactivate
+
+Do not hard delete by default.
+
+11. Recommended Empty State
+
+If a sponsor has no sponsor users yet, show:
+
+No authorized sponsor users yet.
+
+Helper text:
+Add a sponsor user below to grant dashboard access.
+
+12. Validation Rules
+Required validations
+
+Name required
+
+Email required
+
+Email must be valid
+
+Access Level required
+
+Additional rules
+
+prevent duplicate active users with the same email for the same sponsor if that is your chosen model
+
+enforce only one primary user
+
+require at least one active owner if that becomes your rule later
+
+13. Suggested Modal Size
+
+Use a large modal or drawer.
+
+This modal needs enough space to comfortably display:
+
+user list
+
+form
+
+action buttons
+
+Do not make it too narrow.
+
+Preferred:
+
+large centered modal
+
+or right-side drawer with good width
+
+14. UI Polish Requirements
+
+Keep the UI clean and admin-friendly.
+
+Requirements
+
+strong spacing
+
+readable badges for access level and status
+
+clear separation between list and form
+
+consistent button hierarchy
+
+use confirmation dialogs for deactivate / primary change when needed
+
+15. Suggested Implementation Order
+Step 1
+
+Create modal shell and open/close behavior from Admin → Sponsors
+
+Step 2
+
+Render sponsor users table
+
+Step 3
+
+Add Add Sponsor User form
+
+Step 4
+
+Add Edit functionality
+
+Step 5
+
+Add Set Primary logic
+
+Step 6
+
+Add Send Access Email action
+
+Step 7
+
+Add Deactivate flow and validations
+
+16. Acceptance Criteria
+
+This modal is complete when:
+
+admin can open Sponsor User Management from Admin → Sponsors
+
+existing sponsor users are listed clearly
+
+admin can add a sponsor user
+
+admin can edit a sponsor user
+
+admin can assign Owner / Editor / Viewer
+
+admin can set one user as Primary
+
+admin can resend access email
+
+admin can deactivate a user
+
+the modal is clean and easy to use
+
+17. Success Standard
+
+An admin should be able to fully manage sponsor dashboard access for a sponsor from one clean interface without needing to edit raw records or rely only on the main sponsor contact.
+
+That is the standard this modal should meet.

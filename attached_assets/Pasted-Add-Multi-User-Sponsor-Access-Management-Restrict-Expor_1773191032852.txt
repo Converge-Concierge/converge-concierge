@@ -1,0 +1,575 @@
+Add Multi-User Sponsor Access Management, Restrict Export Permissions, Replace Internal Sponsor Dashboard Link Behavior, and Simplify Sponsor Dashboard Header Layout
+
+Implement the following sponsor access and sponsor dashboard changes in Concierge.
+
+This update has four major objectives:
+
+allow multiple authorized sponsor users per sponsor
+
+support sponsor user access levels
+
+restrict export/download actions to the main sponsor user only
+
+simplify and improve the sponsor dashboard header layout and branding treatment
+
+1. Replace Single-User Sponsor Access With Multi-User Sponsor Access Management
+
+Right now, the Send Dashboard Access button only sends access to the Main Contact for the sponsor.
+
+That is no longer sufficient.
+
+Many sponsors will have multiple internal users who need access to the sponsor dashboard, for example:
+
+account executive
+
+sales rep
+
+marketing
+
+manager
+
+executive sponsor
+
+We need a way to manage multiple authorized sponsor users per sponsor.
+
+1A. Add Sponsor User Management Entry Point in Admin → Sponsors
+
+In Admin → Sponsors, add a new action button next to the Edit button for each sponsor.
+
+Recommended button label / tooltip
+
+Users
+
+or icon button with tooltip:
+
+Manage Sponsor Users
+
+This should open a sponsor-user management interface for that sponsor.
+
+1B. Remove current dependence on “Send Dashboard Access” for only main contact
+
+Do not rely on the old model where only the sponsor main contact receives dashboard access.
+
+The main contact should still exist, but access must support multiple users.
+
+2. Build Sponsor User Management Interface
+
+When admin clicks the new Sponsor Users button, open a modal, drawer, or sponsor-specific management page.
+
+Page / modal title
+
+Authorized Sponsor Users
+
+Helper text
+
+Manage who can access this sponsor’s dashboard and what level of access they have.
+
+2A. Sponsor user fields
+
+Each sponsor user record should support at minimum:
+
+Name
+
+Email
+
+Access Level
+
+Status (Active / Inactive)
+
+Last Login
+
+Is Primary User
+
+Optional later:
+
+invited_at
+
+last_invited_at
+
+2B. Access levels
+
+Use a simple role model for now.
+
+Required access levels
+
+Owner
+
+Editor
+
+Viewer
+
+If you prefer different wording, use:
+
+Admin
+
+Editor
+
+View Only
+
+But recommended naming is:
+
+Owner
+
+Editor
+
+Viewer
+
+2C. Access level behavior
+Owner
+
+full sponsor dashboard access
+
+can update lead / information request statuses
+
+can manage sponsor users if desired later
+
+can export/download sponsor data
+
+should usually represent the main sponsor contact
+
+Editor
+
+can access the sponsor dashboard
+
+can update information request statuses
+
+can interact with sponsor workflow
+
+cannot export/download sponsor data
+
+Viewer
+
+can view sponsor dashboard and data
+
+cannot edit statuses
+
+cannot export/download sponsor data
+
+2D. Only main user / owner can download data
+
+This is a required restriction.
+
+Export/download actions that must be restricted
+
+Examples:
+
+Export Leads CSV
+
+Download Sponsor PDF Report
+
+any sponsor data export
+
+any downloadable reporting export from sponsor dashboard
+
+Required behavior
+
+Only the Owner / primary sponsor user should be allowed to export/download data.
+
+Editors and Viewers should not see those export buttons, or they should see them disabled with a clear tooltip.
+
+Preferred behavior:
+
+hide export buttons for unauthorized users
+
+3. Sponsor User Data Model
+
+Use or extend the sponsor authentication work already planned.
+
+Recommended table
+sponsor_users
+
+Suggested fields:
+
+id
+sponsor_id
+name
+email
+access_level
+is_primary
+is_active
+last_login_at nullable
+created_at
+updated_at
+Notes
+
+access_level values:
+
+owner
+
+editor
+
+viewer
+
+is_primary should identify the main sponsor user
+
+only one sponsor user should normally be primary at a time
+
+4. Sponsor User Management Actions
+
+Inside the Sponsor Users interface, admins should be able to:
+
+add a sponsor user
+
+edit sponsor user name/email/access level
+
+set a user as primary
+
+deactivate a sponsor user
+
+resend dashboard access email
+
+remove a user if appropriate
+
+4A. Add sponsor user form
+
+Fields:
+
+Name
+
+Email
+
+Access Level
+
+Primary User checkbox if allowed
+
+Active checkbox
+
+Buttons:
+
+Save User
+
+Cancel
+
+4B. Resend access email
+
+Each sponsor user row should have an action:
+
+Send Access Email
+or
+
+Resend Access
+
+This should send the sponsor magic login email to that sponsor user.
+
+5. Replace Current Sponsor Dashboard Link Function
+
+The current sponsor dashboard link action in admin should no longer be treated as the main sponsor access distribution mechanism.
+
+Instead:
+
+New behavior
+
+The existing sponsor dashboard link action should become an internal admin-only shortcut.
+
+Meaning
+
+When admin clicks the sponsor dashboard link in Admin → Sponsors, it should:
+
+open or preview the sponsor dashboard internally
+
+let internal staff view the sponsor’s dashboard experience
+
+not be treated as the external sponsor access mechanism
+
+This is useful for:
+
+QA
+
+sales demos
+
+internal review
+
+troubleshooting sponsor experience
+
+5A. Label / tooltip for internal dashboard view
+
+Update the tooltip or label to make its purpose clear.
+
+Recommended:
+
+View Sponsor Dashboard
+
+Internal Dashboard Preview
+
+This should be distinct from Send Access Email.
+
+6. Sponsor Dashboard Header Cleanup
+
+The sponsor dashboard header currently feels cluttered and visually unbalanced.
+
+We need to simplify it and implement the following branding/layout changes.
+
+6A. Remove Website and LinkedIn links from Sponsor Dashboard header
+
+On the Sponsor Dashboard, remove:
+
+Website
+
+LinkedIn
+
+Reason:
+The sponsor already knows their own company links, and these are unnecessary in this context.
+
+This removes clutter and improves focus.
+
+6B. Place the Converge / Concierge favicon logo on the top right
+
+Use the Converge / Concierge favicon-style branding mark in the upper-right area of the dashboard header.
+
+Required behavior
+
+Place the small platform branding icon on the top-right as a subtle brand marker.
+
+This should replace or simplify current logo clutter.
+
+Do not make it oversized.
+
+6C. Remove the Converge Events logo next to the FRC logo
+
+In the sponsor dashboard header area:
+
+remove the Converge Events logo currently shown next to the event logo
+
+keep the event logo only
+
+The current dual-logo treatment is visually busy.
+
+6D. Move the event logo to the right side of the sponsor card/header
+
+Change the sponsor header layout so it becomes cleaner and more balanced.
+
+Desired layout
+
+Left side
+
+sponsor logo
+
+sponsor name
+
+sponsor level badge
+
+sponsor description
+
+event code
+
+event name or meta
+
+dates / location
+
+countdown if used
+
+Right side
+
+event logo only
+
+This creates a cleaner sponsor-left / event-right composition.
+
+6E. Streamline the top header hierarchy
+
+Keep the sponsor dashboard header visually strong, but less busy.
+
+Goal
+
+The header should emphasize:
+
+sponsor identity
+
+event context
+
+clean branding
+
+It should not feel like multiple logos and links competing for attention.
+
+7. Permission Rules on Sponsor Dashboard
+
+Update sponsor dashboard rendering and behavior based on the logged-in sponsor user’s access level.
+
+7A. Owner
+
+Can:
+
+view dashboard
+
+edit request statuses
+
+export leads
+
+download sponsor PDF report
+
+use all allowed sponsor dashboard actions
+
+7B. Editor
+
+Can:
+
+view dashboard
+
+edit allowed statuses / workflow fields
+
+cannot export/download
+
+7C. Viewer
+
+Can:
+
+view dashboard only
+
+cannot edit
+
+cannot export/download
+
+8. UI Requirements for Sponsor Users Section
+
+Keep the sponsor user management UI clean and admin-friendly.
+
+Suggested columns in Sponsor Users interface
+
+Name
+
+Email
+
+Access Level
+
+Primary
+
+Status
+
+Last Login
+
+Actions
+
+Suggested actions
+
+Edit
+
+Set Primary
+
+Send Access Email
+
+Deactivate
+
+9. Recommended Admin Workflow
+
+Admin → Sponsors → Sponsor row
+
+Actions should now include:
+
+View / Edit Sponsor
+
+Manage Sponsor Users
+
+Internal Dashboard Preview
+
+other existing actions as appropriate
+
+The sponsor-user workflow should be explicit and easy to understand.
+
+10. Update Sponsor Access Email Logic
+
+When sending sponsor dashboard access emails:
+
+allow sending to any authorized sponsor user
+
+use their name, email, sponsor, and access level context
+
+do not assume only the sponsor main contact exists
+
+The magic-link sponsor authentication flow should work for every active sponsor user.
+
+11. Access Control Edge Cases
+If no primary user exists
+
+Show an admin warning:
+No primary sponsor user assigned
+
+If multiple users are marked primary
+
+Prevent or correct this. Only one should be primary.
+
+If a user is inactive
+
+They should not be able to log in.
+
+If an editor/viewer tries to access export routes directly
+
+Block access server-side, not only in the UI.
+
+12. Recommended Implementation Order
+
+Implement in this order:
+
+Phase 1
+
+extend sponsor user model to support access levels and primary user
+
+add server-side authorization for sponsor export/download actions
+
+Phase 2
+
+add Sponsor Users button in Admin → Sponsors
+
+build Sponsor Users management modal/page
+
+add add/edit/deactivate/resend access functionality
+
+Phase 3
+
+change sponsor dashboard link action into internal admin preview behavior
+
+Phase 4
+
+clean sponsor dashboard header:
+
+remove website and LinkedIn
+
+remove Converge Events logo beside event logo
+
+move event logo to right side
+
+place small Concierge favicon-style branding on top right
+
+Phase 5
+
+test access levels end-to-end
+
+13. Acceptance Criteria
+
+This work is complete when:
+
+admins can manage multiple authorized sponsor users per sponsor
+
+sponsor users can be assigned access levels:
+
+Owner
+
+Editor
+
+Viewer
+
+only the Owner / primary sponsor user can export or download sponsor data
+
+the current sponsor dashboard link action becomes an internal preview tool
+
+sponsor dashboard header no longer shows Website or LinkedIn links
+
+Converge Events logo is removed from beside the event logo
+
+event logo is placed on the right side of the sponsor header/card
+
+small Concierge favicon-style branding appears on the top right
+
+sponsor dashboard header feels cleaner and less cluttered
+
+14. Success Standard
+
+After this update:
+
+sponsors can have multiple authorized users with controlled access
+
+internal staff can preview sponsor dashboards without using the sponsor access flow
+
+sponsor dashboard looks cleaner, more premium, and less cluttered
+
+data exports are limited to the main sponsor owner only
+
+That is the standard this implementation should meet.

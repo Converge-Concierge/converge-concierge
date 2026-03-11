@@ -156,6 +156,18 @@ export default function SponsorDashboardPage() {
     retry: false,
   });
 
+  const { data: meData } = useQuery<{ sponsorUser: { accessLevel: string; isPrimary: boolean; isActive: boolean } | null }>({
+    queryKey: ["/api/sponsor-dashboard/me", token],
+    queryFn: async () => {
+      const res = await fetch(`/api/sponsor-dashboard/me?token=${token}`);
+      if (!res.ok) return { sponsorUser: null };
+      return res.json();
+    },
+    enabled: !!token,
+    retry: false,
+  });
+  const canExport = meData === undefined ? true : (meData.sponsorUser?.accessLevel === "owner" && meData.sponsorUser?.isPrimary === true);
+
   const markAllRead = useMutation({
     mutationFn: () => fetch(`/api/sponsor-notifications/read-all?token=${token}`, { method: "PATCH" }).then((r) => r.json()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/sponsor-access", token] }),
@@ -382,32 +394,9 @@ export default function SponsorDashboardPage() {
         >
           {/* Sponsor + Event header */}
           <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-            {(branding?.sponsorDashboardLogoUrl || event.logoUrl) && (
-              <div className="px-6 pt-5 pb-3 border-b border-border/40 flex items-center justify-between gap-4 bg-muted/20">
-                <div className="flex items-center gap-4">
-                  {branding?.sponsorDashboardLogoUrl && (
-                    <img
-                      src={branding.sponsorDashboardLogoUrl}
-                      alt={branding.appName || "Concierge"}
-                      className="h-8 max-w-[160px] object-contain"
-                      data-testid="img-dashboard-brand-logo"
-                    />
-                  )}
-                  {event.logoUrl && (
-                    <div className="h-10 border border-border/50 bg-white rounded-lg p-1.5 flex items-center justify-center overflow-hidden shrink-0" data-testid="img-event-logo-header">
-                      <img src={event.logoUrl} alt={event.name} className="h-7 max-w-[120px] object-contain" />
-                    </div>
-                  )}
-                </div>
-                <div className="text-right hidden sm:block">
-                  <p className="text-xs font-semibold text-foreground">{event.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{event.location}</p>
-                </div>
-              </div>
-            )}
             <div className="p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              {/* Sponsor logo on the left — primary visual */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+              {/* Left: sponsor logo */}
               <div className="h-16 w-16 rounded-xl bg-white border border-border/70 flex items-center justify-center shrink-0 overflow-hidden shadow-sm" data-testid="img-sponsor-logo-card">
                 {sponsor.logoUrl ? (
                   <img src={sponsor.logoUrl} alt={sponsor.name} className="h-14 max-w-[60px] object-contain p-1" />
@@ -417,7 +406,9 @@ export default function SponsorDashboardPage() {
                   </div>
                 )}
               </div>
-              <div className="flex-1">
+
+              {/* Center: sponsor info */}
+              <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-sponsor-name">{sponsor.name}</h1>
                   {sponsor.level && (
@@ -428,15 +419,15 @@ export default function SponsorDashboardPage() {
                   )}
                 </div>
                 {sponsor.shortDescription && (
-                  <p className="text-sm text-muted-foreground mb-1.5">{sponsor.shortDescription}</p>
+                  <p className="text-sm text-muted-foreground mb-2">{sponsor.shortDescription}</p>
                 )}
-                {/* Event label row — slug only; name is shown in the branding strip above */}
-                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
                   <span className="font-mono text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20">
                     {event.slug}
                   </span>
+                  <span className="text-xs font-medium text-foreground">{event.name}</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-accent" />
                     {format(parseISO(event.startDate), "MMMM d")} – {format(parseISO(event.endDate), "MMMM d, yyyy")}
@@ -470,22 +461,16 @@ export default function SponsorDashboardPage() {
                     }
                   })()}
                 </div>
-
-                {(sponsor.websiteUrl || sponsor.linkedinUrl) && (
-                  <div className="flex items-center gap-3 mt-2">
-                    {sponsor.websiteUrl && (
-                      <a href={sponsor.websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-accent hover:underline">
-                        <ExternalLink className="h-3.5 w-3.5" /> Website
-                      </a>
-                    )}
-                    {sponsor.linkedinUrl && (
-                      <a href={sponsor.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-[#0077B5] hover:underline">
-                        <Linkedin className="h-3.5 w-3.5" /> LinkedIn
-                      </a>
-                    )}
-                  </div>
-                )}
               </div>
+
+              {/* Right: event logo */}
+              {event.logoUrl && (
+                <div className="hidden sm:flex flex-col items-end gap-1 shrink-0">
+                  <div className="h-14 border border-border/50 bg-white rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-sm" data-testid="img-event-logo-header">
+                    <img src={event.logoUrl} alt={event.name} className="h-10 max-w-[100px] object-contain" />
+                  </div>
+                </div>
+              )}
             </div>
             </div>
           </div>
@@ -1074,7 +1059,7 @@ export default function SponsorDashboardPage() {
                 <span className="text-xs font-normal text-muted-foreground">({leads.length} unique)</span>
               </h2>
               <div className="flex items-center gap-3">
-                {leads.length > 0 && (
+                {leads.length > 0 && canExport && (
                   <span
                     className="text-xs text-accent underline underline-offset-2 hover:opacity-80 flex items-center gap-1"
                     onClick={(e) => { e.stopPropagation(); exportLeadsCSV(); }}
@@ -1290,26 +1275,30 @@ export default function SponsorDashboardPage() {
 
               {/* Action buttons */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-border/40">
-                <a
-                  href={`/api/sponsor-report/pdf?token=${token}`}
-                  download
-                  className="flex-1"
-                  data-testid="link-download-pdf"
-                >
-                  <Button className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
-                    <FileDown className="h-4 w-4" />
-                    Download PDF Report
+                {canExport && (
+                  <a
+                    href={`/api/sponsor-report/pdf?token=${token}`}
+                    download
+                    className="flex-1"
+                    data-testid="link-download-pdf"
+                  >
+                    <Button className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
+                      <FileDown className="h-4 w-4" />
+                      Download PDF Report
+                    </Button>
+                  </a>
+                )}
+                {canExport && (
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-2"
+                    onClick={exportLeadsCSV}
+                    data-testid="btn-export-leads-report"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export Leads CSV
                   </Button>
-                </a>
-                <Button
-                  variant="outline"
-                  className="flex-1 gap-2"
-                  onClick={exportLeadsCSV}
-                  data-testid="btn-export-leads-report"
-                >
-                  <Download className="h-4 w-4" />
-                  Export Leads CSV
-                </Button>
+                )}
               </div>
             </div>
           </div>

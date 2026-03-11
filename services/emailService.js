@@ -200,7 +200,10 @@ export async function sendInformationRequestConfirmationToAttendee(storage, info
     console.warn(`[EMAIL] No attendee email on info request ${infoRequest?.id} — skipping confirmation`);
     return;
   }
-  const subject = `Your information request has been sent`;
+  const sponsorDisplayName = sponsor?.name ? sponsor.name.trim() : "";
+  const subject = sponsorDisplayName
+    ? `Your information request has been sent to ${sponsorDisplayName}`
+    : `Your information request has been sent`;
   const html = infoRequestConfirmationForAttendee({
     attendeeFirstName: infoRequest?.attendeeFirstName ?? "",
     sponsorName: sponsor?.name ?? "",

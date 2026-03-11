@@ -13,6 +13,7 @@ import {
   type InformationRequest, type InsertInformationRequest, type InformationRequestStatus,
   type EmailLog,
   type SponsorUser, type SponsorLoginToken,
+  type EmailTemplate,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -182,14 +183,26 @@ export interface IStorage {
   getEmailLog(id: string): Promise<EmailLog | undefined>;
 
   // Sponsor Users & Magic Login
-  upsertSponsorUser(data: { sponsorId: string; name: string; email: string }): Promise<SponsorUser>;
+  upsertSponsorUser(data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser>;
   getSponsorUserByEmail(email: string): Promise<SponsorUser | undefined>;
   getSponsorUsersBySponsor(sponsorId: string): Promise<SponsorUser[]>;
+  getSponsorUserById(id: string): Promise<SponsorUser | undefined>;
+  createSponsorUser(data: { sponsorId: string; name: string; email: string; accessLevel: string; isPrimary: boolean; isActive: boolean }): Promise<SponsorUser>;
+  updateSponsorUser(id: string, data: Partial<{ name: string; email: string; accessLevel: string; isPrimary: boolean; isActive: boolean }>): Promise<SponsorUser>;
+  setSponsorUserPrimary(id: string, sponsorId: string): Promise<void>;
+  deleteSponsorUser(id: string): Promise<void>;
   updateSponsorUserLastLogin(id: string): Promise<void>;
   createSponsorLoginToken(data: { sponsorUserId: string; sponsorId: string; tokenHash: string; expiresAt: Date }): Promise<SponsorLoginToken>;
   getSponsorLoginTokenByHash(tokenHash: string): Promise<SponsorLoginToken | undefined>;
   markSponsorLoginTokenUsed(id: string): Promise<void>;
   invalidateSponsorLoginTokens(sponsorUserId: string): Promise<void>;
+
+  // Email Templates
+  getEmailTemplates(): Promise<EmailTemplate[]>;
+  getEmailTemplateByKey(key: string): Promise<EmailTemplate | undefined>;
+  getEmailTemplateById(id: string): Promise<EmailTemplate | undefined>;
+  upsertEmailTemplate(data: { templateKey: string; displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate?: string | null; description?: string | null; variables?: string[]; isActive?: boolean }): Promise<EmailTemplate>;
+  updateEmailTemplate(id: string, data: Partial<{ displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean }>): Promise<EmailTemplate>;
 }
 
 export class MemStorage implements IStorage {
@@ -746,14 +759,25 @@ export class MemStorage implements IStorage {
   async listEmailLogs(_filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, _limit?: number, _offset?: number): Promise<EmailLog[]> { return []; }
   async getEmailLog(_id: string): Promise<EmailLog | undefined> { return undefined; }
 
-  async upsertSponsorUser(_data: { sponsorId: string; name: string; email: string }): Promise<SponsorUser> { return { id: randomUUID(), sponsorId: _data.sponsorId, name: _data.name, email: _data.email, isActive: true, lastLoginAt: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async upsertSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser> { return { id: randomUUID(), sponsorId: _data.sponsorId, name: _data.name, email: _data.email, accessLevel: _data.accessLevel ?? "owner", isPrimary: _data.isPrimary ?? false, isActive: true, lastLoginAt: null, createdAt: new Date(), updatedAt: new Date() }; }
   async getSponsorUserByEmail(_email: string): Promise<SponsorUser | undefined> { return undefined; }
   async getSponsorUsersBySponsor(_sponsorId: string): Promise<SponsorUser[]> { return []; }
+  async getSponsorUserById(_id: string): Promise<SponsorUser | undefined> { return undefined; }
+  async createSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel: string; isPrimary: boolean; isActive: boolean }): Promise<SponsorUser> { return { id: randomUUID(), ..._data, lastLoginAt: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateSponsorUser(_id: string, _data: Partial<{ name: string; email: string; accessLevel: string; isPrimary: boolean; isActive: boolean }>): Promise<SponsorUser> { return { id: _id, sponsorId: "", name: "", email: "", accessLevel: "owner", isPrimary: false, isActive: true, lastLoginAt: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async setSponsorUserPrimary(_id: string, _sponsorId: string): Promise<void> {}
+  async deleteSponsorUser(_id: string): Promise<void> {}
   async updateSponsorUserLastLogin(_id: string): Promise<void> {}
   async createSponsorLoginToken(_data: { sponsorUserId: string; sponsorId: string; tokenHash: string; expiresAt: Date }): Promise<SponsorLoginToken> { return { id: randomUUID(), ..._data, usedAt: null, createdAt: new Date() }; }
   async getSponsorLoginTokenByHash(_tokenHash: string): Promise<SponsorLoginToken | undefined> { return undefined; }
   async markSponsorLoginTokenUsed(_id: string): Promise<void> {}
   async invalidateSponsorLoginTokens(_sponsorUserId: string): Promise<void> {}
+
+  async getEmailTemplates(): Promise<EmailTemplate[]> { return []; }
+  async getEmailTemplateByKey(_key: string): Promise<EmailTemplate | undefined> { return undefined; }
+  async getEmailTemplateById(_id: string): Promise<EmailTemplate | undefined> { return undefined; }
+  async upsertEmailTemplate(data: { templateKey: string; displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate?: string | null; description?: string | null; variables?: string[]; isActive?: boolean }): Promise<EmailTemplate> { return { id: randomUUID(), ...data, textTemplate: data.textTemplate ?? null, description: data.description ?? null, variables: data.variables ?? [], isActive: data.isActive ?? true, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateEmailTemplate(_id: string, _data: Partial<{ displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean }>): Promise<EmailTemplate> { return { id: _id, templateKey: "", displayName: "", subjectTemplate: "", htmlTemplate: "", textTemplate: null, description: null, variables: [], isActive: true, createdAt: new Date(), updatedAt: new Date() }; }
 }
 
 export const storage = new DatabaseStorage();

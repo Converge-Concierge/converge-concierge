@@ -3,11 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Archive, Trash2, Link2, Building2, Eye, RotateCcw, Gem, Copy } from "lucide-react";
+import { Edit, Archive, Trash2, Link2, Building2, Eye, RotateCcw, Gem, Copy, Users } from "lucide-react";
 import { Sponsor, Event, SponsorToken, EventSponsorLink } from "@shared/schema";
 import { SponsorAccessModal } from "./SponsorAccessModal";
 import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const levelColors: Record<string, string> = {
   Platinum: "bg-slate-800 text-white border-slate-700",
@@ -37,6 +38,7 @@ interface SponsorsTableProps {
   onReactivate: (sponsor: Sponsor) => void;
   onDelete: (sponsor: Sponsor) => void;
   onCopy?: (sponsor: Sponsor) => void;
+  onManageUsers: (sponsor: Sponsor) => void;
   copyingId?: string | null;
 }
 
@@ -64,7 +66,7 @@ function getSponsorLinkStatus(sponsorId: string, tokens: SponsorToken[]): "activ
   return hasActive ? "active" : "revoked";
 }
 
-export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete, onCopy, copyingId }: SponsorsTableProps) {
+export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete, onCopy, onManageUsers, copyingId }: SponsorsTableProps) {
   const [accessSponsor, setAccessSponsor] = useState<Sponsor | null>(null);
   const { data: allTokens = [] } = useQuery<SponsorToken[]>({ queryKey: ["/api/sponsor-tokens"] });
   const { sort, toggle } = useSortState("level", "asc");
@@ -179,6 +181,21 @@ export function SponsorsTable({ sponsors, events, tab, isAdmin, onEdit, onView, 
                     <div className="flex justify-end items-center gap-1">
                       {tab === "active" ? (
                         <>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onManageUsers(sponsor)}
+                                  data-testid={`btn-sponsor-users-${sponsor.id}`}
+                                >
+                                  <Users className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Manage Users</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <Button variant="ghost" size="icon" title="Manage access links" onClick={() => setAccessSponsor(sponsor)} data-testid={`access-links-${sponsor.id}`} className={linkIconColor}>
                             <Link2 className="h-4 w-4" />
                           </Button>

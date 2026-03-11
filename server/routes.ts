@@ -1010,6 +1010,83 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ ok: emailSent, sentTo: sponsor.contactEmail, error: emailError });
   });
 
+  // ── Sponsor User CRUD ─────────────────────────────────────────────────────
+
+  app.get("/api/admin/sponsors/:sponsorId/users", requireAuth, async (req, res) => {
+    const sponsor = await storage.getSponsor(req.params.sponsorId);
+    if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+    const users = await storage.getSponsorUsersBySponsor(req.params.sponsorId);
+    res.json(users);
+  });
+
+  app.post("/api/admin/sponsors/:sponsorId/users", requireAuth, async (req, res) => {
+    const sponsor = await storage.getSponsor(req.params.sponsorId);
+    if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+    const { name, email, accessLevel, isPrimary, isActive } = req.body;
+    if (!name?.trim() || !email?.trim()) return res.status(400).json({ message: "Name and email are required" });
+    if (!["owner", "editor", "viewer"].includes(accessLevel)) return res.status(400).json({ message: "Invalid access level" });
+    const existing = await storage.getSponsorUserByEmail(email.trim());
+    if (existing && existing.sponsorId === req.params.sponsorId) return res.status(409).json({ message: "A user with this email already exists for this sponsor" });
+    const user = await storage.createSponsorUser({ sponsorId: req.params.sponsorId, name: name.trim(), email: email.trim(), accessLevel, isPrimary: isPrimary === true, isActive: isActive !== false });
+    if (isPrimary === true) await storage.setSponsorUserPrimary(user.id, req.params.sponsorId);
+    res.json(user);
+  });
+
+  app.patch("/api/admin/sponsors/:sponsorId/users/:userId", requireAuth, async (req, res) => {
+    const user = await storage.getSponsorUserById(req.params.userId);
+    if (!user || user.sponsorId !== req.params.sponsorId) return res.status(404).json({ message: "Sponsor user not found" });
+    const { name, email, accessLevel, isPrimary, isActive } = req.body;
+    if (accessLevel && !["owner", "editor", "viewer"].includes(accessLevel)) return res.status(400).json({ message: "Invalid access level" });
+    const updated = await storage.updateSponsorUser(req.params.userId, { name, email, accessLevel, isPrimary, isActive });
+    if (isPrimary === true) await storage.setSponsorUserPrimary(req.params.userId, req.params.sponsorId);
+    res.json(updated);
+  });
+
+  app.delete("/api/admin/sponsors/:sponsorId/users/:userId", requireAdmin, async (req, res) => {
+    const user = await storage.getSponsorUserById(req.params.userId);
+    if (!user || user.sponsorId !== req.params.sponsorId) return res.status(404).json({ message: "Sponsor user not found" });
+    await storage.deleteSponsorUser(req.params.userId);
+    res.json({ ok: true });
+  });
+
+  app.post("/api/admin/sponsors/:sponsorId/users/:userId/set-primary", requireAuth, async (req, res) => {
+    const user = await storage.getSponsorUserById(req.params.userId);
+    if (!user || user.sponsorId !== req.params.sponsorId) return res.status(404).json({ message: "Sponsor user not found" });
+    await storage.setSponsorUserPrimary(req.params.userId, req.params.sponsorId);
+    res.json({ ok: true });
+  });
+
+  app.post("/api/admin/sponsors/:sponsorId/users/:userId/send-access-email", requireAuth, async (req, res) => {
+    const sponsor = await storage.getSponsor(req.params.sponsorId);
+    if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+    const sponsorUser = await storage.getSponsorUserById(req.params.userId);
+    if (!sponsorUser || sponsorUser.sponsorId !== req.params.sponsorId) return res.status(404).json({ message: "Sponsor user not found" });
+    if (!sponsorUser.isActive) return res.status(400).json({ message: "Sponsor user is inactive" });
+
+    const { randomBytes, createHash } = await import("crypto");
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await storage.invalidateSponsorLoginTokens(sponsorUser.id);
+    await storage.createSponsorLoginToken({ sponsorUserId: sponsorUser.id, sponsorId: sponsor.id, tokenHash, expiresAt });
+
+    const baseUrl = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : "https://concierge.convergeevents.com";
+
+    let emailSent = false;
+    let emailError: string | null = null;
+    try {
+      const { sendSponsorMagicLoginEmail } = await import("../services/emailService.js");
+      await sendSponsorMagicLoginEmail(storage, sponsorUser, sponsor, rawToken, baseUrl, null);
+      emailSent = true;
+    } catch (err: any) {
+      emailError = err?.message ?? String(err);
+    }
+    res.json({ ok: emailSent, sentTo: sponsorUser.email, error: emailError });
+  });
+
   // ── Sponsor Dashboard (public, token-validated) ───────────────────────────
 
   // Helper to validate a sponsor access token
@@ -1317,6 +1394,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const validation = await validateSponsorToken(token);
     if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
     const { tokenRecord } = validation;
+
+    const users = await storage.getSponsorUsersBySponsor(tokenRecord.sponsorId);
+    if (users && users.length > 0) {
+      const primaryOwner = users.find((u) => u.isPrimary && u.accessLevel === "owner" && u.isActive);
+      if (!primaryOwner) return res.status(403).json({ message: "You do not have permission to download sponsor data." });
+    }
 
     const data = await buildReportData(tokenRecord.sponsorId, tokenRecord.eventId);
     if (!data) return res.status(404).json({ message: "Sponsor or event not found" });
@@ -1949,6 +2032,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(updated);
   });
 
+  // Sponsor dashboard: get current user context (access level / export permissions)
+  app.get("/api/sponsor-dashboard/me", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.json({ sponsorUser: null });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.json({ sponsorUser: null });
+    const { tokenRecord } = validation;
+
+    const users = await storage.getSponsorUsersBySponsor(tokenRecord.sponsorId);
+    if (!users || users.length === 0) {
+      return res.json({ sponsorUser: { accessLevel: "owner", isPrimary: true, isActive: true, _fallback: true } });
+    }
+    const primaryOwner = users.find((u) => u.isPrimary && u.accessLevel === "owner" && u.isActive);
+    if (primaryOwner) {
+      return res.json({ sponsorUser: { id: primaryOwner.id, name: primaryOwner.name, email: primaryOwner.email, accessLevel: primaryOwner.accessLevel, isPrimary: primaryOwner.isPrimary, isActive: primaryOwner.isActive } });
+    }
+    return res.json({ sponsorUser: { accessLevel: "owner", isPrimary: true, isActive: true, _fallback: true } });
+  });
+
   // Sponsor dashboard: list information requests for this sponsor/event
   app.get("/api/sponsor-dashboard/information-requests", async (req, res) => {
     const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
@@ -2087,6 +2189,100 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       errorMessage = err?.message ?? String(err);
     }
     const logId = await storage.createEmailLog({ emailType: emailType ?? "test_email", recipientEmail: to, subject, htmlContent: html, status: sendStatus, errorMessage });
+    res.json({ ok: sendStatus === "sent", status: sendStatus, errorMessage, logId });
+  });
+
+  // ── Email Template Management (admin-only) ───────────────────────────────
+
+  const SAMPLE_TEMPLATE_DATA: Record<string, string> = {
+    attendee_first_name: "Dan",
+    attendee_full_name: "Dan Carmody",
+    sponsor_name: "eGain",
+    event_name: "The 2026 Fintech Risk & Compliance Forum",
+    event_code: "FRC2026",
+    meeting_date: "October 5, 2026",
+    meeting_time: "10:00 AM",
+    meeting_location: "Booth A",
+    meeting_type: "Onsite",
+    status: "Confirmed",
+    event_schedule_url: "https://concierge.convergeevents.com/event/FRC2026",
+    sponsor_dashboard_url: "https://concierge.convergeevents.com/sponsor/dashboard",
+    sponsor_user_name: "Jane Smith",
+    magic_link_url: "https://concierge.convergeevents.com/sponsor/auth/magic?token=sample123",
+    user_name: "Admin User",
+    reset_url: "https://concierge.convergeevents.com/admin/reset-password?token=sample123",
+    recipient_email: "admin@converge.com",
+    app_name: "Converge Concierge",
+  };
+
+  function substituteTemplateVars(template: string, data: Record<string, string>): string {
+    return template.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? `{{${key}}}`);
+  }
+
+  app.get("/api/admin/email-templates", requireAuth, async (req, res) => {
+    const templates = await storage.getEmailTemplates();
+    res.json(templates);
+  });
+
+  app.get("/api/admin/email-templates/:id", requireAuth, async (req, res) => {
+    const template = await storage.getEmailTemplateById(req.params.id);
+    if (!template) return res.status(404).json({ message: "Template not found" });
+    res.json(template);
+  });
+
+  app.patch("/api/admin/email-templates/:id", requireAdmin, async (req, res) => {
+    const existing = await storage.getEmailTemplateById(req.params.id);
+    if (!existing) return res.status(404).json({ message: "Template not found" });
+    const { displayName, subjectTemplate, htmlTemplate, textTemplate, description, isActive } = req.body;
+    const updated = await storage.updateEmailTemplate(req.params.id, {
+      ...(displayName !== undefined && { displayName }),
+      ...(subjectTemplate !== undefined && { subjectTemplate }),
+      ...(htmlTemplate !== undefined && { htmlTemplate }),
+      ...(textTemplate !== undefined && { textTemplate: textTemplate ?? null }),
+      ...(description !== undefined && { description: description ?? null }),
+      ...(isActive !== undefined && { isActive }),
+    });
+    res.json(updated);
+  });
+
+  app.post("/api/admin/email-templates/:id/preview", requireAuth, async (req, res) => {
+    const template = await storage.getEmailTemplateById(req.params.id);
+    if (!template) return res.status(404).json({ message: "Template not found" });
+    const subject = substituteTemplateVars(template.subjectTemplate, SAMPLE_TEMPLATE_DATA);
+    let html = template.htmlTemplate || "";
+    if (!html.trim()) {
+      html = `<div style="padding:32px;font-family:sans-serif;color:#374151;"><h2 style="margin:0 0 8px;">${template.displayName}</h2><p style="color:#6b7280;">This template has no custom HTML stored yet. Live emails use the code-rendered template.</p><p style="color:#6b7280;margin-top:16px;">Subject: <strong>${subject}</strong></p></div>`;
+    } else {
+      html = substituteTemplateVars(html, SAMPLE_TEMPLATE_DATA);
+    }
+    res.json({ subject, html });
+  });
+
+  app.post("/api/admin/email-templates/:id/send-test", requireAdmin, async (req, res) => {
+    const template = await storage.getEmailTemplateById(req.params.id);
+    if (!template) return res.status(404).json({ message: "Template not found" });
+    const { email } = req.body;
+    if (!email?.trim()) return res.status(400).json({ message: "Recipient email required" });
+
+    const subject = substituteTemplateVars(template.subjectTemplate, SAMPLE_TEMPLATE_DATA);
+    let html = template.htmlTemplate || "";
+    if (!html.trim()) {
+      const { meetingConfirmationForAttendee } = await import("../services/emailTemplates.js");
+      html = `<div style="padding:32px;font-family:sans-serif;color:#374151;"><h2>${template.displayName} — Test Email</h2><p>Subject would be: <strong>${subject}</strong></p><p>No custom HTML stored. This template uses the code-rendered default.</p></div>`;
+    } else {
+      html = substituteTemplateVars(html, SAMPLE_TEMPLATE_DATA);
+    }
+
+    const { sendEmail } = await import("../services/emailService.js");
+    let sendStatus: "sent" | "failed" = "sent";
+    let errorMessage: string | null = null;
+    try {
+      await sendEmail(email.trim(), `[Test] ${subject}`, html);
+    } catch (err: any) {
+      sendStatus = "failed";
+      errorMessage = err?.message ?? String(err);
+    }
+    const logId = await storage.createEmailLog({ emailType: `template_test_${template.templateKey}`, recipientEmail: email.trim(), subject: `[Test] ${subject}`, htmlContent: html, status: sendStatus, errorMessage });
     res.json({ ok: sendStatus === "sent", status: sendStatus, errorMessage, logId });
   });
 

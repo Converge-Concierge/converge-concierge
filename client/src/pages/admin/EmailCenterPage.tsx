@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import type { EmailLog, Event, Sponsor } from "@shared/schema";
+import { motion, AnimatePresence } from "framer-motion";
+import type { EmailLog, Event, Sponsor, EmailTemplate } from "@shared/schema";
 import {
   Mail, MailCheck, MailX, RefreshCw, Send, Search, Eye,
   FlaskConical, Building2, User, AlertCircle, CheckCircle2,
   Clock, CalendarDays, X, RotateCcw, ChevronRight, Code,
+  Settings2, Edit2, FileText, Layout,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -71,6 +74,269 @@ function TypeBadge({ type }: { type: string }) {
     <span className={cn("inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border", colorMap[type] ?? "bg-muted text-muted-foreground border-border")}>
       {label}
     </span>
+  );
+}
+
+// ── Email Templates Tab Component ─────────────────────────────────────────────
+
+function EmailTemplatesTab() {
+  const { toast } = useToast();
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewSubject, setPreviewSubject] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState("");
+
+  const { data: templates = [], isLoading } = useQuery<EmailTemplate[]>({
+    queryKey: ["/api/admin/email-templates"],
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (values: Partial<EmailTemplate>) => {
+      const res = await apiRequest("PATCH", `/api/admin/email-templates/${editingTemplate?.id}`, values);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Template updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-templates"] });
+      setEditingTemplate(null);
+    },
+    onError: (err: Error) => toast({ title: "Update failed", description: err.message, variant: "destructive" }),
+  });
+
+  const previewMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/admin/email-templates/${editingTemplate?.id}/preview`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setPreviewHtml(data.html);
+      setPreviewSubject(data.subject);
+    },
+    onError: (err: Error) => toast({ title: "Preview failed", description: err.message, variant: "destructive" }),
+  });
+
+  const sendTestMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/admin/email-templates/${editingTemplate?.id}/send-test`, { email: testEmail });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data.ok ? "Test email sent" : "Test failed",
+        description: data.ok ? `Sent to ${testEmail}` : data.message,
+        variant: data.ok ? "default" : "destructive"
+      });
+    },
+    onError: (err: Error) => toast({ title: "Send failed", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="flex gap-6 h-[calc(100vh-280px)]">
+      {/* List */}
+      <div className={cn("bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden flex flex-col transition-all duration-300", editingTemplate ? "w-1/3" : "w-full")}>
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/50 bg-muted/30">
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Display Name</th>
+                {!editingTemplate && <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Key</th>}
+                {!editingTemplate && <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Subject</th>}
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Status</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">Loading templates…</td></tr>
+              ) : templates.length === 0 ? (
+                <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">No templates found.</td></tr>
+              ) : (
+                templates.map((t) => (
+                  <tr key={t.id} className={cn("border-b border-border/30 hover:bg-muted/20 transition-colors", editingTemplate?.id === t.id && "bg-accent/5")}>
+                    <td className="px-4 py-3 font-medium">{t.displayName}</td>
+                    {!editingTemplate && <td className="px-4 py-3 text-xs font-mono text-muted-foreground">{t.templateKey}</td>}
+                    {!editingTemplate && <td className="px-4 py-3 text-xs truncate max-w-[200px]">{t.subjectTemplate}</td>}
+                    <td className="px-4 py-3">
+                      <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", t.isActive ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-muted text-muted-foreground border-border")}>
+                        {t.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button variant="ghost" size="sm" onClick={() => { setEditingTemplate(t); setPreviewHtml(null); }} className="h-8 w-8 p-0">
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Edit Panel */}
+      <AnimatePresence>
+        {editingTemplate && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="w-2/3 bg-card rounded-2xl border border-border/60 shadow-lg overflow-hidden flex flex-col"
+          >
+            <div className="p-4 border-b border-border/40 bg-muted/30 flex items-center justify-between">
+              <div>
+                <h3 className="font-display font-bold text-foreground">Edit Template</h3>
+                <p className="text-xs text-muted-foreground">{editingTemplate.displayName} ({editingTemplate.templateKey})</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setEditingTemplate(null)} className="h-8 w-8">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Display Name</label>
+                  <Input
+                    value={editingTemplate.displayName}
+                    onChange={(e) => setEditingTemplate({ ...editingTemplate, displayName: e.target.value })}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
+                  <div className="flex items-center gap-2 h-9">
+                    <Button
+                      variant={editingTemplate.isActive ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setEditingTemplate({ ...editingTemplate, isActive: true })}
+                      className="flex-1"
+                    >
+                      Active
+                    </Button>
+                    <Button
+                      variant={!editingTemplate.isActive ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setEditingTemplate({ ...editingTemplate, isActive: false })}
+                      className="flex-1"
+                    >
+                      Inactive
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Subject Template</label>
+                <Input
+                  value={editingTemplate.subjectTemplate}
+                  onChange={(e) => setEditingTemplate({ ...editingTemplate, subjectTemplate: e.target.value })}
+                  className="h-9 font-mono text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">HTML Body</label>
+                <Textarea
+                  value={editingTemplate.htmlTemplate}
+                  onChange={(e) => setEditingTemplate({ ...editingTemplate, htmlTemplate: e.target.value })}
+                  className="min-h-[300px] font-mono text-xs leading-relaxed"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
+                <Textarea
+                  value={editingTemplate.description ?? ""}
+                  onChange={(e) => setEditingTemplate({ ...editingTemplate, description: e.target.value })}
+                  className="min-h-[80px] text-sm"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Available Variables</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {editingTemplate.variables.map((v) => (
+                    <code key={v} className="px-2 py-1 rounded bg-muted text-[10px] font-mono text-accent border border-border/40">
+                      {"{{"}{v}{"}}"}
+                    </code>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preview Section */}
+              {previewHtml && (
+                <div className="space-y-3 pt-4 border-t border-border/40">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-accent" /> Preview
+                    </h4>
+                    <Button variant="ghost" size="sm" onClick={() => setPreviewHtml(null)} className="h-7 text-xs">Hide Preview</Button>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/10 p-3 space-y-2">
+                    <p className="text-xs font-mono"><strong>Subject:</strong> {previewSubject}</p>
+                    <div className="rounded border border-border/40 bg-white overflow-hidden">
+                      <iframe
+                        srcDoc={previewHtml}
+                        className="w-full h-[400px]"
+                        title="Template Preview"
+                        sandbox="allow-same-origin"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Test Send */}
+                  <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 space-y-3">
+                    <p className="text-xs font-bold text-accent uppercase tracking-wider">Send Test Email</p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="test@example.com"
+                        value={testEmail}
+                        onChange={(e) => setTestEmail(e.target.value)}
+                        className="h-9 flex-1"
+                      />
+                      <Button
+                        size="sm"
+                        disabled={!testEmail || sendTestMutation.isPending}
+                        onClick={() => sendTestMutation.mutate()}
+                        className="gap-2"
+                      >
+                        <Send className="h-3.5 w-3.5" /> Send
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-border/40 bg-muted/30 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => previewMutation.mutate()}
+                  disabled={previewMutation.isPending}
+                  className="gap-2"
+                >
+                  <Eye className="h-3.5 w-3.5" /> Preview
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setEditingTemplate(null)}>Cancel</Button>
+                <Button
+                  size="sm"
+                  onClick={() => updateMutation.mutate(editingTemplate)}
+                  disabled={updateMutation.isPending}
+                  className="gap-2"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Save Changes
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -160,144 +426,163 @@ export default function EmailCenterPage() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
-            <Mail className="h-6 w-6 text-accent" />
-            Email Center
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">Review sent emails, delivery status, and resend important messages.</p>
+      <Tabs defaultValue="logs" className="w-full">
+        <div className="flex items-center justify-between mb-6">
+          <TabsList className="bg-muted/50 p-1">
+            <TabsTrigger value="logs" className="gap-2">
+              <FileText className="h-3.5 w-3.5" /> Email Logs
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="gap-2">
+              <Layout className="h-3.5 w-3.5" /> Templates
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 h-8">
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </Button>
+            <Button size="sm" onClick={() => setTestOpen(true)} className="gap-2 h-8" data-testid="button-send-test-email">
+              <FlaskConical className="h-3.5 w-3.5" /> Send Test Email
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 h-8">
-            <RefreshCw className="h-3.5 w-3.5" /> Refresh
-          </Button>
-          <Button size="sm" onClick={() => setTestOpen(true)} className="gap-2 h-8" data-testid="button-send-test-email">
-            <FlaskConical className="h-3.5 w-3.5" /> Send Test Email
-          </Button>
-        </div>
-      </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-xl border border-border/60 bg-card p-4">
-          <p className="text-2xl font-display font-bold">{summary.total}</p>
-          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><Mail className="h-3 w-3" /> Total Emails</p>
-        </div>
-        <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
-          <p className="text-2xl font-display font-bold text-teal-700">{summary.sent}</p>
-          <p className="text-xs text-teal-600 mt-1 flex items-center gap-1"><MailCheck className="h-3 w-3" /> Sent</p>
-        </div>
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <p className="text-2xl font-display font-bold text-red-700">{summary.failed}</p>
-          <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><MailX className="h-3 w-3" /> Failed</p>
-        </div>
-      </div>
+        <TabsContent value="logs" className="space-y-6 mt-0">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
+                <Mail className="h-6 w-6 text-accent" />
+                Email Center
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">Review sent emails, delivery status, and resend important messages.</p>
+            </div>
+          </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <select className={selectClass} value={filterType} onChange={(e) => setFilterType(e.target.value)} data-testid="filter-email-type">
-          <option value="">All Types</option>
-          {EMAIL_TYPES.map((t) => <option key={t} value={t}>{EMAIL_TYPE_LABELS[t]}</option>)}
-        </select>
-        <select className={selectClass} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} data-testid="filter-status">
-          <option value="">All Statuses</option>
-          {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
-        <select className={selectClass} value={filterEventId} onChange={(e) => setFilterEventId(e.target.value)} data-testid="filter-event">
-          <option value="">All Events</option>
-          {events.map((e) => <option key={e.id} value={e.id}>{e.slug}</option>)}
-        </select>
-        <div className="flex items-center gap-1">
-          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-          <input type="date" className={selectClass} value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} data-testid="filter-from" />
-          <span className="text-xs text-muted-foreground">to</span>
-          <input type="date" className={selectClass} value={filterTo} onChange={(e) => setFilterTo(e.target.value)} data-testid="filter-to" />
-        </div>
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input placeholder="Search recipient, subject…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-sm" data-testid="email-search" />
-        </div>
-        {hasFilters && (
-          <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors" data-testid="button-clear-filters">
-            <X className="h-3.5 w-3.5" /> Clear
-          </button>
-        )}
-      </div>
+          {/* Summary cards */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="rounded-xl border border-border/60 bg-card p-4">
+              <p className="text-2xl font-display font-bold">{summary.total}</p>
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><Mail className="h-3 w-3" /> Total Emails</p>
+            </div>
+            <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
+              <p className="text-2xl font-display font-bold text-teal-700">{summary.sent}</p>
+              <p className="text-xs text-teal-600 mt-1 flex items-center gap-1"><MailCheck className="h-3 w-3" /> Sent</p>
+            </div>
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+              <p className="text-2xl font-display font-bold text-red-700">{summary.failed}</p>
+              <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><MailX className="h-3 w-3" /> Failed</p>
+            </div>
+          </div>
 
-      {/* Table */}
-      <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
-                {["Sent At", "Type", "Recipient", "Subject", "Event", "Sponsor", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={8} className="text-center py-12 text-muted-foreground text-sm">Loading email logs…</td></tr>
-              ) : logs.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-16">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
-                        <Mail className="h-6 w-6 text-muted-foreground/50" />
-                      </div>
-                      <p className="text-sm font-medium text-muted-foreground">No email activity found.</p>
-                      <p className="text-xs text-muted-foreground/60">{hasFilters ? "Try adjusting your filters." : "Emails will appear here once they are sent."}</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                logs.map((log, i) => {
-                  const eventSlug = getEventSlug(log.eventId);
-                  const sponsorName = getSponsorName(log.sponsorId);
-                  return (
-                    <tr key={log.id} className={cn("border-b border-border/30 hover:bg-muted/20 transition-colors", i % 2 === 1 && "bg-muted/10")} data-testid={`email-row-${log.id}`}>
-                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{fmtSentAt(log.sentAt)}</td>
-                      <td className="px-4 py-3"><TypeBadge type={log.emailType} /></td>
-                      <td className="px-4 py-3 text-xs font-mono text-foreground max-w-[180px] truncate">{log.recipientEmail}</td>
-                      <td className="px-4 py-3 text-sm text-foreground max-w-[220px] truncate" title={log.subject}>{log.subject}</td>
-                      <td className="px-4 py-3">
-                        {eventSlug ? <span className="text-xs font-mono font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded">{eventSlug}</span> : <span className="text-xs text-muted-foreground">—</span>}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{sponsorName ?? "—"}</td>
-                      <td className="px-4 py-3"><StatusBadge status={log.status} /></td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setSelectedLog(log)}
-                            className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80 transition-colors px-2 py-1 rounded hover:bg-accent/10"
-                            data-testid={`button-view-${log.id}`}
-                          >
-                            <Eye className="h-3 w-3" /> View
-                          </button>
-                          <button
-                            onClick={() => setResendTarget(log)}
-                            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted/50"
-                            data-testid={`button-resend-${log.id}`}
-                          >
-                            <Send className="h-3 w-3" /> Resend
-                          </button>
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <select className={selectClass} value={filterType} onChange={(e) => setFilterType(e.target.value)} data-testid="filter-email-type">
+              <option value="">All Types</option>
+              {EMAIL_TYPES.map((t) => <option key={t} value={t}>{EMAIL_TYPE_LABELS[t]}</option>)}
+            </select>
+            <select className={selectClass} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} data-testid="filter-status">
+              <option value="">All Statuses</option>
+              {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+            <select className={selectClass} value={filterEventId} onChange={(e) => setFilterEventId(e.target.value)} data-testid="filter-event">
+              <option value="">All Events</option>
+              {events.map((e) => <option key={e.id} value={e.id}>{e.slug}</option>)}
+            </select>
+            <div className="flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+              <input type="date" className={selectClass} value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} data-testid="filter-from" />
+              <span className="text-xs text-muted-foreground">to</span>
+              <input type="date" className={selectClass} value={filterTo} onChange={(e) => setFilterTo(e.target.value)} data-testid="filter-to" />
+            </div>
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input placeholder="Search recipient, subject…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-sm" data-testid="email-search" />
+            </div>
+            {hasFilters && (
+              <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors" data-testid="button-clear-filters">
+                <X className="h-3.5 w-3.5" /> Clear
+              </button>
+            )}
+          </div>
+
+          {/* Table */}
+          <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50 bg-muted/30">
+                    {["Sent At", "Type", "Recipient", "Subject", "Event", "Sponsor", "Status", "Actions"].map((h) => (
+                      <th key={h} className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr><td colSpan={8} className="text-center py-12 text-muted-foreground text-sm">Loading email logs…</td></tr>
+                  ) : logs.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-16">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
+                            <Mail className="h-6 w-6 text-muted-foreground/50" />
+                          </div>
+                          <p className="text-sm font-medium text-muted-foreground">No email activity found.</p>
+                          <p className="text-xs text-muted-foreground/60">{hasFilters ? "Try adjusting your filters." : "Emails will appear here once they are sent."}</p>
                         </div>
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-        {logs.length > 0 && (
-          <div className="px-4 py-3 border-t border-border/30 text-xs text-muted-foreground">
-            {logs.length} email{logs.length !== 1 ? "s" : ""} {hasFilters ? "matching filters" : "total"}
+                  ) : (
+                    logs.map((log, i) => {
+                      const eventSlug = getEventSlug(log.eventId);
+                      const sponsorName = getSponsorName(log.sponsorId);
+                      return (
+                        <tr key={log.id} className={cn("border-b border-border/30 hover:bg-muted/20 transition-colors", i % 2 === 1 && "bg-muted/10")} data-testid={`email-row-${log.id}`}>
+                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{fmtSentAt(log.sentAt)}</td>
+                          <td className="px-4 py-3"><TypeBadge type={log.emailType} /></td>
+                          <td className="px-4 py-3 text-xs font-mono text-foreground max-w-[180px] truncate">{log.recipientEmail}</td>
+                          <td className="px-4 py-3 text-sm text-foreground max-w-[220px] truncate" title={log.subject}>{log.subject}</td>
+                          <td className="px-4 py-3">
+                            {eventSlug ? <span className="text-xs font-mono font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded">{eventSlug}</span> : <span className="text-xs text-muted-foreground">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{sponsorName ?? "—"}</td>
+                          <td className="px-4 py-3"><StatusBadge status={log.status} /></td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => setSelectedLog(log)}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80 transition-colors px-2 py-1 rounded hover:bg-accent/10"
+                                data-testid={`button-view-${log.id}`}
+                              >
+                                <Eye className="h-3 w-3" /> View
+                              </button>
+                              <button
+                                onClick={() => setResendTarget(log)}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted/50"
+                                data-testid={`button-resend-${log.id}`}
+                              >
+                                <Send className="h-3 w-3" /> Resend
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {logs.length > 0 && (
+              <div className="px-4 py-3 border-t border-border/30 text-xs text-muted-foreground">
+                {logs.length} email{logs.length !== 1 ? "s" : ""} {hasFilters ? "matching filters" : "total"}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </TabsContent>
+
+        <TabsContent value="templates" className="mt-0">
+          <EmailTemplatesTab />
+        </TabsContent>
+      </Tabs>
 
       {/* Detail Drawer */}
       <Sheet open={!!selectedLog} onOpenChange={(o) => { if (!o) setSelectedLog(null); }}>

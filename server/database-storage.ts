@@ -4,7 +4,7 @@ import { db } from "./db";
 import {
   users, events, sponsors, attendees, meetings,
   sponsorTokens, sponsorNotifications, passwordResetTokens, appConfig, dataExchangeLogs,
-  sponsorUsers, sponsorLoginTokens,
+  sponsorUsers, sponsorLoginTokens, emailTemplates,
   userPermissions, permissionAuditLogs, informationRequests, sponsorAnalytics, emailLogs,
   type User, type InsertUser,
   type Event, type InsertEvent,
@@ -18,6 +18,7 @@ import {
   type InformationRequest, type InsertInformationRequest, type InformationRequestStatus,
   type EmailLog,
   type SponsorUser, type SponsorLoginToken,
+  type EmailTemplate,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -750,7 +751,7 @@ export class DatabaseStorage implements IStorage {
 
   // ── Sponsor Users & Magic Login ───────────────────────────────────────────
 
-  async upsertSponsorUser(data: { sponsorId: string; name: string; email: string }): Promise<SponsorUser> {
+  async upsertSponsorUser(data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser> {
     const normalizedEmail = data.email.toLowerCase().trim();
     const existing = await db.select().from(sponsorUsers).where(eq(sponsorUsers.email, normalizedEmail)).limit(1);
     if (existing[0]) {
@@ -765,6 +766,8 @@ export class DatabaseStorage implements IStorage {
       sponsorId: data.sponsorId,
       name: data.name,
       email: normalizedEmail,
+      accessLevel: data.accessLevel ?? "owner",
+      isPrimary: data.isPrimary ?? false,
       isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -778,11 +781,102 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSponsorUsersBySponsor(sponsorId: string): Promise<SponsorUser[]> {
-    return db.select().from(sponsorUsers).where(eq(sponsorUsers.sponsorId, sponsorId));
+    return db.select().from(sponsorUsers).where(eq(sponsorUsers.sponsorId, sponsorId)).orderBy(sponsorUsers.createdAt);
+  }
+
+  async getSponsorUserById(id: string): Promise<SponsorUser | undefined> {
+    const [row] = await db.select().from(sponsorUsers).where(eq(sponsorUsers.id, id)).limit(1);
+    return row;
+  }
+
+  async createSponsorUser(data: { sponsorId: string; name: string; email: string; accessLevel: string; isPrimary: boolean; isActive: boolean }): Promise<SponsorUser> {
+    const [row] = await db.insert(sponsorUsers).values({
+      id: randomUUID(),
+      sponsorId: data.sponsorId,
+      name: data.name,
+      email: data.email.toLowerCase().trim(),
+      accessLevel: data.accessLevel,
+      isPrimary: data.isPrimary,
+      isActive: data.isActive,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return row;
+  }
+
+  async updateSponsorUser(id: string, data: Partial<{ name: string; email: string; accessLevel: string; isPrimary: boolean; isActive: boolean }>): Promise<SponsorUser> {
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.email !== undefined) updates.email = data.email.toLowerCase().trim();
+    if (data.accessLevel !== undefined) updates.accessLevel = data.accessLevel;
+    if (data.isPrimary !== undefined) updates.isPrimary = data.isPrimary;
+    if (data.isActive !== undefined) updates.isActive = data.isActive;
+    const [row] = await db.update(sponsorUsers).set(updates).where(eq(sponsorUsers.id, id)).returning();
+    return row;
+  }
+
+  async setSponsorUserPrimary(id: string, sponsorId: string): Promise<void> {
+    await db.update(sponsorUsers).set({ isPrimary: false, updatedAt: new Date() }).where(eq(sponsorUsers.sponsorId, sponsorId));
+    await db.update(sponsorUsers).set({ isPrimary: true, updatedAt: new Date() }).where(eq(sponsorUsers.id, id));
+  }
+
+  async deleteSponsorUser(id: string): Promise<void> {
+    await db.delete(sponsorUsers).where(eq(sponsorUsers.id, id));
   }
 
   async updateSponsorUserLastLogin(id: string): Promise<void> {
     await db.update(sponsorUsers).set({ lastLoginAt: new Date(), updatedAt: new Date() }).where(eq(sponsorUsers.id, id));
+  }
+
+  async getEmailTemplates(): Promise<EmailTemplate[]> {
+    return db.select().from(emailTemplates).orderBy(emailTemplates.displayName);
+  }
+
+  async getEmailTemplateByKey(key: string): Promise<EmailTemplate | undefined> {
+    const [row] = await db.select().from(emailTemplates).where(eq(emailTemplates.templateKey, key)).limit(1);
+    return row;
+  }
+
+  async getEmailTemplateById(id: string): Promise<EmailTemplate | undefined> {
+    const [row] = await db.select().from(emailTemplates).where(eq(emailTemplates.id, id)).limit(1);
+    return row;
+  }
+
+  async upsertEmailTemplate(data: { templateKey: string; displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate?: string | null; description?: string | null; variables?: string[]; isActive?: boolean }): Promise<EmailTemplate> {
+    const existing = await db.select().from(emailTemplates).where(eq(emailTemplates.templateKey, data.templateKey)).limit(1);
+    if (existing[0]) {
+      const [updated] = await db.update(emailTemplates)
+        .set({ displayName: data.displayName, subjectTemplate: data.subjectTemplate, description: data.description ?? null, variables: data.variables ?? existing[0].variables, isActive: data.isActive ?? existing[0].isActive, updatedAt: new Date() })
+        .where(eq(emailTemplates.id, existing[0].id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(emailTemplates).values({
+      id: randomUUID(),
+      templateKey: data.templateKey,
+      displayName: data.displayName,
+      subjectTemplate: data.subjectTemplate,
+      htmlTemplate: data.htmlTemplate,
+      textTemplate: data.textTemplate ?? null,
+      description: data.description ?? null,
+      variables: data.variables ?? [],
+      isActive: data.isActive ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async updateEmailTemplate(id: string, data: Partial<{ displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean }>): Promise<EmailTemplate> {
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (data.displayName !== undefined) updates.displayName = data.displayName;
+    if (data.subjectTemplate !== undefined) updates.subjectTemplate = data.subjectTemplate;
+    if (data.htmlTemplate !== undefined) updates.htmlTemplate = data.htmlTemplate;
+    if (data.textTemplate !== undefined) updates.textTemplate = data.textTemplate;
+    if (data.description !== undefined) updates.description = data.description;
+    if (data.isActive !== undefined) updates.isActive = data.isActive;
+    const [row] = await db.update(emailTemplates).set(updates).where(eq(emailTemplates.id, id)).returning();
+    return row;
   }
 
   async createSponsorLoginToken(data: { sponsorUserId: string; sponsorId: string; tokenHash: string; expiresAt: Date }): Promise<SponsorLoginToken> {

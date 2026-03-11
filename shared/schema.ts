@@ -761,7 +761,7 @@ export const agreementDeliverableTemplateItems = pgTable("agreement_deliverable_
   sponsorEditable: boolean("sponsor_editable").notNull().default(false),
   sponsorVisible: boolean("sponsor_visible").notNull().default(true),
   fulfillmentType: varchar("fulfillment_type").notNull().default("status_only"),
-  reminderEligible: boolean("reminder_eligible").notNull().default(false),
+  reminderEligible: boolean("reminder_eligible").notNull().default(true),
   dueTiming: varchar("due_timing").notNull().default("not_applicable"),
   dueOffsetDays: integer("due_offset_days"),
   displayOrder: integer("display_order").notNull().default(0),
@@ -790,6 +790,7 @@ export const agreementDeliverables = pgTable("agreement_deliverables", {
   sponsorEditable: boolean("sponsor_editable").notNull().default(false),
   sponsorVisible: boolean("sponsor_visible").notNull().default(true),
   fulfillmentType: varchar("fulfillment_type").notNull().default("status_only"),
+  reminderEligible: boolean("reminder_eligible").notNull().default(true),
   status: varchar("status").notNull().default("Not Started"),
   dueTiming: varchar("due_timing").notNull().default("not_applicable"),
   dueDate: timestamp("due_date"),
@@ -835,3 +836,25 @@ export const agreementDeliverableSpeakers = pgTable("agreement_deliverable_speak
 export const insertAgreementDeliverableSpeakerSchema = createInsertSchema(agreementDeliverableSpeakers).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertAgreementDeliverableSpeaker = z.infer<typeof insertAgreementDeliverableSpeakerSchema>;
 export type AgreementDeliverableSpeaker = typeof agreementDeliverableSpeakers.$inferSelect;
+
+// 2F — Reminder log (tracks all automated + manual reminder emails sent to sponsors)
+export const REMINDER_TYPES = ["weekly_automatic", "manual_admin"] as const;
+export type ReminderType = typeof REMINDER_TYPES[number];
+
+export const agreementDeliverableReminders = pgTable("agreement_deliverable_reminders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sponsorId: varchar("sponsor_id").notNull(),
+  eventId: varchar("event_id").notNull(),
+  recipientEmail: varchar("recipient_email").notNull(),
+  reminderType: varchar("reminder_type").notNull().default("manual_admin"),
+  sentByRole: varchar("sent_by_role").notNull().default("admin"),
+  sentByUserId: varchar("sent_by_user_id"),
+  sentAt: timestamp("sent_at").notNull().defaultNow(),
+  status: varchar("status").notNull().default("sent"),
+  errorMessage: text("error_message"),
+  deliverableCount: integer("deliverable_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export const insertAgreementDeliverableReminderSchema = createInsertSchema(agreementDeliverableReminders).omit({ id: true, createdAt: true });
+export type InsertAgreementDeliverableReminder = z.infer<typeof insertAgreementDeliverableReminderSchema>;
+export type AgreementDeliverableReminder = typeof agreementDeliverableReminders.$inferSelect;

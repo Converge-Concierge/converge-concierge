@@ -280,3 +280,59 @@ export function meetingReminderEmail({ recipientFirstName, sponsorName, eventNam
     <p style="color:#94a3b8;font-size:12px;margin:0;">If you have questions, please contact your event coordinator.</p>
   `);
 }
+
+// ── Deliverable Reminder Email ─────────────────────────────────────────────
+
+export function deliverableReminderEmail({ recipientName, sponsorName, eventName, deliverables, dashboardUrl }) {
+  const itemRows = deliverables.map(d => `
+    <tr>
+      <td style="padding:10px 0;border-bottom:1px solid #e2e8f0;">
+        <div style="font-size:14px;font-weight:600;color:#0f172a;">${d.deliverableName}</div>
+        ${d.sponsorFacingNote ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${d.sponsorFacingNote}</div>` : ""}
+      </td>
+      <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;white-space:nowrap;vertical-align:top;">
+        <span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#fef3c7;color:#92400e;">${d.status}</span>
+      </td>
+      ${d.dueLabel ? `<td style="padding:10px 0;border-bottom:1px solid #e2e8f0;font-size:12px;color:#64748b;white-space:nowrap;vertical-align:top;">${d.dueLabel}</td>` : `<td style="padding:10px 0;border-bottom:1px solid #e2e8f0;"></td>`}
+    </tr>
+  `).join("");
+
+  return wrap(`
+    <h2 style="font-size:22px;font-weight:800;color:#0f172a;margin:0 0 6px;">Action Needed: Outstanding Sponsorship Items</h2>
+    <p style="color:#475569;font-size:15px;margin:0 0 24px;">Hello ${recipientName || "there"},</p>
+
+    <p style="color:#475569;font-size:15px;margin:0 0 16px;">
+      To help finalize your sponsorship setup for <strong>${eventName}</strong>, the following items still need your attention:
+    </p>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:28px;">
+      <table style="width:100%;border-collapse:collapse;padding:16px;">
+        <thead>
+          <tr style="background:#f1f5f9;">
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Deliverable</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Status</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Due</th>
+          </tr>
+        </thead>
+        <tbody style="padding:0 16px;">
+          ${itemRows}
+        </tbody>
+      </table>
+    </div>
+
+    <p style="color:#475569;font-size:14px;margin:0 0 24px;">
+      You can complete these items directly in your Sponsor Dashboard:
+    </p>
+
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${dashboardUrl}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#0f172a,#1e3a5f);color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:-0.3px;">
+        Open Sponsor Dashboard →
+      </a>
+    </div>
+
+    <p style="color:#94a3b8;font-size:12px;margin:0;">
+      Thank you for your partnership.<br/>
+      The Converge Events Team
+    </p>
+  `);
+}

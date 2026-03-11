@@ -2961,7 +2961,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             sponsorEditable: item.sponsorEditable ?? false,
             sponsorVisible: true,
             fulfillmentType: (item.fulfillmentType ?? "status_only") as string,
-            reminderEligible: item.reminderEligible ?? false,
+            reminderEligible: item.reminderEligible ?? true,
             dueTiming: (item.dueTiming ?? "not_applicable") as string,
             displayOrder: order++,
             isActive: true,
@@ -2971,6 +2971,160 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       res.status(201).json({ message: "Templates seeded", count: createdTemplates.length });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Outstanding Items ──────────────────────────────────────────────────────
+  // GET /api/agreement/outstanding-items — all sponsor-responsible incomplete deliverables
+  app.get("/api/agreement/outstanding-items", requireAuth, async (req, res) => {
+    try {
+      const { eventId, sponsorId, category, overdueOnly, reminderEligibleOnly } = req.query as Record<string, string>;
+
+      const OUTSTANDING_STATUSES = ["Awaiting Sponsor Input", "Not Started", "Needed", "Issue Identified", "Blocked"];
+      const SPONSOR_OWNER_TYPES = ["Sponsor", "Shared"];
+
+      let deliverables = await storage.listAgreementDeliverables({
+        eventId: eventId || undefined,
+        sponsorId: sponsorId || undefined,
+      });
+
+      deliverables = deliverables.filter(d =>
+        SPONSOR_OWNER_TYPES.includes(d.ownerType) &&
+        OUTSTANDING_STATUSES.includes(d.status) &&
+        d.sponsorVisible !== false
+      );
+
+      if (category) deliverables = deliverables.filter(d => d.category === category);
+      if (overdueOnly === "true") {
+        const now = new Date();
+        deliverables = deliverables.filter(d => d.dueDate && new Date(d.dueDate) < now);
+      }
+      if (reminderEligibleOnly === "true") deliverables = deliverables.filter(d => d.reminderEligible);
+
+      const allSponsors = await storage.getSponsors();
+      const allEvents = await storage.getEvents();
+      const sponsorMap = Object.fromEntries(allSponsors.map(s => [s.id, s]));
+      const eventMap = Object.fromEntries(allEvents.map(e => [e.id, e]));
+
+      const uniquePairs = [...new Set(deliverables.map(d => `${d.sponsorId}|${d.eventId}`))];
+      const lastReminderMap: Record<string, string | null> = {};
+      await Promise.all(uniquePairs.map(async (pair) => {
+        const [sid, eid] = pair.split("|");
+        const rem = await storage.getLastDeliverableReminder(sid, eid);
+        lastReminderMap[pair] = rem ? rem.sentAt.toISOString() : null;
+      }));
+
+      const now = new Date();
+      const result = deliverables.map(d => {
+        const sponsor = sponsorMap[d.sponsorId];
+        const event = eventMap[d.eventId];
+        const pairKey = `${d.sponsorId}|${d.eventId}`;
+        const isOverdue = d.dueDate ? new Date(d.dueDate) < now : false;
+        return {
+          ...d,
+          sponsorName: sponsor?.name ?? "",
+          eventName: event?.name ?? "",
+          sponsorshipLevel: d.sponsorshipLevel ?? sponsor?.sponsorshipLevel ?? "",
+          lastReminderSent: lastReminderMap[pairKey] ?? null,
+          isOverdue,
+        };
+      });
+
+      res.json(result);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // GET /api/agreement/outstanding-summary — counts for dashboard Needs Attention
+  app.get("/api/agreement/outstanding-summary", requireAuth, async (req, res) => {
+    try {
+      const OUTSTANDING_STATUSES = ["Awaiting Sponsor Input", "Not Started", "Needed", "Issue Identified", "Blocked"];
+      const SPONSOR_OWNER_TYPES = ["Sponsor", "Shared"];
+
+      const deliverables = await storage.listAgreementDeliverables({});
+      const outstanding = deliverables.filter(d =>
+        SPONSOR_OWNER_TYPES.includes(d.ownerType) &&
+        OUTSTANDING_STATUSES.includes(d.status) &&
+        d.sponsorVisible !== false
+      );
+
+      const now = new Date();
+      const overdue = outstanding.filter(d => d.dueDate && new Date(d.dueDate) < now);
+      const uniqueSponsors = new Set(outstanding.map(d => d.sponsorId)).size;
+
+      res.json({ total: outstanding.length, overdueCount: overdue.length, sponsorCount: uniqueSponsors });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // POST /api/agreement/reminders/send — manually send grouped reminder to a sponsor for an event
+  app.post("/api/agreement/reminders/send", requireAuth, async (req, res) => {
+    try {
+      const { sponsorId, eventId } = req.body as { sponsorId?: string; eventId?: string };
+      if (!sponsorId || !eventId) return res.status(400).json({ message: "sponsorId and eventId required" });
+
+      const [sponsor, event] = await Promise.all([
+        storage.getSponsor(sponsorId),
+        storage.getEvent(eventId),
+      ]);
+      if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+      if (!event) return res.status(404).json({ message: "Event not found" });
+
+      const OUTSTANDING_STATUSES = ["Awaiting Sponsor Input", "Not Started", "Needed", "Issue Identified", "Blocked"];
+      const allDeliverables = await storage.listAgreementDeliverables({ eventId, sponsorId });
+      const outstanding = allDeliverables.filter(d =>
+        ["Sponsor", "Shared"].includes(d.ownerType) &&
+        OUTSTANDING_STATUSES.includes(d.status) &&
+        d.sponsorVisible !== false &&
+        d.reminderEligible
+      );
+
+      if (outstanding.length === 0) return res.status(400).json({ message: "No reminder-eligible outstanding items for this sponsor/event" });
+
+      // Find the primary sponsor contact (isPrimary first, then owner access level, or first user; fallback to sponsor.contactEmail)
+      const sponsorUsers = await storage.getSponsorUsersBySponsor(sponsorId);
+      const primaryUser = sponsorUsers.find(u => u.isPrimary) ?? sponsorUsers.find(u => u.accessLevel === "owner") ?? sponsorUsers[0];
+      const recipientEmail = primaryUser?.email ?? sponsor.contactEmail ?? null;
+      const recipientName = primaryUser?.name ?? null;
+
+      if (!recipientEmail) return res.status(400).json({ message: "No recipient email found for this sponsor" });
+
+      // Get sponsor token for dashboard link
+      const tokens = await storage.getSponsorTokensBySponsor(sponsorId);
+      const activeToken = tokens.find(t => !t.revokedAt) ?? tokens[0];
+      const sponsorToken = activeToken?.token ?? "";
+
+      const { sendDeliverableReminderEmail } = await import("../services/emailService.js");
+      await sendDeliverableReminderEmail(storage, {
+        sponsor,
+        event,
+        deliverables: outstanding,
+        recipientName,
+        recipientEmail,
+        sponsorToken,
+      });
+
+      const logEntry = await storage.createDeliverableReminder({
+        sponsorId,
+        eventId,
+        recipientEmail,
+        reminderType: "manual_admin",
+        sentByRole: "admin",
+        sentByUserId: (req as any).user?.id ?? null,
+        sentAt: new Date(),
+        status: "sent",
+        errorMessage: null,
+        deliverableCount: outstanding.length,
+      });
+
+      res.json({ success: true, deliverableCount: outstanding.length, logEntry });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // GET /api/agreement/reminders — list reminder log entries (filterable)
+  app.get("/api/agreement/reminders", requireAuth, async (req, res) => {
+    try {
+      const { sponsorId, eventId } = req.query as Record<string, string>;
+      const reminders = await storage.listDeliverableReminders({ sponsorId, eventId });
+      res.json(reminders);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 

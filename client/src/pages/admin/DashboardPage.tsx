@@ -71,6 +71,9 @@ export default function DashboardPage() {
   const { data: meetings    = [] } = useQuery<Meeting[]>           ({ queryKey: ["/api/meetings"] });
   const { data: infoRequests = [] } = useQuery<InformationRequest[]>({ queryKey: ["/api/admin/information-requests"] });
   const { data: branding } = useQuery<AppBranding>({ queryKey: ["/api/branding-public"] });
+  const { data: outstandingSummary } = useQuery<{ total: number; overdueCount: number; sponsorCount: number }>({
+    queryKey: ["/api/agreement/outstanding-summary"],
+  });
 
   // Auto-select closest upcoming (non-completed) event once when events first load
   useEffect(() => {
@@ -213,6 +216,19 @@ export default function DashboardPage() {
       linkText: string;
     }> = [];
 
+    if (outstandingSummary && outstandingSummary.total > 0) {
+      const hasOverdue = outstandingSummary.overdueCount > 0;
+      items.push({
+        severity: hasOverdue ? "error" : "warning",
+        title: `${outstandingSummary.total} outstanding sponsor deliverable${outstandingSummary.total !== 1 ? "s" : ""} across ${outstandingSummary.sponsorCount} sponsor${outstandingSummary.sponsorCount !== 1 ? "s" : ""}`,
+        desc: hasOverdue
+          ? `${outstandingSummary.overdueCount} item${outstandingSummary.overdueCount !== 1 ? "s are" : " is"} overdue. Sponsors may need a reminder.`
+          : "These items are pending sponsor input and may benefit from a reminder.",
+        link: "/admin/agreement?tab=outstanding",
+        linkText: "View Outstanding Items",
+      });
+    }
+
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const stale = filteredInfoRequests.filter(
       (r) => (r.status === "New" || r.status === "Open") && new Date(r.createdAt) < threeDaysAgo,
@@ -262,7 +278,7 @@ export default function DashboardPage() {
     }
 
     return items;
-  }, [filteredInfoRequests, filteredMeetings, activeSponsors, selectedEventId, selectedEvent]);
+  }, [filteredInfoRequests, filteredMeetings, activeSponsors, selectedEventId, selectedEvent, outstandingSummary]);
 
   function getSponsorName(id: string) { return sponsors.find((s) => s.id === id)?.name ?? "—"; }
   function getAttendeeName(id: string) { return attendees.find((a) => a.id === id)?.name ?? "—"; }

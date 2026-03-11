@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import {
   ClipboardList, Plus, Package, Users, AlertCircle, RefreshCw,
   Eye, Archive, Copy, ChevronRight, CheckCircle2, Clock, Gem, Search, Filter,
+  Send, Calendar, TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,9 +48,10 @@ const LEVEL_COLORS: Record<string, string> = {
 };
 
 export default function AgreementDeliverablesPage() {
-  const [, nav] = useLocation();
+  const [location, nav] = useLocation();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("package-templates");
+  const initialTab = new URLSearchParams(location.split("?")[1] ?? "").get("tab") ?? "package-templates";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState<TemplateWithCount | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
@@ -58,6 +60,13 @@ export default function AgreementDeliverablesPage() {
   const [filterLevel, setFilterLevel] = useState("all");
   const [filterEvent, setFilterEvent] = useState("all");
   const [newTemplateName, setNewTemplateName] = useState("");
+
+  // Outstanding items tab state
+  const [searchOutstanding, setSearchOutstanding] = useState("");
+  const [filterOutstandingEvent, setFilterOutstandingEvent] = useState("all");
+  const [filterOutstandingStatus, setFilterOutstandingStatus] = useState("all");
+  const [showOverdueOnly, setShowOverdueOnly] = useState(false);
+  const [sendingPair, setSendingPair] = useState<string | null>(null);
   const [newTemplateLevel, setNewTemplateLevel] = useState("Platinum");
   const [newTemplateYear, setNewTemplateYear] = useState("2026");
   const [newTemplateFamily, setNewTemplateFamily] = useState("FRC");
@@ -77,6 +86,33 @@ export default function AgreementDeliverablesPage() {
 
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
+
+  type OutstandingItem = {
+    id: string; sponsorId: string; eventId: string; sponsorName: string; eventName: string;
+    sponsorshipLevel: string; deliverableName: string; category: string; status: string;
+    dueDate: string | null; dueTiming: string; reminderEligible: boolean;
+    lastReminderSent: string | null; isOverdue: boolean;
+  };
+  const { data: outstandingItems = [], isLoading: outLoading, refetch: refetchOutstanding } = useQuery<OutstandingItem[]>({
+    queryKey: ["/api/agreement/outstanding-items"],
+    enabled: activeTab === "outstanding",
+  });
+
+  const sendReminder = useMutation({
+    mutationFn: ({ sponsorId, eventId }: { sponsorId: string; eventId: string }) =>
+      apiRequest("POST", "/api/agreement/reminders/send", { sponsorId, eventId }),
+    onSuccess: async (res) => {
+      const data = await res.json();
+      toast({ title: `Reminder sent — ${data.deliverableCount} item${data.deliverableCount !== 1 ? "s" : ""} included` });
+      queryClient.invalidateQueries({ queryKey: ["/api/agreement/outstanding-items"] });
+      setSendingPair(null);
+    },
+    onError: async (err: any) => {
+      const msg = err?.message ?? "Failed to send reminder";
+      toast({ title: msg, variant: "destructive" });
+      setSendingPair(null);
+    },
+  });
 
   const createTemplate = useMutation({
     mutationFn: (data: object) => apiRequest("POST", "/api/agreement/package-templates", data),
@@ -150,6 +186,43 @@ export default function AgreementDeliverablesPage() {
 
   const activeTemplates = filteredTemplates.filter((t) => !t.isArchived);
   const archivedTemplates = filteredTemplates.filter((t) => t.isArchived);
+
+  const filteredOutstanding = outstandingItems.filter((item) => {
+    if (searchOutstanding) {
+      const q = searchOutstanding.toLowerCase();
+      if (!item.deliverableName.toLowerCase().includes(q) &&
+          !item.sponsorName.toLowerCase().includes(q) &&
+          !item.eventName.toLowerCase().includes(q)) return false;
+    }
+    if (filterOutstandingEvent !== "all" && item.eventId !== filterOutstandingEvent) return false;
+    if (filterOutstandingStatus !== "all" && item.status !== filterOutstandingStatus) return false;
+    if (showOverdueOnly && !item.isOverdue) return false;
+    return true;
+  });
+
+  // Group outstanding items by sponsor+event for the Send Reminder action
+  type OutstandingGroup = { sponsorId: string; eventId: string; sponsorName: string; eventName: string; sponsorshipLevel: string; items: typeof filteredOutstanding; lastReminderSent: string | null };
+  const outstandingGroups: OutstandingGroup[] = [];
+  const seen = new Set<string>();
+  for (const item of filteredOutstanding) {
+    const key = `${item.sponsorId}|${item.eventId}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      outstandingGroups.push({ sponsorId: item.sponsorId, eventId: item.eventId, sponsorName: item.sponsorName, eventName: item.eventName, sponsorshipLevel: item.sponsorshipLevel, items: [], lastReminderSent: item.lastReminderSent });
+    }
+    outstandingGroups.find(g => g.sponsorId === item.sponsorId && g.eventId === item.eventId)!.items.push(item);
+  }
+
+  const overdueCount = outstandingItems.filter(i => i.isOverdue).length;
+  const uniqueSponsorCount = new Set(outstandingItems.map(i => i.sponsorId)).size;
+
+  const STATUS_COLORS: Record<string, string> = {
+    "Awaiting Sponsor Input": "bg-amber-50 text-amber-700 border-amber-200",
+    "Not Started": "bg-muted text-muted-foreground",
+    "Needed": "bg-amber-50 text-amber-700 border-amber-200",
+    "Issue Identified": "bg-red-50 text-red-700 border-red-200",
+    "Blocked": "bg-red-50 text-red-700 border-red-200",
+  };
 
   return (
     <div className="space-y-6">
@@ -465,15 +538,194 @@ export default function AgreementDeliverablesPage() {
           )}
         </TabsContent>
 
-        {/* ── Outstanding Items (stub) ── */}
-        <TabsContent value="outstanding" className="mt-4">
-          <div className="flex flex-col items-center py-16 text-muted-foreground gap-3">
-            <Clock className="h-12 w-12 opacity-20" />
-            <p className="text-sm font-medium">Outstanding Items — Coming in Phase 2</p>
-            <p className="text-xs text-center max-w-xs">
-              This tab will show all overdue and pending sponsor deliverables across all events.
-            </p>
+        {/* ── Outstanding Items ── */}
+        <TabsContent value="outstanding" className="mt-4 space-y-4">
+          {/* Summary stats */}
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: "Outstanding Items", value: outstandingItems.length, icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50" },
+              { label: "Overdue", value: overdueCount, icon: TriangleAlert, color: "text-red-600", bg: "bg-red-50" },
+              { label: "Sponsors Affected", value: uniqueSponsorCount, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+            ].map(({ label, value, icon: Icon, color, bg }) => (
+              <div key={label} className="bg-white border border-border rounded-xl p-4 flex items-center gap-3 shadow-sm">
+                <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0", bg)}>
+                  <Icon className={cn("h-4 w-4", color)} />
+                </div>
+                <div>
+                  <p className="text-xl font-display font-bold text-foreground">{value}</p>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                </div>
+              </div>
+            ))}
           </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="relative flex-1 min-w-48">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search sponsor, item…"
+                value={searchOutstanding}
+                onChange={e => setSearchOutstanding(e.target.value)}
+                className="pl-8 h-8 text-sm"
+                data-testid="input-search-outstanding"
+              />
+            </div>
+            <Select value={filterOutstandingEvent} onValueChange={setFilterOutstandingEvent}>
+              <SelectTrigger className="h-8 w-40 text-sm" data-testid="select-filter-outstanding-event">
+                <SelectValue placeholder="All Events" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Events</SelectItem>
+                {events.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filterOutstandingStatus} onValueChange={setFilterOutstandingStatus}>
+              <SelectTrigger className="h-8 w-44 text-sm" data-testid="select-filter-outstanding-status">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                {["Awaiting Sponsor Input","Not Started","Needed","Issue Identified","Blocked"].map(s => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant={showOverdueOnly ? "default" : "outline"}
+              size="sm"
+              className="h-8"
+              onClick={() => setShowOverdueOnly(v => !v)}
+              data-testid="button-filter-overdue"
+            >
+              <TriangleAlert className="h-3.5 w-3.5 mr-1" />
+              Overdue Only
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8" onClick={() => refetchOutstanding()} data-testid="button-refresh-outstanding">
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          {/* Groups */}
+          {outLoading ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Loading outstanding items…</span>
+            </div>
+          ) : outstandingGroups.length === 0 ? (
+            <div className="flex flex-col items-center py-16 text-muted-foreground gap-3">
+              <CheckCircle2 className="h-12 w-12 opacity-20" />
+              <p className="text-sm font-medium">
+                {outstandingItems.length === 0 ? "No outstanding sponsor items — all clear!" : "No items match the current filters"}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {outstandingGroups.map((group) => {
+                const pairKey = `${group.sponsorId}|${group.eventId}`;
+                const reminderEligibleCount = group.items.filter(i => i.reminderEligible).length;
+                return (
+                  <div key={pairKey} className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                    {/* Group header */}
+                    <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/40 border-b border-border">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm text-foreground truncate">{group.sponsorName}</span>
+                            {group.sponsorshipLevel && (
+                              <Badge variant="outline" className={cn("text-xs shrink-0", LEVEL_COLORS[group.sponsorshipLevel] || "")}>
+                                {group.sponsorshipLevel}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{group.eventName}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        {group.lastReminderSent && (
+                          <span className="text-xs text-muted-foreground hidden sm:inline">
+                            Last reminder: {format(new Date(group.lastReminderSent), "MMM d")}
+                          </span>
+                        )}
+                        <Badge variant="outline" className="text-xs">{group.items.length} item{group.items.length !== 1 ? "s" : ""}</Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs gap-1"
+                          disabled={reminderEligibleCount === 0 || sendingPair === pairKey || sendReminder.isPending}
+                          onClick={() => {
+                            setSendingPair(pairKey);
+                            sendReminder.mutate({ sponsorId: group.sponsorId, eventId: group.eventId });
+                          }}
+                          data-testid={`button-send-reminder-${group.sponsorId}`}
+                          title={reminderEligibleCount === 0 ? "No reminder-eligible items" : `Send reminder for ${reminderEligibleCount} item${reminderEligibleCount !== 1 ? "s" : ""}`}
+                        >
+                          {sendingPair === pairKey && sendReminder.isPending
+                            ? <RefreshCw className="h-3 w-3 animate-spin" />
+                            : <Send className="h-3 w-3" />}
+                          Send Reminder
+                          {reminderEligibleCount > 0 && <span className="ml-0.5 opacity-70">({reminderEligibleCount})</span>}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => nav(`/admin/agreement/sponsor-agreements/${group.sponsorId}/${group.eventId}`)}
+                          data-testid={`button-view-agreement-${group.sponsorId}`}
+                        >
+                          <Eye className="h-3 w-3" /> View
+                        </Button>
+                      </div>
+                    </div>
+                    {/* Items table */}
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground">Item</th>
+                          <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground hidden md:table-cell">Category</th>
+                          <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground">Status</th>
+                          <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground hidden sm:table-cell">Due</th>
+                          <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground hidden lg:table-cell">Reminder Eligible</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.items.map((item) => (
+                          <tr key={item.id} className={cn("border-b border-border/50 last:border-0", item.isOverdue && "bg-red-50/40")}>
+                            <td className="px-4 py-2.5">
+                              <span className="font-medium text-foreground">{item.deliverableName}</span>
+                              {item.isOverdue && (
+                                <span className="ml-2 inline-flex items-center gap-0.5 text-[10px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full">
+                                  <TriangleAlert className="h-2.5 w-2.5" /> OVERDUE
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground hidden md:table-cell">{item.category}</td>
+                            <td className="px-4 py-2.5">
+                              <Badge variant="outline" className={cn("text-xs", STATUS_COLORS[item.status] || "")}>
+                                {item.status}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground hidden sm:table-cell">
+                              {item.dueDate
+                                ? <span className={item.isOverdue ? "text-red-600 font-semibold" : ""}>{format(new Date(item.dueDate), "MMM d, yyyy")}</span>
+                                : item.dueTiming && item.dueTiming !== "not_applicable"
+                                  ? item.dueTiming.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+                                  : <span className="text-muted-foreground/50">—</span>}
+                            </td>
+                            <td className="px-4 py-2.5 text-xs hidden lg:table-cell">
+                              {item.reminderEligible
+                                ? <span className="text-green-600 font-medium">Yes</span>
+                                : <span className="text-muted-foreground">No</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

@@ -19,6 +19,7 @@ import {
   type AgreementDeliverable, type InsertAgreementDeliverable,
   type AgreementDeliverableRegistrant, type InsertAgreementDeliverableRegistrant,
   type AgreementDeliverableSpeaker, type InsertAgreementDeliverableSpeaker,
+  type AgreementDeliverableReminder, type InsertAgreementDeliverableReminder,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -245,6 +246,10 @@ export interface IStorage {
   createDeliverableSpeaker(data: InsertAgreementDeliverableSpeaker): Promise<AgreementDeliverableSpeaker>;
   updateDeliverableSpeaker(id: string, data: Partial<InsertAgreementDeliverableSpeaker>): Promise<AgreementDeliverableSpeaker>;
   deleteDeliverableSpeaker(id: string): Promise<void>;
+
+  listDeliverableReminders(filters: { sponsorId?: string; eventId?: string }): Promise<AgreementDeliverableReminder[]>;
+  getLastDeliverableReminder(sponsorId: string, eventId: string): Promise<AgreementDeliverableReminder | undefined>;
+  createDeliverableReminder(data: InsertAgreementDeliverableReminder): Promise<AgreementDeliverableReminder>;
 }
 
 export class MemStorage implements IStorage {
@@ -871,6 +876,10 @@ export class MemStorage implements IStorage {
   async createDeliverableSpeaker(data: InsertAgreementDeliverableSpeaker): Promise<AgreementDeliverableSpeaker> { return { id: randomUUID(), ...data, speakerTitle: data.speakerTitle ?? null, speakerBio: data.speakerBio ?? null, createdAt: new Date(), updatedAt: new Date() }; }
   async updateDeliverableSpeaker(_id: string, _data: Partial<InsertAgreementDeliverableSpeaker>): Promise<AgreementDeliverableSpeaker> { return { id: _id, agreementDeliverableId: "", speakerName: "", speakerTitle: null, speakerBio: null, createdAt: new Date(), updatedAt: new Date() }; }
   async deleteDeliverableSpeaker(_id: string): Promise<void> {}
+
+  async listDeliverableReminders(_filters: { sponsorId?: string; eventId?: string }): Promise<AgreementDeliverableReminder[]> { return []; }
+  async getLastDeliverableReminder(_sponsorId: string, _eventId: string): Promise<AgreementDeliverableReminder | undefined> { return undefined; }
+  async createDeliverableReminder(data: InsertAgreementDeliverableReminder): Promise<AgreementDeliverableReminder> { return { id: randomUUID(), ...data, sentByUserId: data.sentByUserId ?? null, errorMessage: data.errorMessage ?? null, createdAt: new Date() } as AgreementDeliverableReminder; }
 }
 
 export const storage = new DatabaseStorage();

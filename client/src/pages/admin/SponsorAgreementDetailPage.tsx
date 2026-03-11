@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { format, parseISO } from "date-fns";
 import {
   ArrowLeft, RefreshCw, Plus, Pencil, Trash2, RotateCcw, CheckCircle2,
-  AlertCircle, Clock, Ban, FileCheck, Users, Gem,
+  AlertCircle, Clock, Ban, FileCheck, Users, Gem, Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -161,6 +161,30 @@ export default function SponsorAgreementDetailPage() {
     onError: (e: any) => toast({ title: e?.message ?? "Reset failed", variant: "destructive" }),
   });
 
+  type ReminderLog = { id: string; sentAt: string; reminderType: string; recipientEmail: string; deliverableCount: number; status: string };
+  const { data: reminderHistory = [], refetch: refetchReminders } = useQuery<ReminderLog[]>({
+    queryKey: ["/api/agreement/reminders", sponsorId, eventId],
+    queryFn: async () => {
+      const res = await fetch(`/api/agreement/reminders?sponsorId=${sponsorId}&eventId=${eventId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load");
+      return res.json();
+    },
+    enabled: !!sponsorId && !!eventId,
+  });
+
+  const sendReminder = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/agreement/reminders/send", { sponsorId, eventId }),
+    onSuccess: async (res) => {
+      const data = await res.json();
+      toast({ title: `Reminder sent — ${data.deliverableCount} item${data.deliverableCount !== 1 ? "s" : ""} included` });
+      refetchReminders();
+    },
+    onError: async (err: any) => {
+      const msg = err?.message ?? "Send failed";
+      toast({ title: msg, variant: "destructive" });
+    },
+  });
+
   const createCustomDeliverable = useMutation({
     mutationFn: (data: object) => apiRequest("POST", "/api/agreement/deliverables", data),
     onSuccess: () => {
@@ -258,6 +282,16 @@ export default function SponsorAgreementDetailPage() {
                   Regenerate from Template
                 </Button>
               )}
+              <Button
+                size="sm" className="gap-1.5"
+                onClick={() => sendReminder.mutate()}
+                disabled={sendReminder.isPending}
+                data-testid="button-send-reminder"
+                title="Send reminder email for all outstanding reminder-eligible items"
+              >
+                {sendReminder.isPending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                Send Reminder
+              </Button>
             </div>
           </div>
 
@@ -291,7 +325,7 @@ export default function SponsorAgreementDetailPage() {
         <TabsList>
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="deliverables" data-testid="tab-deliverables">Deliverables</TabsTrigger>
-          <TabsTrigger value="sponsor-inputs" disabled className="opacity-50">Sponsor Inputs</TabsTrigger>
+          <TabsTrigger value="sponsor-inputs" data-testid="tab-sponsor-inputs">Sponsor Inputs</TabsTrigger>
           <TabsTrigger value="files" disabled className="opacity-50">Files & Links</TabsTrigger>
         </TabsList>
 
@@ -328,6 +362,36 @@ export default function SponsorAgreementDetailPage() {
             {deliverables.length === 0 && (
               <div className="pt-2 border-t border-border/50">
                 <p className="text-sm text-muted-foreground">No deliverables yet. Use "Regenerate from Template" or "Add Custom Deliverable" to get started.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Reminder History */}
+          <div className="bg-white border border-border rounded-xl p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
+                <Send className="h-4 w-4 text-muted-foreground" /> Reminder History
+              </h3>
+              {reminderHistory.length > 0 && (
+                <span className="text-xs text-muted-foreground">{reminderHistory.length} sent</span>
+              )}
+            </div>
+            {reminderHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No reminders sent yet for this agreement.</p>
+            ) : (
+              <div className="space-y-2">
+                {reminderHistory.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border/50 last:border-0">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("text-xs px-1.5 py-0.5 rounded font-medium", r.reminderType === "weekly_automatic" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700")}>
+                        {r.reminderType === "weekly_automatic" ? "Auto" : "Manual"}
+                      </span>
+                      <span className="text-muted-foreground text-xs">{r.recipientEmail}</span>
+                      <span className="text-muted-foreground text-xs">— {r.deliverableCount} item{r.deliverableCount !== 1 ? "s" : ""}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{format(new Date(r.sentAt), "MMM d, yyyy h:mm a")}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -446,6 +510,102 @@ export default function SponsorAgreementDetailPage() {
               );
             })
           )}
+        </TabsContent>
+
+        {/* Sponsor Inputs tab */}
+        <TabsContent value="sponsor-inputs" className="mt-4">
+          {(() => {
+            const OUTSTANDING_STATUSES = ["Awaiting Sponsor Input", "Not Started", "Needed", "Issue Identified", "Blocked"];
+            const sponsorItems = deliverables.filter(d => d.sponsorEditable);
+            const outstanding = sponsorItems.filter(d => OUTSTANDING_STATUSES.includes(d.status));
+            const completed = sponsorItems.filter(d => !OUTSTANDING_STATUSES.includes(d.status));
+            if (sponsorItems.length === 0) {
+              return (
+                <div className="bg-white border border-border rounded-xl p-8 shadow-sm flex flex-col items-center gap-3 text-muted-foreground">
+                  <Users className="h-12 w-12 opacity-20" />
+                  <p className="text-sm font-medium">No sponsor-editable deliverables in this agreement</p>
+                </div>
+              );
+            }
+            return (
+              <div className="space-y-4">
+                {outstanding.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-amber-500" />
+                      Action Required ({outstanding.length})
+                    </h3>
+                    <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/30">
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Item</th>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Category</th>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Status</th>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground hidden sm:table-cell">Due</th>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground hidden md:table-cell">Sponsor Note</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {outstanding.map(d => (
+                            <tr key={d.id} className="border-b border-border/50 last:border-0">
+                              <td className="px-4 py-2.5 font-medium text-foreground">{d.deliverableName}</td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground">{d.category}</td>
+                              <td className="px-4 py-2.5">
+                                <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_CONFIG[d.status]?.color ?? "bg-muted text-muted-foreground")}>
+                                  {STATUS_CONFIG[d.status]?.icon}
+                                  {d.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground hidden sm:table-cell">
+                                {d.dueDate ? format(new Date(d.dueDate), "MMM d, yyyy") : DUE_LABELS[d.dueTiming ?? ""] ?? "—"}
+                              </td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground hidden md:table-cell max-w-48 truncate">
+                                {d.sponsorFacingNote ?? <span className="opacity-40">—</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                {completed.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      Completed ({completed.length})
+                    </h3>
+                    <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/30">
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Item</th>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Category</th>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {completed.map(d => (
+                            <tr key={d.id} className="border-b border-border/50 last:border-0">
+                              <td className="px-4 py-2.5 font-medium text-foreground">{d.deliverableName}</td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground">{d.category}</td>
+                              <td className="px-4 py-2.5">
+                                <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_CONFIG[d.status]?.color ?? "bg-muted text-muted-foreground")}>
+                                  {STATUS_CONFIG[d.status]?.icon}
+                                  {d.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </TabsContent>
       </Tabs>
 

@@ -7,7 +7,7 @@ import {
   sponsorUsers, sponsorLoginTokens, emailTemplates,
   userPermissions, permissionAuditLogs, informationRequests, sponsorAnalytics, emailLogs,
   agreementPackageTemplates, agreementDeliverableTemplateItems, agreementDeliverables,
-  agreementDeliverableRegistrants, agreementDeliverableSpeakers,
+  agreementDeliverableRegistrants, agreementDeliverableSpeakers, agreementDeliverableReminders,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -26,6 +26,7 @@ import {
   type AgreementDeliverable, type InsertAgreementDeliverable,
   type AgreementDeliverableRegistrant, type InsertAgreementDeliverableRegistrant,
   type AgreementDeliverableSpeaker, type InsertAgreementDeliverableSpeaker,
+  type AgreementDeliverableReminder, type InsertAgreementDeliverableReminder,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -1286,5 +1287,33 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDeliverableSpeaker(id: string): Promise<void> {
     await db.delete(agreementDeliverableSpeakers).where(eq(agreementDeliverableSpeakers.id, id));
+  }
+
+  async listDeliverableReminders(filters: { sponsorId?: string; eventId?: string }): Promise<AgreementDeliverableReminder[]> {
+    const conditions = [];
+    if (filters.sponsorId) conditions.push(eq(agreementDeliverableReminders.sponsorId, filters.sponsorId));
+    if (filters.eventId) conditions.push(eq(agreementDeliverableReminders.eventId, filters.eventId));
+    const q = db.select().from(agreementDeliverableReminders).orderBy(desc(agreementDeliverableReminders.sentAt));
+    return conditions.length ? q.where(and(...conditions)) : q;
+  }
+
+  async getLastDeliverableReminder(sponsorId: string, eventId: string): Promise<AgreementDeliverableReminder | undefined> {
+    const [row] = await db.select().from(agreementDeliverableReminders)
+      .where(and(
+        eq(agreementDeliverableReminders.sponsorId, sponsorId),
+        eq(agreementDeliverableReminders.eventId, eventId),
+      ))
+      .orderBy(desc(agreementDeliverableReminders.sentAt))
+      .limit(1);
+    return row;
+  }
+
+  async createDeliverableReminder(data: InsertAgreementDeliverableReminder): Promise<AgreementDeliverableReminder> {
+    const [row] = await db.insert(agreementDeliverableReminders).values({
+      ...data,
+      sentByUserId: data.sentByUserId ?? null,
+      errorMessage: data.errorMessage ?? null,
+    }).returning();
+    return row;
   }
 }

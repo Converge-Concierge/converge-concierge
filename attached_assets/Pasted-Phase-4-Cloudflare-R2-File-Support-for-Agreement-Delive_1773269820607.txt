@@ -1,0 +1,669 @@
+Phase 4 — Cloudflare R2 File Support for Agreement Deliverables + Sponsor/Admin Uploads
+
+Phase 3 covers outstanding sponsor items and reminder workflows. The next step is to add file handling so sponsors and admins can upload, store, view, and manage files tied to Agreement Deliverables and sponsor setup.
+
+This phase should use Cloudflare R2 as the file storage layer.
+
+Do not store uploaded files on Replit local disk.
+Do not store file blobs in the database.
+Do not make the R2 bucket public by default.
+
+The app should use:
+
+R2 for file storage
+
+Concierge database for file metadata and permissions
+
+signed URLs / controlled access for private files
+
+Primary Goal
+
+Add secure file support so the system can handle items such as:
+
+sponsor logos
+
+headshots
+
+company collateral
+
+social graphics
+
+sponsor reports
+
+attendee reports
+
+proof-of-delivery files
+
+admin-only internal files where needed
+
+These files must be attachable to sponsors, events, and deliverables.
+
+Scope for Phase 4
+Build now
+
+Cloudflare R2 integration
+
+file metadata model/table
+
+presigned upload URL generation
+
+secure download/view URL generation
+
+sponsor/admin upload flows
+
+deliverable-linked file attachments
+
+file visibility rules
+
+basic file management UI
+
+file version replacement behavior (lightweight)
+
+Do not build yet
+
+full document preview suite
+
+OCR
+
+virus scanning
+
+public CDN optimization
+
+complex file approval workflows
+
+direct Zoho file sync
+
+1. Configure Cloudflare R2 Integration
+
+Use Cloudflare R2 as an S3-compatible storage backend.
+
+1A. Add required environment variables / Replit Secrets
+
+Store these as secrets:
+
+R2_ACCOUNT_ID
+R2_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY
+R2_BUCKET_NAME
+R2_ENDPOINT
+Notes
+
+R2_ENDPOINT should be the Cloudflare R2 S3-compatible endpoint
+
+do not hardcode credentials in source code
+
+1B. Create a dedicated file storage service
+
+Create a service such as:
+
+services/fileStorageService.js
+
+This service should handle:
+
+presigned upload URL generation
+
+presigned download URL generation
+
+object deletion
+
+basic object metadata operations if needed
+
+Use R2’s S3-compatible API.
+
+2. Keep the Bucket Private
+
+The R2 bucket should remain private.
+
+Do not expose direct public bucket browsing.
+
+Use:
+
+presigned PUT URLs for upload
+
+presigned GET URLs for private download/view
+
+Only generate signed access after Concierge checks permissions.
+
+3. Standardize Object Key Structure
+
+Do not manually create folders in R2. Use object keys.
+
+Use this object key structure:
+
+events/{eventCode}/sponsors/{sponsorSlug}/{category}/{filename}
+
+Examples:
+
+events/FRC2026/sponsors/winnow/logos/logo.png
+events/FRC2026/sponsors/winnow/headshots/john-smith.jpg
+events/FRC2026/sponsors/winnow/social-graphics/linkedin-post-1.png
+events/FRC2026/sponsors/winnow/sponsor-reports/performance-report.pdf
+events/FRC2026/sponsors/winnow/attendee-reports/full-contact-list.xlsx
+
+For admin-only event files, support:
+
+events/{eventCode}/admin/{category}/{filename}
+
+Examples:
+
+events/FRC2026/admin/contracts/winnow-agreement.pdf
+events/FRC2026/admin/internal/planning-note.pdf
+4. Create File Metadata Model / Table
+
+Create a table/model such as:
+
+file_assets
+
+Suggested fields:
+
+id
+event_id
+sponsor_id nullable
+deliverable_id nullable
+uploaded_by_user_id nullable
+uploaded_by_role
+category
+original_file_name
+stored_file_name
+object_key
+mime_type
+size_bytes
+visibility
+access_scope
+title nullable
+description nullable
+status
+is_latest_version
+replaces_file_asset_id nullable
+uploaded_at
+updated_at
+Recommended enums
+uploaded_by_role
+
+admin
+
+sponsor
+
+system
+
+visibility
+
+public
+
+sponsor_private
+
+admin_private
+
+access_scope
+
+sponsor
+
+event
+
+deliverable
+
+internal
+
+status
+
+active
+
+archived
+
+replaced
+
+5. Supported File Categories
+
+Use a fixed category set to keep the system consistent.
+
+Recommended categories:
+
+logos
+
+headshots
+
+company-assets
+
+social-graphics
+
+session-assets
+
+promo-assets
+
+attendee-reports
+
+sponsor-reports
+
+contracts
+
+internal
+
+Note:
+COI should remain a status-driven compliance item. Do not add sponsor COI upload in this phase.
+
+If Julie wants to store a received COI internally, allow admin-only file upload under:
+
+category = contracts
+or
+
+internal
+
+but do not expose it to sponsors.
+
+6. Define File Visibility Rules
+
+Not every file should be treated the same.
+
+6A. Public
+
+Use sparingly.
+
+Examples:
+
+public sponsor logos
+
+public headshots if shown publicly
+
+6B. Sponsor Private
+
+Only that sponsor should access.
+
+Examples:
+
+sponsor reports
+
+attendee reports
+
+social graphics delivered to sponsor
+
+sponsor-specific assets
+
+6C. Admin Private
+
+Only admins should access.
+
+Examples:
+
+internal drafts
+
+contracts
+
+internal operational docs
+
+COI file copies if stored
+
+7. Add Upload Permission Rules
+
+Concierge must validate permissions before generating upload URLs.
+
+7A. Admin users can upload
+
+any category
+
+any event
+
+any sponsor
+
+any deliverable-linked file
+
+7B. Sponsor Owner can upload
+
+logos
+
+headshots
+
+company-assets
+
+sponsor-provided deliverable assets that are explicitly allowed
+
+7C. Sponsor Editor can upload
+
+Same as Owner for sponsor-provided assets unless you want to restrict later.
+
+7D. Sponsor Viewer
+
+Cannot upload files.
+
+8. Add File Type and Size Validation
+
+Before generating an upload URL, validate file category rules.
+
+Recommended file constraints:
+
+Category	Allowed Types	Max Size
+logos	png, jpg, jpeg, svg if supported	5 MB
+headshots	png, jpg, jpeg	5 MB
+company-assets	pdf, docx if needed	10 MB
+social-graphics	png, jpg, jpeg, pdf if needed	10 MB
+session-assets	png, jpg, jpeg, pdf	10 MB
+promo-assets	pdf, png, jpg	10 MB
+attendee-reports	csv, xlsx, pdf	15 MB
+sponsor-reports	pdf, xlsx	15 MB
+contracts/internal	pdf, docx	10 MB
+
+Reject files that do not meet category rules.
+
+9. Build Upload Flow Using Presigned URLs
+
+Use this upload flow:
+
+user clicks Upload in Concierge
+
+Concierge validates:
+
+user permissions
+
+event/sponsor ownership
+
+file category
+
+mime type
+
+size limit
+
+Concierge generates a presigned PUT URL for R2
+
+browser uploads directly to R2
+
+Concierge stores a file_assets metadata record
+
+UI refreshes and shows the uploaded file
+
+Do not proxy full file content through Replit unless necessary.
+
+10. Build Secure Download / View Flow
+
+When a user clicks a file:
+
+Concierge checks user permissions
+
+if allowed, Concierge generates a presigned GET URL
+
+browser opens/downloads file using the signed URL
+
+Do not expose raw object keys directly in the UI as working links.
+
+11. Add Lightweight Versioning / Replacement
+
+For files that may be replaced over time, support simple version replacement.
+
+Examples:
+
+sponsor logo
+
+social graphic
+
+sponsor report
+
+attendee report
+
+Behavior
+
+When a file is replaced:
+
+old record gets status = replaced
+
+new record gets status = active
+
+new record sets replaces_file_asset_id = old_id
+
+only one file should generally have is_latest_version = true per logical slot
+
+Do not build a full document version history UI yet, but preserve enough data for it later.
+
+12. Integrate Files Into Agreement Deliverables
+
+Allow files to be linked to individual agreement deliverables.
+
+This is critical for:
+
+sponsor-provided inputs
+
+proof of delivery
+
+reports
+
+graphics
+
+session assets
+
+Each file may optionally reference:
+
+deliverable_id
+
+Examples:
+
+Company Logo deliverable
+
+Sponsor uploads logo → file links to “Company Logo” deliverable
+
+Customized Social Media Graphic deliverable
+
+Admin uploads graphic → file links to “Customized Social Media Graphic” deliverable
+
+Full Attendee Contact List deliverable
+
+Admin uploads report → file links to “Full Attendee Contact List” deliverable
+
+13. Add File Support to Sponsor Dashboard Agreement Deliverables Tab
+
+Extend the sponsor-facing Agreement Deliverables tab so relevant rows can show files.
+
+13A. Sponsor-owned deliverables
+
+Allow upload controls for sponsor-editable file-based items such as:
+
+Company Logo
+
+Headshot / Speaker Headshot
+
+Company Assets if supported
+
+Show:
+
+Upload button
+
+current uploaded file
+
+replace option if allowed
+
+13B. Converge-provided deliverables
+
+Show sponsor-facing file/link attachments for delivered items such as:
+
+social graphics
+
+sponsor reports
+
+attendee reports
+
+Show:
+
+View / Download button
+
+file name
+
+delivered date if useful
+
+13C. COI
+
+Do not add sponsor file upload for COI.
+Continue to display COI as status-only.
+
+14. Add File Support to Admin Agreement Deliverables UI
+
+Extend the admin-side Sponsor Agreement detail screen.
+
+For each deliverable row, allow:
+
+Upload File
+
+Add Link
+
+Replace File
+
+Archive File
+
+This should be available wherever file/link support is relevant.
+
+At minimum, add file controls in:
+
+Deliverables tab
+
+Files & Links tab if that tab already exists or is being added now
+
+15. Add Admin File Management View
+
+If practical, add a simple file list inside Sponsor Agreement detail:
+
+Files & Links
+
+Columns:
+
+Deliverable
+
+File Name
+
+Category
+
+Visibility
+
+Uploaded By
+
+Uploaded At
+
+Status
+
+Actions
+
+Actions:
+
+View
+
+Download
+
+Replace
+
+Archive
+
+This can remain lightweight in Phase 4.
+
+16. Add Sponsor-Facing Link Support
+
+Some deliverables are better represented by links than files.
+
+Examples:
+
+social media announcement URL
+
+event website sponsor page
+
+LinkedIn post URL
+
+For these deliverables, allow admin to add sponsor-visible links.
+
+Store links separately or within a deliverable-linked metadata model if you already have one.
+
+If needed, create a small companion table such as:
+
+deliverable_links
+
+Suggested fields:
+
+id
+deliverable_id
+title
+url
+visibility
+added_by_user_id
+added_at
+
+Use this only if link support is not already implemented in a reasonable way.
+
+17. Update Deliverable Status Based on File Uploads Where Appropriate
+
+For sponsor-owned file-based deliverables, uploading a valid file should update status where sensible.
+
+Examples:
+
+Company Logo uploaded → status becomes Submitted or In Progress
+
+Speaker Headshot uploaded → status becomes Submitted
+
+Company Asset uploaded → status becomes Submitted
+
+Use the same status language already established in the system.
+
+Do not auto-mark as Delivered for sponsor-provided files unless that matches your workflow.
+
+18. Add Basic File Error Handling
+
+Handle these cleanly:
+
+invalid file type
+
+file too large
+
+upload canceled
+
+upload failed
+
+R2 unavailable
+
+unauthorized access attempt
+
+Show clear messages to the user and do not create broken metadata records if the file upload never completes.
+
+19. Add Audit / Activity Entries Where Useful
+
+If agreement deliverable activity or general activity logging already exists, log key actions such as:
+
+sponsor uploaded file
+
+admin uploaded file
+
+file replaced
+
+file archived
+
+link added
+
+This will help later with operational tracking.
+
+20. Keep Reminder Emails Out of Scope for File Logic
+
+Reminder emails already exist in Phase 3.
+
+Do not change the reminder engine deeply in this phase, but ensure that file-based sponsor-owned deliverables can be considered “complete enough” once a required file is uploaded.
+
+That way reminder eligibility naturally improves through status updates.
+
+21. Acceptance Criteria
+
+Phase 4 is complete when:
+
+Cloudflare R2 is integrated with Concierge
+
+file uploads use presigned URLs
+
+file metadata is stored in file_assets
+
+admins can upload deliverable-linked files
+
+sponsors can upload allowed sponsor-owned files
+
+private files are served through controlled/signed access
+
+relevant deliverables can show files/links
+
+basic version replacement works
+
+COI remains status-only
+
+uploads do not use Replit local storage as the system of record
+
+22. Success Standard
+
+After Phase 4, Agreement Deliverables should support real sponsor/admin asset exchange and proof-of-delivery workflows, making the system much closer to a complete sponsor fulfillment platform.
+
+That is the standard this phase should meet.

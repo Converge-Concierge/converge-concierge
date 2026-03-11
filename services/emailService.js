@@ -9,6 +9,7 @@ import {
   passwordResetEmail,
   sponsorMagicLoginEmail,
   meetingReminderEmail,
+  deliverableReminderEmail,
 } from "./emailTemplates.js";
 import {
   buildMeetingIcs,
@@ -262,6 +263,45 @@ export async function sendSponsorMagicLoginEmail(storage, sponsorUser, sponsor, 
     html,
     sponsorId: sponsor?.id ?? null,
     eventId: null,
+    attendeeId: null,
+  });
+}
+
+// ── Deliverable Reminder Email ──────────────────────────────────────────────
+
+export async function sendDeliverableReminderEmail(storage, { sponsor, event, deliverables, recipientName, recipientEmail, sponsorToken }) {
+  const BASE_URL = process.env.REPLIT_DEV_DOMAIN
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+    : "https://concierge.convergeevents.com";
+
+  const dashboardUrl = `${BASE_URL}/sponsor/dashboard?token=${sponsorToken}&tab=deliverables`;
+
+  const dueMap = { before_event: "Due before event", during_event: "During event", after_event: "After event", not_applicable: "" };
+  const emailDeliverables = deliverables.map(d => ({
+    deliverableName: d.deliverableName,
+    sponsorFacingNote: d.sponsorFacingNote ?? null,
+    status: d.status,
+    dueLabel: d.dueDate
+      ? `Due ${new Date(d.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+      : (dueMap[d.dueTiming] ?? ""),
+  }));
+
+  const subject = `Action Needed: Outstanding Sponsorship Items for ${event?.name ?? "your event"}`;
+  const html = deliverableReminderEmail({
+    recipientName: recipientName || "there",
+    sponsorName: sponsor?.name ?? "",
+    eventName: event?.name ?? "",
+    deliverables: emailDeliverables,
+    dashboardUrl,
+  });
+
+  return sendAndLog(storage, {
+    emailType: "agreement_deliverables_reminder",
+    to: recipientEmail,
+    subject,
+    html,
+    eventId: event?.id ?? null,
+    sponsorId: sponsor?.id ?? null,
     attendeeId: null,
   });
 }

@@ -1825,6 +1825,103 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(requests);
   });
 
+  // ── Email Center Routes (admin-only) ──────────────────────────────────────
+
+  app.get("/api/admin/email-logs", requireAuth, async (req, res) => {
+    const { emailType, status, eventId, search, from, to } = req.query as Record<string, string | undefined>;
+    const filters: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date } = {};
+    if (emailType) filters.emailType = emailType;
+    if (status) filters.status = status;
+    if (eventId) filters.eventId = eventId;
+    if (search) filters.search = search;
+    if (from) filters.from = new Date(from);
+    if (to) filters.to = new Date(to);
+    const limit = Math.min(parseInt(String(req.query.limit ?? "200")), 500);
+    const offset = parseInt(String(req.query.offset ?? "0"));
+    const logs = await storage.listEmailLogs(filters, limit, offset);
+    res.json(logs);
+  });
+
+  app.get("/api/admin/email-logs/:id", requireAuth, async (req, res) => {
+    const log = await storage.getEmailLog(req.params.id);
+    if (!log) return res.status(404).json({ error: "Email log not found" });
+    res.json(log);
+  });
+
+  app.post("/api/admin/email-logs/:id/resend", requireAdmin, async (req, res) => {
+    const log = await storage.getEmailLog(req.params.id);
+    if (!log) return res.status(404).json({ error: "Email log not found" });
+    if (!log.htmlContent) return res.status(400).json({ error: "No HTML content stored for this email — cannot resend" });
+
+    let status: "sent" | "failed" = "sent";
+    let errorMessage: string | null = null;
+    try {
+      const { sendEmail } = await import("../services/emailService.js");
+      await sendEmail(log.recipientEmail, `[Resend] ${log.subject}`, log.htmlContent);
+    } catch (err: any) {
+      status = "failed";
+      errorMessage = err?.message ?? String(err);
+    }
+    const newId = await storage.createEmailLog({
+      emailType: log.emailType,
+      recipientEmail: log.recipientEmail,
+      subject: `[Resend] ${log.subject}`,
+      htmlContent: log.htmlContent,
+      eventId: log.eventId,
+      sponsorId: log.sponsorId,
+      attendeeId: log.attendeeId,
+      status,
+      errorMessage,
+      resendOfId: log.id,
+    });
+    const newLog = await storage.getEmailLog(newId);
+    res.json({ ok: true, newLogId: newId, status, log: newLog });
+  });
+
+  app.post("/api/admin/email-logs/send-test", requireAdmin, async (req, res) => {
+    const { to, emailType } = req.body;
+    if (!to || !emailType) return res.status(400).json({ error: "to and emailType are required" });
+
+    const { sendEmail } = await import("../services/emailService.js");
+    const templates = await import("../services/emailTemplates.js");
+
+    let html: string;
+    let subject: string;
+
+    const demoAttendee = { firstName: "Alex", lastName: "Sample", name: "Alex Sample", company: "Example Corp", title: "VP of Innovation", email: to };
+    const demoSponsor = { name: "Demo Sponsor", contactEmail: to };
+    const demoEvent = { name: "Demo Conference 2026", slug: "DEMO2026" };
+    const demoMeeting = { date: "2026-06-15", time: "10:00", meetingType: "onsite", location: "Booth A", eventId: "", sponsorId: "", attendeeId: "" };
+
+    if (emailType === "meeting_confirmation_attendee") {
+      subject = "Test: Your meeting is confirmed";
+      html = templates.meetingConfirmationForAttendee({ attendeeFirstName: "Alex", sponsorName: "Demo Sponsor", eventName: "Demo Conference 2026", date: "2026-06-15", time: "10:00", location: "Booth A", meetingType: "onsite", eventSlug: "DEMO2026" });
+    } else if (emailType === "meeting_notification_sponsor") {
+      subject = "Test: New meeting scheduled with Alex Sample";
+      html = templates.meetingNotificationForSponsor({ sponsorName: "Demo Sponsor", attendeeName: "Alex Sample", attendeeCompany: "Example Corp", attendeeTitle: "VP of Innovation", attendeeEmail: to, date: "2026-06-15", time: "10:00", meetingType: "onsite", location: "Booth A", eventName: "Demo Conference 2026", sponsorToken: null });
+    } else if (emailType === "info_request_notification_sponsor") {
+      subject = "Test: New information request from Alex Sample";
+      html = templates.infoRequestNotificationForSponsor({ sponsorName: "Demo Sponsor", attendeeFirstName: "Alex", attendeeLastName: "Sample", attendeeEmail: to, attendeeCompany: "Example Corp", attendeeTitle: "VP of Innovation", message: "I would love to learn more about your platform.", eventName: "Demo Conference 2026", sponsorToken: null });
+    } else if (emailType === "info_request_confirmation_attendee") {
+      subject = "Test: Your information request has been sent";
+      html = templates.infoRequestConfirmationForAttendee({ attendeeFirstName: "Alex", sponsorName: "Demo Sponsor", eventName: "Demo Conference 2026", eventSlug: "DEMO2026" });
+    } else {
+      subject = "Concierge Email Test";
+      html = templates.meetingConfirmationForAttendee({ attendeeFirstName: "Admin", sponsorName: "Test Sponsor", eventName: "Test Event", date: "2026-06-15", time: "14:00", location: "Main Hall", meetingType: "onsite", eventSlug: null });
+    }
+
+    let sendStatus: "sent" | "failed" = "sent";
+    let errorMessage: string | null = null;
+    try {
+      await sendEmail(to, subject, html);
+    } catch (err: any) {
+      sendStatus = "failed";
+      errorMessage = err?.message ?? String(err);
+    }
+    const logId = await storage.createEmailLog({ emailType: emailType ?? "test_email", recipientEmail: to, subject, htmlContent: html, status: sendStatus, errorMessage });
+    res.json({ ok: sendStatus === "sent", status: sendStatus, errorMessage, logId });
+  });
+
   // ── Email Test Routes (admin-only) ────────────────────────────────────────
   // These routes are for development/QA testing of email templates.
   // Protected behind requireAdmin — do not remove auth guard.

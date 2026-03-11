@@ -15,6 +15,7 @@ import {
   type DataExchangeLog,
   type UserPermissions, type UserPermissionRecord, type PermissionAuditLog,
   type InformationRequest, type InsertInformationRequest, type InformationRequestStatus,
+  type EmailLog,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -745,19 +746,44 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null }): Promise<void> {
+  async createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null }): Promise<string> {
+    const id = randomUUID();
     await db.insert(emailLogs).values({
-      id: randomUUID(),
+      id,
       emailType: data.emailType,
       recipientEmail: data.recipientEmail,
       subject: data.subject,
+      htmlContent: data.htmlContent ?? null,
       eventId: data.eventId ?? null,
       sponsorId: data.sponsorId ?? null,
       attendeeId: data.attendeeId ?? null,
       status: data.status,
       errorMessage: data.errorMessage ?? null,
+      resendOfId: data.resendOfId ?? null,
       sentAt: new Date(),
       createdAt: new Date(),
     });
+    return id;
+  }
+
+  async listEmailLogs(filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, limit = 100, offset = 0): Promise<EmailLog[]> {
+    const rows = await db.select().from(emailLogs).orderBy(desc(emailLogs.sentAt));
+    return rows.filter((r) => {
+      if (filters?.emailType && r.emailType !== filters.emailType) return false;
+      if (filters?.status && r.status !== filters.status) return false;
+      if (filters?.eventId && r.eventId !== filters.eventId) return false;
+      if (filters?.from && r.sentAt < filters.from) return false;
+      if (filters?.to && r.sentAt > filters.to) return false;
+      if (filters?.search) {
+        const q = filters.search.toLowerCase();
+        if (!r.recipientEmail.toLowerCase().includes(q) && !r.subject.toLowerCase().includes(q) && !r.emailType.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    }).slice(offset, offset + limit);
+  }
+
+  async getEmailLog(id: string): Promise<EmailLog | undefined> {
+    const rows = await db.select().from(emailLogs).where(eq(emailLogs.id, id));
+    return rows[0];
   }
 }

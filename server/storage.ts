@@ -11,6 +11,7 @@ import {
   type DataExchangeLog,
   type UserPermissions, type UserPermissionRecord, type PermissionAuditLog,
   type InformationRequest, type InsertInformationRequest, type InformationRequestStatus,
+  type EmailLog,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -175,7 +176,9 @@ export interface IStorage {
   getAnalyticsSummary(sponsorId: string, eventId: string): Promise<{ profileViews: number; meetingCtaClicks: number }>;
 
   // Email logs
-  createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null }): Promise<void>;
+  createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null }): Promise<string>;
+  listEmailLogs(filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, limit?: number, offset?: number): Promise<EmailLog[]>;
+  getEmailLog(id: string): Promise<EmailLog | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -728,7 +731,9 @@ export class MemStorage implements IStorage {
     return { profileViews: 0, meetingCtaClicks: 0 };
   }
 
-  async createEmailLog(_data: { emailType: string; recipientEmail: string; subject: string; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null }): Promise<void> {}
+  async createEmailLog(_data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null }): Promise<string> { return randomUUID(); }
+  async listEmailLogs(_filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, _limit?: number, _offset?: number): Promise<EmailLog[]> { return []; }
+  async getEmailLog(_id: string): Promise<EmailLog | undefined> { return undefined; }
 }
 
 export const storage = new DatabaseStorage();

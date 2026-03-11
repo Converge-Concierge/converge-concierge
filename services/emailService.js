@@ -30,7 +30,7 @@ export async function sendEmail(to, subject, htmlContent) {
 
 // ── Internal: send + log ──────────────────────────────────────────────────────
 
-async function sendAndLog(storage, { emailType, to, subject, html, eventId, sponsorId, attendeeId }) {
+async function sendAndLog(storage, { emailType, to, subject, html, eventId, sponsorId, attendeeId, resendOfId }) {
   let status = "sent";
   let errorMessage = null;
   try {
@@ -42,9 +42,11 @@ async function sendAndLog(storage, { emailType, to, subject, html, eventId, spon
     console.error(`[EMAIL] Failed to send "${emailType}" to ${to}: ${errorMessage}`);
   }
   try {
-    await storage.createEmailLog({ emailType, recipientEmail: to, subject, eventId, sponsorId, attendeeId, status, errorMessage });
+    const id = await storage.createEmailLog({ emailType, recipientEmail: to, subject, htmlContent: html, eventId, sponsorId, attendeeId, status, errorMessage, resendOfId: resendOfId ?? null });
+    return id;
   } catch (logErr) {
     console.error(`[EMAIL LOG] Failed to write email log: ${logErr?.message || logErr}`);
+    return null;
   }
 }
 

@@ -1,0 +1,470 @@
+import { useState, useMemo } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import type { EmailLog, Event, Sponsor } from "@shared/schema";
+import {
+  Mail, MailCheck, MailX, RefreshCw, Send, Search, Eye,
+  FlaskConical, Building2, User, AlertCircle, CheckCircle2,
+  Clock, CalendarDays, X, RotateCcw, ChevronRight, Code,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+
+const EMAIL_TYPE_LABELS: Record<string, string> = {
+  meeting_confirmation_attendee: "Meeting Confirmation",
+  meeting_notification_sponsor: "Sponsor Meeting Alert",
+  info_request_notification_sponsor: "Info Request Alert",
+  info_request_confirmation_attendee: "Info Request Confirmation",
+  sponsor_report: "Sponsor Report",
+  admin_alert: "Admin Alert",
+  test_email: "Test Email",
+};
+
+const EMAIL_TYPES = Object.keys(EMAIL_TYPE_LABELS);
+
+const STATUS_CONFIG: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
+  sent:      { label: "Sent",      className: "bg-teal-100 text-teal-700 border-teal-200",     icon: <MailCheck className="h-3 w-3" /> },
+  failed:    { label: "Failed",    className: "bg-red-100 text-red-700 border-red-200",         icon: <MailX className="h-3 w-3" /> },
+  queued:    { label: "Queued",    className: "bg-amber-100 text-amber-700 border-amber-200",   icon: <Clock className="h-3 w-3" /> },
+  delivered: { label: "Delivered", className: "bg-blue-100 text-blue-700 border-blue-200",      icon: <MailCheck className="h-3 w-3" /> },
+  opened:    { label: "Opened",    className: "bg-purple-100 text-purple-700 border-purple-200",icon: <Eye className="h-3 w-3" /> },
+  clicked:   { label: "Clicked",   className: "bg-indigo-100 text-indigo-700 border-indigo-200",icon: <ChevronRight className="h-3 w-3" /> },
+  bounced:   { label: "Bounced",   className: "bg-orange-100 text-orange-700 border-orange-200",icon: <RotateCcw className="h-3 w-3" /> },
+};
+
+function fmtSentAt(ts: string | Date | null | undefined) {
+  if (!ts) return "—";
+  const d = new Date(ts);
+  return d.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_CONFIG[status] ?? { label: status, className: "bg-muted text-muted-foreground border-border", icon: <Mail className="h-3 w-3" /> };
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border", cfg.className)}>
+      {cfg.icon} {cfg.label}
+    </span>
+  );
+}
+
+function TypeBadge({ type }: { type: string }) {
+  const label = EMAIL_TYPE_LABELS[type] ?? type.replace(/_/g, " ");
+  const colorMap: Record<string, string> = {
+    meeting_confirmation_attendee: "bg-sky-100 text-sky-700 border-sky-200",
+    meeting_notification_sponsor: "bg-violet-100 text-violet-700 border-violet-200",
+    info_request_notification_sponsor: "bg-amber-100 text-amber-700 border-amber-200",
+    info_request_confirmation_attendee: "bg-teal-100 text-teal-700 border-teal-200",
+  };
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border", colorMap[type] ?? "bg-muted text-muted-foreground border-border")}>
+      {label}
+    </span>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
+
+export default function EmailCenterPage() {
+  const { toast } = useToast();
+
+  // Filters
+  const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterEventId, setFilterEventId] = useState("");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+  const [search, setSearch] = useState("");
+
+  // Detail + resend
+  const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
+  const [resendTarget, setResendTarget] = useState<EmailLog | null>(null);
+  const [htmlPreviewMode, setHtmlPreviewMode] = useState<"preview" | "source">("preview");
+
+  // Test email
+  const [testOpen, setTestOpen] = useState(false);
+  const [testTo, setTestTo] = useState("");
+  const [testType, setTestType] = useState("meeting_confirmation_attendee");
+
+  const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
+  const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
+
+  // Build query params
+  const params = new URLSearchParams();
+  if (filterType) params.set("emailType", filterType);
+  if (filterStatus) params.set("status", filterStatus);
+  if (filterEventId) params.set("eventId", filterEventId);
+  if (filterFrom) params.set("from", filterFrom);
+  if (filterTo) params.set("to", filterTo);
+  if (search) params.set("search", search);
+
+  const { data: logs = [], isLoading, refetch } = useQuery<EmailLog[]>({
+    queryKey: ["/api/admin/email-logs", filterType, filterStatus, filterEventId, filterFrom, filterTo, search],
+    queryFn: () => fetch(`/api/admin/email-logs?${params}`).then((r) => r.json()),
+  });
+
+  // Summary counts
+  const summary = useMemo(() => {
+    const total = logs.length;
+    const sent = logs.filter((l) => l.status === "sent").length;
+    const failed = logs.filter((l) => l.status === "failed").length;
+    return { total, sent, failed };
+  }, [logs]);
+
+  const getEventSlug = (id: string | null | undefined) => events.find((e) => e.id === id)?.slug ?? null;
+  const getSponsorName = (id: string | null | undefined) => sponsors.find((s) => s.id === id)?.name ?? null;
+
+  // Resend mutation
+  const resendMutation = useMutation({
+    mutationFn: async (log: EmailLog) => {
+      const res = await apiRequest("POST", `/api/admin/email-logs/${log.id}/resend`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: data.status === "sent" ? "Email resent successfully" : "Resend failed", description: data.status === "sent" ? "A new log entry has been created." : data.log?.errorMessage ?? "Unknown error", variant: data.status === "sent" ? "default" : "destructive" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-logs"] });
+      setResendTarget(null);
+    },
+    onError: () => toast({ title: "Resend failed", variant: "destructive" }),
+  });
+
+  // Test send mutation
+  const testMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/email-logs/send-test", { to: testTo, emailType: testType });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: data.ok ? "Test email sent" : "Test email failed", description: data.ok ? `Sent to ${testTo}` : data.errorMessage ?? "Unknown error", variant: data.ok ? "default" : "destructive" });
+      if (data.ok) { setTestOpen(false); setTestTo(""); }
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-logs"] });
+    },
+    onError: () => toast({ title: "Send failed", variant: "destructive" }),
+  });
+
+  const selectClass = "h-8 text-sm rounded-lg border border-border/60 bg-background px-3 focus:outline-none focus:ring-1 focus:ring-accent/40";
+
+  const hasFilters = !!(filterType || filterStatus || filterEventId || filterFrom || filterTo || search);
+  const clearFilters = () => { setFilterType(""); setFilterStatus(""); setFilterEventId(""); setFilterFrom(""); setFilterTo(""); setSearch(""); };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
+            <Mail className="h-6 w-6 text-accent" />
+            Email Center
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Review sent emails, delivery status, and resend important messages.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 h-8">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+          <Button size="sm" onClick={() => setTestOpen(true)} className="gap-2 h-8" data-testid="button-send-test-email">
+            <FlaskConical className="h-3.5 w-3.5" /> Send Test Email
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-xl border border-border/60 bg-card p-4">
+          <p className="text-2xl font-display font-bold">{summary.total}</p>
+          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><Mail className="h-3 w-3" /> Total Emails</p>
+        </div>
+        <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
+          <p className="text-2xl font-display font-bold text-teal-700">{summary.sent}</p>
+          <p className="text-xs text-teal-600 mt-1 flex items-center gap-1"><MailCheck className="h-3 w-3" /> Sent</p>
+        </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <p className="text-2xl font-display font-bold text-red-700">{summary.failed}</p>
+          <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><MailX className="h-3 w-3" /> Failed</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <select className={selectClass} value={filterType} onChange={(e) => setFilterType(e.target.value)} data-testid="filter-email-type">
+          <option value="">All Types</option>
+          {EMAIL_TYPES.map((t) => <option key={t} value={t}>{EMAIL_TYPE_LABELS[t]}</option>)}
+        </select>
+        <select className={selectClass} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} data-testid="filter-status">
+          <option value="">All Statuses</option>
+          {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+        </select>
+        <select className={selectClass} value={filterEventId} onChange={(e) => setFilterEventId(e.target.value)} data-testid="filter-event">
+          <option value="">All Events</option>
+          {events.map((e) => <option key={e.id} value={e.id}>{e.slug}</option>)}
+        </select>
+        <div className="flex items-center gap-1">
+          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+          <input type="date" className={selectClass} value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} data-testid="filter-from" />
+          <span className="text-xs text-muted-foreground">to</span>
+          <input type="date" className={selectClass} value={filterTo} onChange={(e) => setFilterTo(e.target.value)} data-testid="filter-to" />
+        </div>
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input placeholder="Search recipient, subject…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-sm" data-testid="email-search" />
+        </div>
+        {hasFilters && (
+          <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors" data-testid="button-clear-filters">
+            <X className="h-3.5 w-3.5" /> Clear
+          </button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/50 bg-muted/30">
+                {["Sent At", "Type", "Recipient", "Subject", "Event", "Sponsor", "Status", "Actions"].map((h) => (
+                  <th key={h} className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={8} className="text-center py-12 text-muted-foreground text-sm">Loading email logs…</td></tr>
+              ) : logs.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-16">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
+                        <Mail className="h-6 w-6 text-muted-foreground/50" />
+                      </div>
+                      <p className="text-sm font-medium text-muted-foreground">No email activity found.</p>
+                      <p className="text-xs text-muted-foreground/60">{hasFilters ? "Try adjusting your filters." : "Emails will appear here once they are sent."}</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                logs.map((log, i) => {
+                  const eventSlug = getEventSlug(log.eventId);
+                  const sponsorName = getSponsorName(log.sponsorId);
+                  return (
+                    <tr key={log.id} className={cn("border-b border-border/30 hover:bg-muted/20 transition-colors", i % 2 === 1 && "bg-muted/10")} data-testid={`email-row-${log.id}`}>
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{fmtSentAt(log.sentAt)}</td>
+                      <td className="px-4 py-3"><TypeBadge type={log.emailType} /></td>
+                      <td className="px-4 py-3 text-xs font-mono text-foreground max-w-[180px] truncate">{log.recipientEmail}</td>
+                      <td className="px-4 py-3 text-sm text-foreground max-w-[220px] truncate" title={log.subject}>{log.subject}</td>
+                      <td className="px-4 py-3">
+                        {eventSlug ? <span className="text-xs font-mono font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded">{eventSlug}</span> : <span className="text-xs text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{sponsorName ?? "—"}</td>
+                      <td className="px-4 py-3"><StatusBadge status={log.status} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setSelectedLog(log)}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80 transition-colors px-2 py-1 rounded hover:bg-accent/10"
+                            data-testid={`button-view-${log.id}`}
+                          >
+                            <Eye className="h-3 w-3" /> View
+                          </button>
+                          <button
+                            onClick={() => setResendTarget(log)}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted/50"
+                            data-testid={`button-resend-${log.id}`}
+                          >
+                            <Send className="h-3 w-3" /> Resend
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        {logs.length > 0 && (
+          <div className="px-4 py-3 border-t border-border/30 text-xs text-muted-foreground">
+            {logs.length} email{logs.length !== 1 ? "s" : ""} {hasFilters ? "matching filters" : "total"}
+          </div>
+        )}
+      </div>
+
+      {/* Detail Drawer */}
+      <Sheet open={!!selectedLog} onOpenChange={(o) => { if (!o) setSelectedLog(null); }}>
+        <SheetContent side="right" className="w-[600px] sm:max-w-[600px] flex flex-col">
+          <SheetHeader className="pb-4 border-b border-border/40">
+            <SheetTitle className="flex items-center gap-2 text-base font-display">
+              <Mail className="h-4 w-4 text-accent" />
+              Email Detail
+            </SheetTitle>
+          </SheetHeader>
+          {selectedLog && (
+            <div className="flex-1 overflow-y-auto py-4 space-y-5">
+              {/* Meta */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Type</p>
+                  <TypeBadge type={selectedLog.emailType} />
+                </div>
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Status</p>
+                  <StatusBadge status={selectedLog.status} />
+                </div>
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-3 col-span-2">
+                  <p className="text-xs text-muted-foreground mb-1">Recipient</p>
+                  <p className="text-sm font-mono font-medium">{selectedLog.recipientEmail}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-3 col-span-2">
+                  <p className="text-xs text-muted-foreground mb-1">Subject</p>
+                  <p className="text-sm font-medium">{selectedLog.subject}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Sent At</p>
+                  <p className="text-sm">{fmtSentAt(selectedLog.sentAt)}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Event</p>
+                  <p className="text-sm">{getEventSlug(selectedLog.eventId) ?? "—"}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Sponsor</p>
+                  <p className="text-sm">{getSponsorName(selectedLog.sponsorId) ?? "—"}</p>
+                </div>
+                {selectedLog.resendOfId && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-xs text-amber-600 mb-1">Resend of</p>
+                    <p className="text-xs font-mono text-amber-700 truncate">{selectedLog.resendOfId}</p>
+                  </div>
+                )}
+                {selectedLog.errorMessage && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 col-span-2">
+                    <p className="text-xs text-red-600 mb-1 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Error</p>
+                    <p className="text-xs text-red-700 font-mono">{selectedLog.errorMessage}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* HTML Preview */}
+              {selectedLog.htmlContent && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email Content</p>
+                    <div className="flex gap-1">
+                      <button onClick={() => setHtmlPreviewMode("preview")} className={cn("text-xs px-2 py-1 rounded", htmlPreviewMode === "preview" ? "bg-accent text-white" : "text-muted-foreground hover:bg-muted")}>Preview</button>
+                      <button onClick={() => setHtmlPreviewMode("source")} className={cn("text-xs px-2 py-1 rounded flex items-center gap-1", htmlPreviewMode === "source" ? "bg-accent text-white" : "text-muted-foreground hover:bg-muted")}>
+                        <Code className="h-3 w-3" /> Source
+                      </button>
+                    </div>
+                  </div>
+                  {htmlPreviewMode === "preview" ? (
+                    <div className="rounded-lg border border-border/60 overflow-hidden">
+                      <iframe
+                        srcDoc={selectedLog.htmlContent}
+                        className="w-full h-[360px] bg-white"
+                        sandbox="allow-same-origin"
+                        title="Email preview"
+                      />
+                    </div>
+                  ) : (
+                    <pre className="text-xs bg-muted/40 border border-border/60 rounded-lg p-3 overflow-auto max-h-[360px] font-mono whitespace-pre-wrap break-all">{selectedLog.htmlContent}</pre>
+                  )}
+                </div>
+              )}
+
+              {/* Resend button in drawer */}
+              <div className="pt-2 border-t border-border/40">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => { setResendTarget(selectedLog); }}
+                >
+                  <Send className="h-3.5 w-3.5" /> Resend This Email
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Resend Confirmation */}
+      <AlertDialog open={!!resendTarget} onOpenChange={(o) => { if (!o) setResendTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resend this email?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will resend the email to <strong>{resendTarget?.recipientEmail}</strong> and create a new log entry. The original email record will not be modified.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => resendTarget && resendMutation.mutate(resendTarget)}
+              disabled={resendMutation.isPending}
+              data-testid="button-confirm-resend"
+            >
+              {resendMutation.isPending ? "Sending…" : "Resend"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Send Test Email Dialog */}
+      <Dialog open={testOpen} onOpenChange={setTestOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FlaskConical className="h-4 w-4 text-accent" />
+              Send Test Email
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">To Email</label>
+              <Input
+                type="email"
+                placeholder="recipient@example.com"
+                value={testTo}
+                onChange={(e) => setTestTo(e.target.value)}
+                data-testid="input-test-email-to"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Email Type</label>
+              <select
+                className="w-full h-9 text-sm rounded-lg border border-border/60 bg-background px-3 focus:outline-none focus:ring-1 focus:ring-accent/40"
+                value={testType}
+                onChange={(e) => setTestType(e.target.value)}
+                data-testid="select-test-email-type"
+              >
+                {EMAIL_TYPES.map((t) => <option key={t} value={t}>{EMAIL_TYPE_LABELS[t]}</option>)}
+              </select>
+            </div>
+            <p className="text-xs text-muted-foreground">This will send a demo email using sample data to verify formatting and delivery.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTestOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => testMutation.mutate()}
+              disabled={!testTo || testMutation.isPending}
+              className="gap-2"
+              data-testid="button-confirm-send-test"
+            >
+              {testMutation.isPending ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Sending…</> : <><Send className="h-3.5 w-3.5" /> Send Test</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+}

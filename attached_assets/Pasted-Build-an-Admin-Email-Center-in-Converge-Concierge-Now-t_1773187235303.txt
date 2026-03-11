@@ -1,0 +1,610 @@
+Build an Admin Email Center in Converge Concierge
+
+Now that Brevo email sending is working and core email workflows are being integrated, build a new Admin Email Center so admins can manage, review, and troubleshoot system email activity inside Concierge.
+
+The Email Center should help admins:
+
+review email logs
+
+search/filter sent emails
+
+inspect delivery status
+
+view email content
+
+resend failed or important emails
+
+send test emails
+
+manage system templates later
+
+This is an admin operations tool, not a sponsor or attendee feature.
+
+Primary Goal
+
+Create a new admin module called:
+
+Email Center
+
+This module should provide visibility into transactional email activity and improve operational control.
+
+Scope for This Phase
+Do build
+
+Email Center navigation item
+
+email logs table
+
+filters/search
+
+email detail view
+
+resend email action
+
+send test email action
+
+basic template visibility if easy
+
+Do not build yet
+
+full drag-and-drop email template editor
+
+advanced campaign system
+
+marketing automation builder
+
+sponsor self-service email sending
+
+inbound reply management
+
+This phase is focused on admin visibility and control.
+
+1. Add a New Admin Navigation Item
+
+Add a new left-nav item under the appropriate section:
+
+Email Center
+
+Recommended placement:
+
+Dashboard
+
+Events
+
+Sponsors
+
+Attendees
+
+Meetings
+
+Information Requests
+
+Reports
+
+Data Exchange
+
+Email Center
+
+Settings
+
+If it fits better under Settings or Operations in your current nav model, that is acceptable, but the module should be easy to find.
+
+2. Build the Main Email Logs Page
+
+Create the default Email Center page as an email activity table.
+
+Page title
+
+Email Center
+
+Helper text
+
+Review sent emails, delivery status, and resend important messages when needed.
+
+2A. Main table columns
+
+Use columns like:
+
+Sent At
+
+Email Type
+
+Recipient
+
+Subject
+
+Event
+
+Sponsor
+
+Attendee
+
+Status
+
+Actions
+
+If all columns do not fit cleanly, prioritize:
+
+Sent At
+
+Email Type
+
+Recipient
+
+Subject
+
+Status
+
+Actions
+
+Event / Sponsor / Attendee can be secondary or hidden on smaller screens.
+
+2B. Status values
+
+Support status values like:
+
+Queued
+
+Sent
+
+Delivered
+
+Failed
+
+Opened
+
+Clicked
+
+Bounced
+
+If Brevo webhook events are not integrated yet, start with what is currently available:
+
+Sent
+
+Failed
+
+Then structure the model so richer statuses can be added later.
+
+3. Add Filters and Search
+
+At the top of the Email Center page, add filters.
+
+Required filters
+
+Email Type
+
+Status
+
+Event
+
+Date Range
+
+Search
+
+Search should match against
+
+recipient email
+
+subject
+
+sponsor name if available
+
+attendee name if available
+
+Keep the filter bar clean and compact.
+
+4. Email Types to Support
+
+The Email Center should clearly categorize emails by type.
+
+Start with these email types at minimum:
+
+meeting_confirmation_attendee
+
+meeting_notification_sponsor
+
+information_request_notification_sponsor
+
+information_request_confirmation_attendee
+
+sponsor_report
+
+admin_alert
+
+test_email
+
+Display a human-readable version in the UI.
+
+Examples:
+
+Meeting Confirmation
+
+Sponsor Meeting Alert
+
+Information Request Alert
+
+Information Request Confirmation
+
+Sponsor Report
+
+Admin Alert
+
+Test Email
+
+5. Add Email Detail View
+
+Each email log row should have a View action.
+
+When clicked, open an email detail drawer, modal, or full page.
+
+Detail view should show
+
+Email Type
+
+Recipient
+
+Subject
+
+Status
+
+Sent At
+
+Event
+
+Sponsor
+
+Attendee
+
+Error message if failed
+
+HTML preview or body preview
+
+metadata if available
+
+If full HTML preview is easy, include it.
+If not, show rendered/plain content and raw content separately.
+
+This is important for debugging.
+
+6. Add Resend Email Action
+
+Admins should be able to resend an email from the Email Center.
+
+Required behavior
+
+Each eligible email row should have a Resend action.
+
+When clicked:
+
+confirm resend
+
+create a new send attempt
+
+send the same email content again
+
+create a new email log record for the resend
+
+link the resend to the original email log if possible
+
+Do not overwrite the original email log entry.
+
+6A. Resend eligibility
+
+Allow resend for:
+
+Failed emails
+
+Important operational emails
+
+Test emails
+
+sponsor notifications if appropriate
+
+Do not resend automatically without admin action in this phase.
+
+6B. Recommended confirmation text
+
+Resend this email to [recipient]?
+
+Buttons:
+
+Cancel
+
+Resend
+
+7. Add Send Test Email Tool
+
+Inside Email Center, add a small tool or button:
+
+Send Test Email
+
+This helps verify the Brevo integration and email formatting without needing to trigger a live workflow.
+
+7A. Test email form fields
+
+Use a simple form:
+
+To Email
+
+Email Type
+
+Event (optional)
+
+Sponsor (optional)
+
+Attendee (optional)
+
+If the email type requires sample data, the system can use:
+
+demo/sample placeholders
+
+or the selected event/sponsor/attendee if provided
+
+7B. Minimum supported test types
+
+Support at least:
+
+Meeting Confirmation
+
+Information Request Notification
+
+Test Email
+
+If easier, start with one generic branded test email plus one or two workflow examples.
+
+7C. Test email subject
+
+Example:
+
+Concierge Email Test
+
+or
+
+Test: Meeting Confirmation
+
+8. Use Existing Email Logs Table / Model
+
+If email_logs already exists from the earlier email implementation, use it as the foundation.
+
+Ensure it stores at minimum:
+
+id
+
+email_type
+
+recipient_email
+
+subject
+
+event_id nullable
+
+sponsor_id nullable
+
+attendee_id nullable
+
+status
+
+error_message nullable
+
+html_content or rendered body snapshot if practical
+
+sent_at
+
+created_at
+
+If the model is too minimal right now, extend it.
+
+9. Preserve Workflow Context
+
+Where possible, store related object references so the Email Center can be useful.
+
+Examples:
+
+a meeting confirmation should be tied to the meeting / attendee / sponsor / event
+
+an information request email should be tied to the information request / sponsor / attendee / event
+
+This makes filtering and debugging much easier later.
+
+10. Prepare for Future Webhook Status Updates
+
+Structure the Email Center so it can later support Brevo webhook events such as:
+
+delivered
+
+opened
+
+clicked
+
+bounced
+
+blocked
+
+spam complaint
+
+You do not need to implement webhook ingestion now unless it is trivial, but the Email Center data model and status UI should be ready for it.
+
+11. Optional Template Visibility Section
+
+If easy, add a lightweight secondary tab inside Email Center:
+
+Templates
+
+This does not need to be a full editor yet.
+
+For now it can simply list:
+
+template key
+
+display name
+
+description
+
+last updated
+
+Example templates:
+
+Meeting Confirmation
+
+Sponsor Meeting Alert
+
+Information Request Alert
+
+Information Request Confirmation
+
+If this slows implementation, defer it.
+The core requirement is the Email Logs functionality.
+
+12. Access Control
+
+Add Email Center permissions to admin access control if permissions already exist.
+
+Suggested permissions:
+
+View Email Center
+
+Resend Emails
+
+Send Test Emails
+
+Regular sponsors and attendees should not have access to Email Center.
+
+13. UI/UX Requirements
+
+The Email Center should feel like an operations tool.
+
+Requirements
+
+clean filter bar
+
+readable status badges
+
+strong table scanning
+
+useful empty states
+
+safe resend confirmation
+
+consistent date formatting
+
+no raw unformatted timestamps in UI
+
+14. Empty States
+
+Use clear empty states.
+
+No email logs
+
+No email activity found.
+
+No results after filtering
+
+No emails match the selected filters.
+
+No templates
+
+No email templates available yet.
+
+15. Error Handling
+
+If resend fails:
+
+show a clear admin error message
+
+log the failure
+
+do not crash the Email Center
+
+If test email send fails:
+
+show the error cleanly
+
+record it in email logs if appropriate
+
+16. Recommended Page Structure
+
+Use this structure:
+
+Email Center
+
+Page title
+
+Helper text
+
+Filter/search row
+
+Send Test Email button
+
+Email logs table
+
+Optional later:
+
+Tabs for Logs / Templates
+
+17. Suggested Implementation Order
+
+Implement in this order:
+
+Step 1
+
+Create Email Center page and nav item
+
+Step 2
+
+Connect existing email_logs data to main table
+
+Step 3
+
+Add filters and search
+
+Step 4
+
+Add email detail view
+
+Step 5
+
+Add resend action
+
+Step 6
+
+Add send test email tool
+
+Step 7
+
+Polish statuses, empty states, and formatting
+
+This will get useful operations value quickly.
+
+18. Definition of Done
+
+This phase is complete when:
+
+admins can open Email Center
+
+admins can view logged emails in a table
+
+admins can filter/search email logs
+
+admins can inspect an individual email
+
+admins can resend an email
+
+admins can send a test email
+
+the UI is clean and operationally useful
+
+19. Success Standard
+
+After this is implemented, the Concierge admin team should be able to answer:
+
+Was this email sent?
+
+Did it fail?
+
+Who received it?
+
+What was the subject/content?
+
+Can I resend it right now?
+
+That is the standard for this first Email Center release.

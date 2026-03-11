@@ -256,12 +256,12 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
-        <div className="flex items-center justify-end h-12 shrink-0">
+        <div className="flex items-center justify-end h-24 shrink-0">
           <img
             src={headerLogoUrl}
             alt="Event logo"
             data-testid="dashboard-header-logo"
-            className="max-h-12 max-w-[140px] w-auto object-contain"
+            className="max-h-24 max-w-[280px] w-auto object-contain"
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         </div>

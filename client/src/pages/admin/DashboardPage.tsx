@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Event, Sponsor, Attendee, Meeting, InformationRequest } from "@shared/schema";
+import { Event, Sponsor, Attendee, Meeting, InformationRequest, AppBranding } from "@shared/schema";
 import {
   CalendarDays, Building2, Users, Handshake, TrendingUp,
   ArrowRight, Clock, CheckCircle2, XCircle, AlertCircle,
@@ -70,6 +70,7 @@ export default function DashboardPage() {
   const { data: attendees   = [] } = useQuery<Attendee[]>          ({ queryKey: ["/api/attendees"] });
   const { data: meetings    = [] } = useQuery<Meeting[]>           ({ queryKey: ["/api/meetings"] });
   const { data: infoRequests = [] } = useQuery<InformationRequest[]>({ queryKey: ["/api/admin/information-requests"] });
+  const { data: branding } = useQuery<AppBranding>({ queryKey: ["/api/branding-public"] });
 
   // Auto-select closest upcoming (non-completed) event once when events first load
   useEffect(() => {
@@ -103,6 +104,15 @@ export default function DashboardPage() {
   const selectedEvent = useMemo(() => 
     selectedEventId === "all" ? null : events.find(e => e.id === selectedEventId)
   , [selectedEventId, events]);
+
+  const defaultBrandColor = branding?.primaryColor ?? "#0D1E3A";
+  const accentBarColor = selectedEvent?.primaryColor ?? defaultBrandColor;
+
+  const headerLogoUrl = useMemo(() => {
+    if (selectedEventId !== "all" && selectedEvent?.logoUrl) return selectedEvent.logoUrl;
+    if (branding?.appLogoUrl) return branding.appLogoUrl;
+    return "/favicon.png";
+  }, [selectedEventId, selectedEvent, branding]);
 
   const filteredMeetings = useMemo(() => {
     if (selectedEventId === "all") return meetings;
@@ -236,12 +246,25 @@ export default function DashboardPage() {
       transition={{ duration: 0.3 }}
       className="space-y-8 max-w-7xl mx-auto"
     >
+      {/* Accent bar */}
+      <div
+        data-testid="dashboard-accent-bar"
+        className="h-1.5 rounded-full transition-colors duration-500"
+        style={{ backgroundColor: accentBarColor }}
+      />
+
       {/* Header */}
-      <div>
+      <div className="flex items-center justify-between gap-4">
         <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Command center — activity, queue, and performance across events.
-        </p>
+        <div className="flex items-center justify-end h-12 shrink-0">
+          <img
+            src={headerLogoUrl}
+            alt="Event logo"
+            data-testid="dashboard-header-logo"
+            className="max-h-12 max-w-[140px] w-auto object-contain"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        </div>
       </div>
 
       {/* Event Tabs */}
@@ -275,15 +298,6 @@ export default function DashboardPage() {
             All Events
           </button>
         </div>
-      </div>
-
-      {/* Context Helper */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-accent/5 border border-accent/10 rounded-lg text-xs font-medium text-accent">
-        <div className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-        {selectedEventId === "all"
-          ? "Showing data for all active events"
-          : `Showing data for ${selectedEvent?.name}`
-        }
       </div>
 
       {/* Top KPI row */}

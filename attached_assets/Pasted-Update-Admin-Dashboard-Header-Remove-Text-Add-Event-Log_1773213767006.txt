@@ -1,0 +1,127 @@
+Update Admin Dashboard Header (Remove Text + Add Event Logo)
+
+Make several layout refinements to simplify the Admin Dashboard header and improve visual clarity.
+
+1. Remove the Header Helper Text
+
+Remove the following text that appears under the Dashboard title:
+
+Command center — activity, queue, and performance across events.
+
+The top of the page should now simply display:
+
+Dashboard
+
+No additional helper text should appear under the title.
+
+2. Keep Event Tabs in Their Current Position
+
+Do not move the event tabs.
+
+They should remain exactly where they are currently rendered under the Dashboard title.
+
+Example layout:
+
+Dashboard
+
+[FRC2026] [TLS2026] [USBT2026] [CUGI2027] [All Events]
+
+The tab behavior should remain unchanged:
+
+clickable event filters
+
+closest upcoming event selected by default
+
+All Events remains the final tab
+
+3. Remove the “Showing data for…” Banner
+
+Remove the blue informational banner that currently displays:
+
+Showing data for The 2026 Fintech Risk & Compliance Forum
+
+This banner is redundant because the selected event is already clear from the active tab and the event logo that will be added in the next step.
+
+Completely remove this banner component from the dashboard layout.
+
+4. Add the Selected Event Logo to the Top Right
+
+Add the logo for the selected event to the top right corner of the dashboard header area.
+
+The logo should appear in the same horizontal row as the Dashboard title.
+
+Example layout:
+
+Dashboard                                        [Event Logo]
+
+The logo should sit on the far right side of the page header.
+
+5. Logo Display Rules
+When a specific event tab is selected
+
+Display the logo for that event.
+
+Examples:
+
+Tab	Logo
+FRC2026	FRC logo
+TLS2026	Treasury Leadership Summit logo
+USBT2026	U.S. BankTech Summit logo
+CUGI2027	CU Growth & Innovation Summit logo
+When the "All Events" tab is selected
+
+Display the Converge Events favicon logo.
+
+This provides a consistent visual indicator for the aggregated view.
+
+6. Logo Sizing
+
+The logo should be large enough to fill the available header space visually without distorting the layout.
+
+Requirements:
+
+scale proportionally
+
+maintain image clarity
+
+vertically align with the Dashboard title
+
+use available right-side whitespace effectively
+
+avoid pushing other UI elements
+
+Recommended behavior:
+
+allow the logo container to scale within the header row
+
+maintain consistent padding around the logo
+
+Goal: the header should feel visually balanced rather than empty on the right side.
+
+7. Final Header Layout
+
+After the update, the Admin Dashboard header should appear as:
+
+Dashboard                                     [Event Logo]
+
+[FRC2026] [TLS2026] [USBT2026] [CUGI2027] [All Events]
+
+[KPI Cards]
+
+The rest of the dashboard layout remains unchanged.
+
+8. Acceptance Criteria
+
+The update is complete when:
+
+the helper text under Dashboard is removed
+
+the blue “Showing data for…” banner is removed
+
+event tabs remain in their current location
+
+the selected event logo appears on the top right of the header
+
+the Converge favicon appears when the All Events tab is selected
+
+the layout remains responsive and visually balanced

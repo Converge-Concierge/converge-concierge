@@ -1,0 +1,249 @@
+Fix Missing Sponsorship Templates Function
+
+The Sponsorship Templates function is missing from the new Sponsorship Templates area.
+
+Right now the Deliverables page still appears to be acting like the template home, while the actual Sponsorship Templates area is not functioning as the dedicated template-management screen.
+
+We need to correct this so Sponsorship Templates is a fully working admin section under Configuration, and Deliverables remains focused on live sponsor agreements and fulfillment operations.
+
+1. Make Sponsorship Templates a Fully Functional Page
+
+Create or fix the page:
+
+Configuration → Sponsorship Templates
+
+This page should be the only location used to manage sponsorship package templates.
+
+It must support:
+
+viewing all templates
+
+creating new templates
+
+editing templates
+
+duplicating templates
+
+archiving templates
+
+2. Move Template Management Off the Deliverables Landing Page
+
+The Deliverables landing page is currently showing template-related actions like:
+
+Create Package Template
+
+That is no longer correct.
+
+Required behavior
+
+Remove template-management actions from the Deliverables landing page.
+
+Deliverables should only manage:
+
+Sponsor Agreements
+
+Fulfillment Queue
+
+Outstanding Items
+
+It should not be the place to create or manage Sponsorship Templates.
+
+3. Sponsorship Templates Page Layout
+
+The Sponsorship Templates page should have its own page title and description.
+
+Header
+Sponsorship Templates
+Manage sponsorship package templates by level and event.
+Top actions
+
+Create Sponsorship Template
+
+Optional later:
+
+Duplicate Existing Template
+
+4. Sponsorship Templates Table
+
+Show a table listing all templates.
+
+Columns
+
+Template Name
+
+Event / Year
+
+Sponsorship Level
+
+Deliverable Count
+
+Status
+
+Last Updated
+
+Actions
+
+Actions
+
+Open
+
+Edit
+
+Duplicate
+
+Archive
+
+Example entries:
+
+FRC 2026 Platinum
+
+FRC 2026 Gold
+
+TLS 2026 Silver
+
+USBT 2026 Bronze
+
+5. Sponsorship Template Detail / Editor Screen
+
+When opening a template, the admin should see the full template editor.
+
+Header
+
+Template Name
+
+Sponsorship Level
+
+Event / Year
+
+Status
+
+Top actions
+
+Save
+
+Duplicate
+
+Archive
+
+Add Deliverable
+
+Main content
+
+Grouped deliverables by category:
+
+Company Profile
+
+Event Participation
+
+Speaking & Content
+
+Meetings & Introductions
+
+Marketing & Branding
+
+Post-Event Deliverables
+
+Compliance
+
+Each deliverable row should support:
+
+name
+
+qty
+
+owner
+
+fulfillment type
+
+visibility
+
+reminder eligibility
+
+edit/delete/reorder
+
+This is the core template-management experience and must live here.
+
+6. Remove “Sponsorship Templates” Count/Tile from Deliverables If It Creates Confusion
+
+If the Deliverables landing page currently shows a tile like:
+
+Sponsorship Templates
+
+remove it or rename/rework it so the page is clearly about live deliverables operations, not template configuration.
+
+Preferred Deliverables landing page metrics:
+
+Sponsor Agreements
+
+Awaiting Sponsor Input
+
+Open Fulfillment Items
+
+Overdue Deliverables
+
+Do not use template tiles there unless they simply link out to Configuration → Sponsorship Templates and are clearly secondary.
+
+7. Fix Navigation Routing
+
+Ensure the sidebar menu item:
+
+Configuration → Sponsorship Templates
+
+opens the correct working page.
+
+It should not route back into the Deliverables landing page.
+
+Check routing carefully so the menu item points to the real template management view.
+
+8. Keep Deliverables and Sponsorship Templates Separate
+Sponsorship Templates
+
+Purpose:
+
+define default package structure
+
+create/edit template deliverables
+
+manage Platinum / Gold / Silver / Bronze templates
+
+Deliverables
+
+Purpose:
+
+manage live sponsor agreements
+
+fulfillment queue
+
+outstanding sponsor items
+
+operational follow-up
+
+These two areas must be clearly separated in both navigation and UX.
+
+9. Acceptance Criteria
+
+This fix is complete when:
+
+Sponsorship Templates exists as a fully functional standalone admin page
+
+the page lives under Configuration
+
+admins can create/edit/duplicate/archive templates there
+
+template management is no longer dependent on the Deliverables landing page
+
+Deliverables is focused only on live sponsor agreement operations
+
+the Sponsorship Templates menu item routes correctly
+
+10. Success Standard
+
+After this fix:
+
+Julie can go directly to Configuration → Sponsorship Templates
+
+manage template packages there
+
+then go to Deliverables to manage live sponsor fulfillment
+
+That separation should be clear and operationally clean.

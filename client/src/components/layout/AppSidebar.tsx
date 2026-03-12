@@ -195,10 +195,10 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={isActive("/admin/agreement") && location.includes("package-templates")}
+                  isActive={isActive("/admin/sponsorship-templates") || (isActive("/admin/agreement") && location.includes("package-templates"))}
                   className="transition-all duration-200"
                 >
-                  <Link href="/admin/agreement?tab=package-templates">
+                  <Link href="/admin/sponsorship-templates">
                     <Package className="h-4 w-4" />
                     <span>Sponsorship Templates</span>
                   </Link>

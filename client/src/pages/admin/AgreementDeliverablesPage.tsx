@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { format } from "date-fns";
 import FulfillmentQueueTab from "@/components/admin/FulfillmentQueueTab";
 import {
-  ClipboardList, Plus, Package, Users, AlertCircle, RefreshCw,
-  Eye, Archive, Copy, ChevronRight, CheckCircle2, Clock, Gem, Search, Filter,
-  Send, Calendar, TriangleAlert, Download, TrendingUp, Activity, LogIn, Layers,
+  ClipboardList, Plus, Users, AlertCircle, RefreshCw,
+  Eye, ChevronRight, CheckCircle2, Search,
+  Send, TriangleAlert, Download, Gem, Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,33 +80,26 @@ export default function AgreementDeliverablesPage() {
   const initialTab = urlParams.get("tab") ?? "sponsor-agreements";
   const initialPreset = urlParams.get("preset") ?? undefined;
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState<TemplateWithCount | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
-  const [searchTemplates, setSearchTemplates] = useState("");
   const [searchAgreements, setSearchAgreements] = useState("");
   const [filterLevel, setFilterLevel] = useState("all");
   const [filterEvent, setFilterEvent] = useState("all");
   const [filterActivation, setFilterActivation] = useState("all");
-  const [newTemplateName, setNewTemplateName] = useState("");
 
-  // Outstanding items tab state
   const [searchOutstanding, setSearchOutstanding] = useState("");
   const [filterOutstandingEvent, setFilterOutstandingEvent] = useState("all");
   const [filterOutstandingStatus, setFilterOutstandingStatus] = useState("all");
   const [showOverdueOnly, setShowOverdueOnly] = useState(false);
   const [sendingPair, setSendingPair] = useState<string | null>(null);
-  const [newTemplateLevel, setNewTemplateLevel] = useState("Platinum");
-  const [newTemplateYear, setNewTemplateYear] = useState("2026");
-  const [newTemplateFamily, setNewTemplateFamily] = useState("FRC");
-  const [dupName, setDupName] = useState("");
+
   const [genSponsorId, setGenSponsorId] = useState("");
   const [genEventId, setGenEventId] = useState("");
   const [genTemplateId, setGenTemplateId] = useState("");
   const [genLevel, setGenLevel] = useState("");
 
-  const { data: templates = [], isLoading: tplLoading } = useQuery<TemplateWithCount[]>({
+  const { data: templates = [] } = useQuery<TemplateWithCount[]>({
     queryKey: ["/api/agreement/package-templates"],
+    enabled: showGenerateDialog,
   });
 
   const { data: agreements = [], isLoading: agrLoading } = useQuery<AgreementSummary[]>({
@@ -129,7 +122,6 @@ export default function AgreementDeliverablesPage() {
   };
   const { data: outstandingItems = [], isLoading: outLoading, refetch: refetchOutstanding } = useQuery<OutstandingItem[]>({
     queryKey: ["/api/agreement/outstanding-items"],
-    enabled: activeTab === "outstanding",
   });
 
   const sendReminder = useMutation({
@@ -148,50 +140,6 @@ export default function AgreementDeliverablesPage() {
     },
   });
 
-  const createTemplate = useMutation({
-    mutationFn: (data: object) => apiRequest("POST", "/api/agreement/package-templates", data),
-    onSuccess: async (res) => {
-      const tpl = await res.json();
-      queryClient.invalidateQueries({ queryKey: ["/api/agreement/package-templates"] });
-      toast({ title: "Package template created" });
-      setShowCreateDialog(false);
-      nav(`/admin/agreement/package-templates/${tpl.id}`);
-    },
-    onError: () => toast({ title: "Failed to create template", variant: "destructive" }),
-  });
-
-  const archiveTemplate = useMutation({
-    mutationFn: (id: string) => apiRequest("POST", `/api/agreement/package-templates/${id}/archive`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/agreement/package-templates"] });
-      toast({ title: "Template archived" });
-    },
-    onError: () => toast({ title: "Failed to archive", variant: "destructive" }),
-  });
-
-  const duplicateTemplate = useMutation({
-    mutationFn: ({ id, newName }: { id: string; newName: string }) =>
-      apiRequest("POST", `/api/agreement/package-templates/${id}/duplicate`, { newName }),
-    onSuccess: async (res) => {
-      const tpl = await res.json();
-      queryClient.invalidateQueries({ queryKey: ["/api/agreement/package-templates"] });
-      toast({ title: "Template duplicated" });
-      setShowDuplicateDialog(null);
-      nav(`/admin/agreement/package-templates/${tpl.id}`);
-    },
-    onError: () => toast({ title: "Failed to duplicate", variant: "destructive" }),
-  });
-
-  const seedTemplates = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/agreement/seed-templates", {}),
-    onSuccess: async (res) => {
-      const data = await res.json();
-      queryClient.invalidateQueries({ queryKey: ["/api/agreement/package-templates"] });
-      toast({ title: data.message });
-    },
-    onError: () => toast({ title: "Seed failed", variant: "destructive" }),
-  });
-
   const generateAgreement = useMutation({
     mutationFn: (data: object) => apiRequest("POST", "/api/agreement/generate", data),
     onSuccess: async () => {
@@ -200,12 +148,6 @@ export default function AgreementDeliverablesPage() {
       setShowGenerateDialog(false);
     },
     onError: () => toast({ title: "Failed to generate", variant: "destructive" }),
-  });
-
-  const filteredTemplates = templates.filter((t) => {
-    if (searchTemplates && !t.packageName.toLowerCase().includes(searchTemplates.toLowerCase())) return false;
-    if (filterLevel !== "all" && t.sponsorshipLevel !== filterLevel) return false;
-    return true;
   });
 
   const filteredAgreements = agreements.filter((a) => {
@@ -226,9 +168,6 @@ export default function AgreementDeliverablesPage() {
     return true;
   });
 
-  const activeTemplates = filteredTemplates.filter((t) => !t.isArchived);
-  const archivedTemplates = filteredTemplates.filter((t) => t.isArchived);
-
   const filteredOutstanding = outstandingItems.filter((item) => {
     if (searchOutstanding) {
       const q = searchOutstanding.toLowerCase();
@@ -242,7 +181,6 @@ export default function AgreementDeliverablesPage() {
     return true;
   });
 
-  // Group outstanding items by sponsor+event for the Send Reminder action
   type OutstandingGroup = { sponsorId: string; eventId: string; sponsorName: string; eventName: string; sponsorshipLevel: string; items: typeof filteredOutstanding; lastReminderSent: string | null };
   const outstandingGroups: OutstandingGroup[] = [];
   const seen = new Set<string>();
@@ -257,6 +195,7 @@ export default function AgreementDeliverablesPage() {
 
   const overdueCount = outstandingItems.filter(i => i.isOverdue).length;
   const uniqueSponsorCount = new Set(outstandingItems.map(i => i.sponsorId)).size;
+  const awaitingSponsorTotal = agreements.reduce((s, a) => s + a.awaitingSponsorCount, 0);
 
   const STATUS_COLORS: Record<string, string> = {
     "Awaiting Sponsor Input": "bg-amber-50 text-amber-700 border-amber-200",
@@ -276,22 +215,10 @@ export default function AgreementDeliverablesPage() {
             Deliverables
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage sponsorship package templates and sponsor agreement deliverables.
+            Manage live sponsor agreements, fulfillment queue, and outstanding sponsor items.
           </p>
         </div>
         <div className="flex gap-2">
-          {templates.length === 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => seedTemplates.mutate()}
-              disabled={seedTemplates.isPending}
-              data-testid="button-seed-templates"
-            >
-              {seedTemplates.isPending ? <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-              Seed Initial Templates
-            </Button>
-          )}
           <Button
             size="sm"
             onClick={() => setShowGenerateDialog(true)}
@@ -300,26 +227,20 @@ export default function AgreementDeliverablesPage() {
           >
             <Users className="h-4 w-4 mr-1.5" /> Generate Agreement
           </Button>
-          <Button
-            size="sm"
-            onClick={() => setShowCreateDialog(true)}
-            data-testid="button-create-template"
-          >
-            <Plus className="h-4 w-4 mr-1.5" /> Create Package Template
-          </Button>
         </div>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Sponsorship Templates", value: templates.filter((t) => !t.isArchived).length, icon: Package, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Sponsor Agreements", value: agreements.length, icon: Users, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Awaiting Sponsor Input", value: agreements.reduce((s, a) => s + a.awaitingSponsorCount, 0), icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50" },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
+          { label: "Sponsor Agreements", value: agreements.length, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: "Awaiting Sponsor Input", value: awaitingSponsorTotal, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: "Outstanding Items", value: outstandingItems.length, color: "text-orange-600", bg: "bg-orange-50" },
+          { label: "Overdue Deliverables", value: overdueCount, color: "text-red-600", bg: "bg-red-50" },
+        ].map(({ label, value, color, bg }) => (
           <div key={label} className="bg-white border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
             <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", bg)}>
-              <Icon className={cn("h-5 w-5", color)} />
+              <ClipboardList className={cn("h-5 w-5", color)} />
             </div>
             <div>
               <p className="text-2xl font-display font-bold text-foreground">{value}</p>
@@ -342,139 +263,6 @@ export default function AgreementDeliverablesPage() {
             <AlertCircle className="h-4 w-4" /> Outstanding Items
           </TabsTrigger>
         </TabsList>
-
-        {/* ── Sponsorship Templates ── */}
-        <TabsContent value="package-templates" className="mt-4 space-y-4">
-          <div className="flex gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search templates..."
-                className="pl-9"
-                value={searchTemplates}
-                onChange={(e) => setSearchTemplates(e.target.value)}
-                data-testid="input-search-templates"
-              />
-            </div>
-            <Select value={filterLevel} onValueChange={setFilterLevel}>
-              <SelectTrigger className="w-40" data-testid="select-filter-level">
-                <SelectValue placeholder="All Levels" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Levels</SelectItem>
-                {["Platinum", "Gold", "Silver", "Bronze"].map((l) => (
-                  <SelectItem key={l} value={l}>{l}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {tplLoading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <RefreshCw className="h-6 w-6 animate-spin mr-2" /> Loading...
-            </div>
-          ) : activeTemplates.length === 0 ? (
-            <div className="flex flex-col items-center py-16 text-muted-foreground gap-3">
-              <Package className="h-12 w-12 opacity-20" />
-              <p className="text-sm font-medium">No package templates yet</p>
-              <p className="text-xs text-center max-w-xs">
-                Create your first template or use the "Seed Initial Templates" button to load the standard FRC 2026 package templates.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => seedTemplates.mutate()} disabled={seedTemplates.isPending}>
-                  Seed FRC 2026 Templates
-                </Button>
-                <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Create Template
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    {["Package Name", "Level", "Event / Year", "Deliverables", "Status", "Last Updated", "Actions"].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeTemplates.map((t) => (
-                    <tr key={t.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors" data-testid={`row-template-${t.id}`}>
-                      <td className="px-4 py-3 font-medium text-foreground">
-                        <Link href={`/admin/agreement/package-templates/${t.id}`} className="hover:text-accent transition-colors flex items-center gap-1.5">
-                          {t.packageName}
-                          <ChevronRight className="h-3.5 w-3.5 opacity-50" />
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border", LEVEL_COLORS[t.sponsorshipLevel] ?? "bg-muted text-muted-foreground")}>
-                          {t.sponsorshipLevel === "Platinum" && <Gem className="h-2.5 w-2.5" />}
-                          {t.sponsorshipLevel}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {[t.eventFamily, t.year].filter(Boolean).join(" ") || t.eventId || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="inline-flex items-center justify-center h-6 w-8 rounded-full bg-accent/10 text-accent text-xs font-bold">
-                          {t.deliverableCount}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium", t.isActive ? "bg-green-50 text-green-700" : "bg-muted text-muted-foreground")}>
-                          {t.isActive ? <><CheckCircle2 className="h-2.5 w-2.5" /> Active</> : "Inactive"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">
-                        {format(new Date(t.updatedAt), "MMM d, yyyy")}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => nav(`/admin/agreement/package-templates/${t.id}`)} data-testid={`button-view-${t.id}`}>
-                            <Eye className="h-3 w-3" /> View
-                          </Button>
-                          <Button
-                            variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1"
-                            onClick={() => { setDupName(`${t.packageName} (Copy)`); setShowDuplicateDialog(t); }}
-                            data-testid={`button-duplicate-${t.id}`}
-                          >
-                            <Copy className="h-3 w-3" /> Duplicate
-                          </Button>
-                          <Button
-                            variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive"
-                            onClick={() => archiveTemplate.mutate(t.id)}
-                            disabled={archiveTemplate.isPending}
-                            data-testid={`button-archive-${t.id}`}
-                          >
-                            <Archive className="h-3 w-3" /> Archive
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {archivedTemplates.length > 0 && (
-            <details className="bg-muted/30 border border-border rounded-xl overflow-hidden">
-              <summary className="px-4 py-3 text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground">
-                Archived Templates ({archivedTemplates.length})
-              </summary>
-              <div className="px-4 pb-3 space-y-1">
-                {archivedTemplates.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between py-1.5 text-sm text-muted-foreground">
-                    <span>{t.packageName}</span>
-                    <span className="text-xs">{t.sponsorshipLevel}</span>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-        </TabsContent>
 
         {/* ── Sponsor Agreements ── */}
         <TabsContent value="sponsor-agreements" className="mt-4 space-y-4">
@@ -629,16 +417,15 @@ export default function AgreementDeliverablesPage() {
 
         {/* ── Outstanding Items ── */}
         <TabsContent value="outstanding" className="mt-4 space-y-4">
-          {/* Summary stats */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: "Outstanding Items", value: outstandingItems.length, icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50" },
-              { label: "Overdue", value: overdueCount, icon: TriangleAlert, color: "text-red-600", bg: "bg-red-50" },
-              { label: "Sponsors Affected", value: uniqueSponsorCount, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-            ].map(({ label, value, icon: Icon, color, bg }) => (
+              { label: "Outstanding Items", value: outstandingItems.length, color: "text-amber-600", bg: "bg-amber-50" },
+              { label: "Overdue", value: overdueCount, color: "text-red-600", bg: "bg-red-50" },
+              { label: "Sponsors Affected", value: uniqueSponsorCount, color: "text-blue-600", bg: "bg-blue-50" },
+            ].map(({ label, value, color, bg }) => (
               <div key={label} className="bg-white border border-border rounded-xl p-4 flex items-center gap-3 shadow-sm">
                 <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0", bg)}>
-                  <Icon className={cn("h-4 w-4", color)} />
+                  <AlertCircle className={cn("h-4 w-4", color)} />
                 </div>
                 <div>
                   <p className="text-xl font-display font-bold text-foreground">{value}</p>
@@ -648,7 +435,6 @@ export default function AgreementDeliverablesPage() {
             ))}
           </div>
 
-          {/* Filters */}
           <div className="flex flex-wrap gap-2 items-center">
             <div className="relative flex-1 min-w-48">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -695,7 +481,6 @@ export default function AgreementDeliverablesPage() {
             </Button>
           </div>
 
-          {/* Groups */}
           {outLoading ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -715,7 +500,6 @@ export default function AgreementDeliverablesPage() {
                 const reminderEligibleCount = group.items.filter(i => i.reminderEligible).length;
                 return (
                   <div key={pairKey} className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-                    {/* Group header */}
                     <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/40 border-b border-border">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="min-w-0">
@@ -766,7 +550,6 @@ export default function AgreementDeliverablesPage() {
                         </Button>
                       </div>
                     </div>
-                    {/* Items table */}
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border">
@@ -834,93 +617,6 @@ export default function AgreementDeliverablesPage() {
           )}
         </TabsContent>
       </Tabs>
-
-      {/* Create Template Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create Package Template</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="tpl-name">Package Name</Label>
-              <Input
-                id="tpl-name"
-                placeholder="e.g. FRC 2026 Platinum"
-                value={newTemplateName}
-                onChange={(e) => setNewTemplateName(e.target.value)}
-                data-testid="input-template-name"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Sponsorship Level</Label>
-                <Select value={newTemplateLevel} onValueChange={setNewTemplateLevel}>
-                  <SelectTrigger data-testid="select-template-level">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {["Platinum", "Gold", "Silver", "Bronze"].map((l) => (
-                      <SelectItem key={l} value={l}>{l}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="tpl-year">Year</Label>
-                <Input id="tpl-year" placeholder="2026" value={newTemplateYear} onChange={(e) => setNewTemplateYear(e.target.value)} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="tpl-family">Event Family</Label>
-              <Input id="tpl-family" placeholder="e.g. FRC, USBT, TLS" value={newTemplateFamily} onChange={(e) => setNewTemplateFamily(e.target.value)} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
-            <Button
-              onClick={() => createTemplate.mutate({ packageName: newTemplateName, sponsorshipLevel: newTemplateLevel, year: newTemplateYear, eventFamily: newTemplateFamily, isActive: true, isArchived: false })}
-              disabled={!newTemplateName.trim() || createTemplate.isPending}
-              data-testid="button-submit-create-template"
-            >
-              Create Template
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Duplicate Dialog */}
-      <Dialog open={!!showDuplicateDialog} onOpenChange={(o) => !o && setShowDuplicateDialog(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Duplicate Template</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground">
-              Duplicating "{showDuplicateDialog?.packageName}" including all deliverable items.
-            </p>
-            <div className="space-y-1.5">
-              <Label htmlFor="dup-name">New Name</Label>
-              <Input
-                id="dup-name"
-                value={dupName}
-                onChange={(e) => setDupName(e.target.value)}
-                data-testid="input-dup-name"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDuplicateDialog(null)}>Cancel</Button>
-            <Button
-              onClick={() => showDuplicateDialog && duplicateTemplate.mutate({ id: showDuplicateDialog.id, newName: dupName })}
-              disabled={!dupName.trim() || duplicateTemplate.isPending}
-              data-testid="button-submit-duplicate"
-            >
-              Duplicate
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Generate Agreement Dialog */}
       <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>

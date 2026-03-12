@@ -140,7 +140,7 @@ export default function PackageTemplateEditorPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/agreement/package-templates"] });
       toast({ title: "Template archived" });
-      nav("/admin/agreement");
+      nav("/admin/sponsorship-templates");
     },
     onError: () => toast({ title: "Archive failed", variant: "destructive" }),
   });
@@ -257,7 +257,7 @@ export default function PackageTemplateEditorPage() {
     return (
       <div className="flex flex-col items-center py-24 gap-3 text-muted-foreground">
         <p className="text-sm">Template not found</p>
-        <Button variant="outline" size="sm" onClick={() => nav("/admin/agreement")}>
+        <Button variant="outline" size="sm" onClick={() => nav("/admin/sponsorship-templates")}>
           <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back
         </Button>
       </div>
@@ -274,8 +274,8 @@ export default function PackageTemplateEditorPage() {
   return (
     <div className="space-y-6">
       {/* Back */}
-      <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground -ml-2" onClick={() => nav("/admin/agreement")}>
-        <ArrowLeft className="h-4 w-4" /> Agreement Deliverables
+      <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground -ml-2" onClick={() => nav("/admin/sponsorship-templates")}>
+        <ArrowLeft className="h-4 w-4" /> Sponsorship Templates
       </Button>
 
       {/* Header card */}

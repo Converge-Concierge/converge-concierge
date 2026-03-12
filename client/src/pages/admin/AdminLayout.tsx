@@ -21,6 +21,7 @@ import AgreementDeliverablesPage from "./AgreementDeliverablesPage";
 import PackageTemplateEditorPage from "./PackageTemplateEditorPage";
 import SponsorAgreementDetailPage from "./SponsorAgreementDetailPage";
 import SponsorDashboardsAdminPage from "./SponsorDashboardsAdminPage";
+import SponsorshipTemplatesPage from "./SponsorshipTemplatesPage";
 
 function AccessDenied() {
   return (
@@ -112,6 +113,7 @@ export default function AdminLayout() {
               <Route path="/admin/data-exchange" component={DataExchangePage} />
               <Route path="/admin/access-control" component={() => isAdmin ? <AccessControlPage /> : <AccessDenied />} />
               <Route path="/admin/sponsor-dashboards" component={SponsorDashboardsAdminPage} />
+              <Route path="/admin/sponsorship-templates" component={SponsorshipTemplatesPage} />
               <Route path="/admin/agreement/package-templates/:id" component={PackageTemplateEditorPage} />
               <Route path="/admin/agreement/sponsor-agreements/:sponsorId/:eventId" component={SponsorAgreementDetailPage} />
               <Route path="/admin/agreement" component={AgreementDeliverablesPage} />

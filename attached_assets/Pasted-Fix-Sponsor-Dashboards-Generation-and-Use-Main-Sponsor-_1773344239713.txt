@@ -1,0 +1,345 @@
+Fix Sponsor Dashboards Generation and Use Main Sponsor Contact as Default Dashboard Contact
+
+We need to correct the relationship between:
+
+Sponsors
+
+Sponsor Dashboards
+
+Main Sponsor Contact
+
+Right now, a sponsor can appear correctly on the Sponsors page for a selected event, but not appear under Sponsor Dashboards for that same event. That is incorrect.
+
+Example:
+
+TreaSolution, Inc. appears as a TLS2026 sponsor
+
+but Sponsor Dashboards → TLS2026 shows 0 dashboards found
+
+This needs to be fixed.
+
+In addition, when a sponsor is created and a Main Contact is entered, that person should automatically become the primary/default dashboard contact for that sponsor.
+
+Primary Goal
+
+Ensure that:
+
+sponsors assigned to an event can appear in Sponsor Dashboards for that event
+
+the system automatically creates or prepares a dashboard contact relationship using the Main Contact
+
+the main sponsor contact is treated as the default primary dashboard contact
+
+Sponsor Dashboards is no longer dependent on a separate token-generation step to appear operationally useful
+
+1. Fix Sponsor Dashboards Visibility Logic
+Problem
+
+The Sponsor Dashboards page currently appears to depend on access tokens being generated, instead of showing all sponsors that are eligible for a dashboard.
+
+This causes a mismatch:
+
+sponsor exists on event tab in Sponsors
+
+sponsor does not appear in Sponsor Dashboards
+
+Required behavior
+
+A sponsor should appear in Sponsor Dashboards if:
+
+they are assigned to the selected event
+
+they have an active sponsorship level for that event
+
+they are not archived/inactive for that event
+
+Do not require an already-generated access token just for the sponsor to appear in the Sponsor Dashboards admin page.
+
+2. Change Sponsor Dashboards Page Purpose
+
+The Sponsor Dashboards admin page should show all sponsors eligible for a dashboard for the selected event, whether or not access has already been sent.
+
+Required states per row
+
+Each row should show a dashboard/access state such as:
+
+Ready
+
+Access Not Sent
+
+Access Sent
+
+Active
+
+No Contact Assigned
+
+Inactive
+
+This is much more useful than showing nothing.
+
+3. Use Main Sponsor Contact as the Default Dashboard Contact
+Required behavior
+
+When a sponsor is created and the Main Contact is entered in the Add Sponsor modal, that person should automatically become the default sponsor dashboard contact.
+
+Main contact fields already entered
+
+Contact Name
+
+Email
+
+Phone
+
+This person should become:
+
+primary dashboard contact
+
+default recipient for sponsor dashboard welcome/access emails
+
+initial Account Owner for sponsor dashboard access
+
+4. Create Default Sponsor Dashboard Contact Record Automatically
+
+If your system already has a sponsor dashboard users / access table, then on sponsor creation:
+
+create the default sponsor dashboard user/contact automatically from Main Contact
+
+assign role:
+
+Account Owner
+
+associate that contact to the sponsor
+
+associate that contact to the relevant event(s) where the sponsor has an active sponsorship level
+
+Do this automatically unless a matching sponsor dashboard user/contact already exists.
+
+5. Define Main Contact as the Primary Dashboard Contact
+
+The Main Contact should be treated as:
+
+Primary Dashboard Contact
+
+This means:
+
+first dashboard access recipient
+
+first passwordless/magic link recipient if used
+
+first onboarding email recipient
+
+default contact shown in Sponsor Dashboards admin page
+
+This should happen automatically.
+
+6. Sponsor Dashboards Page Row Logic
+
+The Sponsor Dashboards page should list sponsors by selected event tab.
+
+For each eligible sponsor row, show:
+
+Sponsor Name
+
+Event
+
+Sponsorship Level
+
+Primary Dashboard Contact
+
+Dashboard Status
+
+Last Access Sent
+
+Last Login if available
+
+Actions
+
+Example statuses
+
+Ready — main contact exists, no access email sent yet
+
+Access Sent
+
+Active
+
+No Contact Assigned
+
+Inactive
+
+7. Show “No Contact Assigned” Instead of Hiding the Sponsor
+
+If a sponsor is assigned to an event but has no usable dashboard contact, still show them in Sponsor Dashboards.
+
+Example status
+No Contact Assigned
+
+This is far better than hiding the row entirely.
+
+The admin needs visibility into which sponsors still need a dashboard contact.
+
+8. Add Sponsor Dashboard Contact Column
+
+On the Sponsor Dashboards page, add a column such as:
+
+Primary Contact
+
+Display:
+
+Contact Name
+
+Email if useful
+
+This makes it clear who the dashboard is tied to.
+
+9. Fix Search / Count Logic
+
+Currently TLS2026 shows:
+
+0 active • 0 total
+
+That is incorrect if there is an assigned sponsor.
+
+Required behavior
+
+Counts should be based on:
+
+eligible sponsors for that event
+not only
+
+already activated/accessed dashboards
+
+For example:
+
+total = all eligible sponsors for selected event
+
+active = sponsors whose dashboard access is active / sent / usable, depending on your chosen status model
+
+At minimum:
+
+TreaSolution, Inc. should count toward TLS2026 total
+
+10. Do Not Depend on Token Generation for Listing
+
+Current empty-state text says:
+
+Sponsor access tokens are generated from the Sponsors page.
+
+That suggests the Sponsor Dashboards page is passive and only shows sponsors after token generation.
+
+Required behavior
+
+Change this model.
+
+Sponsor Dashboards should be a true management page, not a post-token page.
+
+It should:
+
+list eligible sponsors automatically
+
+allow sending dashboard access from this page
+
+show contact readiness/status
+
+show whether access has been sent
+
+11. Add Actions on Sponsor Dashboards Page
+
+Each sponsor row in Sponsor Dashboards should allow actions such as:
+
+Send Dashboard Access
+
+Resend Access
+
+Open Sponsor Dashboard
+
+Manage Contacts
+
+View Status
+
+Button behavior
+
+If no contact is assigned:
+
+Send Dashboard Access should be disabled
+
+show status: No Contact Assigned
+
+allow Manage Contacts / Edit Sponsor
+
+12. Sync With Sponsor Edit Flow
+
+When editing a sponsor:
+
+if main contact name/email changes
+
+update the primary dashboard contact if that contact is currently the default/auto-generated one
+
+Do not blindly overwrite manually managed sponsor users if they were created later.
+
+Recommended rule
+
+If the primary dashboard contact was auto-generated from Main Contact, keep it in sync.
+If admin manually changed the dashboard contact, do not overwrite silently.
+
+13. Backfill Existing Sponsors
+
+Add a backfill/fix process for existing sponsors already in the system.
+
+For sponsors that:
+
+are assigned to an event
+
+have a main contact
+
+do not yet have a dashboard contact/user
+
+automatically create the default dashboard contact using the main contact information.
+
+This should fix existing cases like:
+
+TreaSolution, Inc. on TLS2026
+
+14. Empty State Logic
+
+Only show:
+
+No sponsor dashboards found
+
+if there are truly no sponsors assigned to that event.
+
+If sponsors exist but are missing contact setup, show them with:
+
+No Contact Assigned
+instead of empty state.
+
+15. Acceptance Criteria
+
+This fix is complete when:
+
+a sponsor assigned to an event appears in Sponsor Dashboards for that event
+
+TreaSolution, Inc. appears under TLS2026 in Sponsor Dashboards
+
+the main contact entered during sponsor creation becomes the default dashboard contact
+
+the primary contact is visible in Sponsor Dashboards
+
+Sponsor Dashboards no longer depends on separate token generation just to list sponsors
+
+sponsors without a contact show “No Contact Assigned” instead of disappearing
+
+existing sponsors are backfilled where possible
+
+16. Success Standard
+
+After this update:
+
+Sponsors and Sponsor Dashboards will stay aligned
+
+the main contact becomes the operational default for dashboard access
+
+admins can reliably manage sponsor dashboard readiness from the Sponsor Dashboards page
+
+no assigned sponsor will disappear from Sponsor Dashboards just because access has not yet been sent
+
+That is the standard this fix should meet.

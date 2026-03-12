@@ -2167,8 +2167,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     const updated = await storage.updateAgreementDeliverable(req.params.id, allowed);
 
-    if (allowed.status === "Submitted") {
-      fireInternalNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted their response", deliverable.eventId).catch(() => {});
+    const NOTIFY_DELIVERABLE_NAMES = ["company description", "company logo", "sponsor representatives", "three-word company categories"];
+    const nameLC = deliverable.deliverableName.toLowerCase();
+    if (allowed.status === "Submitted" || NOTIFY_DELIVERABLE_NAMES.some(n => nameLC.includes(n))) {
+      const action = allowed.status === "Submitted" ? "submitted their response" : "updated their input";
+      fireInternalNotification(deliverable.sponsorId, deliverable.deliverableName, action, deliverable.eventId).catch(() => {});
     }
 
     const { internalNote: _drop, ...safe } = updated as typeof updated & { internalNote: unknown };
@@ -2379,6 +2382,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId || deliverable.eventId !== tokenRecord.eventId) {
       return res.status(404).json({ error: "Not found" });
     }
+    if (!deliverable.sponsorVisible) return res.status(404).json({ error: "Not found" });
 
     const entries = await storage.listDeliverableSocialEntries(req.params.id);
     res.json(entries);

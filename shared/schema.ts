@@ -824,7 +824,7 @@ export type AgreementDeliverable = typeof agreementDeliverables.$inferSelect;
 export const agreementDeliverableRegistrants = pgTable("agreement_deliverable_registrants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   agreementDeliverableId: varchar("agreement_deliverable_id").notNull(),
-  name: varchar("name").notNull(),
+  name: varchar("name").notNull().default(""),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   title: varchar("title"),

@@ -2212,11 +2212,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!deliverable.sponsorEditable) return res.status(403).json({ error: "Not editable" });
 
     const { name, firstName, lastName, title, email, conciergeRole, registrationStatus } = req.body;
-    if (!name?.trim() && !firstName?.trim()) return res.status(400).json({ error: "name or firstName is required" });
+    if (!firstName?.trim() && !name?.trim()) return res.status(400).json({ error: "firstName is required" });
 
+    const derivedName = name?.trim() || `${(firstName ?? "").trim()} ${(lastName ?? "").trim()}`.trim();
     const registrant = await storage.createDeliverableRegistrant({
       agreementDeliverableId: req.params.id,
-      name: (name ?? `${firstName ?? ""} ${lastName ?? ""}`.trim()).trim(),
+      name: derivedName,
       title: title?.trim() ?? null,
       email: email?.trim() ?? null,
       firstName: firstName?.trim() ?? null,
@@ -2440,6 +2441,52 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       res.setHeader("Content-Type", "text/csv");
       res.setHeader("Content-Disposition", `attachment; filename="attendees-${eventId}.csv"`);
+      res.send(csvLines.join("\n"));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // GET /api/agreement/deliverables/:id/attendee-csv — export registrants for a single deliverable as CSV
+  app.get("/api/agreement/deliverables/:id/attendee-csv", requireAuth, async (req, res) => {
+    try {
+      const deliverable = await storage.getAgreementDeliverable(req.params.id);
+      if (!deliverable) return res.status(404).json({ message: "Deliverable not found" });
+
+      const registrants = await storage.listDeliverableRegistrants(req.params.id);
+      const allSponsors = await storage.getSponsors();
+      const sponsorMap = new Map(allSponsors.map(s => [s.id, s.name]));
+      const sponsorName = sponsorMap.get(deliverable.sponsorId) ?? deliverable.sponsorId;
+
+      const type = (req.query.type as string) ?? "full";
+
+      function csvSafe(val: string): string {
+        let s = val;
+        if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+        return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+      }
+
+      const fullHeaders = ["sponsorName","sponsorshipLevel","deliverableName","name","firstName","lastName","email","title","conciergeRole","registrationStatus"];
+      const partialHeaders = ["firstName","lastName","email","registrationStatus"];
+      const headers = type === "partial" ? partialHeaders : fullHeaders;
+
+      const csvLines = [headers.join(",")];
+      for (const r of registrants) {
+        const row: Record<string, string> = {
+          sponsorName,
+          sponsorshipLevel: deliverable.sponsorshipLevel,
+          deliverableName: deliverable.deliverableName,
+          name: r.name ?? "",
+          firstName: r.firstName ?? "",
+          lastName: r.lastName ?? "",
+          email: r.email ?? "",
+          title: r.title ?? "",
+          conciergeRole: r.conciergeRole ?? "",
+          registrationStatus: r.registrationStatus ?? "Unknown",
+        };
+        csvLines.push(headers.map(h => csvSafe(row[h] ?? "")).join(","));
+      }
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="attendees-${req.params.id}.csv"`);
       res.send(csvLines.join("\n"));
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });

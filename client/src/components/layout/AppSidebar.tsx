@@ -18,6 +18,7 @@ import {
   ClipboardList,
   LayoutGrid,
   Package,
+  Shield,
 } from "lucide-react";
 import {
   Sidebar,
@@ -52,6 +53,7 @@ const reportingItems = [
   { title: "Email Center", url: "/admin/email-center", icon: Inbox },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
   { title: "Data Exchange", url: "/admin/data-exchange", icon: ArrowLeftRight },
+  { title: "Data Backup", url: "/admin/data-backup", icon: Shield },
 ];
 
 const configItems = [

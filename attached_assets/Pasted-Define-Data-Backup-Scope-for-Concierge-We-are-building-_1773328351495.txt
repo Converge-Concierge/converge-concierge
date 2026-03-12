@@ -1,0 +1,752 @@
+Define Data Backup Scope for Concierge
+
+We are building a Data Backup system for Concierge using Cloudflare R2.
+
+The goal is to back up all critical production business data so that Converge can recover sponsor, event, meeting, and deliverable information if Concierge becomes unavailable or the database is corrupted.
+
+This is not meant to back up every temporary or derived artifact. It should back up the data needed to restore operations and contractual sponsor records.
+
+Primary Goal
+
+Create a backup scope that:
+
+protects all critical production records
+
+preserves sponsor contractual/fulfillment data
+
+preserves event operations data
+
+keeps backups structured and restorable
+
+avoids backing up low-value temporary system noise
+
+1. Include These Data Domains in Backup
+
+The following data must be included in the backup system.
+
+A. Events
+
+Back up all event records, including:
+
+event name
+
+event code
+
+event dates
+
+location
+
+event status
+
+event branding references
+
+event color scheme settings
+
+event-level categories / topics used for sponsor + attendee matching
+
+event-level scheduling settings
+
+registration-related settings if stored in Concierge
+
+This is foundational system context.
+
+B. Sponsors
+
+Back up all sponsor records, including:
+
+sponsor name
+
+sponsor slug
+
+sponsor status
+
+solutions summary
+
+sponsorship level by event
+
+sponsor-event assignments
+
+main contact
+
+sponsor dashboard status
+
+multi-event / historical sponsor associations
+
+related admin notes if those are considered important business records
+
+C. Sponsor Dashboard Users / Access
+
+Back up sponsor access and user structure, including:
+
+authorized sponsor users
+
+email addresses
+
+names
+
+access levels / roles
+
+invitation / activation status if stored
+
+last login metadata if available
+
+This is important because sponsor dashboard access is operationally important.
+
+D. Sponsor Profile / Setup Data
+
+Back up sponsor profile and onboarding data, including:
+
+company logo metadata reference
+
+company description
+
+sponsor representatives
+
+“what you want to sell” categories / sponsor categories
+
+registration-related sponsor setup data
+
+speaker details if stored
+
+event app profile data if stored
+
+E. Sponsorship Templates + Deliverables
+
+Back up all deliverables configuration and live fulfillment records.
+
+Include:
+
+Sponsorship Templates
+
+template deliverable definitions
+
+sponsor agreement records
+
+live deliverables
+
+quantities
+
+statuses
+
+due dates / due timing
+
+owner type
+
+sponsor-visible notes
+
+structured sub-records for specific deliverable types
+
+override status
+
+custom deliverables
+
+help / more info content if stored
+
+This is one of the most important backup domains.
+
+F. Meetings
+
+Back up all meeting-related records, including:
+
+meeting requests
+
+scheduled meetings
+
+meeting type
+
+onsite / online status
+
+date/time
+
+location / meeting platform
+
+sponsor and attendee relationships
+
+meeting status history if stored
+
+meeting reminders metadata if useful
+
+Meetings are core sponsor value data and must be preserved.
+
+G. Information Requests
+
+Back up all info request records, including:
+
+attendee name
+
+attendee company
+
+sponsor relationship
+
+request status
+
+timestamps
+
+source
+
+follow-up status
+
+any structured details stored
+
+This is important lead-generation data.
+
+H. Attendees
+
+Back up attendee records, including:
+
+attendee name
+
+title
+
+company
+
+email
+
+phone if stored
+
+attendee classification
+
+practitioner
+
+solution provider
+
+event assignments
+
+topic/category interests
+
+discoverability / privacy flags
+
+meeting / sponsor relationship context if stored separately
+
+This is required to restore sponsor engagement history and post-event deliverables.
+
+I. Email Templates
+
+Back up the live email template system, including:
+
+display name
+
+template key
+
+subject
+
+HTML body
+
+plain text body if supported
+
+active/inactive status
+
+last updated info if available
+
+These are operationally important and should not be lost.
+
+J. Email / Reminder Metadata
+
+Back up important outbound communication metadata, including:
+
+reminder history
+
+sponsor reminder records
+
+deliverable reminder logs
+
+email send logs if reasonably available
+
+template used
+
+timestamp
+
+recipient
+
+send status
+
+Do not back up low-value email provider debug noise, but preserve meaningful operational email history.
+
+K. Reports Metadata
+
+Back up report metadata including:
+
+report type
+
+sponsor/event association
+
+generated timestamps
+
+output file metadata references
+
+delivery/send history if relevant
+
+This helps preserve reporting continuity.
+
+L. File Metadata
+
+Do not only rely on R2 object existence.
+
+Back up file metadata records, including:
+
+file id
+
+event_id
+
+sponsor_id
+
+deliverable_id
+
+category
+
+object_key
+
+original filename
+
+stored filename
+
+mime type
+
+size
+
+visibility
+
+uploaded by
+
+uploaded at
+
+status
+
+version / replacement metadata if available
+
+This is essential to make stored files usable after recovery.
+
+M. Settings / Configuration
+
+Back up important configuration records, including:
+
+branding settings
+
+sponsor role definitions
+
+access control settings
+
+event tab ordering logic if configurable
+
+onboarding content if configurable
+
+any deliverables help text/config if stored as admin-managed data
+
+2. Create These Backup Levels
+
+Backups should be organized at three levels.
+
+A. Full System Backup
+
+A full production snapshot of all critical structured data.
+
+Purpose:
+
+disaster recovery
+
+full system restoration
+
+Recommended frequency:
+
+nightly
+
+B. Event-Level Backup
+
+A full backup for one event.
+
+Purpose:
+
+restore a single event without restoring the whole system
+
+preserve event-level operational state
+
+Recommended contents:
+
+event record
+
+all attendees for event
+
+all sponsors for event
+
+all sponsor agreements for event
+
+all meetings for event
+
+all info requests for event
+
+all related file metadata
+
+Recommended frequency:
+
+nightly
+
+manual on-demand
+
+C. Sponsor + Event Backup
+
+A sponsor-specific snapshot for one event.
+
+Purpose:
+
+preserve contractual sponsor fulfillment records
+
+provide exportable sponsor archive
+
+help recover sponsor-specific data fast
+
+Recommended contents:
+
+sponsor profile
+
+sponsor users
+
+sponsor deliverables
+
+meetings
+
+info requests
+
+related file metadata
+
+summary metadata
+
+Recommended frequency:
+
+nightly
+
+after major changes
+
+manual on-demand
+
+3. Do NOT Include These Items in Primary Backup Scope
+
+The following should not be treated as primary backup targets.
+
+A. Temporary UI State
+
+Do not back up:
+
+current tab selection
+
+filter state
+
+sort state
+
+open/closed panel state
+
+unsaved form drafts unless they are intentionally stored
+
+These are not business-critical.
+
+B. Derived / Recalculable Metrics
+
+Do not store as primary backup payload unless already part of records.
+
+Examples:
+
+dashboard card totals
+
+sponsor activation score
+
+completion percentages
+
+summary counts
+
+charts
+
+These can be recalculated from source data after restore.
+
+If you include them in backup metadata for convenience, do not treat them as the source of truth.
+
+C. Cache / Search Indexes
+
+Do not back up:
+
+cache tables
+
+temporary token caches
+
+search indexes
+
+denormalized UI-only aggregates
+
+These should be recreated after recovery.
+
+D. Low-Value Debug Logs
+
+Do not back up:
+
+verbose application debug logs
+
+HTTP request logs
+
+transient job logs
+
+frontend console-style logs
+
+Only preserve logs that matter operationally, such as reminder/email history and backup history.
+
+E. Duplicate File Blobs Inside the Database
+
+Do not store file blobs in the database backup.
+
+Back up:
+
+metadata
+
+R2 object references
+
+optional manifests
+
+R2 remains the file storage layer.
+
+F. Test / Demo Data
+
+Do not mix test/demo backups with production backups.
+
+Back up production data only, or clearly partition environments.
+
+4. File Strategy
+
+Because files already live in Cloudflare R2, the backup system should not blindly duplicate every file again unless there is a deliberate archival reason.
+
+Required approach
+
+Back up:
+
+file metadata
+
+object keys
+
+file ownership/context
+
+manifest mapping sponsor/event/deliverable → file object key
+
+Optional later:
+
+periodic inventory manifest of all R2 objects
+
+Do not do this
+
+do not copy every file into another identical location just to call it backup
+
+do not treat R2 as the database backup
+
+5. Backup Output Format
+
+Use JSON as the primary backup format.
+
+Recommended outputs:
+
+Full backup
+full-backup-YYYY-MM-DDTHHMMSSZ.json
+Event backup
+event-FRC2026-backup-YYYY-MM-DDTHHMMSSZ.json
+Sponsor-event backup
+sponsor-FRC2026-winnow-backup-YYYY-MM-DDTHHMMSSZ.json
+
+Optional:
+
+zip bundles later
+
+CSV companions for human review later
+
+But JSON should remain the source-of-truth backup format.
+
+6. R2 Storage Structure for Backups
+
+Use a dedicated R2 prefix:
+
+backups/
+
+Recommended structure:
+
+backups/full/
+backups/events/{eventCode}/
+backups/sponsors/{eventCode}/{sponsorSlug}/
+backups/manifests/
+
+Examples:
+
+backups/full/full-backup-2026-03-15T120000Z.json
+backups/events/FRC2026/event-backup-2026-03-15T120000Z.json
+backups/sponsors/FRC2026/winnow/sponsor-backup-2026-03-15T120000Z.json
+backups/manifests/r2-file-manifest-2026-03-15T120000Z.json
+
+Keep backups separate from operational file prefixes like:
+
+events/
+
+sponsor assets/
+
+reports/
+
+7. Add a New Admin Section: Reporting → Data Backup
+
+Create a new page under:
+
+REPORTING
+    Data Backup
+
+This page should show backup status and history.
+
+Data Backup page should display
+Summary cards
+
+Last Full Backup
+
+Last Event Backup
+
+Last Sponsor Backup
+
+Failed Backups
+
+Backup Storage Health / Count if practical
+
+Table
+
+Columns:
+
+Backup Type
+
+Scope
+
+Event
+
+Sponsor
+
+Status
+
+Started At
+
+Completed At
+
+File Size
+
+Record Count
+
+R2 Object Key / Download
+
+Trigger Type
+
+Actions
+
+Actions
+
+Run Full Backup
+
+Run Event Backup
+
+Run Sponsor Backup
+
+View Backup Details
+
+Download Manifest if supported
+
+8. Add Backup Status Indicators
+
+Use statuses such as:
+
+queued
+
+in_progress
+
+completed
+
+failed
+
+Show these clearly in the Data Backup page.
+
+If a backup fails:
+
+store error message
+
+surface failure visibly in admin
+
+9. Add Manual Backup Actions
+
+Admins should be able to trigger:
+
+full backup
+
+event backup
+
+sponsor-event backup
+
+From:
+
+Data Backup page
+
+possibly Sponsor Agreement page
+
+possibly Sponsor row
+
+possibly Event page
+
+This is useful before major exports, sponsor renewals, or large edits.
+
+10. Add Scheduled Backups
+
+Implement at minimum:
+
+Nightly full backup
+
+Run once per night.
+
+Nightly event backups
+
+Optional if performance allows.
+
+Nightly sponsor-event backups
+
+Optional if too heavy to do individually, but desirable if the data volume is manageable.
+
+If needed, start with:
+
+nightly full backup
+
+nightly event backup
+
+on-demand sponsor backup
+
+11. Backup Health Rules
+
+The Data Backup page should clearly show:
+
+whether backups are current
+
+whether last backup failed
+
+whether a backup is stale
+
+Example:
+
+last full backup older than 24 hours → warning
+
+no successful event backup in last 24 hours → warning
+
+12. Acceptance Criteria
+
+This backup scope implementation is complete when:
+
+critical production business data is included in backup
+
+low-value temporary/cached data is excluded
+
+backups exist at full, event, and sponsor-event levels
+
+file metadata is backed up
+
+backups are written to Cloudflare R2
+
+admin can view backup status in Reporting → Data Backup
+
+admins can trigger manual backups
+
+backup failures are visible
+
+13. Success Standard
+
+After this update, Concierge should have a real operational backup layer that protects sponsor, event, meeting, deliverable, attendee, and template data in a structured and restorable way.
+
+That is the standard this Data Backup system should meet.

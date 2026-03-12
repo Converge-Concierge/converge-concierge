@@ -1,0 +1,266 @@
+Email Center — Add “Send Test Email” Per Template Row and Fix Template Preview
+
+We need to improve the Email Center → Templates workflow in two ways:
+
+Add a Send Test Email action directly on each template row under Actions
+
+Fix the Preview button inside the Edit Template panel so it actually works
+
+These changes should make it much easier to test and validate email templates quickly.
+
+1. Add “Send Test Email” Action to Each Template Row
+Problem
+
+Right now there is a global Send Test Email button at the top of the page, but there is no quick way to send a test for a specific template directly from its row.
+
+Required behavior
+
+In the Templates list, add a new row-level action for each template:
+
+View
+
+Edit
+
+Send Test Email
+
+This should appear under the Actions column for every template row.
+
+Row Action Behavior
+
+When the admin clicks Send Test Email on a specific template row:
+
+open a small modal or drawer
+
+preselect that template
+
+allow admin to enter a test recipient email address
+
+optionally allow sample/test variable values if supported
+
+send a test email using that specific template
+
+This should be much faster than using only the global button.
+
+Recommended modal fields
+
+Template Name (read-only)
+
+Recipient Email
+
+Optional sample values / placeholders if already supported
+
+Buttons:
+
+Cancel
+
+Send Test Email
+
+Example title:
+
+Send Test Email — Sponsor Dashboard Welcome
+Success message
+
+After sending successfully, show:
+
+Test email sent successfully.
+
+If sending fails, show a clear error.
+
+2. Keep the Global “Send Test Email” Button
+
+Do not remove the existing global Send Test Email button at the top of the page.
+
+It can remain for generic testing.
+
+But the new row-level test action should be the preferred quick workflow.
+
+3. Fix the Preview Button in Edit Template
+Problem
+
+Inside the Edit Template panel, the Preview button does not currently work.
+
+Required behavior
+
+When the admin clicks Preview inside the Edit Template panel, it should render a preview of the current template content using:
+
+the current subject
+
+the current HTML body override if present
+
+or the current code-rendered template if no HTML override exists
+
+Preview must work whether the template is:
+
+code-rendered only
+
+partially customized
+
+fully custom HTML
+
+4. Preview Logic for Templates With No Custom HTML
+
+Some templates currently show:
+
+No custom HTML body stored yet. Enter HTML below to override the code-rendered template.
+
+That means the live template is code-rendered.
+
+Required preview behavior
+
+If no custom HTML body exists:
+
+Preview should still work
+
+It should render the current live code-rendered template
+
+It should not show a blank preview
+
+It should not fail silently
+
+This is very important.
+
+The admin needs to be able to preview the actual email being used, even if the HTML body field is empty.
+
+5. Preview Logic for Templates With Custom HTML
+
+If the admin has entered custom HTML or is editing custom HTML:
+
+Preview should render the current unsaved form values
+
+This includes current subject + current HTML body in the editor
+
+It should not require saving first
+
+This allows the admin to test edits safely before saving.
+
+6. Preview Output Format
+
+When Preview is clicked, open either:
+
+Preferred
+
+A preview modal / side panel with:
+
+Subject line
+
+Rendered HTML body
+
+optional plain text preview if available
+
+Acceptable
+
+A separate preview section below the form
+
+But the rendered result must be visible and readable.
+
+7. Use Sample Placeholder Values in Preview
+
+For preview to be useful, templates should render with sample values if live data is not supplied.
+
+Examples:
+
+{{event_name}} → The 2026 Fintech Risk & Compliance Forum
+
+{{sponsor_name}} → Winnow
+
+{{attendee_full_name}} → Jane Smith
+
+{{dashboard_link}} → sample dashboard URL
+
+{{meeting_date}} → May 18, 2026
+
+{{meeting_time}} → 2:00 PM
+
+If the template already has a sample-data system, use it.
+If not, add a lightweight one.
+
+8. Show Preview Source Clearly
+
+In Preview mode, if helpful, indicate which source is being previewed:
+
+Code-rendered template
+or
+
+Custom HTML override
+
+This can be a small label at the top of the preview.
+
+Example:
+
+Preview Source: Code-Rendered Template
+
+or
+
+Preview Source: Custom HTML Override
+
+This helps avoid confusion.
+
+9. Do Not Require Saving to Preview
+
+Preview must work without saving.
+
+The admin should be able to:
+
+open Edit Template
+
+make changes
+
+click Preview
+
+inspect output
+
+then decide whether to save
+
+Do not force a save before rendering preview.
+
+10. Preserve Existing View and Edit Actions
+
+Keep the current:
+
+View action
+
+Edit action
+
+Just add:
+
+row-level Send Test Email
+
+And fix Preview.
+
+11. Optional Improvement — Pre-Fill Test Email With Admin User
+
+If easy, when opening Send Test Email, prefill the recipient email with the currently logged-in admin’s email address.
+
+This will speed up testing.
+
+Admin can still change it if needed.
+
+12. Acceptance Criteria
+
+This update is complete when:
+
+each template row has a Send Test Email action
+
+row-level test email opens a template-specific send flow
+
+the Preview button in Edit Template works
+
+Preview renders code-based templates even when custom HTML is blank
+
+Preview renders unsaved custom HTML edits when present
+
+admins can test a specific template quickly without leaving the row context
+
+13. Success Standard
+
+After this update, the Email Center should feel like a real template management tool where admins can:
+
+inspect templates
+
+edit them safely
+
+preview them reliably
+
+send a test email from the exact template row they are working on
+
+That is the standard this improvement should meet.

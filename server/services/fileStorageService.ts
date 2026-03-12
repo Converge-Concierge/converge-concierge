@@ -80,3 +80,17 @@ export async function deleteObject(objectKey: string): Promise<void> {
   const bucket = getBucketName();
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }));
 }
+
+export async function putObject(objectKey: string, body: Buffer | string, contentType: string): Promise<void> {
+  const buf = typeof body === "string" ? Buffer.from(body, "utf-8") : body;
+  const uploadUrl = await generateUploadUrl(objectKey, 3600);
+  const response = await fetch(uploadUrl, {
+    method: "PUT",
+    body: buf,
+    headers: { "Content-Type": contentType, "Content-Length": String(buf.byteLength) },
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`R2 upload failed: ${response.status} ${response.statusText}${text ? ` — ${text.slice(0, 200)}` : ""}`);
+  }
+}

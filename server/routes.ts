@@ -10,6 +10,7 @@ import path from "path";
 import { randomBytes, createHash } from "crypto";
 import { objectStorageClient } from "./replit_integrations/object_storage/objectStorage";
 import { generateUploadUrl, generateDownloadUrl, buildObjectKeyFlat } from "./services/fileStorageService";
+import { runFullBackup, runEventBackup, runSponsorEventBackup, listBackupJobs, getBackupObjectKey, streamBackupObject } from "./backup-service";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -4212,6 +4213,47 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       res.json(fileAsset);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Data Backup Routes ────────────────────────────────────────────────────
+
+  app.get("/api/admin/backups", requireAdmin, async (_req, res) => {
+    try {
+      const jobs = await listBackupJobs(200);
+      res.json(jobs);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/backups/full", requireAdmin, async (_req, res) => {
+    try {
+      const job = await runFullBackup("manual");
+      res.json(job);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/backups/event/:eventId", requireAdmin, async (req, res) => {
+    try {
+      const job = await runEventBackup(req.params.eventId, "manual");
+      res.json(job);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/backups/sponsor/:sponsorId/:eventId", requireAdmin, async (req, res) => {
+    try {
+      const job = await runSponsorEventBackup(req.params.sponsorId, req.params.eventId, "manual");
+      res.json(job);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/admin/backups/:id/download", requireAdmin, async (req, res) => {
+    try {
+      const objectKey = await getBackupObjectKey(req.params.id);
+      const stream = await streamBackupObject(objectKey);
+      const filename = objectKey.split("/").pop() ?? "backup.json";
+      res.set("Content-Type", "application/json");
+      res.set("Content-Disposition", `attachment; filename="${filename}"`);
+      stream.pipe(res);
+    } catch (err: any) { res.status(404).json({ message: err.message }); }
   });
 
   return httpServer;

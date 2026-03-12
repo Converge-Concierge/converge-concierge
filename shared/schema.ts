@@ -941,3 +941,31 @@ export const agreementDeliverableReminders = pgTable("agreement_deliverable_remi
 export const insertAgreementDeliverableReminderSchema = createInsertSchema(agreementDeliverableReminders).omit({ id: true, createdAt: true });
 export type InsertAgreementDeliverableReminder = z.infer<typeof insertAgreementDeliverableReminderSchema>;
 export type AgreementDeliverableReminder = typeof agreementDeliverableReminders.$inferSelect;
+
+// ── Backup Jobs ───────────────────────────────────────────────────────────────
+
+export const BACKUP_TYPES = ["full", "event", "sponsor_event"] as const;
+export const BACKUP_STATUSES = ["queued", "in_progress", "completed", "failed"] as const;
+export const BACKUP_TRIGGER_TYPES = ["manual", "scheduled"] as const;
+
+export const backupJobs = pgTable("backup_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  backupType: varchar("backup_type").notNull(),
+  status: varchar("status").notNull().default("queued"),
+  triggerType: varchar("trigger_type").notNull().default("manual"),
+  eventId: varchar("event_id"),
+  eventCode: varchar("event_code"),
+  sponsorId: varchar("sponsor_id"),
+  sponsorSlug: varchar("sponsor_slug"),
+  r2ObjectKey: varchar("r2_object_key"),
+  fileSizeBytes: bigint("file_size_bytes", { mode: "number" }),
+  recordCount: integer("record_count"),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBackupJobSchema = createInsertSchema(backupJobs).omit({ id: true, createdAt: true });
+export type InsertBackupJob = z.infer<typeof insertBackupJobSchema>;
+export type BackupJob = typeof backupJobs.$inferSelect;

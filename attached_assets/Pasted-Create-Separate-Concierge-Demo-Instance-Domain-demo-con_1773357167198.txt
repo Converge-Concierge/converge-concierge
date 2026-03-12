@@ -1,0 +1,258 @@
+Create Separate Concierge Demo Instance
+Domain: demo-concierge.convergeevents.com
+
+We are creating a separate Concierge demo environment for sales demonstrations and internal testing.
+
+This demo instance must be completely isolated from production but use the same application codebase so the demo always reflects the current product functionality.
+
+Primary Goals
+
+The demo environment must:
+
+• run the same Concierge application code
+• use a separate database
+• use demo-safe environment settings
+• store files under demo storage paths
+• contain seeded demo data
+• suppress external emails
+• allow easy reset of demo data
+• allow easy updates when production changes
+
+1. Create Demo Repl
+
+Create a new Repl by forking the production Concierge project.
+
+Name the new Repl:
+
+converge-concierge-demo
+
+This Repl will be the dedicated demo environment.
+
+Production Repl remains unchanged.
+
+2. Create Separate Deployment
+
+Deploy the demo Repl as a separate application.
+
+Demo domain:
+
+demo-concierge.convergeevents.com
+
+Production remains:
+
+concierge.convergeevents.com
+
+These must remain separate deployments.
+
+3. Configure Demo Environment Variables
+
+In the demo Repl environment secrets, set:
+
+APP_ENV=demo
+
+This activates built-in demo behavior.
+
+Copy the required environment secrets from production, including:
+
+• database credentials
+• R2 storage credentials
+• email provider credentials
+• other system secrets
+
+But ensure demo behavior remains enabled via APP_ENV=demo.
+
+4. Use Separate Demo Database
+
+The demo environment must never use the production database.
+
+The demo Repl should automatically receive its own PostgreSQL database.
+
+Confirm:
+
+DATABASE_URL
+
+points to the demo database.
+
+Run database migrations so schema matches production.
+
+5. Enable Demo Mode Protections
+
+When APP_ENV=demo, the system must enforce demo protections.
+
+These include:
+
+• visible demo banner across admin pages
+• suppression of external email sending
+• allowing emails only to approved internal domains
+• demo reset tools enabled
+• demo-only storage paths
+• demo-safe backups
+
+6. Use Demo Storage Prefix in R2
+
+Demo uploads must write only to a demo prefix.
+
+Example storage paths:
+
+demo/events/
+demo/backups/
+demo/reports/
+demo/uploads/
+
+Production continues using:
+
+events/
+backups/
+reports/
+
+This ensures demo files never mix with production files.
+
+7. Run Demo Seed Script
+
+After demo environment configuration, populate demo data.
+
+Run:
+
+npx tsx scripts/seedDemoEnvironment.ts
+
+This will create:
+
+• 3 demo events
+• 12 demo sponsors
+• 90 demo attendees
+• demo meetings
+• demo info requests
+• demo deliverables
+• demo sponsor dashboards
+
+This dataset is designed for realistic demonstrations.
+
+8. Verify Demo Behavior
+
+Confirm the following are functioning correctly:
+
+Admin dashboard loads
+
+Demo banner visible
+
+Demo sponsors exist
+
+Demo attendees exist
+
+Meetings and info requests populated
+
+Sponsor dashboards accessible
+
+Emails suppressed for external domains
+
+R2 storage writing under:
+
+demo/
+9. Deploy Demo Instance
+
+Deploy the demo Repl.
+
+Then configure DNS to map:
+
+demo-concierge.convergeevents.com
+
+to the Replit deployment URL.
+
+10. Add Demo Reset Tool
+
+Ensure the Admin panel contains a demo reset option.
+
+Location:
+
+Admin → Settings → Reset Demo Environment
+
+This tool must:
+
+• delete current demo data
+• rerun the seed script
+• restore demo dataset to default state
+
+This allows quick cleanup before demos.
+
+11. Create Demo Update Workflow
+
+Since the project is not using GitHub, create a manual update process.
+
+Add internal documentation titled:
+
+Update Demo Environment
+
+Procedure:
+
+Review production code updates
+
+Copy updated code into demo Repl
+
+Confirm demo environment variables remain correct
+
+Run database migrations if needed
+
+Run demo reset/seed script
+
+Verify demo protections
+
+Redeploy demo instance
+
+Perform quick smoke test
+
+This ensures demo stays aligned with production.
+
+12. Demo Safety Rules
+
+The demo instance must never expose real production data.
+
+Demo should contain only:
+
+• fictional sponsors
+• fictional attendees
+• fictional meetings
+• fictional deliverables
+
+Safe configuration may match production, such as:
+
+• sponsorship templates
+• category lists
+• UI configuration
+
+But never import real user data.
+
+13. Add Demo Environment Indicator
+
+Add a clear banner across the UI:
+
+DEMO ENVIRONMENT
+This environment contains sample data and resets periodically.
+
+This prevents confusion between demo and production environments.
+
+14. Final Acceptance Criteria
+
+Demo environment is complete when:
+
+• separate demo Repl exists
+• separate demo deployment exists
+• demo domain demo-concierge.convergeevents.com is active
+• demo database is separate from production
+• demo seed script populates sample data
+• demo reset tool works
+• emails are suppressed for external users
+• R2 storage uses demo prefixes
+• demo functionality matches production features
+
+Result
+
+After implementation, Converge will have a fully isolated Concierge demo system at:
+
+demo-concierge.convergeevents.com
+
+This environment will be:
+
+• safe for sponsor demonstrations
+• easy to reset
+• easy to update
+• fully aligned with the production Concierge platform.

@@ -112,7 +112,9 @@ function EmailTemplatesTab() {
   const [editState, setEditState] = useState<EmailTemplate | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewSubject, setPreviewSubject] = useState<string | null>(null);
+  const [previewSource, setPreviewSource] = useState<"code" | "custom" | null>(null);
   const [testEmail, setTestEmail] = useState("");
+  const [sendTestDialogTemplate, setSendTestDialogTemplate] = useState<EmailTemplate | null>(null);
 
   const { data: templates = [], isLoading } = useQuery<EmailTemplate[]>({
     queryKey: ["/api/admin/email-templates"],
@@ -182,21 +184,26 @@ function EmailTemplatesTab() {
     onSuccess: (data) => {
       setPreviewHtml(data.html);
       setPreviewSubject(data.subject);
+      setPreviewSource(data.source ?? null);
     },
     onError: (err: Error) => toast({ title: "Preview failed", description: err.message, variant: "destructive" }),
   });
 
   const sendTestMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/admin/email-templates/${selectedId}/send-test`, { email: testEmail });
+    mutationFn: async (args?: { templateId?: string; recipientEmail?: string }) => {
+      const tid = args?.templateId ?? selectedId;
+      const email = args?.recipientEmail ?? testEmail;
+      const res = await apiRequest("POST", `/api/admin/email-templates/${tid}/send-test`, { email });
       return res.json();
     },
     onSuccess: (data) => {
+      const recipient = testEmail || sendTestDialogTemplate?.displayName;
       toast({
         title: data.ok ? "Test email sent" : "Test failed",
-        description: data.ok ? `Sent to ${testEmail}` : data.message,
+        description: data.ok ? `Sent successfully` : data.message,
         variant: data.ok ? "default" : "destructive",
       });
+      setSendTestDialogTemplate(null);
     },
     onError: (err: Error) => toast({ title: "Send failed", description: err.message, variant: "destructive" }),
   });
@@ -244,6 +251,9 @@ function EmailTemplatesTab() {
                         </Button>
                         <Button variant="ghost" size="sm" title="Edit template" onClick={() => openEdit(t)} className="h-8 w-8 p-0" data-testid={`edit-template-${t.id}`}>
                           <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" title="Send test email" onClick={() => setSendTestDialogTemplate(t)} className="h-8 w-8 p-0" data-testid={`send-test-template-${t.id}`}>
+                          <FlaskConical className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </td>
@@ -411,6 +421,18 @@ function EmailTemplatesTab() {
                     <h4 className="text-sm font-bold flex items-center gap-2"><Eye className="h-4 w-4 text-accent" /> Preview</h4>
                     <Button variant="ghost" size="sm" onClick={() => setPreviewHtml(null)} className="h-7 text-xs">Hide</Button>
                   </div>
+                  {previewSource && (
+                    <div className={cn("rounded-lg px-3 py-2 flex items-center gap-2 text-xs border",
+                      previewSource === "code"
+                        ? "bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                        : "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                    )}>
+                      <Code className="h-3.5 w-3.5 shrink-0" />
+                      <span className="font-medium">
+                        Preview Source: {previewSource === "code" ? "Code-Rendered Template" : "Custom HTML Override"}
+                      </span>
+                    </div>
+                  )}
                   <div className="rounded-lg border border-border/60 bg-muted/10 p-3 space-y-2">
                     <p className="text-xs font-mono"><strong>Subject:</strong> {previewSubject}</p>
                     <div className="rounded border border-border/40 bg-white overflow-hidden">
@@ -464,6 +486,47 @@ function EmailTemplatesTab() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Send Test Email Dialog (from row action) ─── */}
+      <Dialog open={!!sendTestDialogTemplate} onOpenChange={(open) => { if (!open) setSendTestDialogTemplate(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5 text-accent" />
+              Send Test Email
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Template</p>
+              <p className="text-sm font-medium">{sendTestDialogTemplate?.displayName}</p>
+              <p className="text-xs font-mono text-muted-foreground">{sendTestDialogTemplate?.templateKey}</p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recipient Email</label>
+              <Input
+                placeholder="test@example.com"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                className="h-9"
+                data-testid="input-send-test-email"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setSendTestDialogTemplate(null)}>Cancel</Button>
+            <Button
+              size="sm"
+              disabled={!testEmail.trim() || sendTestMutation.isPending}
+              onClick={() => sendTestDialogTemplate && sendTestMutation.mutate({ templateId: sendTestDialogTemplate.id, recipientEmail: testEmail.trim() })}
+              className="gap-2"
+              data-testid="button-send-test-email"
+            >
+              <Send className="h-3.5 w-3.5" /> {sendTestMutation.isPending ? "Sending…" : "Send Test"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

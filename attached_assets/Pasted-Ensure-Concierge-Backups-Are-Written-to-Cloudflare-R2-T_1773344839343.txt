@@ -1,0 +1,136 @@
+Ensure Concierge Backups Are Written to Cloudflare R2
+
+The backup system currently generates the backup file correctly, but it appears the file is being written to local storage instead of Cloudflare R2.
+
+We need to modify the backup service so that every completed backup is uploaded to the R2 bucket.
+
+1. Locate the Backup Service
+
+Find the service responsible for generating backups. It will likely be something like:
+
+services/dataBackupService.ts
+services/backupService.ts
+lib/backups.ts
+
+Look for where the JSON backup file is created. It will likely look similar to:
+
+const backupJson = JSON.stringify(data, null, 2);
+fs.writeFileSync(filePath, backupJson);
+
+This writes the file locally but does not upload it to R2.
+
+2. Import the R2 Client
+
+If not already available, import the existing R2 client used for file uploads.
+
+Example:
+
+import { r2Client } from "@/lib/r2";
+
+Or wherever the R2 wrapper exists in the project.
+
+3. Upload the Backup to R2
+
+Immediately after generating the backup JSON, upload it to the bucket.
+
+Add logic similar to this:
+
+const timestamp = new Date().toISOString();
+
+const objectKey = `backups/full/full-backup-${timestamp}.json`;
+
+await r2Client.putObject({
+  Bucket: process.env.R2_BUCKET_NAME,
+  Key: objectKey,
+  Body: backupJson,
+  ContentType: "application/json"
+});
+
+This writes the backup to:
+
+concierge-assets/backups/full/
+
+inside R2.
+
+4. Store the R2 Object Key
+
+When writing the backup record to the database, store the R2 path.
+
+Example:
+
+backupRecord.r2_object_key = objectKey;
+backupRecord.file_size_bytes = Buffer.byteLength(backupJson);
+
+This allows the Download button in the Backup History table to fetch the correct object.
+
+5. Update Download Logic
+
+The Download button in Backup History should fetch the object from R2 instead of local storage.
+
+Example:
+
+const file = await r2Client.getObject({
+  Bucket: process.env.R2_BUCKET_NAME,
+  Key: backup.r2_object_key
+});
+
+Then stream the result back to the admin UI.
+
+6. Expected R2 Folder Structure
+
+Once implemented, your R2 bucket should look like this:
+
+concierge-assets
+   backups
+      full
+         full-backup-2026-03-12T19:41:00.json
+      events
+         TLS2026
+            event-backup-2026-03-12T19:41:00.json
+      sponsors
+         TLS2026
+            treasolution
+               sponsor-backup-2026-03-12T19:41:00.json
+7. Add Logging (Important)
+
+Add logging so failures are visible.
+
+Example:
+
+console.log("Uploading backup to R2:", objectKey);
+
+And catch errors:
+
+try {
+  await uploadBackup();
+} catch (err) {
+  console.error("Backup upload failed:", err);
+}
+8. Test Procedure
+
+After implementing:
+
+Run Run Full Backup in Concierge.
+
+Wait for completion.
+
+Open Cloudflare R2.
+
+Navigate to:
+
+concierge-assets/backups/full/
+
+You should see a file like:
+
+full-backup-2026-03-12T1941.json
+Optional (Recommended Later)
+
+We should also add:
+
+automatic nightly event backups
+
+automatic sponsor backups
+
+backup integrity verification
+
+restore tools

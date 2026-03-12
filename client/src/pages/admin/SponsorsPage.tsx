@@ -302,6 +302,7 @@ export default function SponsorsPage() {
           sponsors={displayedSponsors}
           events={events}
           tab={tab}
+          selectedEventId={selectedEventId}
           isAdmin={isAdmin}
           onEdit={(s) => { setEditingSponsor(s); setIsModalOpen(true); }}
           onView={(s) => setViewingSponsor(s)}

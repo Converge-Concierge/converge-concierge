@@ -24,6 +24,7 @@ interface Registrant {
   title: string | null;
   email: string | null;
   conciergeRole: string | null;
+  registrationStatus: string | null;
 }
 
 interface Speaker {
@@ -296,6 +297,7 @@ function SponsorRepEditor({
   deliverable, token, canEdit,
 }: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", title: "", conciergeRole: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -329,6 +331,31 @@ function SponsorRepEditor({
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const update = useMutation({
+    mutationFn: async (rid: string) => {
+      const name = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
+      const res = await fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}/registrants/${rid}?token=${token}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          firstName: form.firstName.trim() || null,
+          lastName: form.lastName.trim() || null,
+          email: form.email.trim() || null,
+          title: form.title.trim() || null,
+          conciergeRole: form.conciergeRole.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey });
+      setEditingId(null);
+      toast({ title: "Representative updated" });
+    },
+    onError: () => toast({ title: "Error", description: "Could not save changes.", variant: "destructive" }),
+  });
+
   const remove = useMutation({
     mutationFn: (rid: string) => fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}/registrants/${rid}?token=${token}`, { method: "DELETE" }),
     onSuccess: () => {
@@ -338,6 +365,27 @@ function SponsorRepEditor({
     onError: () => toast({ title: "Error", description: "Could not remove entry.", variant: "destructive" }),
   });
 
+  const REG_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+    Registered: { label: "Registered", cls: "bg-green-50 text-green-700 border-green-200" },
+    "Not Registered": { label: "Not Registered", cls: "bg-gray-100 text-gray-500 border-gray-200" },
+    Pending: { label: "Pending", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+    Unknown: { label: "Not Registered", cls: "bg-gray-100 text-gray-500 border-gray-200" },
+  };
+
+  function repFormFields() {
+    return (
+      <>
+        <div className="grid grid-cols-2 gap-2">
+          <Input placeholder="First Name *" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-first-${deliverable.id}`} />
+          <Input placeholder="Last Name *" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-last-${deliverable.id}`} />
+        </div>
+        <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-email-${deliverable.id}`} />
+        <Input placeholder="Title (optional)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-title-${deliverable.id}`} />
+        <Input placeholder="Concierge Role (optional)" value={form.conciergeRole} onChange={(e) => setForm({ ...form, conciergeRole: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-role-${deliverable.id}`} />
+      </>
+    );
+  }
+
   return (
     <div className="mt-3 space-y-2" data-testid={`sponsor-rep-editor-${deliverable.id}`}>
       {total && (
@@ -345,38 +393,64 @@ function SponsorRepEditor({
           {current} of {total} representative{total !== 1 ? "s" : ""} registered
         </p>
       )}
-      {deliverable.registrants.map((r) => (
-        <div key={r.id} className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm" data-testid={`rep-row-${r.id}`}>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="font-medium truncate">{r.firstName || r.lastName ? `${r.firstName ?? ""} ${r.lastName ?? ""}`.trim() : r.name}</p>
-              <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium border",
-                r.email ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-100 text-gray-500 border-gray-200"
-              )}>
-                {r.email ? "Registered" : "Not Registered"}
-              </span>
-            </div>
-            {r.title && <p className="text-xs text-muted-foreground">{r.title}</p>}
-            {r.email && <p className="text-xs text-muted-foreground">{r.email}</p>}
-            {r.conciergeRole && <p className="text-xs text-muted-foreground italic">Role: {r.conciergeRole}</p>}
+      {deliverable.registrants.map((r) => {
+        const regStatus = r.registrationStatus ?? "Unknown";
+        const badge = REG_STATUS_BADGE[regStatus] ?? REG_STATUS_BADGE.Unknown;
+        return (
+          <div key={r.id} data-testid={`rep-row-${r.id}`}>
+            {editingId === r.id ? (
+              <div className="rounded-lg border border-dashed p-3 space-y-2">
+                {repFormFields()}
+                <div className="flex gap-2">
+                  <Button size="sm" className="h-7 text-xs" onClick={() => update.mutate(r.id)} disabled={!form.firstName.trim() || !form.lastName.trim() || update.isPending}>
+                    <Save className="h-3 w-3 mr-1" /> {update.isPending ? "Saving…" : "Save"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingId(null)}>
+                    <X className="h-3 w-3 mr-1" /> Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium truncate">{r.firstName || r.lastName ? `${r.firstName ?? ""} ${r.lastName ?? ""}`.trim() : r.name}</p>
+                    <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium border", badge.cls)}>
+                      {badge.label}
+                    </span>
+                  </div>
+                  {r.title && <p className="text-xs text-muted-foreground">{r.title}</p>}
+                  {r.email && <p className="text-xs text-muted-foreground">{r.email}</p>}
+                  {r.conciergeRole && <p className="text-xs text-muted-foreground italic">Role: {r.conciergeRole}</p>}
+                </div>
+                {canEdit && (
+                  <div className="flex gap-1 shrink-0">
+                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => {
+                      setForm({
+                        firstName: r.firstName ?? "",
+                        lastName: r.lastName ?? "",
+                        email: r.email ?? "",
+                        title: r.title ?? "",
+                        conciergeRole: r.conciergeRole ?? "",
+                      });
+                      setEditingId(r.id);
+                    }} data-testid={`btn-edit-rep-${r.id}`}>
+                      Edit
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => remove.mutate(r.id)} data-testid={`btn-remove-rep-${r.id}`}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          {canEdit && (
-            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => remove.mutate(r.id)} data-testid={`btn-remove-rep-${r.id}`}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
-      ))}
+        );
+      })}
       {canEdit && (!total || current < total) && (
         adding ? (
           <div className="rounded-lg border border-dashed p-3 space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <Input placeholder="First Name *" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-first-${deliverable.id}`} />
-              <Input placeholder="Last Name *" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-last-${deliverable.id}`} />
-            </div>
-            <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-email-${deliverable.id}`} />
-            <Input placeholder="Title (optional)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-title-${deliverable.id}`} />
-            <Input placeholder="Concierge Role (optional)" value={form.conciergeRole} onChange={(e) => setForm({ ...form, conciergeRole: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-role-${deliverable.id}`} />
+            {repFormFields()}
             <div className="flex gap-2">
               <Button size="sm" className="h-7 text-xs" onClick={() => add.mutate()} disabled={!form.firstName.trim() || !form.lastName.trim() || add.isPending} data-testid={`btn-add-rep-${deliverable.id}`}>
                 <Save className="h-3 w-3 mr-1" /> {add.isPending ? "Saving…" : "Add Representative"}
@@ -399,12 +473,26 @@ function SponsorRepEditor({
   );
 }
 
+const SUGGESTED_CATEGORIES = [
+  "Payments", "Lending", "Risk Management", "Compliance", "Fraud Prevention",
+  "Digital Banking", "Core Banking", "Data Analytics", "AI / Machine Learning",
+  "Cybersecurity", "Wealth Management", "Treasury", "Insurance", "RegTech",
+  "Open Banking", "Mobile Banking", "Cloud Infrastructure", "Identity Verification",
+  "Customer Experience", "Process Automation",
+];
+
 function CategoryTagSelector({
   deliverable, token, canEdit,
 }: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
-  const existing = deliverable.deliverableDescription
-    ? deliverable.deliverableDescription.split(",").map(s => s.trim()).filter(Boolean)
-    : [];
+  let existing: string[] = [];
+  if (deliverable.deliverableDescription) {
+    try {
+      const parsed = JSON.parse(deliverable.deliverableDescription);
+      if (Array.isArray(parsed)) existing = parsed;
+    } catch {
+      existing = deliverable.deliverableDescription.split(",").map(s => s.trim()).filter(Boolean);
+    }
+  }
   const [tags, setTags] = useState<string[]>(existing);
   const [inputVal, setInputVal] = useState("");
   const [saved, setSaved] = useState(false);
@@ -416,13 +504,13 @@ function CategoryTagSelector({
       const res = await fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}?token=${token}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deliverableDescription: tags.join(", "), status: tags.length > 0 ? "Submitted" : "Awaiting Sponsor Input" }),
+        body: JSON.stringify({ deliverableDescription: JSON.stringify(tags), status: tags.length === 3 ? "Submitted" : "Awaiting Sponsor Input" }),
       });
       if (!res.ok) throw new Error("Failed to save");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/sponsor-dashboard/agreement-deliverables", token] });
-      toast({ title: "Categories saved", description: "Your category selections have been submitted." });
+      toast({ title: "Categories saved", description: "Your 3 category selections have been submitted." });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     },
@@ -440,6 +528,8 @@ function CategoryTagSelector({
     setTags(tags.filter((_, i) => i !== idx));
   }
 
+  const availableSuggestions = SUGGESTED_CATEGORIES.filter(s => !tags.includes(s));
+
   if (!canEdit) {
     return tags.length > 0 ? (
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -451,13 +541,14 @@ function CategoryTagSelector({
   }
 
   return (
-    <div className="mt-3 space-y-2" data-testid={`category-selector-${deliverable.id}`}>
+    <div className="mt-3 space-y-3" data-testid={`category-selector-${deliverable.id}`}>
       {saved && (
         <div className="flex items-center gap-1.5 text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs font-medium">
           <CheckCircle2 className="h-3.5 w-3.5" /> Saved
         </div>
       )}
-      <p className="text-xs text-muted-foreground">Select or type exactly 3 words or short phrases that describe what you want to sell.</p>
+      <p className="text-xs text-muted-foreground">Select exactly 3 words or short phrases that best describe what you want to sell. Pick from the suggestions below or type your own.</p>
+
       <div className="flex flex-wrap gap-1.5">
         {tags.map((t, i) => (
           <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium border border-accent/20">
@@ -466,26 +557,45 @@ function CategoryTagSelector({
           </span>
         ))}
       </div>
+
       {tags.length < 3 && (
-        <div className="flex gap-2">
-          <Input
-            value={inputVal}
-            onChange={(e) => setInputVal(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(inputVal); } }}
-            placeholder="Type a word or phrase and press Enter"
-            className="h-8 text-sm flex-1"
-            data-testid={`input-tag-${deliverable.id}`}
-          />
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => addTag(inputVal)} disabled={!inputVal.trim()}>
-            <Plus className="h-3 w-3 mr-1" /> Add
-          </Button>
-        </div>
+        <>
+          <div>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">Suggested Topics</p>
+            <div className="flex flex-wrap gap-1.5">
+              {availableSuggestions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => addTag(s)}
+                  className="px-2 py-0.5 rounded-full border border-border text-xs text-muted-foreground hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-colors"
+                  data-testid={`btn-suggest-tag-${s.replace(/\s+/g, "-").toLowerCase()}`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={inputVal}
+              onChange={(e) => setInputVal(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(inputVal); } }}
+              placeholder="Or type a custom word/phrase and press Enter"
+              className="h-8 text-sm flex-1"
+              data-testid={`input-tag-${deliverable.id}`}
+            />
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => addTag(inputVal)} disabled={!inputVal.trim()}>
+              <Plus className="h-3 w-3 mr-1" /> Add
+            </Button>
+          </div>
+        </>
       )}
+
       <div className="flex items-center justify-between">
-        <span className={cn("text-xs", tags.length === 3 ? "text-green-600 font-medium" : "text-muted-foreground")}>
-          {tags.length} / 3 selected
+        <span className={cn("text-xs", tags.length === 3 ? "text-green-600 font-medium" : tags.length > 0 ? "text-amber-600" : "text-muted-foreground")}>
+          {tags.length} / 3 selected {tags.length < 3 && tags.length > 0 ? `(${3 - tags.length} more needed)` : ""}
         </span>
-        <Button size="sm" className="h-7 text-xs" onClick={() => save.mutate()} disabled={save.isPending} data-testid={`btn-save-tags-${deliverable.id}`}>
+        <Button size="sm" className="h-7 text-xs" onClick={() => save.mutate()} disabled={tags.length !== 3 || save.isPending} data-testid={`btn-save-tags-${deliverable.id}`}>
           <Save className="h-3 w-3 mr-1" /> {save.isPending ? "Saving…" : "Save Selections"}
         </Button>
       </div>

@@ -2749,10 +2749,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/admin/email-templates/:id/preview", requireAuth, async (req, res) => {
     const template = await storage.getEmailTemplateById(req.params.id);
     if (!template) return res.status(404).json({ message: "Template not found" });
-    const subject = substituteTemplateVars(template.subjectTemplate, SAMPLE_TEMPLATE_DATA);
-    let html = template.htmlTemplate || "";
+    const subjectOverride: string | undefined = req.body?.subjectTemplate;
+    const htmlOverride: string | undefined = req.body?.htmlTemplate;
+    const subject = substituteTemplateVars(subjectOverride ?? template.subjectTemplate, SAMPLE_TEMPLATE_DATA);
+    let html = (htmlOverride ?? template.htmlTemplate) || "";
     if (!html.trim()) {
-      html = `<div style="padding:32px;font-family:sans-serif;color:#374151;"><h2 style="margin:0 0 8px;">${template.displayName}</h2><p style="color:#6b7280;">This template has no custom HTML stored yet. Live emails use the code-rendered template.</p><p style="color:#6b7280;margin-top:16px;">Subject: <strong>${subject}</strong></p></div>`;
+      html = `<div style="padding:32px;font-family:sans-serif;color:#374151;"><h2 style="margin:0 0 8px;">${template.displayName}</h2><p style="color:#6b7280;">This template has no custom HTML body stored yet. Live emails use the code-rendered template.</p><p style="color:#6b7280;margin-top:16px;">Subject: <strong>${subject}</strong></p></div>`;
     } else {
       html = substituteTemplateVars(html, SAMPLE_TEMPLATE_DATA);
     }

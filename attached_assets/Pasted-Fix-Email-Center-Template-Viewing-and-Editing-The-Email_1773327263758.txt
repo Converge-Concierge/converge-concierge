@@ -1,0 +1,297 @@
+Fix Email Center Template Viewing and Editing
+
+The Email Center → Templates section is not working correctly.
+
+Current problems
+
+There is no clear way to view the current email template content being used.
+
+When clicking the edit button, the form opens blank instead of loading the existing template.
+
+The current workflow feels like creating a new template from scratch, not editing the active template.
+
+This needs to be corrected so admins can safely review and update the actual live email templates.
+
+Primary Goal
+
+Make Email Center → Templates function like a proper template management system where admins can:
+
+view the current template
+
+edit the current template
+
+save changes back to that same template
+
+preview the rendered template before saving
+
+1. Add Separate “View” and “Edit” Actions
+
+In the Templates list, each row should include two distinct actions:
+
+View Template
+
+Edit Template
+
+Do not rely on a single edit icon for both purposes.
+
+Required behavior
+View Template
+
+Opens the current template in a read-only mode.
+
+Edit Template
+
+Opens the current template in an editable mode with all existing values preloaded.
+
+2. Fix Template Loading in Edit Mode
+Current problem
+
+When clicking edit, the template form appears blank.
+
+Required behavior
+
+When opening Edit Template, the system must load the current saved template values into the form.
+
+This includes at minimum:
+
+Display Name
+
+Status
+
+Subject Template
+
+HTML Body
+
+Plain Text Body if supported
+
+any metadata/variables if supported
+
+The edit screen must reflect the existing live template, not an empty form.
+
+3. Make “View Template” Read-Only
+
+Add a proper View Template mode.
+
+In View mode show:
+
+Display Name
+
+Template Key
+
+Status
+
+Subject Template
+
+HTML Body
+
+Plain Text Body if supported
+
+Preview button
+
+Last Updated if available
+
+View mode should not allow editing
+
+Fields should be:
+
+read-only
+
+non-editable
+
+visually presented clearly
+
+Buttons:
+
+Close
+
+Edit Template
+
+Preview
+
+4. Make “Edit Template” Edit the Current Template, Not Create a New One
+Required behavior
+
+When the admin clicks Edit Template, the system must:
+
+fetch the existing template by key/id
+
+populate the edit form with the current values
+
+save changes back to that same template record
+
+Do not instantiate a blank template object.
+
+Do not behave like “create new template.”
+
+This is an update existing record workflow.
+
+5. Verify Data Binding / Fetch Logic
+
+Audit the current template edit drawer/modal/panel and fix the loading logic.
+
+Likely issues to check:
+
+template data is not being fetched on edit click
+
+wrong template object is being passed into the form
+
+form state is being initialized empty instead of from the selected template
+
+HTML body field is not binding to stored value
+
+template key is available in UI but not being used to fetch/load the full template
+
+Required behavior
+
+Opening a template for edit must always load the correct stored values.
+
+6. Improve Templates List Columns
+
+The Templates list should show enough summary information to make selection easier.
+
+Recommended columns:
+
+Display Name
+
+Key
+
+Subject
+
+Status
+
+Last Updated
+
+Actions
+
+This helps admins confirm they are opening the right template.
+
+7. Add “Last Updated” Information
+
+Where possible, show:
+
+Last Updated Date
+
+Last Updated By
+
+This should appear:
+
+in the Templates list
+
+in View mode
+
+in Edit mode if available
+
+This adds confidence that the correct template is being edited.
+
+8. Add a Real Preview Function
+
+The existing Preview button should preview the current loaded template content.
+
+Required behavior
+
+in View mode, preview the saved template
+
+in Edit mode, preview the current edited version before saving
+
+Use sample placeholder values if live values are not available.
+
+Example placeholders:
+
+{{event_name}} → The 2026 Fintech Risk & Compliance Forum
+
+{{sponsor_name}} → Winnow
+
+{{attendee_full_name}} → Jane Smith
+
+The preview should help admins verify layout and content before saving.
+
+9. Prevent Blank HTML Body on Existing Templates
+
+If the template currently has stored HTML content, it must appear in both:
+
+View Template
+
+Edit Template
+
+If no HTML body exists, show a clear indicator such as:
+
+No HTML body saved for this template.
+
+Do not show an ambiguous blank field that looks like a broken UI.
+
+10. Add Save Safety for Editing
+
+When editing a template:
+
+save changes only to that selected template
+
+do not create duplicates
+
+do not overwrite other templates
+
+show success confirmation
+
+Recommended success message:
+
+Template updated successfully.
+11. Add Cancel / Close Behavior
+
+If the admin opens Edit Template and makes no changes:
+
+Cancel should discard unsaved edits
+
+Close should not affect the stored template
+
+This should behave like a normal edit form, not auto-save.
+
+12. Optional Improvement — Show Template Variables
+
+If practical, include a small helper block listing supported variables for the selected template.
+
+Example:
+
+Available Variables:
+{{event_name}}
+{{sponsor_name}}
+{{dashboard_link}}
+{{attendee_full_name}}
+
+This should appear in:
+
+View mode
+
+Edit mode
+
+This is optional, but very useful.
+
+13. Acceptance Criteria
+
+This fix is complete when:
+
+each template has both View and Edit access
+
+View mode shows the current saved template content
+
+Edit mode loads the current saved template instead of a blank form
+
+saving updates the existing template record
+
+preview works with the currently loaded content
+
+HTML body is visible when present
+
+the workflow no longer feels like creating a new template from scratch
+
+14. Success Standard
+
+After this update, Email Center → Templates should feel like a real template manager where admins can confidently:
+
+inspect the current template
+
+edit the live template
+
+preview the result
+
+save changes without confusion
+
+That is the standard this fix should meet.

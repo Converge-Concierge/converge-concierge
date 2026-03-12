@@ -181,7 +181,7 @@ export default function WelcomePage() {
 
             <div className="min-w-0 flex-1">
               <div
-                className="inline-flex items-center gap-1.5 sm:gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-2 sm:mb-3 animate-pulse"
+                className="inline-flex flex-wrap items-center gap-1.5 sm:gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-2 sm:mb-3 animate-pulse"
                 style={{ animationDuration: "2.5s" }}
                 data-testid="badge-registered"
               >

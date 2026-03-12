@@ -1,0 +1,766 @@
+Create a Concierge Demo Data Blueprint
+
+We are building a separate Concierge demo environment. It needs a consistent, realistic, and sales-friendly demo dataset that can be reseeded repeatedly.
+
+The goal is not just to fill the app with fake data. The goal is to create demo stories that clearly show the value of Concierge across:
+
+sponsor dashboards
+
+attendee scheduling
+
+info requests
+
+deliverables
+
+reporting
+
+admin operations
+
+This blueprint should be used by the demo seed script so the demo is always reset to a polished, presentation-ready state.
+
+Primary Goal
+
+Seed the demo environment with enough realistic sample data to demonstrate:
+
+sponsor onboarding
+
+deliverables tracking
+
+attendee discovery and meeting requests
+
+information requests
+
+sponsor reporting
+
+admin dashboard monitoring
+
+deliverables fulfillment and follow-up
+
+The demo should feel like a real live event environment, but use only safe fictional data.
+
+1. Demo Events
+
+Create three demo events.
+
+A. Demo Fintech Risk & Compliance Forum 2026
+
+Event code:
+
+DEMOFRC2026
+
+Purpose:
+
+strongest example for sponsor dashboards
+
+deliverables
+
+compliance
+
+meetings
+
+info requests
+
+Include:
+
+event dates
+
+Oak Brook location
+
+event branding/colors
+
+event logo
+
+topic categories such as:
+
+AI
+
+Compliance
+
+Regulatory
+
+Fraud
+
+Risk
+
+Cybersecurity
+
+Payments
+
+B. Demo U.S. BankTech Summit 2026
+
+Event code:
+
+DEMOUSBT2026
+
+Purpose:
+
+technology-forward demo
+
+attendee discovery
+
+meetings
+
+sponsor matching
+
+Categories:
+
+Core Modernization
+
+AI
+
+Digital Banking
+
+CX
+
+Payments
+
+Cloud
+
+Cybersecurity
+
+RegTech
+
+C. Demo Treasury Leadership Summit 2026
+
+Event code:
+
+DEMOTLS2026
+
+Purpose:
+
+show multi-event sponsor support
+
+deliverables across different event types
+
+reports and sponsor renewals story
+
+Categories:
+
+Treasury
+
+Cash Management
+
+Risk
+
+Liquidity
+
+Automation
+
+Payments
+
+Finance Operations
+
+2. Demo Sponsors
+
+Seed 12 demo sponsors total across the three demo events.
+
+Use realistic, fictional names.
+
+Recommended sponsor list
+Platinum / Gold-style sponsors
+
+Acme AI
+
+FuturePay
+
+CoreNova
+
+RiskPilot
+
+Silver / Bronze-style sponsors
+
+CloudTreasury
+
+EngageCX
+
+Summit RegTech
+
+BankGuard
+
+LedgerFlow
+
+OpenCore Systems
+
+FinOps Insight
+
+Horizon Automation
+
+Sponsor distribution example
+DEMOFRC2026
+
+RiskPilot — Platinum
+
+Summit RegTech — Gold
+
+FuturePay — Silver
+
+BankGuard — Bronze
+
+DEMOUSBT2026
+
+CoreNova — Platinum
+
+EngageCX — Gold
+
+OpenCore Systems — Silver
+
+Acme AI — Bronze
+
+DEMOTLS2026
+
+CloudTreasury — Platinum
+
+LedgerFlow — Gold
+
+FinOps Insight — Silver
+
+Horizon Automation — Bronze
+
+3. Multi-Event Sponsor Examples
+
+At least two sponsors should be multi-event sponsors to demonstrate that logic.
+
+Examples:
+
+FuturePay sponsors DEMOFRC2026 and DEMOUSBT2026
+
+CloudTreasury sponsors DEMOTLS2026 and DEMOFRC2026
+
+These should trigger:
+
+multi-event sponsor indicator
+
+event-scoped sponsor rows
+
+Sponsor Dashboards multi-event visibility
+
+4. Demo Sponsor Contacts and Dashboard Users
+
+Each sponsor should have:
+
+Main Contact
+
+2–4 sponsor representatives
+
+dashboard users with roles:
+
+Account Owner
+
+Representative
+
+View Only
+
+Use fake but realistic names.
+
+Example:
+
+Sarah Collins
+
+Mark Jensen
+
+Priya Shah
+
+Daniel Reed
+
+Use safe fake email domains like:
+
+@demo.convergeevents.com
+
+or
+
+@example-demo.com
+5. Demo Attendees
+
+Seed 75–100 attendees across the three demo events.
+
+Target mix
+
+70% practitioners
+
+30% solution providers
+
+This reflects your actual model and allows attendee discovery to feel realistic.
+
+Example attendee titles
+
+Chief Risk Officer
+
+CIO
+
+CTO
+
+VP Compliance
+
+Head of Payments
+
+VP Digital Banking
+
+Treasury Director
+
+Operations Manager
+
+Chief Innovation Officer
+
+Chief Compliance Officer
+
+Example attendee companies
+
+Midwest Community Bank
+
+Summit Financial
+
+Horizon Credit Union
+
+First National Trust
+
+Great Lakes Bank
+
+Regional Capital Bank
+
+Evergreen Credit Union
+
+Prairie State Financial
+
+NorthBridge Bank
+
+Apex Federal Credit Union
+
+Use fictional but plausible institutions.
+
+6. Attendee Interests / Categories
+
+Every attendee should have 3–5 interest categories.
+
+This is critical for:
+
+attendee discovery
+
+sponsor matching
+
+meeting requests
+
+info requests
+
+Examples by event:
+
+DEMOFRC2026
+
+AI
+
+Compliance
+
+Regulatory
+
+Fraud
+
+Risk
+
+Cybersecurity
+
+DEMOUSBT2026
+
+AI
+
+Core Modernization
+
+Payments
+
+Cloud
+
+Digital Banking
+
+CX
+
+DEMOTLS2026
+
+Treasury
+
+Cash Management
+
+Liquidity
+
+Payments
+
+Automation
+
+7. Demo Meetings
+
+Seed meeting data intentionally.
+
+Each event should include:
+
+8–15 scheduled meetings
+
+2–4 completed meetings
+
+2–4 pending requests
+
+mix of onsite and online
+
+This gives the sponsor dashboards and reports meaningful content.
+
+Required scenarios
+
+Create sponsors with different engagement profiles:
+
+A. High-performing sponsor
+
+Example:
+RiskPilot
+
+many meetings
+
+several info requests
+
+strong dashboard metrics
+
+B. Moderate sponsor
+
+Example:
+FuturePay
+
+some meetings
+
+some pending requests
+
+partial deliverables completion
+
+C. Low-activity sponsor
+
+Example:
+BankGuard
+
+few or no meetings
+
+good for admin “needs attention” and sponsor activation score demos
+
+This variety is important.
+
+8. Demo Info Requests
+
+Seed 8–12 info requests across sponsors/events.
+
+Include:
+
+open
+
+email sent
+
+closed
+
+not qualified
+
+This supports:
+
+sponsor dashboard metrics
+
+admin dashboard monitoring
+
+reports
+
+fulfillment queue
+
+9. Demo Deliverables
+
+Every sponsor should have generated deliverables from the appropriate sponsorship template.
+
+But do not make all sponsors look the same.
+
+Create different completion states:
+
+Example states
+Sponsor A — mostly complete
+
+logo uploaded
+
+company description complete
+
+reps added
+
+registration code used
+
+graphics delivered
+
+social announcements posted
+
+Sponsor B — partially complete
+
+missing company categories
+
+registration not fully used
+
+one graphic delivered
+
+speaking engagement in progress
+
+Sponsor C — needs attention
+
+logo missing
+
+description missing
+
+reps incomplete
+
+COI still needed
+
+This supports:
+
+Sponsor Fulfillment Queue
+
+Outstanding Sponsor Items
+
+Sponsor Activation Score
+
+reporting narrative
+
+10. Demo Deliverable-Specific Examples
+
+Create realistic structured deliverables such as:
+
+Company Profile
+
+logo
+
+company description
+
+sponsor representatives
+
+“what do you want to sell?” categories
+
+Event Production
+
+registration access code
+
+registration instructions PDF metadata
+
+exhibit table status
+
+Speaking & Content
+
+session type
+
+session title
+
+sponsor speaker
+
+Marketing & Branding
+
+company logo on website
+
+company logo on signage
+
+company profile in app
+
+social graphics
+
+social announcements with LinkedIn URLs
+
+Post-Event
+
+attendee contact list ready / available after event
+
+Compliance
+
+General Liability COI
+
+Worker’s Comp COI
+
+11. Demo Reports
+
+Ensure seeded data supports:
+
+Sponsorship Performance Report
+
+Deliverables section in report
+
+meetings tables
+
+info requests tables
+
+value summary metrics
+
+At least one sponsor per event should have enough activity to make the report look strong.
+
+12. Demo Admin Dashboard Stories
+
+Seed data so the Admin Dashboard can show:
+
+Days Until Event
+
+Active Sponsors
+
+Active Meetings
+
+Info Requests
+
+Attendees
+
+Needs Attention
+
+sponsors with incomplete deliverables
+
+sponsors missing COI
+
+inactive sponsors
+
+multi-event sponsors
+
+This is important for internal/sales demos.
+
+13. Demo Backup Data
+
+If backup features are shown in demo, ensure there are:
+
+sample full backup records
+
+sample event backup records
+
+sample sponsor backup records
+
+These do not need to be real production backups, but the screens should not be empty.
+
+14. Demo Email Center
+
+Seed useful templates so Email Center looks complete.
+
+Include:
+
+Sponsor Dashboard Welcome
+
+Deliverables Reminder
+
+Meeting Confirmation
+
+Info Request Confirmation
+
+Sponsor Access Email
+
+Optional:
+
+one or two templates marked recently updated
+
+15. Demo Scenarios for Sales
+
+The demo environment should support these specific walkthroughs:
+
+Scenario A — New sponsor onboarding
+
+Show:
+
+welcome page
+
+deliverables checklist
+
+sponsor reps
+
+registration instructions
+
+Scenario B — Active sponsor using Concierge
+
+Show:
+
+meetings
+
+info requests
+
+deliverables progress
+
+sponsor dashboard metrics
+
+Scenario C — Admin monitoring sponsor success
+
+Show:
+
+Sponsor Dashboards
+
+Sponsor Fulfillment Queue
+
+Deliverables
+
+Needs Attention
+
+activation scoring
+
+Scenario D — Reporting / ROI
+
+Show:
+
+Sponsorship Performance Report
+
+value summary
+
+deliverables section
+
+meeting activity
+
+info requests
+
+These should all be supported by the seeded data.
+
+16. Demo Reset Expectations
+
+The seed dataset should be deterministic enough that after reset:
+
+the same demo stories still work
+
+the same named sponsors/events exist
+
+the same event tabs are available
+
+reports continue to look good
+
+Some randomized variation is fine, but the core demo story should stay stable.
+
+17. Add Internal Labels to Demo Entities Where Helpful
+
+Keep the data realistic, but where helpful include “Demo” in event names or metadata to avoid confusion.
+
+For example:
+
+Demo Fintech Risk & Compliance Forum 2026
+
+Do not make every company sound fake/cartoonish. Keep sponsors and attendee companies plausible.
+
+18. Acceptance Criteria
+
+This demo data blueprint is complete when:
+
+three demo events exist
+
+12 realistic sponsors exist
+
+75–100 attendees exist
+
+sponsor dashboards have meaningful data
+
+deliverables have mixed completion states
+
+meetings and info requests exist
+
+reports look realistic
+
+admin dashboard shows meaningful operational data
+
+multi-event sponsor examples exist
+
+the environment can be reset and return to the same strong demo state
+
+19. Success Standard
+
+After this blueprint is implemented, Concierge demos should consistently feel like a live, high-value sponsor management platform rather than a thin sandbox.
+
+The demo should support strong sales storytelling across:
+
+sponsor onboarding
+
+deliverables
+
+meetings
+
+info requests
+
+admin monitoring
+
+sponsorship reporting
+
+That is the standard this demo blueprint should meet.

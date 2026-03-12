@@ -323,6 +323,7 @@ export interface AppBranding {
   confirmationLogoUrl: string;
   sponsorDashboardLogoUrl: string;
   publicEventLogoUrl: string;
+  internalNotificationEmail: string;
 }
 
 export const DEFAULT_BRANDING: AppBranding = {
@@ -334,6 +335,7 @@ export const DEFAULT_BRANDING: AppBranding = {
   confirmationLogoUrl: "",
   sponsorDashboardLogoUrl: "",
   publicEventLogoUrl: "",
+  internalNotificationEmail: "",
 };
 
 // ── DB tables for singleton config (settings + branding stored by key) ────────
@@ -767,6 +769,9 @@ export const agreementDeliverableTemplateItems = pgTable("agreement_deliverable_
   dueOffsetDays: integer("due_offset_days"),
   displayOrder: integer("display_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  helpTitle: varchar("help_title"),
+  helpText: text("help_text"),
+  helpLink: varchar("help_link"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -802,6 +807,11 @@ export const agreementDeliverables = pgTable("agreement_deliverables", {
   createdFromTemplateItemId: varchar("created_from_template_item_id"),
   displayOrder: integer("display_order").notNull().default(0),
   completedAt: timestamp("completed_at"),
+  helpTitle: varchar("help_title"),
+  helpText: text("help_text"),
+  helpLink: varchar("help_link"),
+  registrationAccessCode: varchar("registration_access_code"),
+  registrationInstructions: text("registration_instructions"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -810,13 +820,17 @@ export const insertAgreementDeliverableSchema = createInsertSchema(agreementDeli
 export type InsertAgreementDeliverable = z.infer<typeof insertAgreementDeliverableSchema>;
 export type AgreementDeliverable = typeof agreementDeliverables.$inferSelect;
 
-// 2D — Sponsor-submitted registrant entries (e.g., VIP registrations)
+// 2D — Sponsor-submitted registrant entries (e.g., VIP registrations / sponsor representatives)
 export const agreementDeliverableRegistrants = pgTable("agreement_deliverable_registrants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   agreementDeliverableId: varchar("agreement_deliverable_id").notNull(),
   name: varchar("name").notNull(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
   title: varchar("title"),
   email: varchar("email"),
+  conciergeRole: varchar("concierge_role"),
+  registrationStatus: varchar("registration_status").notNull().default("Unknown"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -831,6 +845,8 @@ export const agreementDeliverableSpeakers = pgTable("agreement_deliverable_speak
   speakerName: varchar("speaker_name").notNull(),
   speakerTitle: varchar("speaker_title"),
   speakerBio: text("speaker_bio"),
+  sessionType: varchar("session_type"),
+  sessionTitle: varchar("session_title"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -882,6 +898,26 @@ export const deliverableLinks = pgTable("deliverable_links", {
 export const insertDeliverableLinkSchema = createInsertSchema(deliverableLinks).omit({ id: true, addedAt: true });
 export type InsertDeliverableLink = z.infer<typeof insertDeliverableLinkSchema>;
 export type DeliverableLink = typeof deliverableLinks.$inferSelect;
+
+// 2E3 — Deliverable Social Entries (per-item social graphic or social announcement records)
+export const SOCIAL_ENTRY_TYPES = ["graphic", "announcement"] as const;
+export type SocialEntryType = typeof SOCIAL_ENTRY_TYPES[number];
+
+export const deliverableSocialEntries = pgTable("deliverable_social_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  deliverableId: varchar("deliverable_id").notNull(),
+  entryType: varchar("entry_type").notNull(),
+  entryIndex: integer("entry_index").notNull().default(1),
+  title: varchar("title"),
+  url: text("url"),
+  fileAssetId: varchar("file_asset_id"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+export const insertDeliverableSocialEntrySchema = createInsertSchema(deliverableSocialEntries).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertDeliverableSocialEntry = z.infer<typeof insertDeliverableSocialEntrySchema>;
+export type DeliverableSocialEntry = typeof deliverableSocialEntries.$inferSelect;
 
 // 2F — Reminder log (tracks all automated + manual reminder emails sent to sponsors)
 export const REMINDER_TYPES = ["weekly_automatic", "manual_admin"] as const;

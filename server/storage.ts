@@ -22,6 +22,7 @@ import {
   type AgreementDeliverableReminder, type InsertAgreementDeliverableReminder,
   type FileAsset, type InsertFileAsset,
   type DeliverableLink, type InsertDeliverableLink,
+  type DeliverableSocialEntry, type InsertDeliverableSocialEntry,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -266,6 +267,13 @@ export interface IStorage {
   listDeliverableLinks(deliverableId: string): Promise<DeliverableLink[]>;
   createDeliverableLink(data: InsertDeliverableLink): Promise<DeliverableLink>;
   deleteDeliverableLink(id: string): Promise<void>;
+
+  // ── Deliverable Social Entries ─────────────────────────────────────────────
+  listDeliverableSocialEntries(deliverableId: string): Promise<DeliverableSocialEntry[]>;
+  getDeliverableSocialEntry(id: string): Promise<DeliverableSocialEntry | undefined>;
+  createDeliverableSocialEntry(data: InsertDeliverableSocialEntry): Promise<DeliverableSocialEntry>;
+  updateDeliverableSocialEntry(id: string, data: Partial<InsertDeliverableSocialEntry>): Promise<DeliverableSocialEntry>;
+  deleteDeliverableSocialEntry(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -874,24 +882,24 @@ export class MemStorage implements IStorage {
   async listDeliverableTemplateItems(_packageTemplateId: string): Promise<DeliverableTemplateItem[]> { return []; }
   async getDeliverableTemplateItem(_id: string): Promise<DeliverableTemplateItem | undefined> { return undefined; }
   async createDeliverableTemplateItem(data: InsertDeliverableTemplateItem): Promise<DeliverableTemplateItem> { return { id: randomUUID(), ...data, deliverableDescription: data.deliverableDescription ?? null, defaultQuantity: data.defaultQuantity ?? null, quantityUnit: data.quantityUnit ?? null, dueOffsetDays: data.dueOffsetDays ?? null, createdAt: new Date(), updatedAt: new Date() }; }
-  async updateDeliverableTemplateItem(_id: string, _data: Partial<InsertDeliverableTemplateItem>): Promise<DeliverableTemplateItem> { return { id: _id, packageTemplateId: "", category: "", deliverableName: "", deliverableDescription: null, defaultQuantity: null, quantityUnit: null, ownerType: "Converge", sponsorEditable: false, sponsorVisible: true, fulfillmentType: "status_only", reminderEligible: false, dueTiming: "not_applicable", dueOffsetDays: null, displayOrder: 0, isActive: true, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateDeliverableTemplateItem(_id: string, _data: Partial<InsertDeliverableTemplateItem>): Promise<DeliverableTemplateItem> { return { id: _id, packageTemplateId: "", category: "", deliverableName: "", deliverableDescription: null, defaultQuantity: null, quantityUnit: null, ownerType: "Converge", sponsorEditable: false, sponsorVisible: true, fulfillmentType: "status_only", reminderEligible: false, dueTiming: "not_applicable", dueOffsetDays: null, displayOrder: 0, isActive: true, helpTitle: null, helpText: null, helpLink: null, createdAt: new Date(), updatedAt: new Date() }; }
   async deleteDeliverableTemplateItem(_id: string): Promise<void> {}
 
   async listAgreementDeliverables(_filters: { sponsorId?: string; eventId?: string; packageTemplateId?: string }): Promise<AgreementDeliverable[]> { return []; }
   async getAgreementDeliverable(_id: string): Promise<AgreementDeliverable | undefined> { return undefined; }
   async createAgreementDeliverable(data: InsertAgreementDeliverable): Promise<AgreementDeliverable> { return { id: randomUUID(), ...data, packageTemplateId: data.packageTemplateId ?? null, deliverableDescription: data.deliverableDescription ?? null, quantity: data.quantity ?? null, quantityUnit: data.quantityUnit ?? null, dueDate: data.dueDate ?? null, sponsorFacingNote: data.sponsorFacingNote ?? null, internalNote: data.internalNote ?? null, createdFromTemplateItemId: data.createdFromTemplateItemId ?? null, completedAt: data.completedAt ?? null, createdAt: new Date(), updatedAt: new Date() }; }
-  async updateAgreementDeliverable(_id: string, _data: Partial<InsertAgreementDeliverable>): Promise<AgreementDeliverable> { return { id: _id, sponsorId: "", eventId: "", packageTemplateId: null, sponsorshipLevel: "", category: "", deliverableName: "", deliverableDescription: null, quantity: null, quantityUnit: null, ownerType: "Converge", sponsorEditable: false, sponsorVisible: true, fulfillmentType: "status_only", status: "Not Started", dueTiming: "not_applicable", dueDate: null, sponsorFacingNote: null, internalNote: null, isOverridden: false, isCustom: false, createdFromTemplateItemId: null, displayOrder: 0, completedAt: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateAgreementDeliverable(_id: string, _data: Partial<InsertAgreementDeliverable>): Promise<AgreementDeliverable> { return { id: _id, sponsorId: "", eventId: "", packageTemplateId: null, sponsorshipLevel: "", category: "", deliverableName: "", deliverableDescription: null, quantity: null, quantityUnit: null, ownerType: "Converge", sponsorEditable: false, sponsorVisible: true, fulfillmentType: "status_only", status: "Not Started", dueTiming: "not_applicable", dueDate: null, sponsorFacingNote: null, internalNote: null, isOverridden: false, isCustom: false, createdFromTemplateItemId: null, displayOrder: 0, completedAt: null, helpTitle: null, helpText: null, helpLink: null, registrationAccessCode: null, registrationInstructions: null, createdAt: new Date(), updatedAt: new Date() }; }
   async deleteAgreementDeliverable(_id: string): Promise<void> {}
   async generateAgreementDeliverablesFromTemplate(_sponsorId: string, _eventId: string, _packageTemplateId: string, _sponsorshipLevel: string): Promise<AgreementDeliverable[]> { return []; }
 
   async listDeliverableRegistrants(_id: string): Promise<AgreementDeliverableRegistrant[]> { return []; }
-  async createDeliverableRegistrant(data: InsertAgreementDeliverableRegistrant): Promise<AgreementDeliverableRegistrant> { return { id: randomUUID(), ...data, title: data.title ?? null, email: data.email ?? null, createdAt: new Date(), updatedAt: new Date() }; }
-  async updateDeliverableRegistrant(_id: string, _data: Partial<InsertAgreementDeliverableRegistrant>): Promise<AgreementDeliverableRegistrant> { return { id: _id, agreementDeliverableId: "", name: "", title: null, email: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async createDeliverableRegistrant(data: InsertAgreementDeliverableRegistrant): Promise<AgreementDeliverableRegistrant> { return { id: randomUUID(), ...data, firstName: data.firstName ?? null, lastName: data.lastName ?? null, title: data.title ?? null, email: data.email ?? null, conciergeRole: data.conciergeRole ?? null, registrationStatus: data.registrationStatus ?? "Unknown", createdAt: new Date(), updatedAt: new Date() }; }
+  async updateDeliverableRegistrant(_id: string, _data: Partial<InsertAgreementDeliverableRegistrant>): Promise<AgreementDeliverableRegistrant> { return { id: _id, agreementDeliverableId: "", name: "", firstName: null, lastName: null, title: null, email: null, conciergeRole: null, registrationStatus: "Unknown", createdAt: new Date(), updatedAt: new Date() }; }
   async deleteDeliverableRegistrant(_id: string): Promise<void> {}
 
   async listDeliverableSpeakers(_id: string): Promise<AgreementDeliverableSpeaker[]> { return []; }
-  async createDeliverableSpeaker(data: InsertAgreementDeliverableSpeaker): Promise<AgreementDeliverableSpeaker> { return { id: randomUUID(), ...data, speakerTitle: data.speakerTitle ?? null, speakerBio: data.speakerBio ?? null, createdAt: new Date(), updatedAt: new Date() }; }
-  async updateDeliverableSpeaker(_id: string, _data: Partial<InsertAgreementDeliverableSpeaker>): Promise<AgreementDeliverableSpeaker> { return { id: _id, agreementDeliverableId: "", speakerName: "", speakerTitle: null, speakerBio: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async createDeliverableSpeaker(data: InsertAgreementDeliverableSpeaker): Promise<AgreementDeliverableSpeaker> { return { id: randomUUID(), ...data, speakerTitle: data.speakerTitle ?? null, speakerBio: data.speakerBio ?? null, sessionType: data.sessionType ?? null, sessionTitle: data.sessionTitle ?? null, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateDeliverableSpeaker(_id: string, _data: Partial<InsertAgreementDeliverableSpeaker>): Promise<AgreementDeliverableSpeaker> { return { id: _id, agreementDeliverableId: "", speakerName: "", speakerTitle: null, speakerBio: null, sessionType: null, sessionTitle: null, createdAt: new Date(), updatedAt: new Date() }; }
   async deleteDeliverableSpeaker(_id: string): Promise<void> {}
 
   async listDeliverableReminders(_filters: { sponsorId?: string; eventId?: string }): Promise<AgreementDeliverableReminder[]> { return []; }
@@ -908,6 +916,12 @@ export class MemStorage implements IStorage {
   async listDeliverableLinks(_deliverableId: string): Promise<DeliverableLink[]> { return []; }
   async createDeliverableLink(data: InsertDeliverableLink): Promise<DeliverableLink> { return { id: randomUUID(), ...data, addedByUserId: data.addedByUserId ?? null, addedAt: new Date() } as DeliverableLink; }
   async deleteDeliverableLink(_id: string): Promise<void> {}
+
+  async listDeliverableSocialEntries(_deliverableId: string): Promise<DeliverableSocialEntry[]> { return []; }
+  async getDeliverableSocialEntry(_id: string): Promise<DeliverableSocialEntry | undefined> { return undefined; }
+  async createDeliverableSocialEntry(data: InsertDeliverableSocialEntry): Promise<DeliverableSocialEntry> { return { id: randomUUID(), ...data, title: data.title ?? null, url: data.url ?? null, fileAssetId: data.fileAssetId ?? null, notes: data.notes ?? null, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateDeliverableSocialEntry(_id: string, _data: Partial<InsertDeliverableSocialEntry>): Promise<DeliverableSocialEntry> { return { id: _id, deliverableId: "", entryType: "graphic", entryIndex: 1, title: null, url: null, fileAssetId: null, notes: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async deleteDeliverableSocialEntry(_id: string): Promise<void> {}
 }
 
 export const storage = new DatabaseStorage();

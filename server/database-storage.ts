@@ -8,7 +8,7 @@ import {
   userPermissions, permissionAuditLogs, informationRequests, sponsorAnalytics, emailLogs,
   agreementPackageTemplates, agreementDeliverableTemplateItems, agreementDeliverables,
   agreementDeliverableRegistrants, agreementDeliverableSpeakers, agreementDeliverableReminders,
-  fileAssets, deliverableLinks,
+  fileAssets, deliverableLinks, deliverableSocialEntries,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -30,6 +30,7 @@ import {
   type AgreementDeliverableReminder, type InsertAgreementDeliverableReminder,
   type FileAsset, type InsertFileAsset,
   type DeliverableLink, type InsertDeliverableLink,
+  type DeliverableSocialEntry, type InsertDeliverableSocialEntry,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -1126,6 +1127,9 @@ export class DatabaseStorage implements IStorage {
         dueOffsetDays: item.dueOffsetDays,
         displayOrder: item.displayOrder,
         isActive: item.isActive,
+        helpTitle: item.helpTitle,
+        helpText: item.helpText,
+        helpLink: item.helpLink,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -1242,6 +1246,11 @@ export class DatabaseStorage implements IStorage {
         createdFromTemplateItemId: item.id,
         displayOrder: item.displayOrder,
         completedAt: null,
+        helpTitle: item.helpTitle,
+        helpText: item.helpText,
+        helpLink: item.helpLink,
+        registrationAccessCode: null,
+        registrationInstructions: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }).returning();
@@ -1258,7 +1267,13 @@ export class DatabaseStorage implements IStorage {
 
   async createDeliverableRegistrant(data: InsertAgreementDeliverableRegistrant): Promise<AgreementDeliverableRegistrant> {
     const [row] = await db.insert(agreementDeliverableRegistrants).values({
-      ...data, title: data.title ?? null, email: data.email ?? null,
+      ...data,
+      firstName: data.firstName ?? null,
+      lastName: data.lastName ?? null,
+      title: data.title ?? null,
+      email: data.email ?? null,
+      conciergeRole: data.conciergeRole ?? null,
+      registrationStatus: data.registrationStatus ?? "Unknown",
     }).returning();
     return row;
   }
@@ -1283,7 +1298,11 @@ export class DatabaseStorage implements IStorage {
 
   async createDeliverableSpeaker(data: InsertAgreementDeliverableSpeaker): Promise<AgreementDeliverableSpeaker> {
     const [row] = await db.insert(agreementDeliverableSpeakers).values({
-      ...data, speakerTitle: data.speakerTitle ?? null, speakerBio: data.speakerBio ?? null,
+      ...data,
+      speakerTitle: data.speakerTitle ?? null,
+      speakerBio: data.speakerBio ?? null,
+      sessionType: data.sessionType ?? null,
+      sessionTitle: data.sessionTitle ?? null,
     }).returning();
     return row;
   }
@@ -1405,5 +1424,41 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDeliverableLink(id: string): Promise<void> {
     await db.delete(deliverableLinks).where(eq(deliverableLinks.id, id));
+  }
+
+  // ── Deliverable Social Entries ──────────────────────────────────────────────
+
+  async listDeliverableSocialEntries(deliverableId: string): Promise<DeliverableSocialEntry[]> {
+    return db.select().from(deliverableSocialEntries)
+      .where(eq(deliverableSocialEntries.deliverableId, deliverableId))
+      .orderBy(deliverableSocialEntries.entryIndex);
+  }
+
+  async getDeliverableSocialEntry(id: string): Promise<DeliverableSocialEntry | undefined> {
+    const [row] = await db.select().from(deliverableSocialEntries).where(eq(deliverableSocialEntries.id, id)).limit(1);
+    return row;
+  }
+
+  async createDeliverableSocialEntry(data: InsertDeliverableSocialEntry): Promise<DeliverableSocialEntry> {
+    const [row] = await db.insert(deliverableSocialEntries).values({
+      ...data,
+      title: data.title ?? null,
+      url: data.url ?? null,
+      fileAssetId: data.fileAssetId ?? null,
+      notes: data.notes ?? null,
+    }).returning();
+    return row;
+  }
+
+  async updateDeliverableSocialEntry(id: string, data: Partial<InsertDeliverableSocialEntry>): Promise<DeliverableSocialEntry> {
+    const [row] = await db.update(deliverableSocialEntries)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(deliverableSocialEntries.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteDeliverableSocialEntry(id: string): Promise<void> {
+    await db.delete(deliverableSocialEntries).where(eq(deliverableSocialEntries.id, id));
   }
 }

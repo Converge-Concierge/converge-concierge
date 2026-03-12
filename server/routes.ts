@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS } from "@shared/schema";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
-import { sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee } from "../services/emailService";
+import { sendEmail, sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee } from "../services/emailService";
 import multer from "multer";
 import path from "path";
 import { randomBytes, createHash } from "crypto";
@@ -1286,7 +1286,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // ── App Branding ──────────────────────────────────────────────────────────
 
   app.get("/api/branding-public", async (_req, res) => {
-    res.json(await storage.getBranding());
+    const branding = await storage.getBranding();
+    const { internalNotificationEmail: _omit, ...publicBranding } = branding;
+    res.json(publicBranding);
   });
 
   app.get("/api/branding", requireAuth, async (_req, res) => {
@@ -2104,6 +2106,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(updated);
   });
 
+  async function sendInternalDeliverableNotification(sponsorId: string, deliverableName: string, action: string) {
+    try {
+      const branding = await storage.getBranding();
+      if (!branding.internalNotificationEmail) return;
+      const sponsor = await storage.getSponsor(sponsorId);
+      const sponsorName = sponsor?.name ?? "Unknown Sponsor";
+      await sendEmail(
+        branding.internalNotificationEmail,
+        `Sponsor Update: ${sponsorName} — ${deliverableName}`,
+        `<p><strong>${sponsorName}</strong> has ${action} for <strong>${deliverableName}</strong>.</p><p>Please log in to the admin dashboard to review.</p>`
+      );
+    } catch (err) {
+      console.error("Failed to send internal notification:", err);
+    }
+  }
+
   // ── Sponsor Dashboard: Agreement Deliverables (Phase 2) ───────────────────
 
   // GET /api/sponsor-dashboard/agreement-deliverables — list sponsor-visible deliverables with child records
@@ -2149,6 +2167,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (req.body.status !== undefined) allowed.status = req.body.status;
 
     const updated = await storage.updateAgreementDeliverable(req.params.id, allowed);
+
+    if (allowed.status === "Submitted") {
+      sendInternalDeliverableNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted their response").catch(() => {});
+    }
+
     const { internalNote: _drop, ...safe } = updated as typeof updated & { internalNote: unknown };
     res.json(safe);
   });
@@ -2310,6 +2333,74 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
 
     res.json({ ok: true });
+  });
+
+  // GET /api/sponsor-dashboard/agreement-deliverables/:id/social-entries — sponsor reads social entries
+  app.get("/api/sponsor-dashboard/agreement-deliverables/:id/social-entries", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const deliverable = await storage.getAgreementDeliverable(req.params.id);
+    if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId || deliverable.eventId !== tokenRecord.eventId) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    const entries = await storage.listDeliverableSocialEntries(req.params.id);
+    res.json(entries);
+  });
+
+  // GET /api/admin/attendee-csv — export registrants as CSV for a given eventId
+  app.get("/api/admin/attendee-csv", requireAuth, async (req, res) => {
+    try {
+      const { eventId } = req.query as Record<string, string | undefined>;
+      if (!eventId) return res.status(400).json({ message: "eventId required" });
+
+      const deliverables = await storage.listAgreementDeliverables({ eventId });
+      const registrationDeliverables = deliverables.filter(d =>
+        d.fulfillmentType === "quantity_progress" || d.deliverableName.toLowerCase().includes("registration")
+      );
+
+      const allSponsors = await storage.getSponsors();
+      const sponsorMap = new Map(allSponsors.map(s => [s.id, s.name]));
+
+      function csvSafe(val: string): string {
+        let s = val;
+        if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+        return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+      }
+
+      const rows: Array<Record<string, string>> = [];
+      for (const d of registrationDeliverables) {
+        const registrants = await storage.listDeliverableRegistrants(d.id);
+        for (const r of registrants) {
+          rows.push({
+            sponsorName: sponsorMap.get(d.sponsorId) ?? d.sponsorId,
+            sponsorshipLevel: d.sponsorshipLevel,
+            deliverableName: d.deliverableName,
+            name: r.name ?? "",
+            firstName: r.firstName ?? "",
+            lastName: r.lastName ?? "",
+            email: r.email ?? "",
+            title: r.title ?? "",
+            conciergeRole: r.conciergeRole ?? "",
+            registrationStatus: r.registrationStatus ?? "pending",
+          });
+        }
+      }
+
+      const headers = ["sponsorName","sponsorshipLevel","deliverableName","name","firstName","lastName","email","title","conciergeRole","registrationStatus"];
+      const csvLines = [headers.join(",")];
+      for (const row of rows) {
+        csvLines.push(headers.map(h => csvSafe(row[h] ?? "")).join(","));
+      }
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="attendees-${eventId}.csv"`);
+      res.send(csvLines.join("\n"));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   // Data Exchange: export information requests as JSON (frontend will convert to CSV)
@@ -2856,6 +2947,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         sponsorFacingNote: null,
         internalNote: null,
         isOverridden: false,
+        helpTitle: templateItem.helpTitle,
+        helpText: templateItem.helpText,
+        helpLink: templateItem.helpLink,
       });
       res.json(updated);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -2972,6 +3066,52 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       res.status(201).json({ message: "Templates seeded", count: createdTemplates.length });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Admin Social Entries CRUD ────────────────────────────────────────────
+
+  app.get("/api/agreement/deliverables/:id/social-entries", requireAuth, async (req, res) => {
+    try {
+      const entries = await storage.listDeliverableSocialEntries(req.params.id);
+      res.json(entries);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/agreement/deliverables/:id/social-entries", requireAuth, async (req, res) => {
+    try {
+      const deliverable = await storage.getAgreementDeliverable(req.params.id);
+      if (!deliverable) return res.status(404).json({ message: "Deliverable not found" });
+      const { entryType, entryIndex } = req.body;
+      if (!entryType || !["graphic", "announcement"].includes(entryType)) {
+        return res.status(400).json({ message: "entryType must be 'graphic' or 'announcement'" });
+      }
+      if (entryIndex === undefined || typeof entryIndex !== "number") {
+        return res.status(400).json({ message: "entryIndex (number) is required" });
+      }
+      const entry = await storage.createDeliverableSocialEntry({ ...req.body, deliverableId: req.params.id });
+      res.status(201).json(entry);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.patch("/api/agreement/social-entries/:id", requireAuth, async (req, res) => {
+    try {
+      const existing = await storage.getDeliverableSocialEntry(req.params.id);
+      if (!existing) return res.status(404).json({ message: "Social entry not found" });
+      if (req.body.entryType && !["graphic", "announcement"].includes(req.body.entryType)) {
+        return res.status(400).json({ message: "entryType must be 'graphic' or 'announcement'" });
+      }
+      const entry = await storage.updateDeliverableSocialEntry(req.params.id, req.body);
+      res.json(entry);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/agreement/social-entries/:id", requireAuth, async (req, res) => {
+    try {
+      const existing = await storage.getDeliverableSocialEntry(req.params.id);
+      if (!existing) return res.status(404).json({ message: "Social entry not found" });
+      await storage.deleteDeliverableSocialEntry(req.params.id);
+      res.json({ ok: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 

@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
   Plus, Trash2, Download, Users, Mic2, Share2, Globe, ShieldCheck,
-  Copy, HelpCircle, ExternalLink, ChevronDown, ChevronUp, Save, Pencil,
+  Copy, HelpCircle, ExternalLink, Save, Pencil, Upload, FileText, Image,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,39 @@ export function hasStructuredEditor(d: EnrichedDeliverable): boolean {
 
 const SESSION_TYPES = ["Keynote", "Panel", "Fireside Chat", "Workshop", "Breakout Session", "Lightning Talk", "Roundtable", "Demo", "Other"];
 
+async function uploadFileAsset(file: File, opts: { category: string; sponsorId?: string; eventId?: string; deliverableId?: string }) {
+  const urlResponse = await apiRequest("POST", "/api/files/upload-url", {
+    category: opts.category,
+    originalFileName: file.name,
+    mimeType: file.type,
+    sizeBytes: file.size,
+    sponsorId: opts.sponsorId,
+    eventId: opts.eventId,
+    deliverableId: opts.deliverableId || null,
+  });
+  const urlRes = await urlResponse.json() as { uploadURL: string; fileId: string; objectKey: string; storedFileName: string };
+  const putRes = await fetch(urlRes.uploadURL, {
+    method: "PUT",
+    body: file,
+    headers: { "Content-Type": file.type },
+  });
+  if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status}`);
+  await apiRequest("POST", "/api/files/confirm", {
+    fileId: urlRes.fileId,
+    objectKey: urlRes.objectKey,
+    storedFileName: urlRes.storedFileName,
+    category: opts.category,
+    originalFileName: file.name,
+    mimeType: file.type,
+    sizeBytes: file.size,
+    sponsorId: opts.sponsorId,
+    eventId: opts.eventId,
+    visibility: "sponsor_private",
+    deliverableId: opts.deliverableId || null,
+  });
+  return urlRes.fileId;
+}
+
 export function StructuredDeliverablePanel({
   deliverable,
   sponsorId,
@@ -63,8 +96,9 @@ export function StructuredDeliverablePanel({
     case "registrations":
       return <RegistrationsEditor deliverable={deliverable} sponsorId={sponsorId} eventId={eventId} />;
     case "social_graphics":
+      return <SocialGraphicsEditor deliverable={deliverable} sponsorId={sponsorId} eventId={eventId} />;
     case "social_announcements":
-      return <SocialEntriesEditor deliverable={deliverable} entryType={dtype === "social_graphics" ? "graphic" : "announcement"} sponsorId={sponsorId} eventId={eventId} />;
+      return <SocialAnnouncementsEditor deliverable={deliverable} sponsorId={sponsorId} eventId={eventId} />;
     case "attendee_list":
       return <AttendeeListPanel deliverable={deliverable} />;
     case "coi":
@@ -205,6 +239,8 @@ function RegistrationsEditor({
   const [editing, setEditing] = useState(false);
   const [accessCode, setAccessCode] = useState(deliverable.registrationAccessCode ?? "");
   const [instructions, setInstructions] = useState(deliverable.registrationInstructions ?? "");
+  const [uploading, setUploading] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const seatsTotal = deliverable.quantity ?? 0;
   const seatsUsed = deliverable.registrantCount ?? 0;
@@ -223,16 +259,43 @@ function RegistrationsEditor({
     onError: () => toast({ title: "Update failed", variant: "destructive" }),
   });
 
+  async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      await uploadFileAsset(file, {
+        category: "registration_pdf",
+        sponsorId,
+        eventId,
+        deliverableId: deliverable.id,
+      });
+      toast({ title: "PDF uploaded successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/agreement/deliverables/detail", sponsorId, eventId] });
+    } catch {
+      toast({ title: "PDF upload failed", variant: "destructive" });
+    } finally {
+      setUploading(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = "";
+    }
+  }
+
   return (
     <div className="bg-cyan-50/50 border border-cyan-200 rounded-lg p-3 space-y-2" data-testid={`panel-registrations-${deliverable.id}`}>
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-semibold text-cyan-800 flex items-center gap-1.5">
           <Users className="h-3.5 w-3.5" /> Registrations
         </h4>
-        <Button size="sm" variant="ghost" className="h-6 text-[10px] text-cyan-700 hover:bg-cyan-100" onClick={() => setEditing(!editing)} data-testid={`button-edit-registration-${deliverable.id}`}>
-          <Pencil className="h-3 w-3 mr-0.5" /> {editing ? "Cancel" : "Edit Settings"}
-        </Button>
+        <div className="flex gap-1">
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] text-cyan-700 hover:bg-cyan-100" onClick={() => pdfInputRef.current?.click()} disabled={uploading} data-testid={`button-upload-pdf-${deliverable.id}`}>
+            <Upload className="h-3 w-3 mr-0.5" /> {uploading ? "Uploading..." : "Upload PDF"}
+          </Button>
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] text-cyan-700 hover:bg-cyan-100" onClick={() => setEditing(!editing)} data-testid={`button-edit-registration-${deliverable.id}`}>
+            <Pencil className="h-3 w-3 mr-0.5" /> {editing ? "Cancel" : "Edit Settings"}
+          </Button>
+        </div>
       </div>
+      <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" className="hidden" onChange={handlePdfUpload} data-testid={`input-pdf-upload-${deliverable.id}`} />
 
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="bg-white rounded-md border border-cyan-100 px-2 py-1.5">
@@ -292,20 +355,20 @@ function RegistrationsEditor({
   );
 }
 
-function SocialEntriesEditor({
+function SocialGraphicsEditor({
   deliverable,
-  entryType,
   sponsorId,
   eventId,
 }: {
   deliverable: EnrichedDeliverable;
-  entryType: "graphic" | "announcement";
   sponsorId: string;
   eventId: string;
 }) {
   const { toast } = useToast();
-  const [showAdd, setShowAdd] = useState(false);
-  const [newEntry, setNewEntry] = useState({ title: "", url: "" });
+  const slotsTotal = deliverable.quantity ?? 0;
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeSlot, setActiveSlot] = useState<number | null>(null);
 
   const { data: entries = [], refetch } = useQuery<DeliverableSocialEntry[]>({
     queryKey: ["/api/agreement/deliverables", deliverable.id, "social-entries"],
@@ -316,26 +379,24 @@ function SocialEntriesEditor({
     },
   });
 
-  const filteredEntries = entries.filter(e => e.entryType === entryType);
-  const slotsTotal = deliverable.quantity ?? 0;
-  const atCapacity = slotsTotal > 0 && filteredEntries.length >= slotsTotal;
+  const graphicEntries = entries.filter(e => e.entryType === "graphic");
 
-  const addEntry = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/agreement/deliverables/${deliverable.id}/social-entries`, {
+  const slots = Array.from({ length: Math.max(slotsTotal, graphicEntries.length) }, (_, i) => {
+    return graphicEntries.find(e => e.entryIndex === i + 1) || graphicEntries[i] || null;
+  });
+
+  const createSlot = useMutation({
+    mutationFn: (index: number) => apiRequest("POST", `/api/agreement/deliverables/${deliverable.id}/social-entries`, {
       deliverableId: deliverable.id,
-      entryType,
-      entryIndex: filteredEntries.length + 1,
-      title: newEntry.title.trim() || null,
-      url: newEntry.url.trim() || null,
+      entryType: "graphic",
+      entryIndex: index,
+      title: `Graphic #${index}`,
     }),
     onSuccess: () => {
       refetch();
       queryClient.invalidateQueries({ queryKey: ["/api/agreement/deliverables/detail", sponsorId, eventId] });
-      setNewEntry({ title: "", url: "" });
-      setShowAdd(false);
-      toast({ title: entryType === "graphic" ? "Graphic slot added" : "Announcement added" });
     },
-    onError: () => toast({ title: "Failed to add", variant: "destructive" }),
+    onError: () => toast({ title: "Failed to create slot", variant: "destructive" }),
   });
 
   const deleteEntry = useMutation({
@@ -343,79 +404,236 @@ function SocialEntriesEditor({
     onSuccess: () => {
       refetch();
       queryClient.invalidateQueries({ queryKey: ["/api/agreement/deliverables/detail", sponsorId, eventId] });
-      toast({ title: "Entry removed" });
+      toast({ title: "Graphic removed" });
     },
     onError: () => toast({ title: "Remove failed", variant: "destructive" }),
   });
 
-  const isGraphic = entryType === "graphic";
-  const borderColor = isGraphic ? "border-indigo-200" : "border-violet-200";
-  const bgColor = isGraphic ? "bg-indigo-50/50" : "bg-violet-50/50";
-  const textColor = isGraphic ? "text-indigo-800" : "text-violet-800";
-  const hoverBg = isGraphic ? "hover:bg-indigo-100" : "hover:bg-violet-100";
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>, slotIndex: number) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingSlot(slotIndex);
+    try {
+      const existingEntry = slots[slotIndex];
+      if (!existingEntry) {
+        await createSlot.mutateAsync(slotIndex + 1);
+      }
+      await uploadFileAsset(file, {
+        category: "social_graphic",
+        sponsorId,
+        eventId,
+        deliverableId: deliverable.id,
+      });
+      toast({ title: "Graphic uploaded" });
+      refetch();
+    } catch {
+      toast({ title: "Upload failed", variant: "destructive" });
+    } finally {
+      setUploadingSlot(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   return (
-    <div className={cn(bgColor, "border", borderColor, "rounded-lg p-3 space-y-2")} data-testid={`panel-social-${entryType}-${deliverable.id}`}>
+    <div className="bg-indigo-50/50 border border-indigo-200 rounded-lg p-3 space-y-2" data-testid={`panel-social-graphic-${deliverable.id}`}>
       <div className="flex items-center justify-between">
-        <h4 className={cn("text-xs font-semibold flex items-center gap-1.5", textColor)}>
-          {isGraphic ? <Share2 className="h-3.5 w-3.5" /> : <Globe className="h-3.5 w-3.5" />}
-          {isGraphic ? "Social Media Graphics" : "Social Announcements"}
-          <span className="font-normal opacity-70">
-            ({filteredEntries.length}{slotsTotal > 0 ? ` / ${slotsTotal}` : ""})
+        <h4 className="text-xs font-semibold text-indigo-800 flex items-center gap-1.5">
+          <Image className="h-3.5 w-3.5" /> Social Media Graphics
+          <span className="font-normal text-indigo-500">
+            ({graphicEntries.length}{slotsTotal > 0 ? ` / ${slotsTotal}` : ""} slots)
           </span>
         </h4>
-        {!atCapacity && (
-          <Button size="sm" variant="ghost" className={cn("h-6 text-[10px]", textColor, hoverBg)} onClick={() => setShowAdd(!showAdd)}>
-            <Plus className="h-3 w-3 mr-0.5" /> Add
-          </Button>
-        )}
       </div>
 
-      {showAdd && (
-        <div className="bg-white border rounded-md p-2 space-y-2">
-          <Input placeholder={isGraphic ? "Graphic title (e.g. LinkedIn Banner)" : "Post title"} value={newEntry.title} onChange={e => setNewEntry(s => ({ ...s, title: e.target.value }))} className="h-7 text-xs" data-testid={`input-social-title-${entryType}`} />
-          <Input placeholder={isGraphic ? "File URL (optional — sponsor can upload)" : "Post URL (e.g. https://linkedin.com/posts/...)"} value={newEntry.url} onChange={e => setNewEntry(s => ({ ...s, url: e.target.value }))} className="h-7 text-xs" data-testid={`input-social-url-${entryType}`} />
-          <div className="flex gap-1.5 justify-end">
-            <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button size="sm" className="h-6 text-[10px]" disabled={addEntry.isPending} onClick={() => addEntry.mutate()} data-testid={`button-add-social-${entryType}`}>
-              Add
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => activeSlot !== null && handleFileUpload(e, activeSlot)} />
+
+      <div className="space-y-1">
+        {slots.map((entry, i) => (
+          <div key={entry?.id ?? `slot-${i}`} className="flex items-center justify-between bg-white rounded px-2 py-1.5 border border-indigo-100 text-xs">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="text-muted-foreground font-mono text-[10px] w-4 shrink-0">#{i + 1}</span>
+              {entry ? (
+                <>
+                  <span className="font-medium text-foreground truncate">{entry.title || `Graphic #${i + 1}`}</span>
+                  {entry.fileAssetId || entry.url ? (
+                    <span className="text-green-600 text-[10px] flex items-center gap-0.5"><Image className="h-2.5 w-2.5" /> Uploaded</span>
+                  ) : (
+                    <span className="text-amber-600 text-[10px]">Awaiting upload</span>
+                  )}
+                  {entry.url && (
+                    <a href={entry.url} target="_blank" rel="noopener" className="text-blue-600 hover:underline inline-flex items-center gap-0.5 text-[10px]">
+                      <ExternalLink className="h-2.5 w-2.5" /> View
+                    </a>
+                  )}
+                </>
+              ) : (
+                <span className="text-muted-foreground italic">Empty slot</span>
+              )}
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px] text-indigo-700 hover:bg-indigo-100" disabled={uploadingSlot === i} onClick={() => { setActiveSlot(i); fileInputRef.current?.click(); }} data-testid={`button-upload-graphic-${i}`}>
+                <Upload className="h-3 w-3" /> {uploadingSlot === i ? "..." : "Upload"}
+              </Button>
+              {entry && (
+                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive hover:text-destructive" onClick={() => deleteEntry.mutate(entry.id)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {slotsTotal === 0 && graphicEntries.length === 0 && (
+          <p className="text-[11px] text-indigo-600/60 italic">No quantity set — set a quantity on the deliverable to create graphic slots</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SocialAnnouncementsEditor({
+  deliverable,
+  sponsorId,
+  eventId,
+}: {
+  deliverable: EnrichedDeliverable;
+  sponsorId: string;
+  eventId: string;
+}) {
+  const { toast } = useToast();
+  const slotsTotal = deliverable.quantity ?? 0;
+
+  const { data: entries = [], refetch } = useQuery<DeliverableSocialEntry[]>({
+    queryKey: ["/api/agreement/deliverables", deliverable.id, "social-entries"],
+    queryFn: async () => {
+      const res = await fetch(`/api/agreement/deliverables/${deliverable.id}/social-entries`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const announcementEntries = entries.filter(e => e.entryType === "announcement");
+
+  const slots = Array.from({ length: Math.max(slotsTotal, announcementEntries.length) }, (_, i) => {
+    return announcementEntries.find(e => e.entryIndex === i + 1) || announcementEntries[i] || null;
+  });
+
+  const createOrUpdateSlot = useMutation({
+    mutationFn: async ({ index, url, title }: { index: number; url: string; title?: string }) => {
+      const existing = slots[index];
+      if (existing) {
+        return apiRequest("PATCH", `/api/agreement/social-entries/${existing.id}`, { url: url.trim() || null, title: title?.trim() || existing.title });
+      }
+      return apiRequest("POST", `/api/agreement/deliverables/${deliverable.id}/social-entries`, {
+        deliverableId: deliverable.id,
+        entryType: "announcement",
+        entryIndex: index + 1,
+        title: title?.trim() || `Post #${index + 1}`,
+        url: url.trim() || null,
+      });
+    },
+    onSuccess: () => {
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["/api/agreement/deliverables/detail", sponsorId, eventId] });
+    },
+    onError: () => toast({ title: "Update failed", variant: "destructive" }),
+  });
+
+  const deleteEntry = useMutation({
+    mutationFn: (eid: string) => apiRequest("DELETE", `/api/agreement/social-entries/${eid}`),
+    onSuccess: () => {
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["/api/agreement/deliverables/detail", sponsorId, eventId] });
+      toast({ title: "Announcement removed" });
+    },
+    onError: () => toast({ title: "Remove failed", variant: "destructive" }),
+  });
+
+  return (
+    <div className="bg-violet-50/50 border border-violet-200 rounded-lg p-3 space-y-2" data-testid={`panel-social-announcement-${deliverable.id}`}>
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-semibold text-violet-800 flex items-center gap-1.5">
+          <Globe className="h-3.5 w-3.5" /> Social Announcements
+          <span className="font-normal text-violet-500">
+            ({announcementEntries.filter(e => e.url).length}{slotsTotal > 0 ? ` / ${slotsTotal}` : ""} with URLs)
+          </span>
+        </h4>
+      </div>
+
+      <div className="space-y-1">
+        {slots.map((entry, i) => (
+          <AnnouncementSlot
+            key={entry?.id ?? `slot-${i}`}
+            index={i}
+            entry={entry}
+            onSave={(url, title) => createOrUpdateSlot.mutate({ index: i, url, title })}
+            onDelete={entry ? () => deleteEntry.mutate(entry.id) : undefined}
+            saving={createOrUpdateSlot.isPending}
+          />
+        ))}
+
+        {slotsTotal === 0 && announcementEntries.length === 0 && (
+          <p className="text-[11px] text-violet-600/60 italic">No quantity set — set a quantity on the deliverable to create announcement slots</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AnnouncementSlot({
+  index,
+  entry,
+  onSave,
+  onDelete,
+  saving,
+}: {
+  index: number;
+  entry: DeliverableSocialEntry | null;
+  onSave: (url: string, title?: string) => void;
+  onDelete?: () => void;
+  saving: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [url, setUrl] = useState(entry?.url ?? "");
+  const [title, setTitle] = useState(entry?.title ?? `Post #${index + 1}`);
+
+  const hasUrl = !!entry?.url;
+
+  return (
+    <div className="bg-white rounded px-2 py-1.5 border border-violet-100 text-xs">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="text-muted-foreground font-mono text-[10px] w-4 shrink-0">#{index + 1}</span>
+          <span className="font-medium text-foreground truncate">{entry?.title || `Post #${index + 1}`}</span>
+          {hasUrl ? (
+            <a href={entry!.url!} target="_blank" rel="noopener" className="text-blue-600 hover:underline inline-flex items-center gap-0.5 text-[10px] shrink-0">
+              <ExternalLink className="h-2.5 w-2.5" /> View
+            </a>
+          ) : (
+            <span className="text-amber-600 text-[10px]">URL not provided</span>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px] text-violet-700 hover:bg-violet-100" onClick={() => setEditing(!editing)}>
+            <Pencil className="h-3 w-3" />
+          </Button>
+          {onDelete && (
+            <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive hover:text-destructive" onClick={onDelete}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      </div>
+      {editing && (
+        <div className="mt-1.5 space-y-1.5 pl-6">
+          <Input placeholder="Post title" value={title} onChange={e => setTitle(e.target.value)} className="h-7 text-xs" data-testid={`input-announcement-title-${index}`} />
+          <Input placeholder="Post URL (e.g. https://linkedin.com/posts/...)" value={url} onChange={e => setUrl(e.target.value)} className="h-7 text-xs" data-testid={`input-announcement-url-${index}`} />
+          <div className="flex gap-1 justify-end">
+            <Button size="sm" variant="ghost" className="h-5 text-[10px]" onClick={() => { setEditing(false); setUrl(entry?.url ?? ""); setTitle(entry?.title ?? `Post #${index + 1}`); }}>Cancel</Button>
+            <Button size="sm" className="h-5 text-[10px] gap-0.5" disabled={saving} onClick={() => { onSave(url, title); setEditing(false); }} data-testid={`button-save-announcement-${index}`}>
+              <Save className="h-3 w-3" /> Save
             </Button>
           </div>
-        </div>
-      )}
-
-      {filteredEntries.length === 0 ? (
-        <p className="text-[11px] opacity-60 italic">
-          {slotsTotal > 0
-            ? `${slotsTotal} slot${slotsTotal !== 1 ? "s" : ""} allocated — click Add to create entries`
-            : isGraphic ? "No graphic slots created yet" : "No announcements yet"}
-        </p>
-      ) : (
-        <div className="space-y-1">
-          {filteredEntries.map((e, i) => (
-            <div key={e.id} className="flex items-center justify-between bg-white rounded px-2 py-1.5 border text-xs">
-              <div className="min-w-0 flex-1">
-                <span className="font-medium text-foreground">{e.title || `${isGraphic ? "Graphic" : "Post"} #${i + 1}`}</span>
-                {e.url && (
-                  <a href={e.url} target="_blank" rel="noopener" className="ml-2 text-blue-600 hover:underline inline-flex items-center gap-0.5">
-                    <ExternalLink className="h-2.5 w-2.5" /> View
-                  </a>
-                )}
-                {isGraphic && !e.fileAssetId && !e.url && <span className="ml-2 text-amber-600 text-[10px]">Awaiting upload</span>}
-                {isGraphic && (e.fileAssetId || e.url) && <span className="ml-2 text-green-600 text-[10px]">Uploaded</span>}
-                {!isGraphic && !e.url && <span className="ml-2 text-amber-600 text-[10px]">URL not yet provided</span>}
-              </div>
-              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive hover:text-destructive" onClick={() => deleteEntry.mutate(e.id)}>
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
-          ))}
-
-          {slotsTotal > 0 && filteredEntries.length < slotsTotal && (
-            <p className="text-[10px] text-muted-foreground italic pl-1">
-              {slotsTotal - filteredEntries.length} slot{slotsTotal - filteredEntries.length !== 1 ? "s" : ""} remaining
-            </p>
-          )}
         </div>
       )}
     </div>

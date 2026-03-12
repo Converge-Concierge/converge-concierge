@@ -910,8 +910,8 @@ function FileUploadEditor({
       await qc.invalidateQueries({ queryKey: ["/api/sponsor-dashboard/agreement-deliverables", token] });
       toast({ title: "File uploaded", description: "Your file has been submitted successfully." });
       setSelectedFile(null); onSaved();
-    } catch (e: any) {
-      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Upload failed", description: e instanceof Error ? e.message : "An unexpected error occurred", variant: "destructive" });
     } finally { setUploading(false); }
   }
 

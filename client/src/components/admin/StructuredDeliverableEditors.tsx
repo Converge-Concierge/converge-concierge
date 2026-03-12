@@ -31,10 +31,10 @@ type EnrichedDeliverable = AgreementDeliverable & {
 export function getDeliverableType(name: string): string | null {
   const n = name.toLowerCase();
   if (n.includes("speaking") || n.includes("session")) return "speaking";
-  if (n.includes("registration") && !n.includes("attendee")) return "registrations";
+  if (n.includes("registration")) return "registrations";
   if (n.includes("social") && (n.includes("graphic") || n.includes("media graphic"))) return "social_graphics";
   if (n.includes("social") && (n.includes("announcement") || n.includes("post"))) return "social_announcements";
-  if (n.includes("attendee") && n.includes("contact")) return "attendee_list";
+  if (n.includes("attendee") && (n.includes("contact") || n.includes("list"))) return "attendee_list";
   if (n.includes("certificate of insurance") || n.includes("coi") || n.includes("general liability") || n.includes("worker")) return "coi";
   return null;
 }

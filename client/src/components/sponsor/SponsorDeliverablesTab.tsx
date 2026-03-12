@@ -186,17 +186,17 @@ function DeliverableHelpPopover({ helpTitle, helpText, helpLink }: { helpTitle: 
   const [open, setOpen] = useState(false);
   if (!helpTitle && !helpText) return null;
   return (
-    <div className="relative inline-block">
+    <div>
       <button
         onClick={() => setOpen(!open)}
         className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors"
         data-testid="btn-help-info"
       >
         <Info className="h-3.5 w-3.5" />
-        <span className="text-[10px] font-medium">More Info</span>
+        <span className="text-[10px] font-medium">{open ? "Hide Info" : "More Info"}</span>
       </button>
       {open && (
-        <div className="absolute z-20 left-0 top-full mt-1 w-72 sm:w-80 bg-white border border-blue-200 rounded-lg shadow-lg p-3 space-y-1.5" data-testid="help-popover">
+        <div className="mt-2 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 space-y-1.5" data-testid="help-popover">
           {helpTitle && <p className="text-sm font-semibold text-foreground">{helpTitle}</p>}
           {helpText && <p className="text-xs text-muted-foreground whitespace-pre-wrap">{helpText}</p>}
           {helpLink && (
@@ -204,9 +204,6 @@ function DeliverableHelpPopover({ helpTitle, helpText, helpLink }: { helpTitle: 
               <ExternalLink className="h-3 w-3" /> Learn More
             </a>
           )}
-          <button onClick={() => setOpen(false)} className="absolute top-2 right-2 text-muted-foreground hover:text-foreground">
-            <X className="h-3.5 w-3.5" />
-          </button>
         </div>
       )}
     </div>

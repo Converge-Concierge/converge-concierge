@@ -1333,14 +1333,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     return `${sMonth} ${sDay} – ${eMonth} ${eDay}, ${year}`;
   }
 
+  async function fetchLogoBuffer(url: string | null | undefined): Promise<Buffer | null> {
+    if (!url) return null;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      if (!res.ok) return null;
+      const ct = res.headers.get("content-type") ?? "";
+      if (!ct.startsWith("image/")) return null;
+      const ab = await res.arrayBuffer();
+      return Buffer.from(ab);
+    } catch {
+      return null;
+    }
+  }
+
   async function buildReportData(sponsorId: string, eventId: string) {
-    const [sponsor, event, allMeetings, allAttendees, infoRequestsList, analyticsData] = await Promise.all([
+    const [sponsor, event, allMeetings, allAttendees, infoRequestsList, analyticsData, rawDeliverables] = await Promise.all([
       storage.getSponsor(sponsorId),
       storage.getEvent(eventId),
       storage.getMeetings(),
       storage.getAttendees(),
       storage.listInformationRequests({ sponsorId, eventId }),
       storage.getAnalyticsSummary(sponsorId, eventId),
+      storage.listAgreementDeliverables({ sponsorId, eventId }),
     ]);
     if (!sponsor || !event) return null;
 
@@ -1379,19 +1394,42 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       createdAt:          r.createdAt.toISOString(),
     }));
 
+    // Only include sponsor-visible deliverables in the report
+    const deliverables = rawDeliverables
+      .filter((d) => d.sponsorVisible !== false)
+      .map((d) => ({
+        id:               d.id,
+        category:         d.category,
+        deliverableName:  d.deliverableName,
+        quantity:         d.quantity ?? null,
+        quantityUnit:     d.quantityUnit ?? null,
+        ownerType:        d.ownerType,
+        status:           d.status,
+        dueTiming:        d.dueTiming,
+        dueDate:          d.dueDate ? d.dueDate.toISOString() : null,
+        sponsorFacingNote: d.sponsorFacingNote ?? null,
+        fulfillmentType:  d.fulfillmentType,
+      }));
+
+    const logoBuffer = await fetchLogoBuffer(event.logoUrl);
+
     return {
       generatedAt: new Date(),
       event: {
-        name:      event.name,
-        slug:      event.slug,
-        location:  event.location,
-        startDate: fmtReportDate(event.startDate),
-        endDate:   fmtReportDate(event.endDate),
-        dateRange: fmtDateRange(event.startDate, event.endDate),
+        name:         event.name,
+        slug:         event.slug,
+        location:     event.location,
+        startDate:    fmtReportDate(event.startDate),
+        endDate:      fmtReportDate(event.endDate),
+        dateRange:    fmtDateRange(event.startDate, event.endDate),
+        primaryColor: event.primaryColor ?? null,
+        accentColor:  event.accentColor ?? null,
+        logoBuffer,
       },
       sponsor: { name: sponsor.name, level: ((sponsor.assignedEvents ?? []).find((ae) => ae.eventId === eventId)?.sponsorshipLevel ?? sponsor.level ?? "") },
       meetings,
       infoRequests,
+      deliverables,
       analytics: analyticsData,
     };
   }
@@ -1426,7 +1464,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const data = await buildReportData(tokenRecord.sponsorId, tokenRecord.eventId);
     if (!data) return res.status(404).json({ message: "Sponsor or event not found" });
 
-    const filename = `${data.sponsor.name.replace(/\s+/g, "_")}_${data.event.slug}_Report.pdf`;
+    const sponsorSlug = data.sponsor.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const eventSlug = data.event.slug.toLowerCase();
+    const filename = `${eventSlug}-${sponsorSlug}-sponsorship-performance-report.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
@@ -1442,7 +1482,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const data = await buildReportData(sponsorId, eventId);
     if (!data) return res.status(404).json({ message: "Sponsor or event not found" });
 
-    const filename = `${data.sponsor.name.replace(/\s+/g, "_")}_${data.event.slug}_Report.pdf`;
+    const sponsorSlug = data.sponsor.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const eventSlug = data.event.slug.toLowerCase();
+    const filename = `${eventSlug}-${sponsorSlug}-sponsorship-performance-report.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 

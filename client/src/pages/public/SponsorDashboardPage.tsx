@@ -1172,7 +1172,7 @@ export default function SponsorDashboardPage() {
                           <a href={`/api/sponsor-report/pdf?token=${token}`} download className="w-full" data-testid="link-download-pdf">
                             <Button className="w-full h-12 gap-3 bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/20 rounded-xl">
                               <FileDown className="h-5 w-5" />
-                              Download Executive PDF Report
+                              Download Sponsorship Performance Report
                             </Button>
                           </a>
                         )}

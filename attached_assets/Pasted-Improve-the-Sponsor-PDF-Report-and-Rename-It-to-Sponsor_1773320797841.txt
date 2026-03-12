@@ -1,0 +1,398 @@
+Improve the Sponsor PDF Report and Rename It to “Sponsorship Performance Report”
+
+Update the current sponsor PDF report so it feels more polished, more event-branded, and more useful to sponsors.
+
+The current title “Sponsor Performance Report” should be changed because it can imply that the sponsor is being judged. The better label is:
+
+Sponsorship Performance Report
+
+This wording frames the report as a summary of sponsorship activity and value delivered.
+
+Primary Goals
+
+Improve the PDF report so that:
+
+it is renamed to Sponsorship Performance Report
+
+the report color styling follows the selected event color scheme
+
+the event logo is included prominently
+
+all sponsor deliverables and statuses are included in their own dedicated section
+
+This should make the PDF feel like a true sponsor-facing report and not a generic export.
+
+1. Rename the Report
+
+Everywhere the PDF currently says:
+
+Sponsor Performance Report
+
+change it to:
+
+Sponsorship Performance Report
+
+This should apply to:
+
+report title
+
+PDF filename if relevant
+
+download button label if relevant
+
+any email copy that references the report
+
+2. Apply Event Color Scheme to the PDF
+
+The PDF styling should match the selected event’s branding.
+
+Required behavior
+
+Use the event’s configured color scheme for:
+
+header bar
+
+section headers
+
+accent lines
+
+key metric highlights
+
+table header accents where appropriate
+
+Do not hardcode one generic blue theme for every event.
+
+Examples
+
+FRC2026 → use FRC event colors
+
+TLS2026 → use TLS event colors
+
+USBT2026 → use USBT event colors
+
+CUGI2027 → use CUGI colors
+
+If a selected event does not have a full configured scheme, use:
+
+primary event color
+
+fallback to Concierge default brand color only if needed
+
+3. Add the Event Logo
+
+The report should include the event logo prominently.
+
+Required placement
+
+Add the event logo near the top of the PDF in the header area.
+
+Preferred layout
+
+Top header should include:
+
+Converge Concierge / Converge Events branding
+
+event logo
+
+report title
+
+report generation date
+
+Example structure:
+
+[Converge Concierge / Converge Events]
+[Event Logo]
+
+Sponsorship Performance Report
+[Generated Date]
+
+If layout allows, event logo can sit:
+
+top right
+or
+
+centered above the report title
+
+But it must be visually present and not tiny.
+
+4. Keep Converge Branding Present but Secondary
+
+The report should feel like:
+
+a Converge-produced report
+
+for a specific event
+
+So include both:
+
+Converge / Concierge branding
+
+event branding
+
+Recommended approach
+
+Converge branding in header/footer
+
+event logo in top section
+
+event colors used throughout
+
+5. Add a New Dedicated Section: Sponsorship Deliverables
+
+Create a full report section titled:
+
+Sponsorship Deliverables
+
+This section should list all deliverables tied to that sponsor agreement, not just meeting/reporting metrics.
+
+This is very important because the report should summarize not just interactions, but also fulfillment.
+
+6. Deliverables Section Content
+
+Include all sponsor agreement deliverables for that sponsor and event.
+
+For each deliverable, show at minimum:
+
+Category
+
+Deliverable Name
+
+Quantity
+
+Owner
+
+Status
+
+Due Timing / Due Date
+
+Sponsor Visible flag if useful
+
+Notes / detail summary if available
+
+Recommended grouping
+
+Group deliverables by category, using the same categories used in the system:
+
+Company Profile
+
+Event Participation
+
+Speaking & Content
+
+Meetings & Introductions
+
+Marketing & Branding
+
+Post-Event Deliverables
+
+Compliance
+
+This will make the report easier to read.
+
+7. Deliverables Status Presentation
+
+Statuses should be visually clear in the PDF.
+
+Use event-color-aware status styling where possible, but preserve readability.
+
+Examples:
+
+Delivered
+
+In Progress
+
+Awaiting Sponsor Input
+
+Scheduled
+
+Available After Event
+
+Approved
+
+Needed
+
+Under Review
+
+Issue Identified
+
+Make status labels easy to scan.
+
+8. Include Quantity Progress Where Relevant
+
+For deliverables that have progress logic, include it.
+
+Examples:
+
+VIP Registrations: 2 of 4 used
+
+Social Media Graphics: 1 of 2 delivered
+
+Sponsorship Announcements: 2 of 2 posted
+
+This is more useful than only showing the raw quantity.
+
+9. Preserve Existing Metrics, But Improve the Layout
+
+Keep the existing sponsorship activity metrics that are useful, such as:
+
+meetings scheduled
+
+meetings completed
+
+information requests
+
+unique companies engaged
+
+leads captured
+
+meeting type breakdown if relevant
+
+But make sure the PDF no longer feels like it is only a meeting report.
+
+It should feel like a full sponsorship report.
+
+10. Recommended PDF Structure
+
+Use this general structure:
+
+Header
+
+Converge / Concierge branding
+
+event logo
+
+report title: Sponsorship Performance Report
+
+generated date
+
+Section 1 — Event + Sponsor Summary
+
+event name
+
+event date/location
+
+sponsor name
+
+sponsorship level
+
+Section 2 — Sponsorship Activity Summary
+
+meetings
+
+information requests
+
+leads
+
+companies engaged
+
+meeting mix
+
+Section 3 — Sponsorship Deliverables
+
+grouped by category
+
+each deliverable with status and quantity
+
+Section 4 — Optional Detail Tables
+
+meeting detail log
+
+information request summary
+
+activity notes if already supported
+
+Footer
+
+Converge Concierge / Converge Events
+
+optional confidentiality note if appropriate
+
+11. Improve the PDF Filename
+
+If the exported filename is currently generic, update it to something clearer.
+
+Recommended format:
+
+[event-code]-[sponsor-slug]-sponsorship-performance-report.pdf
+
+Example:
+
+frc2026-winnow-sponsorship-performance-report.pdf
+
+This makes downloaded files easier to manage.
+
+12. Update Download Button Text if Needed
+
+If the UI currently says:
+
+Download Sponsor Report
+
+change it to:
+
+Download Sponsorship Performance Report
+
+or
+
+Download Sponsorship PDF Report
+
+Be consistent with the new naming.
+
+13. Handle Long Deliverable Lists Gracefully
+
+Some sponsors may have many deliverables or multiple structured items.
+
+Ensure the PDF:
+
+paginates cleanly
+
+does not cut rows awkwardly
+
+keeps category headers readable
+
+repeats table headers on new pages if practical
+
+This is especially important for longer Platinum/Gold sponsorships.
+
+14. Keep the PDF Sponsor-Facing
+
+Do not expose:
+
+internal-only notes
+
+internal admin comments
+
+private operational remarks
+
+hidden deliverables
+
+Only include sponsor-visible deliverables and sponsor-appropriate details.
+
+15. Acceptance Criteria
+
+This report update is complete when:
+
+the PDF is renamed to Sponsorship Performance Report
+
+the report uses the event’s color scheme
+
+the event logo is visibly included
+
+the report includes a full Sponsorship Deliverables section
+
+deliverables are grouped by category
+
+statuses and quantities are clearly displayed
+
+the report still includes useful sponsorship activity metrics
+
+the final PDF feels event-branded and sponsor-facing
+
+16. Success Standard
+
+After this update, the PDF should feel like a polished, event-branded sponsorship summary that communicates both:
+
+sponsor engagement/activity
+
+sponsorship fulfillment/progress
+
+That is the standard this report should meet.

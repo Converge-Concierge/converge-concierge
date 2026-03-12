@@ -723,7 +723,7 @@ export default function ReportsPage() {
               <FileDown className="h-5 w-5 text-accent" />
               <h2 className="text-lg font-display font-semibold text-foreground">Sponsor PDF Generator</h2>
             </div>
-            <p className="text-sm text-muted-foreground mb-5">Generate a detailed sponsor performance report for a selected sponsor and event.</p>
+            <p className="text-sm text-muted-foreground mb-5">Generate a detailed sponsorship performance report for a selected sponsor and event.</p>
             <div className="flex flex-wrap gap-3 items-end">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Event</label>
@@ -766,7 +766,7 @@ export default function ReportsPage() {
                 )}
               >
                 <FileDown className="h-4 w-4" />
-                {pdfDownloading ? "Generating…" : "Download PDF Report"}
+                {pdfDownloading ? "Generating…" : "Download Sponsorship Performance Report"}
               </button>
             </div>
             {(reportEventId || globalEventId) && reportSponsorId && (

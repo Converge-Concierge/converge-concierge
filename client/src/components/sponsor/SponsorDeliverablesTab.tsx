@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { DELIVERABLE_CATEGORIES } from "@shared/schema";
@@ -378,7 +379,17 @@ function SponsorRepEditor({
         </div>
         <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-email-${deliverable.id}`} />
         <Input placeholder="Title (optional)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-title-${deliverable.id}`} />
-        <Input placeholder="Concierge Role (optional)" value={form.conciergeRole} onChange={(e) => setForm({ ...form, conciergeRole: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-role-${deliverable.id}`} />
+        <Select value={form.conciergeRole || "__none__"} onValueChange={(v) => setForm({ ...form, conciergeRole: v === "__none__" ? "" : v })}>
+          <SelectTrigger className="h-8 text-sm" data-testid={`select-rep-role-${deliverable.id}`}>
+            <SelectValue placeholder="Concierge Role (optional)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">No role selected</SelectItem>
+            <SelectItem value="Account Owner">Account Owner</SelectItem>
+            <SelectItem value="Representative">Representative</SelectItem>
+            <SelectItem value="View Only">View Only</SelectItem>
+          </SelectContent>
+        </Select>
       </>
     );
   }
@@ -1318,7 +1329,7 @@ function DeliverableRow({
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {hasExpandableContent && !isCOI && (
+          {hasExpandableContent && (
             <Button
               variant={expanded ? "ghost" : "outline"}
               size="sm"
@@ -1326,7 +1337,7 @@ function DeliverableRow({
               onClick={() => setExpanded(!expanded)}
               data-testid={`btn-expand-${deliverable.id}`}
             >
-              {expanded ? <><ChevronUp className="h-3 w-3 mr-1" />Close</> : <>{ctaLabel}</>}
+              {expanded ? <><ChevronUp className="h-3 w-3 mr-1" />Close</> : <>{isCOI ? "View Details" : ctaLabel}</>}
             </Button>
           )}
         </div>

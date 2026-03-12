@@ -1,0 +1,644 @@
+Correct Deliverables Navigation, Sponsor Dashboards filtering, Sponsor Dashboard tab/order/layout, and Rebuild Deliverable-Specific Sponsor Workflows
+
+We need to correct several issues in the current implementation and properly align the system to the intended Deliverables / Sponsor Dashboard structure.
+
+This is a refinement and correction phase. Preserve working logic where possible, but fix the items below.
+
+1. Sponsorship Templates Navigation Fix
+Problem
+
+The new Sponsorship Templates menu item was created, but the Sponsorship Templates tab still appears inside Deliverables.
+
+That is not the intended structure.
+
+Required behavior
+
+The Sponsorship Templates menu item should be the only place that handles sponsorship template management.
+
+Therefore:
+
+remove the Sponsorship Templates tab from inside Deliverables
+
+keep the admin menu item:
+
+Configuration → Sponsorship Templates
+
+keep Deliverables focused on:
+
+Sponsor Agreements
+
+Sponsor Fulfillment Queue
+
+Outstanding Sponsor Items
+
+related live operational views
+
+Acceptance
+
+When clicking Deliverables, the user should not see a Sponsorship Templates tab anywhere inside that module.
+
+2. Sponsor Dashboards Event Filtering Fix
+Problem
+
+The Sponsor Dashboards page is showing eGain under TLS2026, but eGain is not a TLS sponsor.
+
+This means the event filtering / tab logic is incorrect.
+
+Required behavior
+
+The Sponsor Dashboards list must only show sponsors that are actually assigned to the selected event.
+
+Fix filtering logic
+
+When an event tab is selected:
+
+only include sponsors where that event is one of the sponsor’s assigned events
+
+do not show sponsors from other events
+
+do not infer event assignment loosely from meetings or other activity
+
+Example
+
+If TLS2026 is selected:
+
+show only sponsors assigned to TLS2026
+
+If FRC2026 is selected:
+
+show only sponsors assigned to FRC2026
+
+If All Events is selected:
+
+show all active sponsor dashboards
+
+Acceptance
+
+Selecting TLS2026 should not show eGain unless eGain is explicitly assigned to TLS2026.
+
+3. Info Requests Layout Consistency Fix
+Problem
+
+The layout and margins of Info Requests do not match the other major admin pages.
+
+Required behavior
+
+Make the layout of Info Requests visually consistent with:
+
+Meetings
+
+Attendees
+
+Sponsors
+
+Events
+
+Match:
+
+page margins
+
+header spacing
+
+tab placement
+
+filter row width
+
+table container width
+
+overall left/right padding
+
+This should feel like the same page system, not a one-off layout.
+
+Acceptance
+
+Info Requests should have the same page-width rhythm and margin behavior as the other core admin pages.
+
+4. Sponsor Dashboard Metrics Row Fix
+Problem
+
+The Awaiting Sponsor Action metric box is not in the intended location.
+
+Required behavior
+
+Move Awaiting Sponsor Action to be the last square in the metrics row.
+
+Desired metric order
+
+Keep current metrics, but ensure:
+
+... [Awaiting Sponsor Action]
+
+is the final box on the row.
+
+5. Sponsor Dashboard Tab Order Fix
+Problem
+
+The Deliverables tab is not in the correct position.
+
+Required behavior
+
+Move Deliverables so it appears between Overview and Meetings.
+
+Desired order
+Overview
+Deliverables
+Meetings
+Info Requests
+Leads
+Reports
+
+If additional tabs exist, preserve them logically, but Deliverables must be second.
+
+6. Sponsor Representative — Concierge Role Settings
+Problem
+
+Sponsor Representative includes a Concierge Role field, but the allowed values need to be centrally managed.
+
+Required behavior
+
+Define Concierge Role in Settings as a managed option list.
+
+Add / confirm allowed values:
+
+Account Owner
+
+Representative
+
+View Only
+
+Behavior
+
+When sponsors/admins add sponsor representatives, the Concierge Role field should use this controlled list.
+
+Do not leave it as arbitrary free text.
+
+Acceptance
+
+Sponsor Representatives should use a structured dropdown for Concierge Role, sourced from Settings or a controlled enum.
+
+7. Rebuild “Three-Word Company Categories” Deliverable
+Problem
+
+This deliverable needs better naming and better input behavior.
+
+Rename deliverable
+
+Replace the current label with a more sponsor-friendly version such as:
+
+What are 3 words or short phrases that best describe what you’d like to sell?
+
+This wording can be refined slightly, but it must clearly describe the purpose.
+
+Required input behavior
+
+This deliverable should support a hybrid model:
+
+A. Selection from existing event topic words
+
+Use the same category/topic words already used by the event for:
+
+attendee “What are you interested in?”
+
+sponsor matching
+
+B. Free-form additions
+
+Allow sponsors to add custom words or short phrases if needed.
+
+Required data behavior
+
+target = 3 entries
+
+support mixture of preset topic selections + custom entries
+
+store in structured format
+
+surface in sponsor matching logic later
+
+Acceptance
+
+This deliverable should no longer be a plain text field or the old label.
+
+8. Sponsor Representatives Must Show Event Registration Status
+Required behavior
+
+For each sponsor representative, the system should check whether that representative is registered for the selected event.
+
+Display a status such as:
+
+Registered
+
+Not Registered
+
+Registration Pending / Unknown if needed
+
+Use matching logic based on:
+
+email address first
+
+name fallback if needed, but email should be primary
+
+This should appear in both:
+
+sponsor-facing representative section
+
+admin-facing representative management where useful
+
+Acceptance
+
+Each sponsor representative record should indicate event registration status.
+
+9. Rebuild Event Participation — VIP / Regular Registrations
+Problem
+
+This is being treated incorrectly. It should be a Converge-controlled structured deliverable, not just a generic quantity line.
+
+Required behavior
+
+The VIP Registration or Registration deliverable should become a structured data section.
+
+Julie / admin should be able to enter:
+
+registration access code
+
+sponsor-specific registration instructions
+
+upload a PDF instructions file
+
+Sponsor should be able to see:
+
+access code
+
+registration instructions
+
+downloadable PDF instructions if uploaded
+
+how many registrations are remaining
+
+Remaining registration count logic
+
+The system should calculate remaining sponsorship registrations based on:
+
+deliverable quantity
+
+sponsor representatives linked to the event who are actually registered
+
+Example
+
+If quantity = 4
+and 2 sponsor representatives are registered
+then remaining = 2
+
+This should update dynamically.
+
+Important
+
+This is a Converge Deliverable, but sponsors consume the information and use it to complete their registrations.
+
+10. Premium / General Exhibit Table Default Quantity Fix
+Required behavior
+
+For:
+
+Premium Exhibit Table
+
+General Exhibit Table
+
+default quantity should be:
+
+1
+
+This should be true in:
+
+Sponsorship Templates
+
+live sponsor agreement instances unless overridden
+
+These remain Converge-controlled deliverables.
+
+11. Rebuild Deliverable Help / More Information Support
+Required behavior
+
+Where possible, every sponsor-visible deliverable should support:
+
+Help / More Information
+
+short sponsor-facing explanation
+
+optional longer expandable explanation
+
+Add support fields if needed:
+
+help_title
+
+help_text
+
+help_link
+
+UX
+
+Show a small help icon or “More Info” link next to deliverable name in the sponsor dashboard.
+
+This should reduce sponsor confusion and support fewer manual follow-ups.
+
+12. Company Logo Deliverable Behavior
+Required behavior
+
+This remains sponsor-provided.
+
+When a sponsor provides/uploads the company logo:
+
+update deliverable status appropriately
+
+send internal email notification to Converge team
+
+include sponsor name, event, and file reference
+
+This requires the Phase 4 file workflow to integrate correctly.
+
+13. Company Description Deliverable Behavior
+Required behavior
+
+limit to 1000 words
+
+show live word count
+
+block save over limit
+
+once completed or updated, send internal email notification to Converge team
+
+This is sponsor-provided.
+
+14. Sponsor Representatives Deliverable Behavior
+Required behavior
+
+This should be a structured data section, not a generic row.
+
+Fields per representative:
+
+First Name
+
+Last Name
+
+Email
+
+Title
+
+Concierge Role
+
+As noted above, show event registration status too.
+
+This should work in both sponsor-facing and admin-facing views.
+
+15. Speaking Engagement Structured Fields
+Required behavior
+
+For each speaking engagement/session, Converge should be able to enter:
+
+Session Type: Panel / Peer-to-Peer / Other
+
+Session Title
+
+Sponsor Speaker
+
+If quantity > 1, support multiple session records.
+
+This is not just one flat row. It should be a structured sub-record editor.
+
+Sponsors should be able to view these details.
+
+16. Rename and Reframe Legacy Meeting / Email Introduction Deliverables
+Rename
+
+Change:
+
+Meeting Introductions (Pre-Event)
+to
+Meeting Introduction List (Pre-Event)
+
+Change:
+
+Email Introductions (Post-Event)
+to
+Email Introduction List (Post-Event)
+
+Qty
+
+Set each to:
+
+1
+Sponsor-facing note
+
+These are the old legacy way of sharing interest lists and will eventually be retired once Concierge fully replaces that process.
+
+17. Split Website/Signage/App Deliverables Properly
+
+The old combined logo deliverable should be split into:
+
+Company Logo on Website — Qty 1
+
+Company Logo on Signage — Qty Various
+
+Company Profile in Event App — Qty 1
+
+All three should be separate Converge-controlled deliverables.
+
+18. Rebuild Customized Social Media Graphics Deliverable
+Required behavior
+
+If quantity = 2, this should render as two separate line items, not one quantity row.
+
+Example:
+
+Customized Social Media Graphic 1
+
+Customized Social Media Graphic 2
+
+Each should support:
+
+preview of uploaded graphic
+
+sponsor-visible file access
+
+simple share guidance / LinkedIn-friendly usage
+
+If a true LinkedIn share action is not ready, at minimum support preview + download.
+
+19. Rebuild Social Media Sponsorship Announcements Deliverable
+Required behavior
+
+This should also render as separate line items when quantity = 2.
+
+Example:
+
+Sponsorship Announcement 1
+
+Sponsorship Announcement 2
+
+For each entry, Converge should be able to paste the LinkedIn URL.
+
+Sponsor should be able to:
+
+view the link
+
+click through
+
+share externally
+
+20. Post-Event Deliverables — Attendee Contact List Automation Preparation
+Required behavior
+
+Support:
+
+Full Attendee Contact List
+
+Partial Attendee Contact List
+
+Fields
+
+Full list:
+
+Name
+
+Title
+
+Company
+
+Email
+
+Phone Number
+
+Partial list:
+
+Name
+
+Title
+
+Company
+
+Automation goal
+
+Because this data already exists in Concierge, structure the deliverable so it can be automated.
+
+Preferred behavior
+
+When ready:
+
+system generates CSV from event attendee data
+
+deliverable can attach the CSV
+
+sponsor can download it
+
+optionally email the CSV to sponsor
+
+If full automation is not implemented immediately, structure the deliverable so it can be cleanly automated next.
+
+21. Split Certificate of Insurance Into Two Deliverables
+
+Replace the single COI line with:
+
+General Liability – Certificate of Insurance — Qty 1
+
+Worker’s Compensation – Certificate of Insurance — Qty 1
+
+Both remain:
+
+status-only
+
+sponsor-visible
+
+reminder-eligible
+
+admin-managed
+
+Status model remains:
+
+Needed
+
+Received
+
+Under Review
+
+Approved
+
+Issue Identified
+
+22. Structured Deliverable Rendering Fix
+Required behavior
+
+The system currently treats too many deliverables as generic rows.
+
+Rebuild rendering so structured deliverables open structured editors in admin and appropriate forms in sponsor view.
+
+Examples
+
+Company Description → text editor with word count
+
+Sponsor Representatives → structured multi-person form
+
+“What are 3 words...” → preset topic selection + free-form tags
+
+VIP / Regular Registrations → access code + instructions + seats remaining
+
+Speaking Engagement → session records
+
+Social Graphics → per-item file preview
+
+Social Announcements → per-item LinkedIn links
+
+COI → split status items only
+
+This should apply to both:
+
+admin view
+
+sponsor dashboard view
+
+23. Preserve Template + Override Architecture
+
+All of the above refinements must still work within the existing:
+
+Sponsorship Templates
+
+sponsor agreement instance
+
+override model
+
+Do not hardcode one-off sponsor logic into the general system.
+
+24. Acceptance Criteria
+
+This correction pass is complete when:
+
+Sponsorship Templates only lives under Configuration
+
+Deliverables no longer shows a Sponsorship Templates tab
+
+Sponsor Dashboards filters correctly by assigned event
+
+Info Requests layout matches the other admin pages
+
+Awaiting Sponsor Action is the last sponsor dashboard metric box
+
+Deliverables tab is second on the sponsor dashboard
+
+Concierge Role is controlled via Settings
+
+the category/“what do you want to sell?” deliverable is rebuilt correctly
+
+sponsor representatives show registration status
+
+VIP / Registration deliverable is rebuilt as structured Converge-controlled data
+
+Exhibit Table defaults to Qty 1
+
+deliverable help/more info support exists
+
+company logo / description trigger internal notifications
+
+speaking engagement, legacy introduction lists, website/signage/app, social graphics, social announcements, attendee lists, and COI all behave as described
+
+25. Success Standard
+
+After this update, the Deliverables system should feel like a real sponsorship fulfillment platform with correct admin structure, correct event filtering, and properly modeled sponsor-facing deliverables instead of generic placeholder rows.

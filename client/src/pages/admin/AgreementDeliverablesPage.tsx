@@ -77,7 +77,7 @@ export default function AgreementDeliverablesPage() {
   const [location, nav] = useLocation();
   const { toast } = useToast();
   const urlParams = new URLSearchParams(location.split("?")[1] ?? "");
-  const initialTab = urlParams.get("tab") ?? "package-templates";
+  const initialTab = urlParams.get("tab") ?? "sponsor-agreements";
   const initialPreset = urlParams.get("preset") ?? undefined;
   const [activeTab, setActiveTab] = useState(initialTab);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -332,9 +332,6 @@ export default function AgreementDeliverablesPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="h-10">
-          <TabsTrigger value="package-templates" className="gap-2" data-testid="tab-package-templates">
-            <Package className="h-4 w-4" /> Sponsorship Templates
-          </TabsTrigger>
           <TabsTrigger value="sponsor-agreements" className="gap-2" data-testid="tab-sponsor-agreements">
             <Users className="h-4 w-4" /> Sponsor Agreements
           </TabsTrigger>

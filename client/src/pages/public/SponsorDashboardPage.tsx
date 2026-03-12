@@ -527,7 +527,7 @@ export default function SponsorDashboardPage() {
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-muted/50 border border-border/40 rounded-xl mb-8">
-              {(["overview", "meetings", "info-requests", "leads", "deliverables", "reports"] as const).map((tab) => (
+              {(["overview", "deliverables", "meetings", "info-requests", "leads", "reports"] as const).map((tab) => (
                 <TabsTrigger
                   key={tab}
                   value={tab}
@@ -536,10 +536,10 @@ export default function SponsorDashboardPage() {
                   style={activeTab === tab ? { backgroundColor: eventAccent, color: "#ffffff" } : {}}
                 >
                   {tab === "overview" ? "Overview"
+                    : tab === "deliverables" ? "Deliverables"
                     : tab === "meetings" ? "Meetings"
                     : tab === "info-requests" ? "Info Requests"
                     : tab === "leads" ? "Leads"
-                    : tab === "deliverables" ? "Deliverables"
                     : "Reports"}
                 </TabsTrigger>
               ))}
@@ -556,14 +556,6 @@ export default function SponsorDashboardPage() {
                   onClick={() => setActiveTab("meetings")}
                 />
                 <StatCard
-                  label="Awaiting Sponsor Action"
-                  value={stats.pendingOnline}
-                  icon={Clock}
-                  accent="amber"
-                  sub="Online requests pending your review"
-                  onClick={() => setActiveTab("meetings")}
-                />
-                <StatCard
                   label="Information Requests"
                   value={infoRequests.length}
                   icon={MessageSquare}
@@ -576,6 +568,14 @@ export default function SponsorDashboardPage() {
                   icon={UserCheck}
                   accent="indigo"
                   onClick={() => setActiveTab("leads")}
+                />
+                <StatCard
+                  label="Awaiting Sponsor Action"
+                  value={stats.pendingOnline}
+                  icon={Clock}
+                  accent="amber"
+                  sub="Online requests pending your review"
+                  onClick={() => setActiveTab("meetings")}
                 />
               </div>
 

@@ -1142,7 +1142,10 @@ export class DatabaseStorage implements IStorage {
 
   async listDeliverableTemplateItems(packageTemplateId: string): Promise<DeliverableTemplateItem[]> {
     return db.select().from(agreementDeliverableTemplateItems)
-      .where(eq(agreementDeliverableTemplateItems.packageTemplateId, packageTemplateId))
+      .where(and(
+        eq(agreementDeliverableTemplateItems.packageTemplateId, packageTemplateId),
+        eq(agreementDeliverableTemplateItems.isActive, true),
+      ))
       .orderBy(agreementDeliverableTemplateItems.category, agreementDeliverableTemplateItems.displayOrder);
   }
 

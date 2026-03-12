@@ -70,7 +70,8 @@ export default function SponsorDashboardsAdminPage() {
         const event = eventMap.get(token.eventId);
         if (!sponsor || !event) return null;
         const link = (sponsor.assignedEvents ?? []).find(ae => ae.eventId === token.eventId);
-        const level = link?.sponsorshipLevel ?? sponsor.level ?? "";
+        if (!link || link.archiveState === "archived") return null;
+        const level = link.sponsorshipLevel ?? sponsor.level ?? "";
         return { token, sponsor, event, level };
       })
       .filter((r): r is SponsorDashboardRow => r !== null);

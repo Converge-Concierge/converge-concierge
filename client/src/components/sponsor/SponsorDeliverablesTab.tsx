@@ -473,7 +473,7 @@ function SponsorRepEditor({
   );
 }
 
-const SUGGESTED_CATEGORIES = [
+const FALLBACK_CATEGORIES = [
   "Payments", "Lending", "Risk Management", "Compliance", "Fraud Prevention",
   "Digital Banking", "Core Banking", "Data Analytics", "AI / Machine Learning",
   "Cybersecurity", "Wealth Management", "Treasury", "Insurance", "RegTech",
@@ -498,6 +498,12 @@ function CategoryTagSelector({
   const [saved, setSaved] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
+
+  const { data: topicsData } = useQuery<{ topics: string[] }>({
+    queryKey: ["/api/sponsor-dashboard/event-topics", token],
+    queryFn: () => fetch(`/api/sponsor-dashboard/event-topics?token=${token}`).then(r => r.json()),
+  });
+  const suggestedTopics = topicsData?.topics?.length ? topicsData.topics : FALLBACK_CATEGORIES;
 
   const save = useMutation({
     mutationFn: async () => {
@@ -528,7 +534,7 @@ function CategoryTagSelector({
     setTags(tags.filter((_, i) => i !== idx));
   }
 
-  const availableSuggestions = SUGGESTED_CATEGORIES.filter(s => !tags.includes(s));
+  const availableSuggestions = suggestedTopics.filter(s => !tags.includes(s));
 
   if (!canEdit) {
     return tags.length > 0 ? (
@@ -561,7 +567,9 @@ function CategoryTagSelector({
       {tags.length < 3 && (
         <>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">Suggested Topics</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
+              {topicsData?.topics?.length ? "Event Topics" : "Suggested Topics"}
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {availableSuggestions.map((s) => (
                 <button

@@ -2121,6 +2121,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   }
 
+  // GET /api/sponsor-dashboard/event-topics — suggested category topic words from event sponsors' attributes
+  app.get("/api/sponsor-dashboard/event-topics", async (req, res) => {
+    const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+    if (!token) return res.status(401).json({ message: "No token provided" });
+    const validation = await validateSponsorToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const allSponsors = await storage.getSponsors();
+    const eventSponsors = allSponsors.filter(s =>
+      s.assignedEvents?.some(e => e.eventId === tokenRecord.eventId)
+    );
+    const topicSet = new Set<string>();
+    for (const s of eventSponsors) {
+      if (s.attributes && Array.isArray(s.attributes)) {
+        for (const a of s.attributes) {
+          if (typeof a === "string" && a.trim()) topicSet.add(a.trim());
+        }
+      }
+    }
+    res.json({ topics: Array.from(topicSet).sort() });
+  });
+
   // ── Sponsor Dashboard: Agreement Deliverables (Phase 2) ───────────────────
 
   // GET /api/sponsor-dashboard/agreement-deliverables — list sponsor-visible deliverables with child records

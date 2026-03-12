@@ -350,6 +350,20 @@ function RegistrationsEditor({
   );
 }
 
+function GraphicThumbnail({ fileAssetId }: { fileAssetId: string }) {
+  const { data } = useQuery<{ downloadURL: string }>({
+    queryKey: ["/api/files", fileAssetId, "download-url"],
+    queryFn: async () => {
+      const res = await fetch(`/api/files/${fileAssetId}/download-url`, { credentials: "include" });
+      if (!res.ok) return { downloadURL: "" };
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  if (!data?.downloadURL) return null;
+  return <img src={data.downloadURL} alt="Graphic preview" className="h-6 w-6 rounded object-cover border border-indigo-200 shrink-0" />;
+}
+
 function SocialGraphicsEditor({
   deliverable,
   sponsorId,
@@ -447,6 +461,7 @@ function SocialGraphicsEditor({
               <span className="text-muted-foreground font-mono text-[10px] w-4 shrink-0">#{i + 1}</span>
               {entry ? (
                 <>
+                  {entry.fileAssetId && <GraphicThumbnail fileAssetId={entry.fileAssetId} />}
                   <span className="font-medium text-foreground truncate">{entry.title || `Graphic #${i + 1}`}</span>
                   {entry.fileAssetId || entry.url ? (
                     <span className="text-green-600 text-[10px] flex items-center gap-0.5"><Image className="h-2.5 w-2.5" /> Uploaded</span>

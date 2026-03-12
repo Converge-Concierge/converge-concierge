@@ -1117,6 +1117,12 @@ export default function SponsorAgreementDetailPage() {
                 <Label>Help Link</Label>
                 <Input value={editForm.helpLink} onChange={(e) => setEditForm((f) => ({ ...f, helpLink: e.target.value }))} placeholder="https://example.com/guide" data-testid="input-edit-help-link" />
               </div>
+              {(editForm.helpTitle.trim() || editForm.helpText.trim() || editForm.helpLink.trim()) && (
+                <div className="col-span-2 pt-1">
+                  <Label className="text-xs text-muted-foreground mb-1">Sponsor Preview</Label>
+                  <HelpContentPreview helpTitle={editForm.helpTitle.trim() || null} helpText={editForm.helpText.trim() || null} helpLink={editForm.helpLink.trim() || null} />
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

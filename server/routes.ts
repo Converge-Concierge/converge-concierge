@@ -2106,16 +2106,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(updated);
   });
 
-  async function sendInternalDeliverableNotification(sponsorId: string, deliverableName: string, action: string) {
+  async function sendInternalDeliverableNotification(sponsorId: string, deliverableName: string, action: string, eventId?: string) {
     try {
       const branding = await storage.getBranding();
       if (!branding.internalNotificationEmail) return;
       const sponsor = await storage.getSponsor(sponsorId);
       const sponsorName = sponsor?.name ?? "Unknown Sponsor";
+      let eventName = "";
+      if (eventId) {
+        const event = await storage.getEvent(eventId);
+        eventName = event?.name ?? "";
+      }
+      const timestamp = new Date().toISOString();
       await sendEmail(
         branding.internalNotificationEmail,
         `Sponsor Update: ${sponsorName} — ${deliverableName}`,
-        `<p><strong>${sponsorName}</strong> has ${action} for <strong>${deliverableName}</strong>.</p><p>Please log in to the admin dashboard to review.</p>`
+        `<p><strong>${sponsorName}</strong> has ${action} for <strong>${deliverableName}</strong>.</p>` +
+        (eventName ? `<p>Event: ${eventName}</p>` : "") +
+        `<p>Time: ${timestamp}</p>` +
+        `<p>Please log in to the admin dashboard to review.</p>`
       );
     } catch (err) {
       console.error("Failed to send internal notification:", err);
@@ -2169,7 +2178,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const updated = await storage.updateAgreementDeliverable(req.params.id, allowed);
 
     if (allowed.status === "Submitted") {
-      sendInternalDeliverableNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted their response").catch(() => {});
+      sendInternalDeliverableNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted their response", deliverable.eventId).catch(() => {});
     }
 
     const { internalNote: _drop, ...safe } = updated as typeof updated & { internalNote: unknown };
@@ -2202,15 +2211,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
     if (!deliverable.sponsorEditable) return res.status(403).json({ error: "Not editable" });
 
-    const { name, title, email } = req.body;
-    if (!name?.trim()) return res.status(400).json({ error: "name is required" });
+    const { name, firstName, lastName, title, email, conciergeRole, registrationStatus } = req.body;
+    if (!name?.trim() && !firstName?.trim()) return res.status(400).json({ error: "name or firstName is required" });
 
-    const registrant = await storage.createDeliverableRegistrant({ agreementDeliverableId: req.params.id, name: name.trim(), title: title?.trim() ?? null, email: email?.trim() ?? null });
+    const registrant = await storage.createDeliverableRegistrant({
+      agreementDeliverableId: req.params.id,
+      name: (name ?? `${firstName ?? ""} ${lastName ?? ""}`.trim()).trim(),
+      title: title?.trim() ?? null,
+      email: email?.trim() ?? null,
+      firstName: firstName?.trim() ?? null,
+      lastName: lastName?.trim() ?? null,
+      conciergeRole: conciergeRole?.trim() ?? null,
+      registrationStatus: registrationStatus ?? "pending",
+    });
 
     // Auto-update status if all quantity filled
     const all = await storage.listDeliverableRegistrants(req.params.id);
     if (deliverable.quantity && all.length >= deliverable.quantity) {
       await storage.updateAgreementDeliverable(req.params.id, { status: "Submitted" });
+      sendInternalDeliverableNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted all registrants", deliverable.eventId).catch(() => {});
     } else if (deliverable.status === "Not Started" || deliverable.status === "Awaiting Sponsor Input") {
       await storage.updateAgreementDeliverable(req.params.id, { status: "In Progress" });
     }
@@ -2230,8 +2249,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
     if (!deliverable.sponsorEditable) return res.status(403).json({ error: "Not editable" });
 
-    const { name, title, email } = req.body;
-    const updated = await storage.updateDeliverableRegistrant(req.params.rid, { name: name?.trim(), title: title?.trim() ?? null, email: email?.trim() ?? null });
+    const { name, firstName, lastName, title, email, conciergeRole, registrationStatus } = req.body;
+    const updates: Record<string, unknown> = {};
+    if (name !== undefined) updates.name = name?.trim();
+    if (firstName !== undefined) updates.firstName = firstName?.trim() ?? null;
+    if (lastName !== undefined) updates.lastName = lastName?.trim() ?? null;
+    if (title !== undefined) updates.title = title?.trim() ?? null;
+    if (email !== undefined) updates.email = email?.trim() ?? null;
+    if (conciergeRole !== undefined) updates.conciergeRole = conciergeRole?.trim() ?? null;
+    if (registrationStatus !== undefined) updates.registrationStatus = registrationStatus;
+    const updated = await storage.updateDeliverableRegistrant(req.params.rid, updates);
     res.json(updated);
   });
 
@@ -2286,13 +2313,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
     if (!deliverable.sponsorEditable) return res.status(403).json({ error: "Not editable" });
 
-    const { speakerName, speakerTitle, speakerBio } = req.body;
+    const { speakerName, speakerTitle, speakerBio, sessionType, sessionTitle } = req.body;
     if (!speakerName?.trim()) return res.status(400).json({ error: "speakerName is required" });
 
-    const speaker = await storage.createDeliverableSpeaker({ agreementDeliverableId: req.params.id, speakerName: speakerName.trim(), speakerTitle: speakerTitle?.trim() ?? null, speakerBio: speakerBio?.trim() ?? null });
+    const speaker = await storage.createDeliverableSpeaker({
+      agreementDeliverableId: req.params.id,
+      speakerName: speakerName.trim(),
+      speakerTitle: speakerTitle?.trim() ?? null,
+      speakerBio: speakerBio?.trim() ?? null,
+      sessionType: sessionType?.trim() ?? null,
+      sessionTitle: sessionTitle?.trim() ?? null,
+    });
 
     if (deliverable.status === "Not Started" || deliverable.status === "Awaiting Sponsor Input") {
       await storage.updateAgreementDeliverable(req.params.id, { status: "Submitted" });
+      sendInternalDeliverableNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted speaker information", deliverable.eventId).catch(() => {});
     }
 
     res.json(speaker);
@@ -2310,8 +2345,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!deliverable || deliverable.sponsorId !== tokenRecord.sponsorId) return res.status(404).json({ error: "Not found" });
     if (!deliverable.sponsorEditable) return res.status(403).json({ error: "Not editable" });
 
-    const { speakerName, speakerTitle, speakerBio } = req.body;
-    const updated = await storage.updateDeliverableSpeaker(req.params.sid, { speakerName: speakerName?.trim(), speakerTitle: speakerTitle?.trim() ?? null, speakerBio: speakerBio?.trim() ?? null });
+    const { speakerName, speakerTitle, speakerBio, sessionType, sessionTitle } = req.body;
+    const updates: Record<string, unknown> = {};
+    if (speakerName !== undefined) updates.speakerName = speakerName?.trim();
+    if (speakerTitle !== undefined) updates.speakerTitle = speakerTitle?.trim() ?? null;
+    if (speakerBio !== undefined) updates.speakerBio = speakerBio?.trim() ?? null;
+    if (sessionType !== undefined) updates.sessionType = sessionType?.trim() ?? null;
+    if (sessionTitle !== undefined) updates.sessionTitle = sessionTitle?.trim() ?? null;
+    const updated = await storage.updateDeliverableSpeaker(req.params.sid, updates);
     res.json(updated);
   });
 

@@ -69,7 +69,8 @@ The platform utilizes a modern web stack with a distinct separation between fron
 ## External Dependencies
 
 - **PostgreSQL**: Primary database.
-- **Replit App Storage**: For file uploads.
+- **Cloudflare R2**: For backup storage (via S3-compatible API) and file assets. Env vars: `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`.
+- **Replit App Storage**: For image uploads.
 - **TanStack Query**: Frontend server state management.
 - **shadcn/ui**: UI component library.
 - **Tailwind CSS**: Styling.

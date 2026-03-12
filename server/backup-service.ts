@@ -10,33 +10,76 @@ import {
 } from "@shared/schema";
 import type { BackupJob } from "@shared/schema";
 import { eq, and, desc, gte } from "drizzle-orm";
-import { objectStorageClient } from "./replit_integrations/object_storage/objectStorage";
+import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { sanitizeSlug } from "./services/fileStorageService";
 import { randomUUID } from "crypto";
+import { Readable } from "stream";
 
-// ── Object Storage Helpers ────────────────────────────────────────────────────
+function getR2Client(): S3Client {
+  const endpoint = process.env.R2_ENDPOINT;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
 
-function getBackupBucketId(): string {
-  const id = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-  if (!id) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID is not configured");
-  return id;
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
+    throw new Error("R2 credentials not configured. Set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.");
+  }
+
+  return new S3Client({
+    region: "auto",
+    endpoint,
+    credentials: { accessKeyId, secretAccessKey },
+  });
 }
 
-async function uploadBackupObject(objectKey: string, data: Buffer): Promise<void> {
-  const bucketId = getBackupBucketId();
-  const file = objectStorageClient.bucket(bucketId).file(objectKey);
-  await file.save(data, { contentType: "application/json", resumable: false });
+function getR2Bucket(): string {
+  const bucket = process.env.R2_BUCKET_NAME;
+  if (!bucket) throw new Error("R2_BUCKET_NAME is not configured.");
+  return bucket;
+}
+
+async function uploadBackupToR2(objectKey: string, data: Buffer): Promise<void> {
+  const client = getR2Client();
+  const bucket = getR2Bucket();
+
+  console.log(`[BACKUP] Uploading to R2: bucket=${bucket}, key=${objectKey} (${data.byteLength} bytes)`);
+
+  await client.send(new PutObjectCommand({
+    Bucket: bucket,
+    Key: objectKey,
+    Body: data,
+    ContentType: "application/json",
+  }));
+
+  console.log(`[BACKUP] Upload complete, verifying object exists...`);
+
+  await client.send(new HeadObjectCommand({
+    Bucket: bucket,
+    Key: objectKey,
+  }));
+
+  console.log(`[BACKUP] Object verified in R2: ${objectKey}`);
 }
 
 export async function streamBackupObject(objectKey: string): Promise<NodeJS.ReadableStream> {
-  const bucketId = getBackupBucketId();
-  const file = objectStorageClient.bucket(bucketId).file(objectKey);
-  const [exists] = await file.exists();
-  if (!exists) throw new Error("Backup file not found in storage");
-  return file.createReadStream();
-}
+  const client = getR2Client();
+  const bucket = getR2Bucket();
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+  const response = await client.send(new GetObjectCommand({
+    Bucket: bucket,
+    Key: objectKey,
+  }));
+
+  if (!response.Body) {
+    throw new Error("Backup file not found in R2 storage");
+  }
+
+  if (response.Body instanceof Readable) {
+    return response.Body;
+  }
+
+  const webStream = response.Body as ReadableStream;
+  return Readable.fromWeb(webStream as any);
+}
 
 function nowKey(): string {
   return new Date().toISOString().replace(/[:.]/g, "").replace("T", "T").slice(0, 17) + "Z";
@@ -90,13 +133,12 @@ async function failJob(id: string, errorMessage: string) {
   }).where(eq(backupJobs.id, id));
 }
 
-// ── Full Backup ───────────────────────────────────────────────────────────────
-
 export async function runFullBackup(triggerType: "manual" | "scheduled" = "manual"): Promise<BackupJob> {
   const job = await createJobRecord({ backupType: "full", triggerType });
   console.log(`[BACKUP] Starting full backup (job ${job.id})`);
 
   try {
+    console.log(`[BACKUP] Creating JSON snapshot...`);
     const [
       allEvents, allSponsors, allAttendees, allMeetings,
       allInfoRequests, allEmailTemplates, recentEmailLogs,
@@ -160,7 +202,8 @@ export async function runFullBackup(triggerType: "manual" | "scheduled" = "manua
     const buf = Buffer.from(json, "utf-8");
     const objectKey = buildObjectKey("full");
 
-    await uploadBackupObject(objectKey, buf);
+    console.log(`[BACKUP] Uploading to R2...`);
+    await uploadBackupToR2(objectKey, buf);
 
     const recordCount =
       allEvents.length + allSponsors.length + allAttendees.length +
@@ -173,14 +216,13 @@ export async function runFullBackup(triggerType: "manual" | "scheduled" = "manua
     const [updated] = await db.select().from(backupJobs).where(eq(backupJobs.id, job.id));
     return updated;
   } catch (err: any) {
-    console.error(`[BACKUP] Full backup failed:`, err?.message ?? err);
-    await failJob(job.id, err?.message ?? String(err));
+    const errorMsg = err?.message ?? String(err);
+    console.error(`[BACKUP] Full backup FAILED: ${errorMsg}`);
+    await failJob(job.id, errorMsg);
     const [updated] = await db.select().from(backupJobs).where(eq(backupJobs.id, job.id));
     return updated;
   }
 }
-
-// ── Event Backup ──────────────────────────────────────────────────────────────
 
 export async function runEventBackup(eventId: string, triggerType: "manual" | "scheduled" = "manual"): Promise<BackupJob> {
   const [eventRow] = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
@@ -196,6 +238,7 @@ export async function runEventBackup(eventId: string, triggerType: "manual" | "s
   console.log(`[BACKUP] Starting event backup for ${eventCode} (job ${job.id})`);
 
   try {
+    console.log(`[BACKUP] Creating JSON snapshot for event ${eventCode}...`);
     const [
       eventAttendees, eventMeetings, eventInfoRequests,
       eventDeliverables, eventFileAssets, eventDeliverableReminders,
@@ -241,7 +284,8 @@ export async function runEventBackup(eventId: string, triggerType: "manual" | "s
     const buf = Buffer.from(json, "utf-8");
     const objectKey = buildObjectKey("event", eventCode);
 
-    await uploadBackupObject(objectKey, buf);
+    console.log(`[BACKUP] Uploading event backup to R2...`);
+    await uploadBackupToR2(objectKey, buf);
 
     const recordCount =
       eventAttendees.length + eventMeetings.length + eventInfoRequests.length +
@@ -253,14 +297,13 @@ export async function runEventBackup(eventId: string, triggerType: "manual" | "s
     const [updated] = await db.select().from(backupJobs).where(eq(backupJobs.id, job.id));
     return updated;
   } catch (err: any) {
-    console.error(`[BACKUP] Event backup failed:`, err?.message ?? err);
-    await failJob(job.id, err?.message ?? String(err));
+    const errorMsg = err?.message ?? String(err);
+    console.error(`[BACKUP] Event backup FAILED for ${eventCode}: ${errorMsg}`);
+    await failJob(job.id, errorMsg);
     const [updated] = await db.select().from(backupJobs).where(eq(backupJobs.id, job.id));
     return updated;
   }
 }
-
-// ── Sponsor+Event Backup ──────────────────────────────────────────────────────
 
 export async function runSponsorEventBackup(sponsorId: string, eventId: string, triggerType: "manual" | "scheduled" = "manual"): Promise<BackupJob> {
   const [[sponsorRow], [eventRow]] = await Promise.all([
@@ -285,6 +328,7 @@ export async function runSponsorEventBackup(sponsorId: string, eventId: string, 
   console.log(`[BACKUP] Starting sponsor backup for ${sponsorSlug}/${eventCode} (job ${job.id})`);
 
   try {
+    console.log(`[BACKUP] Creating JSON snapshot for sponsor ${sponsorSlug}...`);
     const [
       sponsorMeetings, sponsorInfoRequests, sponsorDeliverables,
       sponsorFileAssets, sponsorSponsorUsers, sponsorDeliverableReminders,
@@ -341,7 +385,8 @@ export async function runSponsorEventBackup(sponsorId: string, eventId: string, 
     const buf = Buffer.from(json, "utf-8");
     const objectKey = buildObjectKey("sponsor_event", eventCode, sponsorSlug);
 
-    await uploadBackupObject(objectKey, buf);
+    console.log(`[BACKUP] Uploading sponsor backup to R2...`);
+    await uploadBackupToR2(objectKey, buf);
 
     const recordCount =
       sponsorMeetings.length + sponsorInfoRequests.length +
@@ -353,14 +398,13 @@ export async function runSponsorEventBackup(sponsorId: string, eventId: string, 
     const [updated] = await db.select().from(backupJobs).where(eq(backupJobs.id, job.id));
     return updated;
   } catch (err: any) {
-    console.error(`[BACKUP] Sponsor backup failed:`, err?.message ?? err);
-    await failJob(job.id, err?.message ?? String(err));
+    const errorMsg = err?.message ?? String(err);
+    console.error(`[BACKUP] Sponsor backup FAILED for ${sponsorSlug}/${eventCode}: ${errorMsg}`);
+    await failJob(job.id, errorMsg);
     const [updated] = await db.select().from(backupJobs).where(eq(backupJobs.id, job.id));
     return updated;
   }
 }
-
-// ── Backup History ────────────────────────────────────────────────────────────
 
 export async function listBackupJobs(limit = 100): Promise<BackupJob[]> {
   return db.select().from(backupJobs).orderBy(desc(backupJobs.createdAt)).limit(limit);
@@ -371,8 +415,6 @@ export async function getBackupObjectKey(jobId: string): Promise<string> {
   if (!job || !job.r2ObjectKey) throw new Error("Backup not found or has no file");
   return job.r2ObjectKey;
 }
-
-// ── Scheduled Backup ──────────────────────────────────────────────────────────
 
 const NIGHTLY_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const BACKUP_HOUR_UTC = 3;

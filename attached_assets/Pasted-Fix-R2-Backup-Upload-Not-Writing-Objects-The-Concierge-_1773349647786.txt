@@ -1,0 +1,119 @@
+Fix R2 Backup Upload Not Writing Objects
+
+The Concierge admin UI reports a completed backup and displays an R2 object key, but the object does not exist in the R2 bucket.
+
+Example key recorded:
+
+backups/full/full-backup-2026-03-12T201019Z.json
+
+Searching the bucket for the backups prefix returns no results.
+
+This indicates the backup job completes locally but the R2 upload step is not succeeding.
+
+Required fixes
+
+Verify R2 client configuration
+
+Confirm the backup service is using the Cloudflare R2 S3-compatible endpoint:
+
+https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+
+and not AWS S3.
+
+Environment variables required:
+
+R2_ACCOUNT_ID
+R2_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY
+R2_BUCKET_NAME
+
+Confirm upload uses correct bucket and key
+
+The upload call must use:
+
+Bucket: concierge-assets
+Key: backups/full/full-backup-{timestamp}.json
+
+Example implementation:
+
+PutObjectCommand({
+  Bucket: process.env.R2_BUCKET_NAME,
+  Key: backupKey,
+  Body: backupJson,
+  ContentType: "application/json"
+})
+
+Add error handling for R2 upload
+
+Currently the job appears to mark success even if upload fails.
+
+Wrap the upload in try/catch and log failures:
+
+try {
+  await r2Client.send(uploadCommand)
+} catch (err) {
+  console.error("R2 upload failed", err)
+  markBackupFailed(jobId)
+}
+
+Do not mark the backup as Completed unless the upload succeeds.
+
+Verify object existence after upload
+
+Immediately after uploading, verify the object exists using a HeadObject request.
+
+Example:
+
+await r2Client.send(
+  new HeadObjectCommand({
+    Bucket: process.env.R2_BUCKET_NAME,
+    Key: backupKey
+  })
+)
+
+If this fails, mark the backup as failed.
+
+Add logging
+
+Log the following during backup:
+
+Starting backup job
+Creating JSON snapshot
+Uploading to R2
+Upload success
+Verifying object
+Backup completed
+
+This will make failures visible.
+
+Display upload errors in Admin Backup UI
+
+If upload fails:
+
+Status: FAILED
+Reason: R2 upload error
+
+instead of showing Completed.
+
+Expected behavior after fix
+
+Running Full System Backup should create this structure in R2:
+
+concierge-assets
+   backups
+      full
+         full-backup-2026-03-12T201019Z.json
+
+The file should appear immediately in the Cloudflare dashboard.
+
+One architectural improvement I strongly recommend
+
+Right now your backups are stored as single JSON files.
+
+For disaster recovery you should store two artifacts:
+
+backups/full/2026-03-12/
+   database.json
+   files.json
+
+This makes restoring Concierge dramatically easier if you ever need to rebuild the system.

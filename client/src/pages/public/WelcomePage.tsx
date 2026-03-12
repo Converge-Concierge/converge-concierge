@@ -151,22 +151,22 @@ export default function WelcomePage() {
 
       {/* ── Hero — horizontal layout ──────────────────────────────────────── */}
       <div className="bg-white border-b border-border">
-        <div className="max-w-5xl mx-auto px-6 py-5 sm:py-6">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
-            className="flex items-center gap-6 sm:gap-8"
+            className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8"
           >
             {event.logoUrl ? (
               <div
-                className="flex-shrink-0 bg-white rounded-lg p-3 border border-border/60 shadow-sm"
+                className="flex-shrink-0 bg-white rounded-lg p-2 sm:p-3 border border-border/60 shadow-sm"
                 data-testid="img-event-logo-welcome"
               >
                 <img
                   src={event.logoUrl}
                   alt={event.name}
-                  className="h-28 sm:h-32 max-w-[260px] object-contain"
+                  className="h-16 sm:h-28 max-w-[160px] sm:max-w-[260px] object-contain"
                   onError={(e) => {
                     const parent = (e.target as HTMLImageElement).parentElement;
                     if (parent) parent.style.display = "none";
@@ -174,22 +174,22 @@ export default function WelcomePage() {
                 />
               </div>
             ) : (
-              <div className="flex-shrink-0 h-20 w-20 rounded-xl bg-muted flex items-center justify-center" data-testid="img-event-logo-welcome">
-                <Building2 className="h-8 w-8 text-muted-foreground/40" />
+              <div className="flex-shrink-0 h-14 w-14 sm:h-20 sm:w-20 rounded-xl bg-muted flex items-center justify-center" data-testid="img-event-logo-welcome">
+                <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground/40" />
               </div>
             )}
 
             <div className="min-w-0 flex-1">
               <div
-                className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold px-4 py-1.5 rounded-full mb-3 animate-pulse"
+                className="inline-flex items-center gap-1.5 sm:gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-2 sm:mb-3 animate-pulse"
                 style={{ animationDuration: "2.5s" }}
                 data-testid="badge-registered"
               >
-                <CheckCircle className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500 flex-shrink-0" />
                 Registration Confirmation
               </div>
               <h1
-                className="text-2xl sm:text-3xl font-display font-bold text-foreground leading-tight"
+                className="text-xl sm:text-2xl lg:text-3xl font-display font-bold text-foreground leading-tight"
                 data-testid="heading-event-name"
               >
                 You're Registered for<br className="hidden sm:block" />{" "}
@@ -202,7 +202,7 @@ export default function WelcomePage() {
 
       {/* ── CTA message + Topic Selection ─────────────────────────────────── */}
       <div className="border-b border-border bg-muted/20">
-        <div className="max-w-5xl mx-auto px-6 py-6 sm:py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -212,7 +212,7 @@ export default function WelcomePage() {
             <p className="text-xs font-black uppercase tracking-widest text-accent">
               Next Step
             </p>
-            <p className="text-xl sm:text-2xl font-display font-bold text-foreground">
+            <p className="text-lg sm:text-xl lg:text-2xl font-display font-bold text-foreground">
               Make the most of your time at the conference. What topics interest you?
             </p>
 
@@ -263,26 +263,24 @@ export default function WelcomePage() {
       </div>
 
       {/* ── Sponsor Discovery ─────────────────────────────────────────────── */}
-      <div id="sponsor-grid" className="flex-1 max-w-5xl mx-auto w-full px-6 py-5 sm:py-6">
+      <div id="sponsor-grid" className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-5 sm:py-6">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: 0.08 }}
         >
           {/* Grid header */}
-          <div className="flex items-end justify-between mb-3">
-            <div>
-              <h2 className="text-xl font-display font-semibold text-foreground">
-                {activeFilters.length > 0 ? "Sponsors Matching Your Interests" : "Meet With Our Sponsors"}
-              </h2>
-              {eventSponsors.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {filteredSponsors.length === eventSponsors.length
-                    ? `${eventSponsors.length} sponsor${eventSponsors.length !== 1 ? "s" : ""} participating`
-                    : `${filteredSponsors.length} of ${eventSponsors.length} sponsors`}
-                </p>
-              )}
-            </div>
+          <div className="mb-3">
+            <h2 className="text-lg sm:text-xl font-display font-semibold text-foreground">
+              {activeFilters.length > 0 ? "Sponsors Matching Your Interests" : "Meet With Our Sponsors"}
+            </h2>
+            {eventSponsors.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {filteredSponsors.length === eventSponsors.length
+                  ? `${eventSponsors.length} sponsor${eventSponsors.length !== 1 ? "s" : ""} participating`
+                  : `${filteredSponsors.length} of ${eventSponsors.length} sponsors`}
+              </p>
+            )}
           </div>
 
           {/* Sponsor cards */}

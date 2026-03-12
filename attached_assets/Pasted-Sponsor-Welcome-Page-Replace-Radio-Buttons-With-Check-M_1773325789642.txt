@@ -1,0 +1,77 @@
+Sponsor Welcome Page — Replace Radio Buttons With Check Marks
+Problem
+
+The current Sponsor Setup Checklist on the welcome page uses empty circles/radio-button style UI. This creates confusion because:
+
+it looks like a clickable form control
+
+it suggests the sponsor can check items there
+
+it implies the checklist is interactive on the onboarding screen
+
+However, the onboarding page is meant to introduce the setup tasks, not collect the data.
+
+Required Behavior
+
+Replace the radio-button / empty-circle UI with static check mark icons that are display-only.
+
+These icons should not be interactive and should not behave like form inputs.
+
+The checklist is informational only. Sponsors will complete the tasks on the next page in the Deliverables section.
+
+Visual Design
+
+Use simple check mark icons to represent checklist items.
+
+Each row should include a check icon followed by the item text.
+
+Example layout
+✓ Upload Company Logo  
+✓ Add Company Description  
+✓ Add Sponsor Representatives  
+✓ Select Company Categories  
+✓ Register Your Team
+
+These check marks should be non-clickable.
+
+Completion State (Future Behavior)
+
+If completion tracking is implemented later:
+
+Gray check mark = item not completed
+
+Green check mark = item completed
+
+But the icons should still remain non-interactive on the onboarding screen.
+
+Completion will be controlled by the system based on the Deliverables data.
+
+Implementation Notes
+
+Remove radio-button inputs entirely.
+
+Replace them with icon components.
+
+Ensure the checklist rows do not respond to clicks.
+
+Maintain the existing layout and spacing.
+
+Additional Context Text
+
+Directly below the checklist, include a short explanation:
+
+You will be able to enter this information on the next page in your sponsor dashboard.
+
+This clarifies that the onboarding screen is a preview of the setup steps.
+
+Acceptance Criteria
+
+The update is complete when:
+
+radio-button UI controls are removed
+
+checklist items use static check mark icons
+
+the icons are not clickable
+
+sponsors understand that the actual data entry occurs on the next page

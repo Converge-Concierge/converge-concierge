@@ -644,6 +644,11 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                   </div>
                 );
               })()}
+              {!readOnly && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  When a sponsorship level is selected, Concierge will automatically assign the matching Sponsorship Template and generate deliverables for that event.
+                </p>
+              )}
             </div>
           </form>
         </div>

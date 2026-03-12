@@ -1,0 +1,276 @@
+Auto-Assign Sponsorship Template and Auto-Generate Deliverables When Adding a Sponsor
+
+When an admin adds a new sponsor and selects a sponsorship level for an event, Concierge should automatically:
+
+find the correct Sponsorship Template for that event + level
+
+assign that template to the sponsor for that event
+
+generate the sponsor’s live deliverables immediately
+
+This should remove the need for a separate manual step later.
+
+Primary Goal
+
+Make sponsor onboarding faster and more accurate by ensuring that:
+
+selecting Platinum / Gold / Silver / Bronze during sponsor creation automatically maps to the correct template
+
+the sponsor agreement/deliverables are created at the time the sponsor is saved
+
+Deliverables is ready immediately after sponsor creation
+
+1. Trigger Point
+
+Update the Add Sponsor flow so that when an admin selects a sponsorship level in:
+
+Event Sponsorship Assignments
+
+and then clicks:
+
+Add Sponsor
+
+the system automatically processes template assignment and deliverable generation for each event where a sponsorship level was selected.
+
+This should apply to both:
+
+new sponsor creation
+
+future sponsor edit flow if event sponsorship level is changed from None → active level
+
+2. Matching Logic
+
+For each event assignment row:
+
+Example:
+
+TLS2026 → Platinum
+USBT2026 → None
+CUGI2027 → Gold
+FRC2026 → None
+
+the system should only act on rows where the selected level is not:
+
+None
+
+For each non-None row, find the matching Sponsorship Template using:
+
+event
+
+sponsorship level
+
+Example match:
+
+Event: TLS2026
+Level: Platinum
+→ Sponsorship Template: TLS2026 Platinum
+3. Auto-Assignment Behavior
+
+When a matching template is found, automatically:
+
+assign that Sponsorship Template to the sponsor for that event
+
+create the sponsor’s agreement record for that event
+
+generate all live deliverables from the template
+
+This should use the existing Deliverables generation logic, not a duplicate workflow.
+
+Use the same internal generation service already used for:
+
+Generate Agreement
+Regenerate from Template
+4. Generate Deliverables Immediately
+
+Once the sponsor record is created successfully, the system should automatically create:
+
+sponsor agreement instance
+
+live deliverables for that sponsor/event
+
+These should appear immediately in:
+
+Deliverables → Sponsor Agreements
+
+Sponsor Dashboard → Deliverables
+
+Sponsor Fulfillment Queue
+
+No manual "Generate Agreement" step should be required for newly added sponsors when a sponsorship level is selected.
+
+5. Support Multiple Event Assignments
+
+If a sponsor is assigned to more than one event during creation, the system should repeat the process for each selected event.
+
+Example:
+
+TLS2026 → Platinum
+CUGI2027 → Silver
+
+Then the system should create:
+
+TLS2026 sponsor agreement + deliverables
+
+CUGI2027 sponsor agreement + deliverables
+
+Each should be separate and tied to the correct event.
+
+6. Template Not Found Handling
+
+If the admin selects a sponsorship level for an event but no matching Sponsorship Template exists, do not fail silently.
+
+Required behavior
+
+Show a clear admin warning such as:
+
+No Sponsorship Template found for TLS2026 Platinum.
+The sponsor was created, but deliverables were not generated for that event.
+
+Also log this internally.
+
+Do not block sponsor creation entirely unless that is necessary for your workflow.
+
+Preferred behavior:
+
+sponsor still saves
+
+event assignment still saves
+
+deliverables generation is skipped only for the missing-template event
+
+admin receives warning
+
+7. Prevent Duplicate Agreement Generation
+
+If the sponsor already has a live agreement for the same event, do not generate a second duplicate agreement.
+
+Required behavior
+
+Before generating:
+
+check whether a sponsor agreement already exists for that sponsor + event
+
+If yes:
+
+do not duplicate it
+
+optionally update the assigned template reference if needed
+
+do not create duplicate deliverable rows
+
+This is especially important for edit flows.
+
+8. Edit Flow Behavior
+
+Also update the Edit Sponsor flow so that:
+
+If event sponsorship level changes:
+
+from None → Platinum/Gold/Silver/Bronze
+
+auto-assign template
+
+auto-generate agreement + deliverables if not already present
+
+If sponsorship level changes:
+
+from one level to another
+
+do not automatically overwrite existing live deliverables without confirmation
+
+Instead:
+
+show admin confirmation dialog such as:
+
+This sponsor already has deliverables for FRC2026.
+Do you want to regenerate deliverables from the new Gold template?
+
+Buttons:
+
+Cancel
+
+Regenerate from New Template
+
+This protects negotiated overrides and manual edits.
+
+9. Add Confirmation Message on Successful Creation
+
+After sponsor creation succeeds, show a more informative success message.
+
+Example:
+
+Sponsor created successfully.
+Sponsorship Templates were assigned and deliverables were generated for:
+- TLS2026 Platinum
+- CUGI2027 Silver
+
+If one or more templates were missing, include that in the message.
+
+10. Update Sponsor Creation UX
+
+In the Add Sponsor modal, add a small helper note below the Event Sponsorship Assignments section.
+
+Example text:
+
+When a sponsorship level is selected, Concierge will automatically assign the matching Sponsorship Template and generate deliverables for that event.
+
+This helps admins understand what the system will do.
+
+11. Data Model Expectations
+
+Ensure the sponsor creation workflow correctly populates:
+
+sponsor event assignment
+
+sponsorship level
+
+assigned template reference
+
+sponsor agreement record
+
+generated live deliverables
+
+If needed, store the assigned template ID on the sponsor-event assignment record for traceability.
+
+Suggested support field if not already present:
+
+assigned_sponsorship_template_id
+12. Logging / Audit Trail
+
+Log these actions in activity or system logs where possible:
+
+Sponsorship Template auto-assigned
+
+Sponsor Agreement auto-generated
+
+Deliverables auto-generated
+
+Template missing warning
+
+Duplicate agreement prevented
+
+This will help debug future issues.
+
+13. Acceptance Criteria
+
+This feature is complete when:
+
+adding a sponsor with a selected sponsorship level automatically assigns the matching Sponsorship Template
+
+live deliverables are generated automatically
+
+this works per event assignment
+
+multiple assigned events are supported
+
+missing templates trigger admin warnings
+
+duplicate agreement generation is prevented
+
+the Add Sponsor UI explains the behavior
+
+14. Success Standard
+
+After this update, when Julie or an admin adds a sponsor and chooses a sponsorship level, Concierge should automatically prepare the sponsor’s deliverables with no extra manual setup required.
+
+That is the expected behavior.

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Hexagon, CheckCircle2, Square, Upload, FileText, Users, Tag,
+  Hexagon, CheckCircle2, Check, Upload, FileText, Users, Tag,
   ClipboardList, ArrowRight, Package, CalendarDays, LogOut, Info,
   Key, ExternalLink, FileDown,
 } from "lucide-react";
@@ -213,9 +213,9 @@ export default function SponsorOnboardingPage() {
                 >
                   <div className="mt-0.5 shrink-0">
                     {done ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                      <Check className="h-4 w-4 text-emerald-600" />
                     ) : (
-                      <Square className="h-4 w-4 text-muted-foreground/40 mt-0.5" />
+                      <Check className="h-4 w-4 text-muted-foreground/30" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -341,7 +341,7 @@ export default function SponsorOnboardingPage() {
             Continue to Setup
             <ArrowRight className="h-4 w-4" />
           </Button>
-          <p className="text-xs text-muted-foreground">Your checklist will be waiting for you on the Deliverables page.</p>
+          <p className="text-xs text-muted-foreground">You will be able to enter this information on the next page in your sponsor dashboard.</p>
         </div>
       </main>
     </div>

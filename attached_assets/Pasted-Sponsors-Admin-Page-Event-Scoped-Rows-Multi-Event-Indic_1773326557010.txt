@@ -1,0 +1,225 @@
+Sponsors Admin Page — Event-Scoped Rows, Multi-Event Indicator, and Remove Link Button
+
+We need to clean up the Sponsors admin page now that the page uses event tabs.
+
+The current behavior is confusing because when an event tab is selected, sponsor rows still show assignments for other events. Example: on the FRC2026 tab, Winnow still shows USBT2026 in the row. That defeats the purpose of the event tabs.
+
+We want the page to behave as an event-scoped sponsor view, while still letting admins know whether a sponsor is a multi-event sponsor.
+
+Primary Goal
+
+When an event tab is selected:
+
+each sponsor row should represent that sponsor for the selected event only
+
+the row should not list other event assignments in the main row content
+
+the row should still indicate if the sponsor is a multi-event sponsor
+
+the old link / paperclip button should be removed because Sponsor Dashboards now covers that need
+
+1. Make Sponsor Rows Event-Scoped
+Problem
+
+In the Sponsors admin page, rows still show multiple assigned events even when a specific event tab is selected.
+
+Example:
+
+on FRC2026 tab, Winnow row shows both FRC2026 and USBT2026
+
+Required behavior
+
+When a specific event tab is selected, each sponsor row should be scoped to that event only.
+
+Example
+
+If the selected tab is:
+
+FRC2026
+
+then the row should show only:
+
+sponsor info
+
+sponsorship level for FRC2026
+
+status for FRC2026
+
+event-specific actions/context for FRC2026
+
+Do not list USBT2026, TLS2026, etc. in that row.
+
+2. Update Row Data Model in the UI
+
+Treat each visible row as:
+
+Sponsor + Selected Event
+
+not:
+
+Sponsor + All Assigned Events
+
+This means the row should display the sponsor’s relationship to the currently selected tab only.
+
+Display fields should reflect selected event only:
+
+Sponsorship Level
+
+Event assignment badge/tag
+
+Status
+
+dashboard/admin actions
+
+3. Keep “All Events” Behavior Different
+
+When the selected tab is:
+
+All Events
+
+then it is fine to show broader assignment context, such as:
+
+multiple event badges
+
+multiple sponsorship levels if needed
+
+richer multi-event view
+
+But for a specific event tab, the row must remain event-scoped.
+
+4. Add Multi-Event Sponsor Indicator
+
+Even though the row should be event-specific, it is still useful to know if the sponsor is a multi-event sponsor.
+
+Required behavior
+
+Add a multi-event sponsor indicator on the sponsor row.
+
+This indicator should appear if the sponsor has:
+
+more than one current event assignment
+or
+
+prior/past event sponsorship history
+
+Recommended UI options
+
+Use one compact indicator such as:
+
+Option A
+
+Badge:
+
+Multi-Event Sponsor
+Option B
+
+Small icon + tooltip:
+
+Multi-Event
+Option C
+
+Compact badge:
+
+Multi-Event
+
+Keep it visually secondary, but clearly visible.
+
+Tooltip / hover detail
+
+On hover or click, show simple context such as:
+
+Also sponsored:
+USBT2026
+TLS2025
+
+If easier, show:
+
+current additional events
+
+past sponsored events count
+
+Example:
+
+Current + Past Events: 3
+5. Define Multi-Event Sponsor Logic
+
+A sponsor should be considered multi-event if either of these is true:
+
+A. Current multi-event sponsor
+
+Assigned to more than one current/future event
+
+B. Historical multi-event sponsor
+
+Has sponsored more than one event across time, including past events
+
+If needed, support two flavors later:
+
+Current Multi-Event
+
+Returning / Past Multi-Event
+
+But for now one indicator is fine.
+
+6. Remove Link / Paperclip Button
+Problem
+
+The row still includes the old link / paperclip button, which is no longer needed.
+
+Now that the admin has a dedicated:
+
+Sponsor Dashboards
+
+menu item, this action is redundant.
+
+Required behavior
+
+Remove the link / paperclip button from the Sponsors admin page row actions.
+
+Do not replace it with another duplicate dashboard shortcut unless there is a strong operational reason.
+
+7. Keep Remaining Row Actions
+
+Keep the useful row actions such as:
+
+view sponsor users / authorized sponsor users if applicable
+
+edit sponsor
+
+duplicate if still needed
+
+archive
+
+delete if supported
+
+Just remove the old link button.
+
+8. Optional Improvement — Add Event-Specific Context Label
+
+When a specific event tab is selected, optionally show a subtle text or badge inside the row confirming the row is scoped to that event.
+
+Example:
+
+Event: FRC2026
+
+This is optional, but can reduce confusion.
+
+9. Acceptance Criteria
+
+This update is complete when:
+
+on a specific event tab, each sponsor row reflects only that selected event
+
+other event badges/assignments are no longer shown in the row on event-specific tabs
+
+sponsors with multiple current or past event relationships show a multi-event sponsor indicator
+
+the old link / paperclip row action is removed
+
+the All Events tab can still show broader multi-event assignment context
+
+10. Success Standard
+
+After this update, the Sponsors admin page should feel event-specific and much easier to scan, while still preserving useful information about sponsors who participate across multiple events.
+
+That is the standard this update should meet.

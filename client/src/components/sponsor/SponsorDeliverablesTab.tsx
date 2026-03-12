@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2, Clock, AlertTriangle, PackageCheck, FileText,
-  ChevronDown, ChevronUp, Plus, Trash2, Save, X, Users, Mic,
+  ChevronUp, Plus, Trash2, Save, X, Users, Mic,
   Briefcase, CalendarDays, Megaphone, BarChart2, ShieldCheck,
-  Upload, Download, RefreshCw,
+  Upload, Download, RefreshCw, Info, ExternalLink, Copy,
+  Image, Link2, AlertCircle, FileDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,14 +15,15 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { DELIVERABLE_CATEGORIES } from "@shared/schema";
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
 interface Registrant {
   id: string;
   agreementDeliverableId: string;
   name: string;
+  firstName: string | null;
+  lastName: string | null;
   title: string | null;
   email: string | null;
+  conciergeRole: string | null;
 }
 
 interface Speaker {
@@ -30,6 +32,18 @@ interface Speaker {
   speakerName: string;
   speakerTitle: string | null;
   speakerBio: string | null;
+  sessionType: string | null;
+}
+
+interface SocialEntry {
+  id: string;
+  deliverableId: string;
+  entryType: string;
+  entryIndex: number;
+  title: string | null;
+  url: string | null;
+  fileAssetId: string | null;
+  notes: string | null;
 }
 
 interface SponsorDeliverable {
@@ -49,9 +63,38 @@ interface SponsorDeliverable {
   isCustom: boolean;
   registrants: Registrant[];
   speakers: Speaker[];
+  helpTitle: string | null;
+  helpText: string | null;
+  helpLink: string | null;
+  registrationAccessCode: string | null;
+  registrationInstructions: string | null;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+type StructuredType =
+  | "company_description"
+  | "registrations"
+  | "speaking"
+  | "social_graphics"
+  | "social_announcements"
+  | "category_words"
+  | "coi"
+  | "legacy_intro"
+  | "sponsor_reps"
+  | null;
+
+function detectStructuredType(d: SponsorDeliverable): StructuredType {
+  const n = d.deliverableName.toLowerCase();
+  if (n.includes("company description")) return "company_description";
+  if (n.includes("sponsor representative") || n.includes("sponsor rep")) return "sponsor_reps";
+  if (n.includes("3 words") || n.includes("three words") || n.includes("what are") || n.includes("describe what you")) return "category_words";
+  if (n.includes("registration")) return "registrations";
+  if (n.includes("speaking") || n.includes("session")) return "speaking";
+  if (n.includes("social") && (n.includes("graphic") || n.includes("media graphic"))) return "social_graphics";
+  if (n.includes("social") && (n.includes("announcement") || n.includes("post"))) return "social_announcements";
+  if (n.includes("meeting introduction") || n.includes("email introduction")) return "legacy_intro";
+  if (n.includes("certificate of insurance") || n.includes("coi") || n.includes("general liability") || n.includes("worker")) return "coi";
+  return null;
+}
 
 const SPONSOR_STATUS_LABELS: Record<string, string> = {
   "Not Started":            "Awaiting Your Input",
@@ -105,24 +148,6 @@ function isActionRequired(d: SponsorDeliverable): boolean {
   return d.sponsorEditable && ACTION_REQUIRED_STATUSES.has(d.status);
 }
 
-type InputType = "registrants" | "speakers" | "text" | "file_upload" | "none";
-
-function getInputType(d: SponsorDeliverable): InputType {
-  if (!d.sponsorEditable) return "none";
-  if (d.fulfillmentType === "file_upload") return "file_upload";
-  if (d.fulfillmentType === "quantity_progress") return "registrants";
-  if (d.category === "Speaking & Content") return "speakers";
-  return "text";
-}
-
-// ── File category guess from deliverable category ─────────────────────────────
-
-function guessFileCategory(d: SponsorDeliverable): string {
-  if (d.category === "Marketing & Branding") return "logos";
-  if (d.category === "Speaking & Content") return "headshots";
-  return "company-assets";
-}
-
 function dueLabelStr(d: SponsorDeliverable): string | null {
   if (d.dueDate) {
     try { return `Due ${new Date(d.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`; }
@@ -137,7 +162,564 @@ function dueLabelStr(d: SponsorDeliverable): string | null {
   return map[d.dueTiming] ?? null;
 }
 
-// ── FileUploadEditor ──────────────────────────────────────────────────────────
+function guessFileCategory(d: SponsorDeliverable): string {
+  if (d.category === "Marketing & Branding") return "logos";
+  if (d.category === "Speaking & Content") return "headshots";
+  return "company-assets";
+}
+
+function wordCount(text: string): number {
+  return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const label = sponsorLabel(status);
+  return (
+    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", STATUS_COLOR[label] ?? "bg-muted text-muted-foreground border-muted")}>
+      {label}
+    </span>
+  );
+}
+
+function DeliverableHelpPopover({ helpTitle, helpText, helpLink }: { helpTitle: string | null; helpText: string | null; helpLink: string | null }) {
+  const [open, setOpen] = useState(false);
+  if (!helpTitle && !helpText) return null;
+  return (
+    <div className="relative inline-block">
+      <button
+        onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors"
+        data-testid="btn-help-info"
+      >
+        <Info className="h-3.5 w-3.5" />
+        <span className="text-[10px] font-medium">More Info</span>
+      </button>
+      {open && (
+        <div className="absolute z-20 left-0 top-full mt-1 w-72 sm:w-80 bg-white border border-blue-200 rounded-lg shadow-lg p-3 space-y-1.5" data-testid="help-popover">
+          {helpTitle && <p className="text-sm font-semibold text-foreground">{helpTitle}</p>}
+          {helpText && <p className="text-xs text-muted-foreground whitespace-pre-wrap">{helpText}</p>}
+          {helpLink && (
+            <a href={helpLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+              <ExternalLink className="h-3 w-3" /> Learn More
+            </a>
+          )}
+          <button onClick={() => setOpen(false)} className="absolute top-2 right-2 text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CompanyDescriptionEditor({
+  deliverable, token, canEdit,
+}: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(deliverable.deliverableDescription ?? "");
+  const [saved, setSaved] = useState(false);
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const wc = wordCount(text);
+  const overLimit = wc > 1000;
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}?token=${token}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deliverableDescription: text.trim(), status: text.trim() ? "Submitted" : "Awaiting Sponsor Input" }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/sponsor-dashboard/agreement-deliverables", token] });
+      toast({ title: "Company Description Saved", description: "Your description has been submitted successfully." });
+      setSaved(true);
+      setEditing(false);
+      setTimeout(() => setSaved(false), 3000);
+    },
+    onError: () => toast({ title: "Error", description: "Could not save changes.", variant: "destructive" }),
+  });
+
+  if (!canEdit && deliverable.deliverableDescription) {
+    return <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">{deliverable.deliverableDescription}</p>;
+  }
+
+  return (
+    <div className="mt-3 space-y-2" data-testid={`company-desc-editor-${deliverable.id}`}>
+      {saved && (
+        <div className="flex items-center gap-1.5 text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs font-medium">
+          <CheckCircle2 className="h-3.5 w-3.5" /> Saved
+        </div>
+      )}
+      {!editing && canEdit ? (
+        <div className="space-y-2">
+          {deliverable.deliverableDescription && (
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap border-l-2 border-primary/20 pl-3">{deliverable.deliverableDescription}</p>
+          )}
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setText(deliverable.deliverableDescription ?? ""); setEditing(true); }} data-testid={`btn-edit-desc-${deliverable.id}`}>
+            {deliverable.deliverableDescription ? "Edit Description" : "Write Description"}
+          </Button>
+        </div>
+      ) : editing ? (
+        <div className="space-y-2">
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={6}
+            className="text-sm"
+            placeholder="Describe your company in up to 1000 words..."
+            data-testid={`textarea-desc-${deliverable.id}`}
+          />
+          <div className="flex items-center justify-between">
+            <span className={cn("text-xs font-medium", overLimit ? "text-red-600" : "text-muted-foreground")}>
+              {wc} / 1,000 words
+            </span>
+            <div className="flex gap-2">
+              <Button size="sm" className="h-7 text-xs" onClick={() => save.mutate()} disabled={overLimit || save.isPending || !text.trim()} data-testid={`btn-save-desc-${deliverable.id}`}>
+                <Save className="h-3 w-3 mr-1" /> {save.isPending ? "Saving…" : "Save"}
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditing(false)}>
+                <X className="h-3 w-3 mr-1" /> Cancel
+              </Button>
+            </div>
+          </div>
+          {overLimit && <p className="text-xs text-red-600">Please shorten your description to 1,000 words or fewer.</p>}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SponsorRepEditor({
+  deliverable, token, canEdit,
+}: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", title: "", conciergeRole: "" });
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const queryKey = ["/api/sponsor-dashboard/agreement-deliverables", token];
+  const total = deliverable.quantity;
+  const current = deliverable.registrants.length;
+
+  const add = useMutation({
+    mutationFn: async () => {
+      const name = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
+      const res = await fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}/registrants?token=${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          firstName: form.firstName.trim() || null,
+          lastName: form.lastName.trim() || null,
+          email: form.email.trim() || null,
+          title: form.title.trim() || null,
+          conciergeRole: form.conciergeRole.trim() || null,
+        }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? "Failed"); }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey });
+      setForm({ firstName: "", lastName: "", email: "", title: "", conciergeRole: "" });
+      setAdding(false);
+      toast({ title: "Representative added" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const remove = useMutation({
+    mutationFn: (rid: string) => fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}/registrants/${rid}?token=${token}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey });
+      toast({ title: "Representative removed" });
+    },
+    onError: () => toast({ title: "Error", description: "Could not remove entry.", variant: "destructive" }),
+  });
+
+  return (
+    <div className="mt-3 space-y-2" data-testid={`sponsor-rep-editor-${deliverable.id}`}>
+      {total && (
+        <p className="text-xs text-muted-foreground">
+          {current} of {total} representative{total !== 1 ? "s" : ""} registered
+        </p>
+      )}
+      {deliverable.registrants.map((r) => (
+        <div key={r.id} className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm" data-testid={`rep-row-${r.id}`}>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-medium truncate">{r.firstName || r.lastName ? `${r.firstName ?? ""} ${r.lastName ?? ""}`.trim() : r.name}</p>
+              <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium border",
+                r.email ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-100 text-gray-500 border-gray-200"
+              )}>
+                {r.email ? "Registered" : "Not Registered"}
+              </span>
+            </div>
+            {r.title && <p className="text-xs text-muted-foreground">{r.title}</p>}
+            {r.email && <p className="text-xs text-muted-foreground">{r.email}</p>}
+            {r.conciergeRole && <p className="text-xs text-muted-foreground italic">Role: {r.conciergeRole}</p>}
+          </div>
+          {canEdit && (
+            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => remove.mutate(r.id)} data-testid={`btn-remove-rep-${r.id}`}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      ))}
+      {canEdit && (!total || current < total) && (
+        adding ? (
+          <div className="rounded-lg border border-dashed p-3 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="First Name *" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-first-${deliverable.id}`} />
+              <Input placeholder="Last Name *" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-last-${deliverable.id}`} />
+            </div>
+            <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-email-${deliverable.id}`} />
+            <Input placeholder="Title (optional)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-title-${deliverable.id}`} />
+            <Input placeholder="Concierge Role (optional)" value={form.conciergeRole} onChange={(e) => setForm({ ...form, conciergeRole: e.target.value })} className="h-8 text-sm" data-testid={`input-rep-role-${deliverable.id}`} />
+            <div className="flex gap-2">
+              <Button size="sm" className="h-7 text-xs" onClick={() => add.mutate()} disabled={!form.firstName.trim() || !form.lastName.trim() || add.isPending} data-testid={`btn-add-rep-${deliverable.id}`}>
+                <Save className="h-3 w-3 mr-1" /> {add.isPending ? "Saving…" : "Add Representative"}
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setAdding(false); setForm({ firstName: "", lastName: "", email: "", title: "", conciergeRole: "" }); }}>
+                <X className="h-3 w-3 mr-1" /> Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setAdding(true)} data-testid={`btn-add-rep-${deliverable.id}`}>
+            <Plus className="h-3 w-3 mr-1" /> Add Representative
+          </Button>
+        )
+      )}
+      {canEdit && total && current >= total && (
+        <p className="text-xs text-muted-foreground italic">All {total} representative slots have been filled.</p>
+      )}
+    </div>
+  );
+}
+
+function CategoryTagSelector({
+  deliverable, token, canEdit,
+}: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
+  const existing = deliverable.deliverableDescription
+    ? deliverable.deliverableDescription.split(",").map(s => s.trim()).filter(Boolean)
+    : [];
+  const [tags, setTags] = useState<string[]>(existing);
+  const [inputVal, setInputVal] = useState("");
+  const [saved, setSaved] = useState(false);
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}?token=${token}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deliverableDescription: tags.join(", "), status: tags.length > 0 ? "Submitted" : "Awaiting Sponsor Input" }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/sponsor-dashboard/agreement-deliverables", token] });
+      toast({ title: "Categories saved", description: "Your category selections have been submitted." });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    },
+    onError: () => toast({ title: "Error", description: "Could not save selections.", variant: "destructive" }),
+  });
+
+  function addTag(val: string) {
+    const trimmed = val.trim();
+    if (!trimmed || tags.includes(trimmed) || tags.length >= 3) return;
+    setTags([...tags, trimmed]);
+    setInputVal("");
+  }
+
+  function removeTag(idx: number) {
+    setTags(tags.filter((_, i) => i !== idx));
+  }
+
+  if (!canEdit) {
+    return tags.length > 0 ? (
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {tags.map((t, i) => (
+          <span key={i} className="px-2.5 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium border border-accent/20">{t}</span>
+        ))}
+      </div>
+    ) : null;
+  }
+
+  return (
+    <div className="mt-3 space-y-2" data-testid={`category-selector-${deliverable.id}`}>
+      {saved && (
+        <div className="flex items-center gap-1.5 text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs font-medium">
+          <CheckCircle2 className="h-3.5 w-3.5" /> Saved
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">Select or type exactly 3 words or short phrases that describe what you want to sell.</p>
+      <div className="flex flex-wrap gap-1.5">
+        {tags.map((t, i) => (
+          <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium border border-accent/20">
+            {t}
+            <button onClick={() => removeTag(i)} className="hover:text-destructive"><X className="h-3 w-3" /></button>
+          </span>
+        ))}
+      </div>
+      {tags.length < 3 && (
+        <div className="flex gap-2">
+          <Input
+            value={inputVal}
+            onChange={(e) => setInputVal(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(inputVal); } }}
+            placeholder="Type a word or phrase and press Enter"
+            className="h-8 text-sm flex-1"
+            data-testid={`input-tag-${deliverable.id}`}
+          />
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => addTag(inputVal)} disabled={!inputVal.trim()}>
+            <Plus className="h-3 w-3 mr-1" /> Add
+          </Button>
+        </div>
+      )}
+      <div className="flex items-center justify-between">
+        <span className={cn("text-xs", tags.length === 3 ? "text-green-600 font-medium" : "text-muted-foreground")}>
+          {tags.length} / 3 selected
+        </span>
+        <Button size="sm" className="h-7 text-xs" onClick={() => save.mutate()} disabled={save.isPending} data-testid={`btn-save-tags-${deliverable.id}`}>
+          <Save className="h-3 w-3 mr-1" /> {save.isPending ? "Saving…" : "Save Selections"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function RegistrationsInfoPanel({
+  deliverable, token,
+}: { deliverable: SponsorDeliverable; token: string }) {
+  const { toast } = useToast();
+  const total = deliverable.quantity ?? 0;
+  const used = deliverable.registrants.length;
+  const remaining = Math.max(0, total - used);
+
+  const { data: files = [] } = useQuery<{ id: string; originalFileName: string; mimeType: string }[]>({
+    queryKey: ["/api/sponsor-dashboard/files", token, deliverable.id, "reg-docs"],
+    queryFn: async () => {
+      const res = await fetch(`/api/sponsor-dashboard/files?token=${token}&deliverableId=${deliverable.id}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!token,
+  });
+  const pdfFile = files.find(f => f.mimeType === "application/pdf");
+
+  async function handleDownload(fileId: string, fileName: string) {
+    try {
+      const res = await fetch(`/api/sponsor-dashboard/files/${fileId}/download-url?token=${token}`);
+      if (!res.ok) throw new Error("Unavailable");
+      const { downloadURL } = await res.json();
+      const a = document.createElement("a");
+      a.href = downloadURL; a.download = fileName; a.target = "_blank";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch { toast({ title: "Download unavailable", variant: "destructive" }); }
+  }
+
+  function copyCode(code: string) {
+    navigator.clipboard.writeText(code);
+    toast({ title: "Access code copied" });
+  }
+
+  return (
+    <div className="mt-3 space-y-3" data-testid={`reg-info-panel-${deliverable.id}`}>
+      {deliverable.registrationAccessCode && (
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-muted-foreground uppercase">Access Code</p>
+          <div className="flex items-center gap-2">
+            <code className="bg-slate-900 text-emerald-400 px-3 py-1.5 rounded-md font-mono text-sm tracking-wider select-all" data-testid={`code-access-${deliverable.id}`}>
+              {deliverable.registrationAccessCode}
+            </code>
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => copyCode(deliverable.registrationAccessCode!)}>
+              <Copy className="h-3 w-3" /> Copy
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {deliverable.registrationInstructions && (
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-muted-foreground uppercase">Instructions</p>
+          <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/30 rounded-lg px-3 py-2 border">
+            {deliverable.registrationInstructions}
+          </div>
+        </div>
+      )}
+
+      {pdfFile && (
+        <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => handleDownload(pdfFile.id, pdfFile.originalFileName)} data-testid={`btn-download-reg-pdf-${deliverable.id}`}>
+          <FileDown className="h-3.5 w-3.5" /> Download Registration PDF
+        </Button>
+      )}
+
+      {total > 0 && (
+        <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+          <Users className="h-4 w-4 text-blue-600 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-blue-800">{remaining} seat{remaining !== 1 ? "s" : ""} remaining</p>
+            <p className="text-xs text-blue-600">{used} of {total} {deliverable.quantityUnit ?? "seats"} used</p>
+          </div>
+        </div>
+      )}
+
+      {!deliverable.registrationAccessCode && !deliverable.registrationInstructions && !pdfFile && total === 0 && (
+        <p className="text-xs text-muted-foreground italic">Registration details have not been configured yet. Check back later.</p>
+      )}
+    </div>
+  );
+}
+
+function GraphicThumbnail({ fileAssetId, token }: { fileAssetId: string; token: string }) {
+  const { data } = useQuery<{ downloadURL: string }>({
+    queryKey: ["/api/sponsor-dashboard/files", fileAssetId, "thumb"],
+    queryFn: async () => {
+      const res = await fetch(`/api/sponsor-dashboard/files/${fileAssetId}/download-url?token=${token}`);
+      if (!res.ok) return { downloadURL: "" };
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  if (!data?.downloadURL) return <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0"><Image className="h-4 w-4 text-muted-foreground/40" /></div>;
+  return <img src={data.downloadURL} alt="Graphic" className="h-10 w-10 rounded object-cover border shrink-0" />;
+}
+
+function SocialGraphicsPanel({
+  deliverable, token,
+}: { deliverable: SponsorDeliverable; token: string }) {
+  const { toast } = useToast();
+  const { data: entries = [] } = useQuery<SocialEntry[]>({
+    queryKey: ["/api/sponsor-dashboard/agreement-deliverables", deliverable.id, "social-entries", "graphics"],
+    queryFn: async () => {
+      const res = await fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}/social-entries?token=${token}`);
+      if (!res.ok) return [];
+      return (await res.json()).filter((e: SocialEntry) => e.entryType === "graphic");
+    },
+  });
+
+  async function handleDownload(fileAssetId: string) {
+    try {
+      const res = await fetch(`/api/sponsor-dashboard/files/${fileAssetId}/download-url?token=${token}`);
+      if (!res.ok) throw new Error("Unavailable");
+      const { downloadURL, fileName } = await res.json();
+      const a = document.createElement("a");
+      a.href = downloadURL; a.download = fileName || "graphic.png"; a.target = "_blank";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch { toast({ title: "Download unavailable", variant: "destructive" }); }
+  }
+
+  if (entries.length === 0) {
+    return <p className="text-xs text-muted-foreground italic mt-2">Graphics have not been uploaded yet. Check back later.</p>;
+  }
+
+  return (
+    <div className="mt-3 space-y-3" data-testid={`social-graphics-panel-${deliverable.id}`}>
+      <div className="space-y-2">
+        {entries.map((entry, i) => (
+          <div key={entry.id} className="flex items-center gap-3 bg-muted/30 rounded-lg px-3 py-2 border" data-testid={`graphic-slot-${entry.id}`}>
+            {entry.fileAssetId ? (
+              <GraphicThumbnail fileAssetId={entry.fileAssetId} token={token} />
+            ) : (
+              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
+                <Image className="h-4 w-4 text-muted-foreground/40" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{entry.title || `Graphic #${i + 1}`}</p>
+              {entry.fileAssetId ? (
+                <p className="text-xs text-green-600">Ready to download</p>
+              ) : (
+                <p className="text-xs text-amber-600">Awaiting upload by admin</p>
+              )}
+            </div>
+            {entry.fileAssetId && (
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1 shrink-0" onClick={() => handleDownload(entry.fileAssetId!)} data-testid={`btn-download-graphic-${entry.id}`}>
+                <Download className="h-3 w-3" /> Download
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 space-y-1">
+        <p className="text-xs font-semibold text-blue-800 flex items-center gap-1">
+          <Link2 className="h-3.5 w-3.5" /> How to Share on LinkedIn
+        </p>
+        <ol className="text-xs text-blue-700 space-y-0.5 list-decimal list-inside">
+          <li>Download the graphic above</li>
+          <li>Go to LinkedIn and start a new post</li>
+          <li>Attach the downloaded image to your post</li>
+          <li>Add your own caption and relevant hashtags</li>
+          <li>Publish!</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+function SocialAnnouncementsPanel({
+  deliverable, token,
+}: { deliverable: SponsorDeliverable; token: string }) {
+  const { data: entries = [] } = useQuery<SocialEntry[]>({
+    queryKey: ["/api/sponsor-dashboard/agreement-deliverables", deliverable.id, "social-entries", "announcements"],
+    queryFn: async () => {
+      const res = await fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}/social-entries?token=${token}`);
+      if (!res.ok) return [];
+      return (await res.json()).filter((e: SocialEntry) => e.entryType === "announcement");
+    },
+  });
+
+  if (entries.length === 0) {
+    return <p className="text-xs text-muted-foreground italic mt-2">Announcement posts have not been configured yet. Check back later.</p>;
+  }
+
+  return (
+    <div className="mt-3 space-y-2" data-testid={`social-announcements-panel-${deliverable.id}`}>
+      {entries.map((entry, i) => (
+        <div key={entry.id} className="flex items-center gap-3 bg-muted/30 rounded-lg px-3 py-2.5 border" data-testid={`announcement-slot-${entry.id}`}>
+          <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+            <Megaphone className="h-4 w-4 text-blue-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{entry.title || `Announcement #${i + 1}`}</p>
+            {entry.url ? (
+              <p className="text-xs text-green-600">Post published</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Pending</p>
+            )}
+          </div>
+          {entry.url && (
+            <a href={entry.url} target="_blank" rel="noopener noreferrer" data-testid={`btn-view-announcement-${entry.id}`}>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1 shrink-0">
+                <ExternalLink className="h-3 w-3" /> View & Share
+              </Button>
+            </a>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LegacyIntroNote() {
+  return (
+    <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2" data-testid="legacy-intro-note">
+      <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+      <div>
+        <p className="text-sm font-medium text-amber-800">Legacy Method</p>
+        <p className="text-xs text-amber-700">
+          Introduction lists are now managed through the Concierge platform. Your meetings and introductions are handled
+          automatically as part of the event scheduling workflow. No separate action is needed here.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 interface UploadedFile {
   id: string; originalFileName: string; mimeType: string;
@@ -172,7 +754,7 @@ function FileUploadEditor({
 
   async function handleDownload(file: UploadedFile) {
     try {
-      const res = await fetch(`/api/files/${file.id}/download-url?token=${token}`);
+      const res = await fetch(`/api/sponsor-dashboard/files/${file.id}/download-url?token=${token}`);
       if (!res.ok) throw new Error("Download unavailable");
       const { downloadURL, fileName } = await res.json();
       const a = document.createElement("a");
@@ -270,19 +852,6 @@ function FileUploadEditor({
   );
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: string }) {
-  const label = sponsorLabel(status);
-  return (
-    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", STATUS_COLOR[label] ?? "bg-muted text-muted-foreground border-muted")}>
-      {label}
-    </span>
-  );
-}
-
-// ── Text editor ───────────────────────────────────────────────────────────────
-
 function TextEditor({
   deliverableId, token, currentValue, canEdit, onSaved,
 }: { deliverableId: string; token: string; currentValue: string | null; canEdit: boolean; onSaved: () => void }) {
@@ -343,8 +912,6 @@ function TextEditor({
     </div>
   );
 }
-
-// ── Registrant editor ─────────────────────────────────────────────────────────
 
 function RegistrantEditor({
   deliverable, token, canEdit,
@@ -428,8 +995,6 @@ function RegistrantEditor({
     </div>
   );
 }
-
-// ── Speaker editor ────────────────────────────────────────────────────────────
 
 function SpeakerEditor({
   deliverable, token, canEdit,
@@ -544,21 +1109,67 @@ function SpeakerEditor({
   );
 }
 
-// ── Deliverable Row ───────────────────────────────────────────────────────────
+type InputType = "registrants" | "speakers" | "text" | "file_upload" | "none";
+
+function getInputType(d: SponsorDeliverable): InputType {
+  if (!d.sponsorEditable) return "none";
+  if (d.fulfillmentType === "file_upload") return "file_upload";
+  if (d.fulfillmentType === "quantity_progress") return "registrants";
+  if (d.category === "Speaking & Content") return "speakers";
+  return "text";
+}
+
+function renderStructuredContent(d: SponsorDeliverable, token: string, canEdit: boolean) {
+  const st = detectStructuredType(d);
+
+  switch (st) {
+    case "company_description":
+      return <CompanyDescriptionEditor deliverable={d} token={token} canEdit={canEdit} />;
+    case "sponsor_reps":
+      return <SponsorRepEditor deliverable={d} token={token} canEdit={canEdit} />;
+    case "category_words":
+      return <CategoryTagSelector deliverable={d} token={token} canEdit={canEdit} />;
+    case "registrations":
+      return <RegistrationsInfoPanel deliverable={d} token={token} />;
+    case "social_graphics":
+      return <SocialGraphicsPanel deliverable={d} token={token} />;
+    case "social_announcements":
+      return <SocialAnnouncementsPanel deliverable={d} token={token} />;
+    case "legacy_intro":
+      return <LegacyIntroNote />;
+    case "coi":
+      return null;
+    case "speaking":
+      return <SpeakerEditor deliverable={d} token={token} canEdit={canEdit} />;
+    default:
+      return null;
+  }
+}
 
 function DeliverableRow({
   deliverable, token, canEdit,
 }: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const st = detectStructuredType(deliverable);
+  const isCOI = st === "coi";
+  const isLegacy = st === "legacy_intro";
+  const hasStructured = st !== null;
   const inputType = getInputType(deliverable);
   const dueLabel = dueLabelStr(deliverable);
-  const isCOI = deliverable.category === "Compliance";
-  const hasEditor = inputType !== "none" && canEdit;
-  const description = deliverable.deliverableDescription;
+  const hasHelp = !!(deliverable.helpTitle || deliverable.helpText);
 
-  const ctaLabel = deliverable.registrants.length > 0 || deliverable.speakers.length > 0 ? "Update" :
+  const hasEditor = hasStructured || (inputType !== "none" && canEdit);
+  const hasExpandableContent = hasEditor || deliverable.deliverableDescription || deliverable.sponsorFacingNote || hasHelp;
+
+  const ctaLabel = st === "company_description" ? "Edit Description" :
+    st === "sponsor_reps" ? "Manage Representatives" :
+    st === "category_words" ? "Select Categories" :
+    st === "registrations" ? "View Details" :
+    st === "social_graphics" ? "View Graphics" :
+    st === "social_announcements" ? "View Posts" :
+    st === "speaking" ? "Manage Speakers" :
     inputType === "registrants" ? "Provide Names" :
-    inputType === "speakers" ? "Add Speaker Details" :
+    inputType === "file_upload" ? "Upload File" :
     "Provide Details";
 
   return (
@@ -568,9 +1179,10 @@ function DeliverableRow({
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-medium text-sm leading-snug">{deliverable.deliverableName}</p>
             {deliverable.isCustom && <Badge variant="outline" className="text-xs py-0">Custom</Badge>}
+            {hasHelp && <DeliverableHelpPopover helpTitle={deliverable.helpTitle} helpText={deliverable.helpText} helpLink={deliverable.helpLink} />}
           </div>
-          {description && !expanded && (
-            <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
+          {deliverable.deliverableDescription && !expanded && !["company_description", "category_words"].includes(st ?? "") && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{deliverable.deliverableDescription}</p>
           )}
           {deliverable.sponsorFacingNote && !expanded && (
             <p className="text-xs text-muted-foreground italic line-clamp-1">{deliverable.sponsorFacingNote}</p>
@@ -578,7 +1190,12 @@ function DeliverableRow({
           <div className="flex flex-wrap items-center gap-2 pt-0.5">
             <StatusBadge status={deliverable.status} />
             {dueLabel && <span className="text-xs text-muted-foreground">{dueLabel}</span>}
-            {deliverable.quantity && inputType === "registrants" && (
+            {deliverable.quantity && st === "registrations" && (
+              <span className="text-xs text-muted-foreground">
+                {Math.max(0, deliverable.quantity - deliverable.registrants.length)} seat{Math.max(0, deliverable.quantity - deliverable.registrants.length) !== 1 ? "s" : ""} remaining
+              </span>
+            )}
+            {deliverable.quantity && inputType === "registrants" && st !== "registrations" && st !== "sponsor_reps" && (
               <span className="text-xs text-muted-foreground">
                 {deliverable.registrants.length} of {deliverable.quantity} {deliverable.quantityUnit ?? "submitted"}
               </span>
@@ -586,54 +1203,48 @@ function DeliverableRow({
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {hasEditor && !isCOI && (
+          {hasExpandableContent && !isCOI && (
             <Button
-              variant="outline"
+              variant={expanded ? "ghost" : "outline"}
               size="sm"
               className="h-7 text-xs"
               onClick={() => setExpanded(!expanded)}
               data-testid={`btn-expand-${deliverable.id}`}
             >
-              {expanded ? <><X className="h-3 w-3 mr-1" />Close</> : <>{ctaLabel}</>}
-            </Button>
-          )}
-          {(description || deliverable.sponsorFacingNote) && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground"
-              onClick={() => setExpanded(!expanded)}
-              data-testid={`btn-toggle-details-${deliverable.id}`}
-            >
-              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {expanded ? <><ChevronUp className="h-3 w-3 mr-1" />Close</> : <>{ctaLabel}</>}
             </Button>
           )}
         </div>
       </div>
 
+      {isLegacy && !expanded && <LegacyIntroNote />}
+
       {expanded && (
         <div className="border-t bg-muted/20 px-4 py-3 space-y-2">
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+          {deliverable.deliverableDescription && !["company_description", "category_words"].includes(st ?? "") && (
+            <p className="text-sm text-muted-foreground">{deliverable.deliverableDescription}</p>
+          )}
           {deliverable.sponsorFacingNote && (
             <p className="text-sm italic text-muted-foreground border-l-2 border-primary/30 pl-3">{deliverable.sponsorFacingNote}</p>
           )}
-          {!isCOI && inputType === "text" && (
-            <TextEditor
-              deliverableId={deliverable.id}
-              token={token}
-              currentValue={deliverable.deliverableDescription}
-              canEdit={canEdit}
-              onSaved={() => {}}
-            />
-          )}
-          {!isCOI && inputType === "registrants" && (
-            <RegistrantEditor deliverable={deliverable} token={token} canEdit={canEdit} />
-          )}
-          {!isCOI && inputType === "speakers" && (
-            <SpeakerEditor deliverable={deliverable} token={token} canEdit={canEdit} />
-          )}
-          {inputType === "file_upload" && (
-            <FileUploadEditor deliverable={deliverable} token={token} canEdit={canEdit} onSaved={() => setExpanded(false)} />
+
+          {hasStructured ? (
+            renderStructuredContent(deliverable, token, canEdit)
+          ) : (
+            <>
+              {inputType === "text" && (
+                <TextEditor deliverableId={deliverable.id} token={token} currentValue={deliverable.deliverableDescription} canEdit={canEdit} onSaved={() => {}} />
+              )}
+              {inputType === "registrants" && (
+                <RegistrantEditor deliverable={deliverable} token={token} canEdit={canEdit} />
+              )}
+              {inputType === "speakers" && (
+                <SpeakerEditor deliverable={deliverable} token={token} canEdit={canEdit} />
+              )}
+              {inputType === "file_upload" && (
+                <FileUploadEditor deliverable={deliverable} token={token} canEdit={canEdit} onSaved={() => setExpanded(false)} />
+              )}
+            </>
           )}
         </div>
       )}
@@ -641,16 +1252,19 @@ function DeliverableRow({
   );
 }
 
-// ── Action Required Card ──────────────────────────────────────────────────────
-
 function ActionCard({
   deliverable, token, canEdit,
 }: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const st = detectStructuredType(deliverable);
   const inputType = getInputType(deliverable);
   const dueLabel = dueLabelStr(deliverable);
+  const hasHelp = !!(deliverable.helpTitle || deliverable.helpText);
 
-  const ctaLabel = inputType === "registrants" ? "Provide Names" :
+  const ctaLabel = st === "company_description" ? "Write Description" :
+    st === "sponsor_reps" ? "Add Representatives" :
+    st === "category_words" ? "Select Categories" :
+    inputType === "registrants" ? "Provide Names" :
     inputType === "speakers" ? "Add Speaker Details" :
     inputType === "file_upload" ? "Upload File" :
     "Provide Details";
@@ -660,21 +1274,19 @@ function ActionCard({
       <div className="flex items-start gap-3 px-4 py-3">
         <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0 space-y-1">
-          <p className="font-medium text-sm">{deliverable.deliverableName}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-medium text-sm">{deliverable.deliverableName}</p>
+            {hasHelp && <DeliverableHelpPopover helpTitle={deliverable.helpTitle} helpText={deliverable.helpText} helpLink={deliverable.helpLink} />}
+          </div>
           {deliverable.sponsorFacingNote && (
             <p className="text-xs text-muted-foreground">{deliverable.sponsorFacingNote}</p>
           )}
           <div className="flex flex-wrap items-center gap-2 pt-0.5">
             <StatusBadge status={deliverable.status} />
             {dueLabel && <span className="text-xs text-muted-foreground">{dueLabel}</span>}
-            {deliverable.quantity && inputType === "registrants" && (
-              <span className="text-xs text-muted-foreground">
-                {deliverable.registrants.length} of {deliverable.quantity} submitted
-              </span>
-            )}
           </div>
         </div>
-        {canEdit && inputType !== "none" && (
+        {canEdit && (inputType !== "none" || st !== null) && (
           <Button
             variant="default"
             size="sm"
@@ -688,27 +1300,23 @@ function ActionCard({
       </div>
       {expanded && (
         <div className="border-t bg-white/70 dark:bg-background/20 px-4 py-3">
-          {inputType === "text" && (
-            <TextEditor
-              deliverableId={deliverable.id}
-              token={token}
-              currentValue={deliverable.deliverableDescription}
-              canEdit={canEdit}
-              onSaved={() => setExpanded(false)}
-            />
-          )}
-          {inputType === "registrants" && <RegistrantEditor deliverable={deliverable} token={token} canEdit={canEdit} />}
-          {inputType === "speakers" && <SpeakerEditor deliverable={deliverable} token={token} canEdit={canEdit} />}
-          {inputType === "file_upload" && (
-            <FileUploadEditor deliverable={deliverable} token={token} canEdit={canEdit} onSaved={() => setExpanded(false)} />
+          {st ? renderStructuredContent(deliverable, token, canEdit) : (
+            <>
+              {inputType === "text" && (
+                <TextEditor deliverableId={deliverable.id} token={token} currentValue={deliverable.deliverableDescription} canEdit={canEdit} onSaved={() => setExpanded(false)} />
+              )}
+              {inputType === "registrants" && <RegistrantEditor deliverable={deliverable} token={token} canEdit={canEdit} />}
+              {inputType === "speakers" && <SpeakerEditor deliverable={deliverable} token={token} canEdit={canEdit} />}
+              {inputType === "file_upload" && (
+                <FileUploadEditor deliverable={deliverable} token={token} canEdit={canEdit} onSaved={() => setExpanded(false)} />
+              )}
+            </>
           )}
         </div>
       )}
     </div>
   );
 }
-
-// ── Main component ────────────────────────────────────────────────────────────
 
 interface Props {
   token: string;
@@ -746,8 +1354,6 @@ export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
     );
   }
 
-  // ── Summary stats ──────────────────────────────────────────────────────────
-
   const total = deliverables.length;
   const delivered = deliverables.filter((d) => ["Delivered", "Approved", "Available After Event"].includes(d.status)).length;
   const inProgress = deliverables.filter((d) => ["In Progress", "Scheduled", "Under Review", "Submitted", "Received"].includes(d.status)).length;
@@ -756,11 +1362,7 @@ export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
 
   const pct = total > 0 ? Math.round(((delivered + inProgress) / total) * 100) : 0;
 
-  // ── Action required items ──────────────────────────────────────────────────
-
   const actionItems = deliverables.filter(isActionRequired);
-
-  // ── Group by category (in spec order) ─────────────────────────────────────
 
   const byCat = DELIVERABLE_CATEGORIES.reduce<Record<string, SponsorDeliverable[]>>((acc, cat) => {
     acc[cat] = deliverables.filter((d) => d.category === cat);
@@ -769,8 +1371,6 @@ export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
 
   return (
     <div className="space-y-8" data-testid="deliverables-tab">
-
-      {/* ── Summary Cards ──────────────────────────────────────────────────── */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Sponsorship Summary</h2>
@@ -817,7 +1417,6 @@ export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
         )}
       </section>
 
-      {/* ── Action Required ────────────────────────────────────────────────── */}
       <section>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Action Required From You</h2>
         {actionItems.length === 0 ? (
@@ -834,7 +1433,6 @@ export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
         )}
       </section>
 
-      {/* ── Deliverables by Category ───────────────────────────────────────── */}
       <section className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">All Deliverables</h2>
         {DELIVERABLE_CATEGORIES.map((cat) => {

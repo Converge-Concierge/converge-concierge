@@ -769,6 +769,7 @@ export const agreementDeliverableTemplateItems = pgTable("agreement_deliverable_
   dueOffsetDays: integer("due_offset_days"),
   displayOrder: integer("display_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  sponsorFacingNote: text("sponsor_facing_note"),
   helpTitle: varchar("help_title"),
   helpText: text("help_text"),
   helpLink: varchar("help_link"),

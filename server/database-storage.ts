@@ -1239,7 +1239,7 @@ export class DatabaseStorage implements IStorage {
         status: "Not Started",
         dueTiming: item.dueTiming,
         dueDate: null,
-        sponsorFacingNote: null,
+        sponsorFacingNote: item.sponsorFacingNote ?? null,
         internalNote: null,
         isOverridden: false,
         isCustom: false,

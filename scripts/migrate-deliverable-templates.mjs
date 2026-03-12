@@ -37,10 +37,11 @@ async function run() {
       "5144ee8a-2271-4449-826a-cd8113e91780",
       "e480bbe4-20f4-4be7-b537-25fbca5ce94d",
     ];
+    const legacyNote = 'Legacy method – this process may be updated in a future event cycle.';
     for (const id of meetingIntroIds) {
       await client.query(
-        `UPDATE agreement_deliverable_template_items SET deliverable_name = $1, default_quantity = 1, updated_at = NOW() WHERE id = $2`,
-        ["Meeting Introduction List (Pre-Event)", id]
+        `UPDATE agreement_deliverable_template_items SET deliverable_name = $1, default_quantity = 1, sponsor_facing_note = $3, updated_at = NOW() WHERE id = $2`,
+        ["Meeting Introduction List (Pre-Event)", id, legacyNote]
       );
     }
     console.log("Renamed Meeting Introductions (Pre-Event)");
@@ -52,8 +53,8 @@ async function run() {
     ];
     for (const id of emailIntroIds) {
       await client.query(
-        `UPDATE agreement_deliverable_template_items SET deliverable_name = $1, default_quantity = 1, updated_at = NOW() WHERE id = $2`,
-        ["Email Introduction List (Post-Event)", id]
+        `UPDATE agreement_deliverable_template_items SET deliverable_name = $1, default_quantity = 1, sponsor_facing_note = $3, updated_at = NOW() WHERE id = $2`,
+        ["Email Introduction List (Post-Event)", id, legacyNote]
       );
     }
     console.log("Renamed Email Introductions (Post-Event)");
@@ -143,11 +144,13 @@ async function run() {
     );
 
     await client.query(
-      `UPDATE agreement_deliverables SET deliverable_name = 'Meeting Introduction List (Pre-Event)', quantity = 1, updated_at = NOW() WHERE deliverable_name = 'Meeting Introductions (Pre-Event)'`
+      `UPDATE agreement_deliverables SET deliverable_name = 'Meeting Introduction List (Pre-Event)', quantity = 1, sponsor_facing_note = $1, updated_at = NOW() WHERE deliverable_name = 'Meeting Introductions (Pre-Event)'`,
+      [legacyNote]
     );
 
     await client.query(
-      `UPDATE agreement_deliverables SET deliverable_name = 'Email Introduction List (Post-Event)', quantity = 1, updated_at = NOW() WHERE deliverable_name = 'Email Introductions (Post-Event)'`
+      `UPDATE agreement_deliverables SET deliverable_name = 'Email Introduction List (Post-Event)', quantity = 1, sponsor_facing_note = $1, updated_at = NOW() WHERE deliverable_name = 'Email Introductions (Post-Event)'`,
+      [legacyNote]
     );
 
     await client.query(
@@ -158,20 +161,29 @@ async function run() {
       `SELECT * FROM agreement_deliverables WHERE deliverable_name = 'Certificate of Insurance'`
     );
     for (const coi of liveCois) {
-      await client.query(
-        `UPDATE agreement_deliverables SET deliverable_name = 'Certificate of Insurance (Legacy - Replaced)', internal_note = 'Replaced by General Liability COI and Worker''s Comp COI', updated_at = NOW() WHERE id = $1`,
-        [coi.id]
-      );
-      await client.query(
-        `INSERT INTO agreement_deliverables (sponsor_id, event_id, package_template_id, created_from_template_item_id, sponsorship_level, category, deliverable_name, quantity, quantity_unit, status, owner_type, sponsor_editable, sponsor_visible, fulfillment_type, reminder_eligible, display_order)
-         VALUES ($1, $2, $3, NULL, $6, 'Sponsor Deliverables', 'General Liability – Certificate of Insurance', 1, NULL, $4, 'Sponsor', true, true, 'status_only', true, $5)`,
-        [coi.sponsor_id, coi.event_id, coi.package_template_id, coi.status, coi.display_order, coi.sponsorship_level]
-      );
-      await client.query(
-        `INSERT INTO agreement_deliverables (sponsor_id, event_id, package_template_id, created_from_template_item_id, sponsorship_level, category, deliverable_name, quantity, quantity_unit, status, owner_type, sponsor_editable, sponsor_visible, fulfillment_type, reminder_eligible, display_order)
-         VALUES ($1, $2, $3, NULL, $6, 'Sponsor Deliverables', 'Worker''s Compensation – Certificate of Insurance', 1, NULL, $4, 'Sponsor', true, true, 'status_only', true, $5)`,
-        [coi.sponsor_id, coi.event_id, coi.package_template_id, coi.status, coi.display_order + 1, coi.sponsorship_level]
-      );
+      const isNotStarted = coi.status === 'Not Started';
+      if (isNotStarted) {
+        await client.query(
+          `UPDATE agreement_deliverables SET deliverable_name = 'Certificate of Insurance (Legacy - Replaced)', internal_note = 'Replaced by General Liability COI and Worker''s Comp COI', sponsor_visible = false, updated_at = NOW() WHERE id = $1`,
+          [coi.id]
+        );
+        await client.query(
+          `INSERT INTO agreement_deliverables (sponsor_id, event_id, package_template_id, created_from_template_item_id, sponsorship_level, category, deliverable_name, quantity, quantity_unit, status, owner_type, sponsor_editable, sponsor_visible, fulfillment_type, reminder_eligible, display_order)
+           VALUES ($1, $2, $3, NULL, $6, 'Sponsor Deliverables', 'General Liability – Certificate of Insurance', 1, NULL, 'Not Started', 'Sponsor', true, true, 'status_only', true, $5)`,
+          [coi.sponsor_id, coi.event_id, coi.package_template_id, coi.status, coi.display_order, coi.sponsorship_level]
+        );
+        await client.query(
+          `INSERT INTO agreement_deliverables (sponsor_id, event_id, package_template_id, created_from_template_item_id, sponsorship_level, category, deliverable_name, quantity, quantity_unit, status, owner_type, sponsor_editable, sponsor_visible, fulfillment_type, reminder_eligible, display_order)
+           VALUES ($1, $2, $3, NULL, $6, 'Sponsor Deliverables', 'Worker''s Compensation – Certificate of Insurance', 1, NULL, 'Not Started', 'Sponsor', true, true, 'status_only', true, $5)`,
+          [coi.sponsor_id, coi.event_id, coi.package_template_id, coi.status, coi.display_order + 1, coi.sponsorship_level]
+        );
+      } else {
+        await client.query(
+          `UPDATE agreement_deliverables SET internal_note = 'ADMIN REVIEW NEEDED: Status was ' || status || ' when split was attempted. Please manually create General Liability and Worker''s Comp COI deliverables.', updated_at = NOW() WHERE id = $1`,
+          [coi.id]
+        );
+        console.log('  COI flagged for admin review (status=' + coi.status + ')');
+      }
     }
     console.log("Split live COI deliverables");
 
@@ -179,25 +191,34 @@ async function run() {
       `SELECT * FROM agreement_deliverables WHERE deliverable_name = 'Company Logo on Website and Event Signage'`
     );
     for (const logo of liveLogos) {
-      await client.query(
-        `UPDATE agreement_deliverables SET deliverable_name = 'Company Logo on Website and Event Signage (Legacy - Replaced)', internal_note = 'Replaced by Company Logo on Website, Company Logo on Signage, and Company Profile in Event App', updated_at = NOW() WHERE id = $1`,
-        [logo.id]
-      );
-      await client.query(
-        `INSERT INTO agreement_deliverables (sponsor_id, event_id, package_template_id, created_from_template_item_id, sponsorship_level, category, deliverable_name, quantity, quantity_unit, status, owner_type, sponsor_editable, sponsor_visible, fulfillment_type, reminder_eligible, display_order)
-         VALUES ($1, $2, $3, NULL, $6, 'Converge Deliverables', 'Company Logo on Website', 1, NULL, $4, 'Converge', false, true, 'status_only', false, $5)`,
-        [logo.sponsor_id, logo.event_id, logo.package_template_id, logo.status, logo.display_order, logo.sponsorship_level]
-      );
-      await client.query(
-        `INSERT INTO agreement_deliverables (sponsor_id, event_id, package_template_id, created_from_template_item_id, sponsorship_level, category, deliverable_name, quantity, quantity_unit, status, owner_type, sponsor_editable, sponsor_visible, fulfillment_type, reminder_eligible, display_order)
-         VALUES ($1, $2, $3, NULL, $6, 'Converge Deliverables', 'Company Logo on Signage', NULL, 'Various', $4, 'Converge', false, true, 'status_only', false, $5)`,
-        [logo.sponsor_id, logo.event_id, logo.package_template_id, logo.status, logo.display_order + 1, logo.sponsorship_level]
-      );
-      await client.query(
-        `INSERT INTO agreement_deliverables (sponsor_id, event_id, package_template_id, created_from_template_item_id, sponsorship_level, category, deliverable_name, quantity, quantity_unit, status, owner_type, sponsor_editable, sponsor_visible, fulfillment_type, reminder_eligible, display_order)
-         VALUES ($1, $2, $3, NULL, $6, 'Converge Deliverables', 'Company Profile in Event App', 1, NULL, $4, 'Converge', false, true, 'status_only', false, $5)`,
-        [logo.sponsor_id, logo.event_id, logo.package_template_id, logo.status, logo.display_order + 2, logo.sponsorship_level]
-      );
+      const isNotStarted = logo.status === 'Not Started';
+      if (isNotStarted) {
+        await client.query(
+          `UPDATE agreement_deliverables SET deliverable_name = 'Company Logo on Website and Event Signage (Legacy - Replaced)', internal_note = 'Replaced by Company Logo on Website, Company Logo on Signage, and Company Profile in Event App', sponsor_visible = false, updated_at = NOW() WHERE id = $1`,
+          [logo.id]
+        );
+        await client.query(
+          `INSERT INTO agreement_deliverables (sponsor_id, event_id, package_template_id, created_from_template_item_id, sponsorship_level, category, deliverable_name, quantity, quantity_unit, status, owner_type, sponsor_editable, sponsor_visible, fulfillment_type, reminder_eligible, display_order)
+           VALUES ($1, $2, $3, NULL, $6, 'Converge Deliverables', 'Company Logo on Website', 1, NULL, 'Not Started', 'Converge', false, true, 'status_only', false, $5)`,
+          [logo.sponsor_id, logo.event_id, logo.package_template_id, logo.status, logo.display_order, logo.sponsorship_level]
+        );
+        await client.query(
+          `INSERT INTO agreement_deliverables (sponsor_id, event_id, package_template_id, created_from_template_item_id, sponsorship_level, category, deliverable_name, quantity, quantity_unit, status, owner_type, sponsor_editable, sponsor_visible, fulfillment_type, reminder_eligible, display_order)
+           VALUES ($1, $2, $3, NULL, $6, 'Converge Deliverables', 'Company Logo on Signage', NULL, 'Various', 'Not Started', 'Converge', false, true, 'status_only', false, $5)`,
+          [logo.sponsor_id, logo.event_id, logo.package_template_id, logo.status, logo.display_order + 1, logo.sponsorship_level]
+        );
+        await client.query(
+          `INSERT INTO agreement_deliverables (sponsor_id, event_id, package_template_id, created_from_template_item_id, sponsorship_level, category, deliverable_name, quantity, quantity_unit, status, owner_type, sponsor_editable, sponsor_visible, fulfillment_type, reminder_eligible, display_order)
+           VALUES ($1, $2, $3, NULL, $6, 'Converge Deliverables', 'Company Profile in Event App', 1, NULL, 'Not Started', 'Converge', false, true, 'status_only', false, $5)`,
+          [logo.sponsor_id, logo.event_id, logo.package_template_id, logo.status, logo.display_order + 2, logo.sponsorship_level]
+        );
+      } else {
+        await client.query(
+          `UPDATE agreement_deliverables SET internal_note = 'ADMIN REVIEW NEEDED: Status was ' || status || ' when split was attempted. Please manually create replacement deliverables.', updated_at = NOW() WHERE id = $1`,
+          [logo.id]
+        );
+        console.log('  Logo flagged for admin review (status=' + logo.status + ')');
+      }
     }
     console.log("Split live Company Logo deliverables");
 

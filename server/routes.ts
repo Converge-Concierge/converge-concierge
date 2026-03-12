@@ -3131,6 +3131,40 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
+  // ── Admin Speaker CRUD (cookie-auth) ─────────────────────────────────────
+
+  app.get("/api/agreement/deliverables/:id/speakers", requireAuth, async (req, res) => {
+    try {
+      const speakers = await storage.listDeliverableSpeakers(req.params.id);
+      res.json(speakers);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/agreement/deliverables/:id/speakers", requireAuth, async (req, res) => {
+    try {
+      const deliverable = await storage.getAgreementDeliverable(req.params.id);
+      if (!deliverable) return res.status(404).json({ message: "Deliverable not found" });
+      const { speakerName, speakerTitle, speakerBio, sessionType, sessionTitle } = req.body;
+      if (!speakerName?.trim()) return res.status(400).json({ message: "speakerName is required" });
+      const speaker = await storage.createDeliverableSpeaker({
+        agreementDeliverableId: req.params.id,
+        speakerName: speakerName.trim(),
+        speakerTitle: speakerTitle?.trim() ?? null,
+        speakerBio: speakerBio?.trim() ?? null,
+        sessionType: sessionType?.trim() ?? null,
+        sessionTitle: sessionTitle?.trim() ?? null,
+      });
+      res.status(201).json(speaker);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/agreement/deliverables/:id/speakers/:sid", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteDeliverableSpeaker(req.params.sid);
+      res.json({ ok: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   // ── Admin Social Entries CRUD ────────────────────────────────────────────
 
   app.get("/api/agreement/deliverables/:id/social-entries", requireAuth, async (req, res) => {
@@ -3626,6 +3660,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     "attendee-reports":{ allowedMime: ["text/csv","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/pdf"], maxBytes: 15*1024*1024 },
     "sponsor-reports": { allowedMime: ["application/pdf","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"], maxBytes: 15*1024*1024 },
     "contracts":       { allowedMime: ["application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document"], maxBytes: 10*1024*1024 },
+    "registration-docs": { allowedMime: ["application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document","image/png","image/jpeg","image/jpg"], maxBytes: 15*1024*1024 },
     "internal":        { allowedMime: ["application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document"], maxBytes: 10*1024*1024 },
   };
 

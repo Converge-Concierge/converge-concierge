@@ -123,15 +123,10 @@ function SpeakerEditor({
 
   const { data: speakers = [], refetch } = useQuery<AgreementDeliverableSpeaker[]>({
     queryKey: ["/api/agreement/deliverables", deliverable.id, "speakers"],
-    queryFn: async () => {
-      const res = await fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}/speakers`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
   });
 
   const addSpeaker = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}/speakers`, {
+    mutationFn: () => apiRequest("POST", `/api/agreement/deliverables/${deliverable.id}/speakers`, {
       ...newSpeaker,
       agreementDeliverableId: deliverable.id,
     }),
@@ -146,7 +141,7 @@ function SpeakerEditor({
   });
 
   const deleteSpeaker = useMutation({
-    mutationFn: (sid: string) => apiRequest("DELETE", `/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}/speakers/${sid}`),
+    mutationFn: (sid: string) => apiRequest("DELETE", `/api/agreement/deliverables/${deliverable.id}/speakers/${sid}`),
     onSuccess: () => {
       refetch();
       queryClient.invalidateQueries({ queryKey: ["/api/agreement/deliverables/detail", sponsorId, eventId] });
@@ -265,7 +260,7 @@ function RegistrationsEditor({
     setUploading(true);
     try {
       await uploadFileAsset(file, {
-        category: "registration_pdf",
+        category: "registration-docs",
         sponsorId,
         eventId,
         deliverableId: deliverable.id,
@@ -385,20 +380,6 @@ function SocialGraphicsEditor({
     return graphicEntries.find(e => e.entryIndex === i + 1) || graphicEntries[i] || null;
   });
 
-  const createSlot = useMutation({
-    mutationFn: (index: number) => apiRequest("POST", `/api/agreement/deliverables/${deliverable.id}/social-entries`, {
-      deliverableId: deliverable.id,
-      entryType: "graphic",
-      entryIndex: index,
-      title: `Graphic #${index}`,
-    }),
-    onSuccess: () => {
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ["/api/agreement/deliverables/detail", sponsorId, eventId] });
-    },
-    onError: () => toast({ title: "Failed to create slot", variant: "destructive" }),
-  });
-
   const deleteEntry = useMutation({
     mutationFn: (eid: string) => apiRequest("DELETE", `/api/agreement/social-entries/${eid}`),
     onSuccess: () => {
@@ -414,18 +395,30 @@ function SocialGraphicsEditor({
     if (!file) return;
     setUploadingSlot(slotIndex);
     try {
-      const existingEntry = slots[slotIndex];
-      if (!existingEntry) {
-        await createSlot.mutateAsync(slotIndex + 1);
+      let entry = slots[slotIndex];
+      if (!entry) {
+        const createRes = await apiRequest("POST", `/api/agreement/deliverables/${deliverable.id}/social-entries`, {
+          deliverableId: deliverable.id,
+          entryType: "graphic",
+          entryIndex: slotIndex + 1,
+          title: `Graphic #${slotIndex + 1}`,
+        });
+        entry = await createRes.json();
       }
-      await uploadFileAsset(file, {
-        category: "social_graphic",
+      const fileId = await uploadFileAsset(file, {
+        category: "social-graphics",
         sponsorId,
         eventId,
         deliverableId: deliverable.id,
       });
+      if (entry) {
+        await apiRequest("PATCH", `/api/agreement/social-entries/${entry.id}`, {
+          fileAssetId: fileId,
+        });
+      }
       toast({ title: "Graphic uploaded" });
       refetch();
+      queryClient.invalidateQueries({ queryKey: ["/api/agreement/deliverables/detail", sponsorId, eventId] });
     } catch {
       toast({ title: "Upload failed", variant: "destructive" });
     } finally {

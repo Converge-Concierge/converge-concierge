@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { PackageTemplate } from "@shared/schema";
 import type { Event, Sponsor } from "@shared/schema";
+import { getDeliverableType } from "@/components/admin/StructuredDeliverableEditors";
 
 type TemplateWithCount = PackageTemplate & { deliverableCount: number };
 
@@ -778,6 +779,11 @@ export default function AgreementDeliverablesPage() {
                                   <TriangleAlert className="h-2.5 w-2.5" /> OVERDUE
                                 </span>
                               )}
+                              {(() => {
+                                const dt = getDeliverableType(item.deliverableName);
+                                const labels: Record<string, string> = { speaking: "Speaking", registrations: "Registrations", social_graphics: "Social Graphics", social_announcements: "Social Posts", attendee_list: "Attendee List", coi: "Insurance" };
+                                return dt ? <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium" data-testid={`badge-type-${item.id}`}>{labels[dt] ?? dt}</span> : null;
+                              })()}
                             </td>
                             <td className="px-4 py-2.5 text-xs text-muted-foreground hidden md:table-cell">{item.category}</td>
                             <td className="px-4 py-2.5">

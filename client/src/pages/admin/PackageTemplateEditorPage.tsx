@@ -26,6 +26,7 @@ import {
   DELIVERABLE_CATEGORIES, DELIVERABLE_OWNER_TYPES, DELIVERABLE_FULFILLMENT_TYPES, DELIVERABLE_DUE_TIMING_TYPES,
   type PackageTemplate, type DeliverableTemplateItem,
 } from "@shared/schema";
+import { HelpContentPreview } from "@/components/admin/StructuredDeliverableEditors";
 
 type TemplateDetail = PackageTemplate & { items: DeliverableTemplateItem[] };
 
@@ -531,6 +532,11 @@ export default function PackageTemplateEditorPage() {
                 <Label htmlFor="item-help-link">Help Link</Label>
                 <Input id="item-help-link" value={itemForm.helpLink} onChange={(e) => setItemForm((f) => ({ ...f, helpLink: e.target.value }))} placeholder="https://example.com/help-guide" data-testid="input-item-help-link" />
               </div>
+              {(itemForm.helpTitle || itemForm.helpText || itemForm.helpLink) && (
+                <div className="col-span-2">
+                  <HelpContentPreview helpTitle={itemForm.helpTitle} helpText={itemForm.helpText} helpLink={itemForm.helpLink} />
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-3 gap-4 pt-1">
               {([

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -8,6 +8,7 @@ import {
   ArrowLeft, RefreshCw, Plus, Pencil, Trash2, RotateCcw, CheckCircle2,
   AlertCircle, Clock, Ban, FileCheck, Users, Gem, Send,
   Upload, Download, Archive, Link2, ExternalLink, File as FileIcon, X, Paperclip,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,9 @@ import {
   type AgreementDeliverable,
 } from "@shared/schema";
 import type { Sponsor, Event } from "@shared/schema";
+import {
+  StructuredDeliverablePanel, hasStructuredEditor, DeliverableStructuredSummary, HelpContentPreview,
+} from "@/components/admin/StructuredDeliverableEditors";
 
 type EnrichedDeliverable = AgreementDeliverable & {
   registrantCount: number;
@@ -188,12 +192,13 @@ function FilesLinksTab({
     if (!uploadFile) return;
     setUploading(true);
     try {
-      const urlRes = await apiRequest("POST", "/api/files/upload-url", {
+      const urlResponse = await apiRequest("POST", "/api/files/upload-url", {
         category: uploadCategory, originalFileName: uploadFile.name,
         mimeType: uploadFile.type, sizeBytes: uploadFile.size,
         sponsorId, eventId,
         deliverableId: uploadDeliverable !== "__none__" ? uploadDeliverable : null,
       });
+      const urlRes = await urlResponse.json() as { uploadURL: string; fileId: string; objectKey: string; storedFileName: string };
       const { uploadURL, fileId, objectKey, storedFileName } = urlRes;
       const putRes = await fetch(uploadURL, {
         method: "PUT", body: uploadFile,
@@ -454,6 +459,7 @@ export default function SponsorAgreementDetailPage() {
   const [showCustomDialog, setShowCustomDialog] = useState(false);
   const [editForm, setEditForm] = useState<EditDeliverableForm>(emptyEditForm());
   const [customForm, setCustomForm] = useState<EditDeliverableForm>(emptyEditForm());
+  const [expandedDeliverable, setExpandedDeliverable] = useState<string | null>(null);
 
   const { data: deliverables = [], isLoading } = useQuery<EnrichedDeliverable[]>({
     queryKey: ["/api/agreement/deliverables/detail", sponsorId, eventId],
@@ -809,40 +815,27 @@ export default function SponsorAgreementDetailPage() {
                       <tbody>
                         {catItems.map((d) => {
                           const sc = STATUS_CONFIG[d.status] ?? { color: "bg-muted text-muted-foreground", icon: null };
-                          return (
-                            <tr key={d.id} className="border-t border-border/30 hover:bg-muted/10 transition-colors" data-testid={`row-deliverable-${d.id}`}>
+                          return (<Fragment key={d.id}>
+                            <tr className="border-t border-border/30 hover:bg-muted/10 transition-colors" data-testid={`row-deliverable-${d.id}`}>
                               <td className="px-4 py-2.5 font-medium text-foreground max-w-xs">
-                                <span className="truncate block">{d.deliverableName}</span>
-                                {d.deliverableDescription && (
-                                  <p className="text-[11px] text-muted-foreground truncate">{d.deliverableDescription}</p>
-                                )}
-                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                  {d.speakerCount > 0 && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 font-medium whitespace-nowrap" data-testid={`badge-speakers-${d.id}`}>
-                                      {d.speakerCount} speaker{d.speakerCount !== 1 ? "s" : ""}
-                                    </span>
-                                  )}
-                                  {d.registrantCount > 0 && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 font-medium whitespace-nowrap" data-testid={`badge-registrants-${d.id}`}>
-                                      {d.registrantCount} registrant{d.registrantCount !== 1 ? "s" : ""}
-                                      {d.quantity != null && d.quantity > 0 ? ` / ${d.quantity}` : ""}
-                                    </span>
-                                  )}
-                                  {d.socialEntryCount > 0 && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-medium whitespace-nowrap" data-testid={`badge-social-${d.id}`}>
-                                      {d.socialEntryCount} social entr{d.socialEntryCount !== 1 ? "ies" : "y"}
-                                    </span>
-                                  )}
-                                  {d.deliverableName.toLowerCase().includes("attendee") && d.deliverableName.toLowerCase().includes("contact") && (
+                                <div className="flex items-center gap-1">
+                                  <span className="truncate">{d.deliverableName}</span>
+                                  {hasStructuredEditor(d) && (
                                     <Button
-                                      variant="ghost" size="sm" className="h-5 px-1.5 text-[10px] text-blue-700 hover:text-blue-800 hover:bg-blue-50 gap-0.5"
-                                      onClick={(e) => { e.stopPropagation(); window.open(`/api/agreement/deliverables/${d.id}/attendee-csv`, "_blank"); }}
-                                      data-testid={`button-csv-download-${d.id}`}
+                                      variant="ghost" size="sm" className="h-5 w-5 p-0 shrink-0"
+                                      onClick={() => setExpandedDeliverable(expandedDeliverable === d.id ? null : d.id)}
+                                      data-testid={`button-expand-${d.id}`}
                                     >
-                                      <Download className="h-2.5 w-2.5" /> CSV
+                                      {expandedDeliverable === d.id
+                                        ? <ChevronDown className="h-3 w-3 text-accent" />
+                                        : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
                                     </Button>
                                   )}
                                 </div>
+                                {d.deliverableDescription && (
+                                  <p className="text-[11px] text-muted-foreground truncate">{d.deliverableDescription}</p>
+                                )}
+                                <DeliverableStructuredSummary d={d} />
                               </td>
                               <td className="px-4 py-2.5 text-center text-muted-foreground text-xs">
                                 {d.quantity !== null ? `${d.quantity}${d.quantityUnit ? ` ${d.quantityUnit}` : ""}` : "—"}
@@ -908,6 +901,19 @@ export default function SponsorAgreementDetailPage() {
                                 </div>
                               </td>
                             </tr>
+                            {expandedDeliverable === d.id && hasStructuredEditor(d) && sponsorId && eventId && (
+                              <tr data-testid={`expanded-${d.id}`}>
+                                <td colSpan={8} className="px-4 py-2 bg-muted/10">
+                                  <StructuredDeliverablePanel deliverable={d} sponsorId={sponsorId} eventId={eventId} />
+                                  {(d.helpTitle || d.helpText || d.helpLink) && (
+                                    <div className="mt-2">
+                                      <HelpContentPreview helpTitle={d.helpTitle} helpText={d.helpText} helpLink={d.helpLink} />
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                           );
                         })}
                       </tbody>

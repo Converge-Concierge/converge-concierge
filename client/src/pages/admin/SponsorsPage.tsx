@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Plus, Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,6 +30,8 @@ interface Meeting { sponsorId: string; }
 export default function SponsorsPage() {
   const { isAdmin } = useAuth();
   const [tab, setTab] = useState<"active" | "archived">("active");
+  const [selectedEventId, setSelectedEventId] = useState("all");
+  const hasAutoSelected = useRef(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSponsor, setEditingSponsor] = useState<Sponsor | undefined>();
   const [viewingSponsor, setViewingSponsor] = useState<Sponsor | undefined>();
@@ -50,6 +53,28 @@ export default function SponsorsPage() {
     queryKey: ["/api/meetings"],
     enabled: isNoMeetingsFilter,
   });
+
+  useEffect(() => {
+    if (hasAutoSelected.current || events.length === 0) return;
+    hasAutoSelected.current = true;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const upcoming = events
+      .filter(e => (e.archiveState ?? "active") === "active" && e.endDate && new Date(e.endDate) >= today)
+      .sort((a, b) => new Date(a.startDate ?? a.endDate ?? 0).getTime() - new Date(b.startDate ?? b.endDate ?? 0).getTime());
+    if (upcoming.length > 0) setSelectedEventId(upcoming[0].id);
+  }, [events]);
+
+  const sortedEventsForSelector = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const active = events.filter(e => (e.archiveState ?? "active") === "active");
+    const upcoming = active.filter(e => e.endDate && new Date(e.endDate) >= today)
+      .sort((a, b) => new Date(a.startDate ?? 0).getTime() - new Date(b.startDate ?? 0).getTime());
+    const completed = active.filter(e => !e.endDate || new Date(e.endDate) < today)
+      .sort((a, b) => new Date(b.endDate ?? 0).getTime() - new Date(a.endDate ?? 0).getTime());
+    return [...upcoming, ...completed];
+  }, [events]);
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertSponsor) => {
@@ -141,6 +166,7 @@ export default function SponsorsPage() {
     if ((s.archiveState ?? "active") !== "active") return false;
     if (!match(s)) return false;
     if (isNoMeetingsFilter && sponsorsWithMeetings.has(s.id)) return false;
+    if (selectedEventId !== "all" && !s.assignedEvents.some(ae => ae.eventId === selectedEventId)) return false;
     return true;
   });
   const archivedSponsors = sponsors.filter((s) => s.archiveState === "archived" && match(s));
@@ -166,6 +192,42 @@ export default function SponsorsPage() {
           <Plus className="mr-2 h-4 w-4" /> Add Sponsor
         </Button>
       </div>
+
+      {/* Event tabs */}
+      {sortedEventsForSelector.length > 0 && (
+        <div className="overflow-x-auto pb-1">
+          <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
+            {sortedEventsForSelector.map((event) => {
+              const isActive = selectedEventId === event.id;
+              return (
+                <button
+                  key={event.id}
+                  data-testid={`event-tab-${event.id}`}
+                  onClick={() => setSelectedEventId(event.id)}
+                  className={cn(
+                    "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                    isActive ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                  )}
+                  style={isActive ? { backgroundColor: event.accentColor ?? "#0D9488", color: "#ffffff" } : undefined}
+                >
+                  {event.slug ?? event.name}
+                </button>
+              );
+            })}
+            <button
+              data-testid="event-tab-all"
+              onClick={() => setSelectedEventId("all")}
+              className={cn(
+                "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                selectedEventId === "all" ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+              )}
+              style={selectedEventId === "all" ? { backgroundColor: "#0D9488", color: "#ffffff" } : undefined}
+            >
+              All Events
+            </button>
+          </div>
+        </div>
+      )}
 
       {isNoMeetingsFilter && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800" data-testid="filter-no-meetings-banner">

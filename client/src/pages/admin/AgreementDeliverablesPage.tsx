@@ -273,7 +273,7 @@ export default function AgreementDeliverablesPage() {
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
             <ClipboardList className="h-6 w-6 text-accent" />
-            Agreement Deliverables
+            Deliverables
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Manage sponsorship package templates and sponsor agreement deliverables.
@@ -313,7 +313,7 @@ export default function AgreementDeliverablesPage() {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Package Templates", value: templates.filter((t) => !t.isArchived).length, icon: Package, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: "Sponsorship Templates", value: templates.filter((t) => !t.isArchived).length, icon: Package, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "Sponsor Agreements", value: agreements.length, icon: Users, color: "text-green-600", bg: "bg-green-50" },
           { label: "Awaiting Sponsor Input", value: agreements.reduce((s, a) => s + a.awaitingSponsorCount, 0), icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50" },
         ].map(({ label, value, icon: Icon, color, bg }) => (
@@ -333,7 +333,7 @@ export default function AgreementDeliverablesPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="h-10">
           <TabsTrigger value="package-templates" className="gap-2" data-testid="tab-package-templates">
-            <Package className="h-4 w-4" /> Package Templates
+            <Package className="h-4 w-4" /> Sponsorship Templates
           </TabsTrigger>
           <TabsTrigger value="sponsor-agreements" className="gap-2" data-testid="tab-sponsor-agreements">
             <Users className="h-4 w-4" /> Sponsor Agreements
@@ -346,7 +346,7 @@ export default function AgreementDeliverablesPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* ── Package Templates ── */}
+        {/* ── Sponsorship Templates ── */}
         <TabsContent value="package-templates" className="mt-4 space-y-4">
           <div className="flex gap-3">
             <div className="relative flex-1">

@@ -16,6 +16,8 @@ import {
   Mail,
   Inbox,
   ClipboardList,
+  LayoutGrid,
+  Package,
 } from "lucide-react";
 import {
   Sidebar,
@@ -32,14 +34,21 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation as useWouterLocation } from "wouter";
 
-const mainItems = [
+const managementItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Events", url: "/admin/events", icon: CalendarDays },
   { title: "Sponsors", url: "/admin/sponsors", icon: Building2 },
   { title: "Attendees", url: "/admin/attendees", icon: Users },
   { title: "Meetings", url: "/admin/meetings", icon: Handshake },
   { title: "Info Requests", url: "/admin/information-requests", icon: Mail },
-  { title: "Agreement Deliverables", url: "/admin/agreement", icon: ClipboardList },
+];
+
+const sponsorMgmtItems = [
+  { title: "Deliverables", url: "/admin/agreement", icon: ClipboardList },
+  { title: "Sponsor Dashboards", url: "/admin/sponsor-dashboards", icon: LayoutGrid },
+];
+
+const reportingItems = [
   { title: "Email Center", url: "/admin/email-center", icon: Inbox },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
   { title: "Data Exchange", url: "/admin/data-exchange", icon: ArrowLeftRight },
@@ -54,6 +63,23 @@ interface AppSidebarProps {
   isAdmin?: boolean;
 }
 
+function NavItem({ item, isActive }: { item: { title: string; url: string; icon: React.ElementType }; isActive: boolean }) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        className="transition-all duration-200"
+      >
+        <Link href={item.url}>
+          <item.icon className="h-4 w-4" />
+          <span>{item.title}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
 export function AppSidebar({ isAdmin }: AppSidebarProps) {
   const [location] = useLocation();
   const { logout } = useAuth();
@@ -62,6 +88,11 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
   async function handleLogout() {
     await logout();
     nav("/login");
+  }
+
+  function isActive(url: string) {
+    if (url === "/admin") return location === url;
+    return location === url || location.startsWith(url + "/");
   }
 
   return (
@@ -78,58 +109,58 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent>
+        {/* ── Management ── */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/70 text-xs font-semibold uppercase tracking-wider">
             Management
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainItems.map((item) => {
-                const isActive = item.url === "/admin"
-                  ? location === item.url
-                  : location === item.url || location.startsWith(item.url + "/");
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      className="transition-all duration-200"
-                    >
-                      <Link href={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {managementItems.map((item) => (
+                <NavItem key={item.title} item={item} isActive={isActive(item.url)} />
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* ── Sponsor Management ── */}
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-sidebar-foreground/70 text-xs font-semibold uppercase tracking-wider">
+            Sponsor Management
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {sponsorMgmtItems.map((item) => (
+                <NavItem key={item.title} item={item} isActive={isActive(item.url)} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* ── Reporting ── */}
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-sidebar-foreground/70 text-xs font-semibold uppercase tracking-wider">
+            Reporting
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {reportingItems.map((item) => (
+                <NavItem key={item.title} item={item} isActive={isActive(item.url)} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* ── Configuration ── */}
         <SidebarGroup className="mt-4">
           <SidebarGroupLabel className="text-sidebar-foreground/70 text-xs font-semibold uppercase tracking-wider">
             Configuration
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {configItems.map((item) => {
-                const isActive = location === item.url;
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      className="transition-all duration-200"
-                    >
-                      <Link href={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {configItems.map((item) => (
+                <NavItem key={item.title} item={item} isActive={isActive(item.url)} />
+              ))}
 
               {isAdmin && (
                 <SidebarMenuItem>
@@ -160,6 +191,19 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/admin/agreement") && location.includes("package-templates")}
+                  className="transition-all duration-200"
+                >
+                  <Link href="/admin/agreement?tab=package-templates">
+                    <Package className="h-4 w-4" />
+                    <span>Sponsorship Templates</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

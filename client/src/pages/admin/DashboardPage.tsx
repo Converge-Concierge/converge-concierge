@@ -122,6 +122,20 @@ export default function DashboardPage() {
   const accentBarColor = selectedEvent?.accentColor ?? branding?.accentColor ?? "#0D9488";
   const defaultTabColor = branding?.accentColor ?? "#0D9488";
 
+  const daysUntilEventDisplay = useMemo(() => {
+    if (!selectedEvent?.startDate) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(selectedEvent.startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = selectedEvent.endDate ? new Date(selectedEvent.endDate) : new Date(start);
+    end.setHours(0, 0, 0, 0);
+    if (today > end) return "Event Completed";
+    if (today >= start) return "Event In Progress";
+    const days = Math.round((start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return `${days} Days`;
+  }, [selectedEvent]);
+
   // Formatted event date range + countdown shown under the title
   const eventContextLine = useMemo(() => {
     if (!selectedEvent?.startDate) return null;
@@ -412,7 +426,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Top KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatCard
+          label="Days Until Event"
+          value={daysUntilEventDisplay ?? "—"}
+          icon={Clock}
+          sub={selectedEvent?.slug ?? "Select an event"}
+          accent="bg-indigo-100"
+          data-testid="stat-days-until-event"
+        />
         <StatCard
           label="Active Sponsors"
           value={activeSponsors.length}

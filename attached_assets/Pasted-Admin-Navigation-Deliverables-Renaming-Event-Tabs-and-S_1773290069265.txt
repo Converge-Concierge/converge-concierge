@@ -1,0 +1,355 @@
+Admin Navigation, Deliverables Renaming, Event Tabs, and Sponsor Dashboard Improvements
+
+This update improves the Admin Panel structure, Deliverables navigation, event filtering, and Sponsor Dashboard usability.
+
+Do not remove existing functionality. Only reorganize navigation and add the new behaviors described.
+
+1. Rename “Package Templates” → “Sponsorship Templates”
+Location
+
+Agreement Deliverables module.
+
+Changes
+
+Rename the tab:
+
+Package Templates
+
+to
+
+Sponsorship Templates
+Navigation change
+
+Move this section to the Configuration section of the Admin Panel.
+
+Final navigation location
+CONFIGURATION
+    Branding
+    Settings
+    Users
+    Access Control
+    Sponsorship Templates
+
+Purpose:
+These templates are configuration objects, not operational deliverables.
+
+2. Rename "Agreement Deliverables" → "Deliverables"
+
+Update the main navigation item.
+
+Change:
+
+Agreement Deliverables
+
+to:
+
+Deliverables
+
+Do not change database tables unless necessary.
+
+Only update:
+
+UI label
+
+navigation text
+
+page title
+
+3. Create New Admin Section: Sponsor Management
+
+Add a new sidebar group:
+
+SPONSOR MANAGEMENT
+
+Move these items under it:
+
+Deliverables
+Sponsor Dashboards
+4. Create New Admin Page: Sponsor Dashboards
+
+This page allows admins to view every sponsor dashboard quickly without navigating through Sponsors.
+
+Navigation location
+SPONSOR MANAGEMENT
+    Deliverables
+    Sponsor Dashboards
+Sponsor Dashboards Page Layout
+
+Create a table listing all active sponsor dashboards.
+
+Columns:
+
+Event
+Sponsor
+Sponsorship Level
+Dashboard Status
+Last Updated
+Open Dashboard
+Open Dashboard action
+
+Provide button:
+
+View Sponsor Dashboard
+
+This should open the exact dashboard view the sponsor sees.
+
+Purpose:
+
+Admins should easily inspect sponsor-facing pages without navigating through the sponsor record.
+
+5. Create New Admin Section: Reporting
+
+Create a new sidebar section titled:
+
+REPORTING
+
+Move the following items into this section:
+
+Email Center
+Reports
+Data Exchange
+
+Final structure example:
+
+MANAGEMENT
+    Dashboard
+    Events
+    Sponsors
+    Attendees
+    Meetings
+    Info Requests
+
+SPONSOR MANAGEMENT
+    Deliverables
+    Sponsor Dashboards
+
+REPORTING
+    Email Center
+    Reports
+    Data Exchange
+
+CONFIGURATION
+    Branding
+    Settings
+    Users
+    Access Control
+    Sponsorship Templates
+6. Add Event Tabs to Additional Admin Pages
+
+Add the same event tab structure used on the Admin Dashboard to the following pages:
+
+Sponsors
+Attendees
+Meetings
+Info Requests
+
+Tabs should appear at the top of the page.
+
+Example tab order:
+
+FRC2026 | TLS2026 | USBT2026 | CUGI2027 | All Events
+Tab Behavior
+
+Default tab:
+
+Closest upcoming event that has not yet completed
+
+Fallback:
+
+All Events
+Filtering Logic
+
+When a tab is selected:
+
+Filter the page data by:
+
+event_id
+
+Example:
+
+Selecting TLS2026 should filter:
+
+Sponsors
+
+Attendees
+
+Meetings
+
+Info Requests
+
+to only records belonging to that event.
+
+7. Admin Dashboard Improvement
+Add “Days Until Event” Metric
+
+On the Admin Dashboard event tabs, update the metric boxes.
+
+Currently the first box shows something else.
+
+Replace the first metric card with:
+
+Days Until Event
+Metric Behavior
+
+Calculate:
+
+days_until_event = event_start_date - current_date
+
+Display:
+
+XX Days
+
+Examples:
+
+120 Days
+42 Days
+7 Days
+
+If the event has started:
+
+Display:
+
+Event In Progress
+
+If the event is complete:
+
+Display:
+
+Event Completed
+Position
+
+The metric card should be the first card in the dashboard metrics row.
+
+Example order:
+
+Days Until Event
+Active Sponsors
+Active Meetings
+Info Requests
+Attendees
+8. Sponsor Dashboard Visual Improvements
+
+Improve visual consistency by using event color scheme accents.
+
+Apply event accent color to:
+
+page accent bar
+
+tab highlight
+
+selected state indicators
+
+key UI accents
+
+This should match the event branding configuration already stored in Concierge.
+
+Each event should render with its own accent color.
+
+9. Sponsor Dashboard Tab Order
+
+Reorder tabs.
+
+Current order:
+
+Overview
+Sponsor Inputs
+Files & Links
+Deliverables
+
+New order:
+
+Overview
+Deliverables
+Sponsor Inputs
+Files & Links
+
+Deliverables should be the second tab.
+
+This is one of the most important sponsor workflows.
+
+10. Add New Metric Card on Sponsor Dashboard
+
+Add a new metric box:
+
+Awaiting Sponsor Action
+
+This should count deliverables where:
+
+owner = Sponsor
+status = Not Started OR Awaiting Input
+
+Example display:
+
+Awaiting Sponsor Action
+3
+Updated Sponsor Dashboard Metrics
+
+Example row:
+
+Total Deliverables
+Delivered
+In Progress
+Blocked
+Compliance
+Awaiting Sponsor Action
+11. Ensure Event Accent Colors Apply to Sponsor Dashboard Tabs
+
+Sponsor Dashboard tabs should visually match the event accent color.
+
+Apply event color to:
+
+active tab highlight
+
+progress indicators
+
+key badges where appropriate
+
+Do not override accessibility contrast requirements.
+
+12. Acceptance Criteria
+
+This update is complete when:
+
+Package Templates renamed to Sponsorship Templates
+
+Sponsorship Templates moved to Configuration
+
+Agreement Deliverables renamed to Deliverables
+
+New Sponsor Management section exists
+
+Deliverables and Sponsor Dashboards are under Sponsor Management
+
+Sponsor Dashboards page lists all active dashboards
+
+New Reporting section exists
+
+Email Center, Reports, and Data Exchange moved there
+
+Sponsors, Attendees, Meetings, and Info Requests include event tabs
+
+tabs default to the closest upcoming event
+
+Admin Dashboard first metric = Days Until Event
+
+Sponsor Dashboard uses event accent colors
+
+Sponsor Dashboard tab order updated
+
+Sponsor Dashboard includes Awaiting Sponsor Action metric
+
+13. Success Standard
+
+After this update:
+
+Admin navigation is clearer
+
+event filtering is consistent across modules
+
+sponsorship deliverables are easier to manage
+
+admins can inspect sponsor dashboards instantly
+
+sponsors see event-branded dashboards
+
+critical event countdown metric is always visible.

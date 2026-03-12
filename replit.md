@@ -4,6 +4,18 @@
 
 Converge Concierge is a fintech event scheduling platform designed for booking meetings between attendees and sponsors at various events. It features a public-facing site for event browsing and booking, and a comprehensive admin panel for managing events, sponsors, attendees, meetings, reports, and users. The platform aims to provide a robust and intuitive solution for event scheduling, including a multi-step booking wizard, detailed management functionalities, and comprehensive reporting.
 
+## Admin Navigation Structure (4 Sections)
+
+The AppSidebar is organized into 4 sections:
+- **Management**: Dashboard, Events, Sponsors, Attendees, Meetings, Info Requests
+- **Sponsor Management**: Deliverables (AgreementDeliverablesPage), Sponsor Dashboards (SponsorDashboardsAdminPage at `/admin/sponsor-dashboards`)
+- **Reporting**: Email Center, Reports, Data Exchange
+- **Configuration**: Branding, Settings, Users, Access Control, Sponsorship Templates
+
+## Event Tab Strip Pattern
+
+Sponsors, Attendees, Meetings, Info Requests, and Sponsor Dashboards pages all feature event tab strips at the top. Tabs auto-select the nearest upcoming event on load. Tab order: upcoming events (soonest first) → completed events (most recent first) → All Events. Active tab uses `event.accentColor ?? "#0D9488"` for background color.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

@@ -65,7 +65,7 @@ interface DashboardData {
     linkedinUrl?: string | null;
     solutionsSummary?: string | null;
   };
-  event: { id: string; name: string; slug: string; location: string; startDate: string; endDate: string; logoUrl?: string | null };
+  event: { id: string; name: string; slug: string; location: string; startDate: string; endDate: string; logoUrl?: string | null; accentColor?: string | null };
   stats: { total: number; scheduled: number; completed: number; cancelled: number; pendingOnline: number; companies: number };
   meetings: SponsorMeeting[];
   notifications: SponsorNotification[];
@@ -325,6 +325,7 @@ export default function SponsorDashboardPage() {
   }
 
   const { sponsor, event, stats, meetings, notifications, analytics } = data;
+  const eventAccent = event.accentColor ?? "#0D9488";
 
   // Unique attendees (leads)
   const leadsMap = new Map<string, SponsorMeeting["attendee"] & { meetings: number }>();
@@ -526,16 +527,26 @@ export default function SponsorDashboardPage() {
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-muted/50 border border-border/40 rounded-xl mb-8">
-              <TabsTrigger value="overview" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Overview</TabsTrigger>
-              <TabsTrigger value="meetings" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Meetings</TabsTrigger>
-              <TabsTrigger value="info-requests" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Info Requests</TabsTrigger>
-              <TabsTrigger value="leads" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Leads</TabsTrigger>
-              <TabsTrigger value="deliverables" data-testid="tab-deliverables" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Deliverables</TabsTrigger>
-              <TabsTrigger value="reports" className="py-2.5 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Reports</TabsTrigger>
+              {(["overview", "meetings", "info-requests", "leads", "deliverables", "reports"] as const).map((tab) => (
+                <TabsTrigger
+                  key={tab}
+                  value={tab}
+                  data-testid={tab === "deliverables" ? "tab-deliverables" : undefined}
+                  className="py-2.5 rounded-lg data-[state=active]:shadow-sm transition-all"
+                  style={activeTab === tab ? { backgroundColor: eventAccent, color: "#ffffff" } : {}}
+                >
+                  {tab === "overview" ? "Overview"
+                    : tab === "meetings" ? "Meetings"
+                    : tab === "info-requests" ? "Info Requests"
+                    : tab === "leads" ? "Leads"
+                    : tab === "deliverables" ? "Deliverables"
+                    : "Reports"}
+                </TabsTrigger>
+              ))}
             </TabsList>
 
             <TabsContent value="overview" className="space-y-8 outline-none">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <StatCard
                   label="Total Meetings"
                   value={stats.total}
@@ -545,10 +556,18 @@ export default function SponsorDashboardPage() {
                   onClick={() => setActiveTab("meetings")}
                 />
                 <StatCard
+                  label="Awaiting Sponsor Action"
+                  value={stats.pendingOnline}
+                  icon={Clock}
+                  accent="amber"
+                  sub="Online requests pending your review"
+                  onClick={() => setActiveTab("meetings")}
+                />
+                <StatCard
                   label="Information Requests"
                   value={infoRequests.length}
                   icon={MessageSquare}
-                  accent="amber"
+                  accent="violet"
                   onClick={() => setActiveTab("info-requests")}
                 />
                 <StatCard

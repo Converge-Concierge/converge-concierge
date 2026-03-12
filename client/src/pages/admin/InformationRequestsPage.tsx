@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { InformationRequest, InformationRequestStatus, INFORMATION_REQUEST_STATUSES, Event, Sponsor } from "@shared/schema";
@@ -26,6 +26,7 @@ export default function InformationRequestsPage() {
   const [sponsorFilter, setSponsorFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState<InformationRequest | null>(null);
+  const hasAutoSelected = useRef(false);
 
   const { data: requests = [], isLoading } = useQuery<InformationRequest[]>({
     queryKey: ["/api/admin/information-requests"],
@@ -33,6 +34,28 @@ export default function InformationRequestsPage() {
 
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
+
+  useEffect(() => {
+    if (hasAutoSelected.current || events.length === 0) return;
+    hasAutoSelected.current = true;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const upcoming = events
+      .filter(e => (e.archiveState ?? "active") === "active" && e.endDate && new Date(e.endDate) >= today)
+      .sort((a, b) => new Date(a.startDate ?? 0).getTime() - new Date(b.startDate ?? 0).getTime());
+    if (upcoming.length > 0) setEventFilter(upcoming[0].id);
+  }, [events]);
+
+  const sortedEventsForSelector = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const active = events.filter(e => (e.archiveState ?? "active") === "active");
+    const upcoming = active.filter(e => e.endDate && new Date(e.endDate) >= today)
+      .sort((a, b) => new Date(a.startDate ?? 0).getTime() - new Date(b.startDate ?? 0).getTime());
+    const completed = active.filter(e => !e.endDate || new Date(e.endDate) < today)
+      .sort((a, b) => new Date(b.endDate ?? 0).getTime() - new Date(a.endDate ?? 0).getTime());
+    return [...upcoming, ...completed];
+  }, [events]);
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: InformationRequestStatus }) =>
@@ -92,18 +115,45 @@ export default function InformationRequestsPage() {
         ))}
       </div>
 
+      {/* Event tabs */}
+      {sortedEventsForSelector.length > 0 && (
+        <div className="overflow-x-auto pb-1">
+          <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
+            {sortedEventsForSelector.map((event) => {
+              const isActive = eventFilter === event.id;
+              return (
+                <button
+                  key={event.id}
+                  data-testid={`event-tab-${event.id}`}
+                  onClick={() => setEventFilter(event.id)}
+                  className={cn(
+                    "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                    isActive ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                  )}
+                  style={isActive ? { backgroundColor: event.accentColor ?? "#0D9488", color: "#ffffff" } : undefined}
+                >
+                  {event.slug ?? event.name}
+                </button>
+              );
+            })}
+            <button
+              data-testid="event-tab-all"
+              onClick={() => setEventFilter("all")}
+              className={cn(
+                "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                eventFilter === "all" ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+              )}
+              style={eventFilter === "all" ? { backgroundColor: "#0D9488", color: "#ffffff" } : undefined}
+            >
+              All Events
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
         <Filter className="h-4 w-4 text-muted-foreground" />
-        <Select value={eventFilter} onValueChange={setEventFilter}>
-          <SelectTrigger className="w-44 h-8 text-sm" data-testid="select-filter-event">
-            <SelectValue placeholder="All Events" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Events</SelectItem>
-            {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
         <Select value={sponsorFilter} onValueChange={setSponsorFilter}>
           <SelectTrigger className="w-44 h-8 text-sm" data-testid="select-filter-sponsor">
             <SelectValue placeholder="All Sponsors" />

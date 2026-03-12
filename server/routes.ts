@@ -1170,6 +1170,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         id: event.id, name: event.name, slug: event.slug, location: event.location,
         startDate: event.startDate, endDate: event.endDate,
         logoUrl: event.logoUrl ?? null,
+        accentColor: event.accentColor ?? null,
       },
       stats: {
         total:         sponsorMeetings.length,

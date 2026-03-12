@@ -324,6 +324,7 @@ export interface AppBranding {
   sponsorDashboardLogoUrl: string;
   publicEventLogoUrl: string;
   internalNotificationEmail: string;
+  appBaseUrl: string;
 }
 
 export const DEFAULT_BRANDING: AppBranding = {
@@ -336,6 +337,7 @@ export const DEFAULT_BRANDING: AppBranding = {
   sponsorDashboardLogoUrl: "",
   publicEventLogoUrl: "",
   internalNotificationEmail: "",
+  appBaseUrl: "",
 };
 
 // ── DB tables for singleton config (settings + branding stored by key) ────────

@@ -1,0 +1,330 @@
+Fix “Open Sponsor Dashboard” Email Link Returning “Unable To Wake Up”
+
+When a sponsor clicks Open Sponsor Dashboard from the email, they are getting a Replit hosting error page:
+
+Unable To Wake Up
+We ran into an internal error.
+
+This means the dashboard access link is not resolving correctly to a working app route/environment.
+
+We need to diagnose and fix the sponsor dashboard access flow so emailed links reliably open the sponsor dashboard.
+
+Primary Goal
+
+Ensure that when a sponsor clicks the Open Sponsor Dashboard button in the email:
+
+the link resolves to the correct production domain
+
+the route exists and loads correctly
+
+the token / magic link is validated properly
+
+the sponsor lands on the correct dashboard for the correct event
+
+the app does not route to a broken or sleeping Replit URL
+
+1. Inspect the Actual URL Being Sent in the Email
+
+First, determine the exact URL currently being placed behind:
+
+Open Sponsor Dashboard
+
+Log and inspect the final generated link in the email template send flow.
+
+Required check
+
+Confirm whether the email link is pointing to:
+
+the correct production custom domain
+
+an old Replit preview URL
+
+a malformed route
+
+a localhost/dev URL
+
+a route missing the required token/query params
+
+Examples of bad patterns to check for
+
+*.replit.dev old/incorrect URL
+
+localhost:3000
+
+stale preview deployment URL
+
+route without token
+
+route to a page that no longer exists
+
+2. Force Sponsor Email Links to Use the Production Base URL
+
+The sponsor dashboard access email must use the correct production app domain.
+
+Required behavior
+
+Create or confirm a single environment variable for the live app base URL, such as:
+
+APP_BASE_URL
+
+Example:
+
+https://concierge.convergeevents.com
+
+Then ensure all sponsor dashboard email links are generated using this value.
+
+Do not
+
+derive URL from request host in background email jobs
+
+use preview/development URL
+
+use Replit internal hosting URL unless that is intentionally the live production URL
+
+3. Verify the Sponsor Magic Link Route Exists and Works
+
+The email appears to be using a sponsor magic login flow.
+
+The route likely does something like:
+
+validate token
+
+identify sponsor user
+
+identify event/sponsor dashboard
+
+log user in or create session
+
+redirect to sponsor dashboard
+
+Required action
+
+Audit the exact route used by the email link.
+
+Examples to inspect:
+
+/sponsor/access?...
+
+/sponsor/magic-login?...
+
+/dashboard/access?...
+
+/auth/sponsor?...
+
+Confirm:
+
+route exists in production
+
+route handler is registered
+
+route is not returning an error
+
+redirect target exists
+
+4. Test the Route Directly Without Email
+
+Take one real sponsor access link and test it manually in the browser.
+
+Check:
+
+does the route load?
+
+does it error before token validation?
+
+does it redirect incorrectly?
+
+does it hit the app at all?
+
+Add logging around:
+
+incoming token
+
+sponsor lookup
+
+event lookup
+
+redirect target
+
+error handling
+
+5. Improve Error Handling on Sponsor Access Route
+
+Right now users are seeing a generic hosting error page, which suggests the app may be crashing or failing before rendering a friendly error state.
+
+Required behavior
+
+Wrap sponsor access route handling in proper error handling.
+
+If token is invalid, expired, or the sponsor record is missing, show a branded in-app error page such as:
+
+This dashboard access link is invalid or has expired.
+Request a new access link or contact Converge Events.
+
+Do not let the route crash into a Replit hosting error if token processing fails.
+
+6. Confirm Deployment / Hosting Health
+
+Because the error says:
+
+Unable To Wake Up
+
+also verify the hosting/deployment setup.
+
+Required checks
+
+confirm the production deployment is active
+
+confirm the deployment can wake/respond
+
+confirm sponsor access links are pointing to the deployed production environment, not a sleeping dev instance
+
+confirm any background worker/job is not generating links from the wrong environment
+
+If necessary, redeploy after fixing the link generation.
+
+7. Validate Token Generation and Expiration Logic
+
+The email says the secure link expires in 24 hours.
+
+We need to verify that:
+
+token is generated correctly
+
+token is stored/validated correctly
+
+expiration logic is correct
+
+expired token handling does not crash the app
+
+Required behavior
+
+If token is expired:
+
+do not crash
+
+render a clean branded error page
+
+optionally show:
+
+Request New Link
+
+Contact Event Team
+
+8. Confirm Sponsor Dashboard Lookup Logic
+
+When the token is accepted, the system should correctly determine:
+
+sponsor user
+
+sponsor
+
+event
+
+correct dashboard route
+
+Required checks
+
+Make sure the sponsor dashboard record exists or can be resolved from:
+
+sponsor ID
+
+event ID
+
+sponsor user/contact
+
+Do not assume a dashboard token alone is enough if underlying sponsor-event mapping is missing.
+
+9. Add Logging for Sponsor Access Flow
+
+Add structured logs for the sponsor access route.
+
+At minimum log:
+
+email/template sending generated URL
+
+token ID / partial token reference
+
+sponsor user found or not found
+
+sponsor found or not found
+
+event found or not found
+
+redirect path chosen
+
+final success/failure
+
+This is important for troubleshooting.
+
+10. Add Admin Test for Sponsor Dashboard Link
+
+In the admin panel, add or improve a way to test the exact sponsor dashboard link that will be sent.
+
+For example:
+
+Send Test Email
+
+Copy Access Link
+
+Open as Sponsor
+
+This should use the same production URL generation logic as the live email.
+
+That way admins can verify the link before sending to sponsors.
+
+11. Confirm Email Template Uses Correct Link Variable
+
+Inspect the Sponsor Dashboard Welcome template and confirm the button uses the correct variable for the dashboard URL.
+
+Example variable names to verify:
+
+{{dashboard_link}}
+
+{{magic_login_url}}
+
+{{sponsor_dashboard_url}}
+
+Make sure the populated variable contains the final production-ready URL.
+
+12. Add Fallback Page for Broken Sponsor Access
+
+If sponsor access fails for any reason, render a Concierge-branded fallback page instead of allowing the request to die in hosting.
+
+Example page:
+
+Title
+Unable to Open Sponsor Dashboard
+Body
+Your secure dashboard link may have expired or become invalid.
+Please request a new access link or contact Converge Events for assistance.
+Actions
+
+Request New Link
+
+Back to Event Site
+
+Contact Support
+
+This is much better than the raw Replit hosting error.
+
+13. Acceptance Criteria
+
+This fix is complete when:
+
+the email button points to the correct production domain
+
+sponsor access links open the app successfully
+
+sponsor magic login route validates correctly
+
+expired/invalid links show a branded in-app error state
+
+the app no longer crashes into “Unable To Wake Up”
+
+admin can test the actual link flow before sending
+
+14. Success Standard
+
+After this fix, when a sponsor clicks Open Sponsor Dashboard from the email, they should reliably land in the correct sponsor dashboard or see a clean branded expired-link message if the token is no longer valid.
+
+That is the expected behavior.

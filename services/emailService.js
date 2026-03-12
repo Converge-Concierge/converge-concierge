@@ -270,9 +270,22 @@ export async function sendSponsorMagicLoginEmail(storage, sponsorUser, sponsor, 
 // ── Deliverable Reminder Email ──────────────────────────────────────────────
 
 export async function sendDeliverableReminderEmail(storage, { sponsor, event, deliverables, recipientName, recipientEmail, sponsorToken }) {
-  const BASE_URL = process.env.REPLIT_DEV_DOMAIN
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : "https://concierge.convergeevents.com";
+  let BASE_URL;
+  try {
+    const branding = await storage.getBranding();
+    if (branding.appBaseUrl?.trim()) {
+      BASE_URL = branding.appBaseUrl.trim().replace(/\/$/, "");
+    }
+  } catch (_) {}
+  if (!BASE_URL) {
+    if (process.env.REPLIT_DEPLOYMENT === "1" && process.env.REPLIT_DOMAINS) {
+      BASE_URL = `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`;
+    } else if (process.env.REPLIT_DEV_DOMAIN) {
+      BASE_URL = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+    } else {
+      BASE_URL = "https://concierge.convergeevents.com";
+    }
+  }
 
   const dashboardUrl = `${BASE_URL}/sponsor/dashboard?token=${sponsorToken}&tab=deliverables`;
 

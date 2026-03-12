@@ -19,9 +19,10 @@ type Mode = "email" | "token";
 const ERROR_MESSAGES: Record<string, string> = {
   missing_token: "The login link is missing. Please request a new one.",
   invalid_token: "This login link is invalid or has expired. Please request a new one.",
-  token_used: "This login link has already been used. Please request a new one.",
-  token_expired: "This login link has expired. Please request a new one.",
+  token_used: "This login link has already been used. Please request a new one below.",
+  token_expired: "This login link has expired. Please request a new one below.",
   no_dashboard_access: "Your sponsor account doesn't have active dashboard access. Contact your event coordinator.",
+  server_error: "Something went wrong while processing your login link. Please try again or request a new one below.",
 };
 
 export default function SponsorLoginPage() {

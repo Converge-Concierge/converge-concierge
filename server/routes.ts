@@ -171,6 +171,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   seedData().catch(console.error);
   seedUsers().catch(console.error);
 
+  async function getAppBaseUrl(): Promise<string> {
+    const branding = await storage.getBranding();
+    if (branding.appBaseUrl?.trim()) return branding.appBaseUrl.trim().replace(/\/$/, "");
+    if (process.env.REPLIT_DEPLOYMENT === "1" && process.env.REPLIT_DOMAINS) {
+      return `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`;
+    }
+    if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+    return "https://concierge.convergeevents.com";
+  }
+
   // ── File Upload ──────────────────────────────────────────────────────────
 
   app.post("/api/upload", requireAuth, (req, res) => {
@@ -261,9 +271,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     console.log(`[PASSWORD RESET] Token generated for ${normalizedEmail} — expires: ${new Date(tokenRecord.expiresAt).toISOString()}`);
 
     // Send email via Brevo (fire-and-forget)
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : "https://concierge.convergeevents.com";
+    const baseUrl = await getAppBaseUrl();
     try {
       const { sendPasswordResetEmail } = await import("../services/emailService.js");
       sendPasswordResetEmail(storage, user, tokenRecord.token, baseUrl).catch((err: any) => {
@@ -1077,9 +1085,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       expiresAt,
     });
 
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : "https://concierge.convergeevents.com";
+    const baseUrl = await getAppBaseUrl();
+    console.log(`[SEND ACCESS] Sending dashboard access for "${sponsor.name}" → ${primaryUser.email} (baseUrl: ${baseUrl})`);
 
     try {
       const { sendSponsorMagicLoginEmail } = await import("../services/emailService.js");
@@ -1210,9 +1217,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     });
 
     const sponsor = await storage.getSponsor(sponsorUser.sponsorId);
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : "https://concierge.convergeevents.com";
+    const baseUrl = await getAppBaseUrl();
+    console.log(`[SPONSOR MAGIC LOGIN] Generating magic link for ${normalizedEmail} (baseUrl: ${baseUrl})`);
 
     try {
       const { sendSponsorMagicLoginEmail } = await import("../services/emailService.js");
@@ -1222,34 +1228,50 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (err: any) {
       console.error(`[SPONSOR MAGIC LOGIN] Email service import failed: ${err?.message ?? err}`);
     }
-
-    console.log(`[SPONSOR MAGIC LOGIN] Magic link generated for ${normalizedEmail}`);
     res.json({ message: neutralMessage });
   });
 
   app.get("/api/sponsor/auth/magic", async (req, res) => {
-    const { token } = req.query as { token?: string };
-    if (!token) return res.redirect("/sponsor/login?error=missing_token");
+    try {
+      const { token } = req.query as { token?: string };
+      if (!token) {
+        console.log("[MAGIC AUTH] Missing token in request");
+        return res.redirect("/sponsor/login?error=missing_token");
+      }
 
-    const tokenHash = createHash("sha256").update(token).digest("hex");
-    const tokenRecord = await storage.getSponsorLoginTokenByHash(tokenHash);
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+      const tokenRecord = await storage.getSponsorLoginTokenByHash(tokenHash);
 
-    if (!tokenRecord) return res.redirect("/sponsor/login?error=invalid_token");
-    if (tokenRecord.usedAt) return res.redirect("/sponsor/login?error=token_used");
-    if (new Date(tokenRecord.expiresAt) < new Date()) return res.redirect("/sponsor/login?error=token_expired");
+      if (!tokenRecord) {
+        console.log(`[MAGIC AUTH] Invalid token (hash: ${tokenHash.slice(0, 8)}…)`);
+        return res.redirect("/sponsor/login?error=invalid_token");
+      }
+      if (tokenRecord.usedAt) {
+        console.log(`[MAGIC AUTH] Token already used (sponsorUser: ${tokenRecord.sponsorUserId})`);
+        return res.redirect("/sponsor/login?error=token_used");
+      }
+      if (new Date(tokenRecord.expiresAt) < new Date()) {
+        console.log(`[MAGIC AUTH] Token expired (expired: ${tokenRecord.expiresAt})`);
+        return res.redirect("/sponsor/login?error=token_expired");
+      }
 
-    await storage.markSponsorLoginTokenUsed(tokenRecord.id);
-    await storage.updateSponsorUserLastLogin(tokenRecord.sponsorUserId);
+      await storage.markSponsorLoginTokenUsed(tokenRecord.id);
+      await storage.updateSponsorUserLastLogin(tokenRecord.sponsorUserId);
 
-    // Find an active sponsor token to use for the dashboard
-    const tokens = await storage.getSponsorTokensBySponsor(tokenRecord.sponsorId);
-    const activeToken = tokens.find((t) => t.isActive && new Date(t.expiresAt) > new Date());
+      const tokens = await storage.getSponsorTokensBySponsor(tokenRecord.sponsorId);
+      const activeToken = tokens.find((t) => t.isActive && new Date(t.expiresAt) > new Date());
 
-    if (!activeToken) {
-      return res.redirect("/sponsor/login?error=no_dashboard_access");
+      if (!activeToken) {
+        console.log(`[MAGIC AUTH] No active dashboard token for sponsor ${tokenRecord.sponsorId}`);
+        return res.redirect("/sponsor/login?error=no_dashboard_access");
+      }
+
+      console.log(`[MAGIC AUTH] Success — redirecting to dashboard (sponsor: ${tokenRecord.sponsorId}, token: ${activeToken.token.slice(0, 8)}…)`);
+      return res.redirect(`/sponsor-access/${activeToken.token}`);
+    } catch (err: any) {
+      console.error(`[MAGIC AUTH] Unexpected error: ${err?.message ?? err}`);
+      return res.redirect("/sponsor/login?error=server_error");
     }
-
-    return res.redirect(`/sponsor-access/${activeToken.token}`);
   });
 
   // Admin action: send dashboard access email to sponsor's primary contact
@@ -1284,9 +1306,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       expiresAt,
     });
 
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : "https://concierge.convergeevents.com";
+    const baseUrl = await getAppBaseUrl();
+    console.log(`[SPONSOR ACCESS EMAIL] Sending to ${sponsor.contactEmail} for sponsor "${sponsor.name}" (baseUrl: ${baseUrl})`);
 
     let emailSent = false;
     let emailError: string | null = null;
@@ -1299,7 +1320,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       console.error(`[SPONSOR ACCESS EMAIL] Failed for ${sponsor.contactEmail}: ${emailError}`);
     }
 
-    console.log(`[SPONSOR ACCESS EMAIL] Sent to ${sponsor.contactEmail} for sponsor "${sponsor.name}"`);
     res.json({ ok: emailSent, sentTo: sponsor.contactEmail, error: emailError });
   });
 
@@ -1364,9 +1384,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     await storage.invalidateSponsorLoginTokens(sponsorUser.id);
     await storage.createSponsorLoginToken({ sponsorUserId: sponsorUser.id, sponsorId: sponsor.id, tokenHash, expiresAt });
 
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : "https://concierge.convergeevents.com";
+    const baseUrl = await getAppBaseUrl();
+    console.log(`[SPONSOR USER ACCESS] Sending to ${sponsorUser.email} for sponsor "${sponsor.name}" (baseUrl: ${baseUrl})`);
 
     let emailSent = false;
     let emailError: string | null = null;
@@ -1580,6 +1599,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!settings.allowManagersToEditBranding) {
         return res.status(403).json({ message: "Managers are not allowed to edit branding" });
       }
+    }
+    if (req.body.appBaseUrl && typeof req.body.appBaseUrl === "string") {
+      const url = req.body.appBaseUrl.trim();
+      if (url && !url.startsWith("https://")) {
+        return res.status(400).json({ message: "Production URL must start with https://" });
+      }
+      req.body.appBaseUrl = url.replace(/\/$/, "");
     }
     const updated = await storage.updateBranding(req.body);
     res.json(updated);

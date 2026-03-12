@@ -269,6 +269,19 @@ export default function BrandingPage() {
               />
             </div>
             <LogoField id="br-logo" label="Global App Logo" value={b.appLogoUrl} onChange={(v) => set("appLogoUrl", v)} testId="input-app-logo" />
+            <div className="space-y-1.5">
+              <Label htmlFor="br-base-url" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Production URL</Label>
+              <Input
+                id="br-base-url"
+                value={b.appBaseUrl}
+                onChange={(e) => set("appBaseUrl", e.target.value)}
+                placeholder="https://concierge.convergeevents.com"
+                data-testid="input-app-base-url"
+              />
+              <p className="text-xs text-muted-foreground">
+                The public URL used in sponsor login emails and password reset links. Leave blank to auto-detect from the Replit environment.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -276,7 +289,7 @@ export default function BrandingPage() {
               <span className="text-sm text-muted-foreground">App Name</span>
               <span className="text-sm font-semibold text-foreground">{b.appName}</span>
             </div>
-            <div className="flex items-center justify-between py-2">
+            <div className="flex items-center justify-between py-2 border-b border-border/30">
               <span className="text-sm text-muted-foreground">App Logo</span>
               {b.appLogoUrl ? (
                 <div className="flex items-center gap-2">
@@ -288,6 +301,12 @@ export default function BrandingPage() {
               ) : (
                 <span className="text-sm text-muted-foreground italic">Not set — using default</span>
               )}
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm text-muted-foreground">Production URL</span>
+              <span className="text-sm font-semibold text-foreground">
+                {b.appBaseUrl || <span className="italic text-muted-foreground font-normal">Auto-detect</span>}
+              </span>
             </div>
           </div>
         )}

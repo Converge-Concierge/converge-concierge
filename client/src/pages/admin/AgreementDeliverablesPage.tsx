@@ -764,6 +764,7 @@ export default function AgreementDeliverablesPage() {
                         <tr className="border-b border-border">
                           <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground">Item</th>
                           <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground hidden md:table-cell">Category</th>
+                          <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground hidden lg:table-cell">Type</th>
                           <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground">Status</th>
                           <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground hidden sm:table-cell">Due</th>
                           <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground hidden lg:table-cell">Reminder Eligible</th>
@@ -779,13 +780,24 @@ export default function AgreementDeliverablesPage() {
                                   <TriangleAlert className="h-2.5 w-2.5" /> OVERDUE
                                 </span>
                               )}
-                              {(() => {
-                                const dt = getDeliverableType(item.deliverableName);
-                                const labels: Record<string, string> = { speaking: "Speaking", registrations: "Registrations", social_graphics: "Social Graphics", social_announcements: "Social Posts", attendee_list: "Attendee List", coi: "Insurance" };
-                                return dt ? <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium" data-testid={`badge-type-${item.id}`}>{labels[dt] ?? dt}</span> : null;
-                              })()}
                             </td>
                             <td className="px-4 py-2.5 text-xs text-muted-foreground hidden md:table-cell">{item.category}</td>
+                            <td className="px-4 py-2.5 text-xs hidden lg:table-cell">
+                              {(() => {
+                                const dt = getDeliverableType(item.deliverableName);
+                                if (!dt) return <span className="text-muted-foreground/50">—</span>;
+                                const labels: Record<string, { label: string; color: string }> = {
+                                  speaking: { label: "Speaking", color: "bg-purple-50 text-purple-700" },
+                                  registrations: { label: "Registrations", color: "bg-cyan-50 text-cyan-700" },
+                                  social_graphics: { label: "Social Graphics", color: "bg-indigo-50 text-indigo-700" },
+                                  social_announcements: { label: "Social Posts", color: "bg-violet-50 text-violet-700" },
+                                  attendee_list: { label: "Attendee List", color: "bg-blue-50 text-blue-700" },
+                                  coi: { label: "Insurance", color: "bg-slate-100 text-slate-700" },
+                                };
+                                const cfg = labels[dt];
+                                return cfg ? <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium whitespace-nowrap", cfg.color)} data-testid={`badge-type-${item.id}`}>{cfg.label}</span> : null;
+                              })()}
+                            </td>
                             <td className="px-4 py-2.5">
                               <Badge variant="outline" className={cn("text-xs", STATUS_COLORS[item.status] || "")}>
                                 {item.status}

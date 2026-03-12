@@ -43,7 +43,7 @@ export function hasStructuredEditor(d: EnrichedDeliverable): boolean {
   return getDeliverableType(d.deliverableName) !== null;
 }
 
-const SESSION_TYPES = ["Keynote", "Panel", "Fireside Chat", "Workshop", "Breakout Session", "Lightning Talk", "Roundtable", "Demo", "Other"];
+const SESSION_TYPES = ["Panel", "Peer-to-Peer", "Other"];
 
 async function uploadFileAsset(file: File, opts: { category: string; sponsorId?: string; eventId?: string; deliverableId?: string }) {
   const urlResponse = await apiRequest("POST", "/api/files/upload-url", {
@@ -666,7 +666,7 @@ function AttendeeListPanel({ deliverable }: { deliverable: EnrichedDeliverable }
   );
 }
 
-const COI_STATUSES = ["Not Started", "Awaiting Sponsor Input", "In Progress", "Submitted", "Received", "Under Review", "Approved", "Delivered", "Rejected"];
+const COI_STATUSES = ["Not Started", "Needed", "Awaiting Sponsor Input", "Received", "Under Review", "Approved", "Issue Identified", "Delivered"];
 
 function COIPanel({
   deliverable,

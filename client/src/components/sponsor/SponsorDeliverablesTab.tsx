@@ -5,7 +5,7 @@ import {
   ChevronUp, Plus, Trash2, Save, X, Users, Mic,
   Briefcase, CalendarDays, Megaphone, BarChart2, ShieldCheck,
   Upload, Download, RefreshCw, Info, ExternalLink, Copy,
-  Image, Link2, AlertCircle, FileDown,
+  Image, Link2, FileDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -174,8 +174,18 @@ function wordCount(text: string): number {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const label = sponsorLabel(status);
+// For Converge-owned deliverables, "Not Started" / "Awaiting Sponsor Input" should not
+// say "Awaiting Your Input" — those statuses only make sense when the SPONSOR owns the item.
+const CONVERGE_STATUS_OVERRIDE: Record<string, string> = {
+  "Not Started":            "In Progress",
+  "Awaiting Sponsor Input": "In Progress",
+  "Needed":                 "Scheduled",
+};
+
+function StatusBadge({ status, sponsorEditable = true }: { status: string; sponsorEditable?: boolean }) {
+  const label = (!sponsorEditable && CONVERGE_STATUS_OVERRIDE[status])
+    ? CONVERGE_STATUS_OVERRIDE[status]
+    : sponsorLabel(status);
   return (
     <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", STATUS_COLOR[label] ?? "bg-muted text-muted-foreground border-muted")}>
       {label}
@@ -832,20 +842,6 @@ function SocialAnnouncementsPanel({
   );
 }
 
-function LegacyIntroNote() {
-  return (
-    <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2" data-testid="legacy-intro-note">
-      <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-      <div>
-        <p className="text-sm font-medium text-amber-800">Legacy Method</p>
-        <p className="text-xs text-amber-700">
-          Introduction lists are now managed through the Concierge platform. Your meetings and introductions are handled
-          automatically as part of the event scheduling workflow. No separate action is needed here.
-        </p>
-      </div>
-    </div>
-  );
-}
 
 interface UploadedFile {
   id: string; originalFileName: string; mimeType: string;
@@ -1262,7 +1258,7 @@ function renderStructuredContent(d: SponsorDeliverable, token: string, canEdit: 
     case "social_announcements":
       return <SocialAnnouncementsPanel deliverable={d} token={token} />;
     case "legacy_intro":
-      return <LegacyIntroNote />;
+      return null;
     case "coi":
       return null;
     case "speaking":
@@ -1278,7 +1274,6 @@ function DeliverableRow({
   const [expanded, setExpanded] = useState(false);
   const st = detectStructuredType(deliverable);
   const isCOI = st === "coi";
-  const isLegacy = st === "legacy_intro";
   const hasStructured = st !== null;
   const inputType = getInputType(deliverable);
   const dueLabel = dueLabelStr(deliverable);
@@ -1287,16 +1282,19 @@ function DeliverableRow({
   const hasEditor = hasStructured || (inputType !== "none" && canEdit);
   const hasExpandableContent = hasEditor || deliverable.deliverableDescription || deliverable.sponsorFacingNote || hasHelp;
 
-  const ctaLabel = st === "company_description" ? "Edit Description" :
-    st === "sponsor_reps" ? "Manage Representatives" :
+  const n = deliverable.deliverableName.toLowerCase();
+  const ctaLabel = st === "company_description" ? "Write Description" :
+    st === "sponsor_reps" ? "Add Representatives" :
     st === "category_words" ? "Select Categories" :
-    st === "registrations" ? "View Details" :
-    st === "social_graphics" ? "View Graphics" :
-    st === "social_announcements" ? "View Posts" :
-    st === "speaking" ? "Manage Speakers" :
-    inputType === "registrants" ? "Provide Names" :
-    inputType === "file_upload" ? "Upload File" :
-    "Provide Details";
+    st === "registrations" ? "View Registration Details" :
+    st === "social_graphics" ? "Download Graphics" :
+    st === "social_announcements" ? "View LinkedIn Posts" :
+    st === "speaking" ? "View Speaker Details" :
+    st === "legacy_intro" ? "View Details" :
+    inputType === "registrants" ? "Add Names" :
+    inputType === "file_upload" ? (n.includes("logo") ? "Upload Logo" : n.includes("head") ? "Upload Headshot" : "Upload File") :
+    inputType === "text" ? "Provide Details" :
+    "View Details";
 
   return (
     <div className="border rounded-lg bg-card overflow-hidden" data-testid={`deliverable-row-${deliverable.id}`}>
@@ -1314,7 +1312,7 @@ function DeliverableRow({
             <p className="text-xs text-muted-foreground italic line-clamp-1">{deliverable.sponsorFacingNote}</p>
           )}
           <div className="flex flex-wrap items-center gap-2 pt-0.5">
-            <StatusBadge status={deliverable.status} />
+            <StatusBadge status={deliverable.status} sponsorEditable={deliverable.sponsorEditable} />
             {dueLabel && <span className="text-xs text-muted-foreground">{dueLabel}</span>}
             {deliverable.quantity && st === "registrations" && (
               <span className="text-xs text-muted-foreground">
@@ -1342,8 +1340,6 @@ function DeliverableRow({
           )}
         </div>
       </div>
-
-      {isLegacy && !expanded && <LegacyIntroNote />}
 
       {expanded && (
         <div className="border-t bg-muted/20 px-4 py-3 space-y-2">
@@ -1387,12 +1383,14 @@ function ActionCard({
   const dueLabel = dueLabelStr(deliverable);
   const hasHelp = !!(deliverable.helpTitle || deliverable.helpText);
 
+  const an = deliverable.deliverableName.toLowerCase();
   const ctaLabel = st === "company_description" ? "Write Description" :
     st === "sponsor_reps" ? "Add Representatives" :
     st === "category_words" ? "Select Categories" :
-    inputType === "registrants" ? "Provide Names" :
+    st === "registrations" ? "View Registration Details" :
+    inputType === "registrants" ? "Add Names" :
     inputType === "speakers" ? "Add Speaker Details" :
-    inputType === "file_upload" ? "Upload File" :
+    inputType === "file_upload" ? (an.includes("logo") ? "Upload Logo" : an.includes("head") ? "Upload Headshot" : "Upload File") :
     "Provide Details";
 
   return (
@@ -1408,7 +1406,7 @@ function ActionCard({
             <p className="text-xs text-muted-foreground">{deliverable.sponsorFacingNote}</p>
           )}
           <div className="flex flex-wrap items-center gap-2 pt-0.5">
-            <StatusBadge status={deliverable.status} />
+            <StatusBadge status={deliverable.status} sponsorEditable={deliverable.sponsorEditable} />
             {dueLabel && <span className="text-xs text-muted-foreground">{dueLabel}</span>}
           </div>
         </div>
@@ -1564,12 +1562,22 @@ export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
         {DELIVERABLE_CATEGORIES.map((cat) => {
           const items = byCat[cat];
           if (!items || items.length === 0) return null;
+          const catComplete = items.filter(d => ["Delivered", "Approved", "Available After Event"].includes(d.status)).length;
           return (
             <div key={cat} className="space-y-2" data-testid={`category-section-${cat}`}>
-              <div className="flex items-center gap-2 pb-1 border-b">
-                <span className="text-muted-foreground">{CATEGORY_ICONS[cat]}</span>
-                <h3 className="text-sm font-semibold">{cat}</h3>
-                <span className="text-xs text-muted-foreground ml-auto">{items.length} item{items.length !== 1 ? "s" : ""}</span>
+              <div className="flex items-center gap-2.5 px-1 pb-2 border-b border-border/60">
+                <span className="text-primary shrink-0">{CATEGORY_ICONS[cat]}</span>
+                <h3 className="text-sm font-semibold text-foreground">
+                  {cat}
+                  <span className="ml-1.5 font-normal text-muted-foreground text-xs">
+                    ({items.length} Deliverable{items.length !== 1 ? "s" : ""})
+                  </span>
+                </h3>
+                {catComplete > 0 && (
+                  <span className="ml-auto text-xs text-emerald-600 font-medium shrink-0">
+                    {catComplete}/{items.length} complete
+                  </span>
+                )}
               </div>
               {items.map((d) => (
                 <DeliverableRow key={d.id} deliverable={d} token={token} canEdit={canEdit} />

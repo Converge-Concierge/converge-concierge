@@ -1,0 +1,414 @@
+Sponsorship Deliverables Tab — Corrections and Improvements
+
+The Deliverables tab in the Sponsor Dashboard needs several structural, UX, and data-ownership corrections.
+
+Currently the page has problems such as:
+
+sections collapsing/expanding
+
+incorrect "Awaiting Your Input" statuses
+
+missing configuration fields
+
+legacy notices that should be removed
+
+quantities placed inconsistently
+
+missing admin entry fields for Converge deliverables
+
+The goal is to make this tab function as a clear operational checklist for sponsors and Converge Events.
+
+1. Expand All Sections by Default
+
+Currently sections such as:
+
+Company Profile
+
+Event Participation
+
+Speaking & Content
+
+Meetings & Introductions
+
+Marketing & Branding
+
+Post-Event Deliverables
+
+Compliance
+
+require clicking to expand.
+
+This creates unnecessary friction.
+
+Required change
+
+All sections should be expanded by default and not collapsible.
+
+The page should behave like a deliverables checklist rather than an accordion.
+
+2. Move Quantity Display
+
+Currently quantities appear bottom right of sections (example: “4 items”). 
+
+Sample SPonsorship Deliverables
+
+This is not helpful.
+
+Required change
+
+Move quantity information into the section header.
+
+Example:
+
+Company Profile (4 Deliverables)
+Event Participation (2 Deliverables)
+Marketing & Branding (3 Deliverables)
+
+Remove the small item count on the right.
+
+3. Correct Deliverable Ownership Logic
+
+Several items currently show “Awaiting Your Input” even though they are Converge Events responsibilities.
+
+These statuses must be corrected.
+
+4. Event Production Section (Registration)
+
+Create a clear Event Production → Registration section.
+
+This replaces the current confusing VIP registration display.
+
+Deliverable name
+VIP Registration (Platinum / Gold)
+Registration (Silver / Bronze)
+Ownership
+
+Owner: Converge Events
+
+Not sponsor.
+
+Julie Admin Inputs
+
+Julie must be able to enter:
+
+Registration Access Code
+
+Registration URL
+
+Upload PDF instructions
+
+Example UI fields:
+
+Registration Access Code
+Registration Link
+Upload Registration Instructions (.pdf)
+Sponsor View
+
+Sponsors should see:
+
+Access Code
+
+Register button
+
+Download instructions
+
+Additional system logic
+
+System should automatically show:
+
+4 seats remaining
+
+based on registered sponsor representatives vs allowed seats.
+
+5. Premium Exhibit Table
+
+Currently incorrectly labeled Awaiting Your Input.
+
+Correct behavior
+
+Owner: Converge Events
+
+Status should default to:
+
+Scheduled
+
+or
+
+Confirmed
+
+Not awaiting sponsor input.
+
+Default quantity
+Qty = 1
+
+unless overridden in agreement.
+
+6. Speaking Engagement
+
+Currently incorrectly treated as sponsor input.
+
+This is Converge-managed content planning.
+
+Sponsors do not proactively fill this in.
+
+Owner
+
+Converge Events
+
+Required fields
+
+Add structured fields:
+
+Session Date
+Session Type
+    Panel
+    Peer-to-Peer
+    Other
+Session Title
+Sponsor Speaker
+Speaker Title
+Speaker Email
+
+Julie or Dan will enter these after discussions with sponsors.
+
+Sponsor view should be read-only.
+
+7. Meetings & Introductions
+
+Currently shows a Legacy Method warning block. 
+
+Sample SPonsorship Deliverables
+
+This should be removed.
+
+Required change
+
+Remove the Legacy Method note box entirely.
+
+These deliverables still exist for certain sponsors and must remain.
+
+Keep deliverables:
+
+Meeting Introduction List (Pre-Event)
+Email Introduction List (Post-Event)
+
+They will eventually phase out but must remain active for now.
+
+8. Customized Social Media Graphics
+
+Currently incorrectly labeled Awaiting Your Input.
+
+Correct ownership
+
+Owner: Converge Events
+
+Sponsor should see:
+
+Preview Graphic
+Download Graphic
+Share on LinkedIn
+Admin side
+
+Julie uploads:
+
+Graphic file
+
+optional preview
+
+optional LinkedIn share link
+
+9. Social Media Sponsorship Announcements
+
+Also incorrectly marked Awaiting Your Input.
+
+Correct ownership
+
+Owner: Converge Events
+
+Julie will paste the LinkedIn URL.
+
+Example UI:
+
+LinkedIn Announcement 1
+LinkedIn Announcement 2
+
+Sponsor view:
+
+View Post
+Share on LinkedIn
+10. Full Attendee Contact List
+
+Currently incorrectly labeled as sponsor input.
+
+Correct ownership
+
+Owner: Converge Events
+
+Sponsors do not enter anything.
+
+System behavior
+
+After event concludes:
+
+System generates CSV:
+
+Full List:
+Name
+Title
+Company
+Email
+Phone
+
+For Bronze:
+
+Partial List:
+Name
+Title
+Company
+
+Then automatically:
+
+send email to sponsor
+
+provide download link in dashboard
+
+11. Certificate of Insurance
+
+Currently displayed as one line.
+
+This should be two separate deliverables.
+
+Deliverables
+Certificate of Insurance — General Liability
+Certificate of Insurance — Worker's Compensation
+Ownership
+
+Owner: Converge Events
+
+Sponsors typically send these by email.
+
+Julie enters confirmation manually.
+
+Fields Julie needs
+Date Received
+Uploaded File
+Review Status
+Notes
+
+Statuses:
+
+Needed
+Received
+Under Review
+Approved
+Issue Identified
+
+Sponsor view should simply show status.
+
+12. Remove “Awaiting Your Input” When Incorrect
+
+Deliverables owned by Converge must not show sponsor action warnings.
+
+Incorrect statuses currently appear in many places.
+
+Rule
+
+Only show:
+
+Awaiting Your Input
+
+when:
+
+Owner = Sponsor
+
+Otherwise show:
+
+Scheduled
+In Progress
+Delivered
+Confirmed
+13. Improve Deliverable Status Clarity
+
+Use consistent status logic:
+
+Sponsor deliverables:
+
+Awaiting Your Input
+Submitted
+Under Review
+Approved
+
+Converge deliverables:
+
+Scheduled
+In Progress
+Delivered
+Available After Event
+
+Compliance items:
+
+Needed
+Received
+Under Review
+Approved
+14. Improve Deliverable Action Buttons
+
+Sponsor buttons should reflect actual actions.
+
+Examples:
+
+Instead of generic:
+
+Provide Details
+
+Use clearer actions:
+
+Upload Logo
+Write Description
+Add Representatives
+Select Categories
+Download Graphic
+View LinkedIn Post
+Register for Event
+15. Clean Section Order
+
+Sections should appear in this order:
+
+Company Profile
+Event Production
+Speaking & Content
+Meetings & Introductions
+Marketing & Branding
+Post-Event Deliverables
+Compliance
+
+This mirrors the actual event lifecycle.
+
+16. Visual Improvements
+
+Each section header should include:
+
+Icon
+Section Name
+Quantity
+
+Example:
+
+📁 Company Profile (4 Deliverables)
+
+Remove bottom right item counts.
+
+17. Success Standard
+
+After this update the Deliverables tab should feel like:
+
+A clear operational checklist for sponsors.
+
+Sponsors should instantly see:
+
+• what they must provide
+• what Converge is delivering
+• what has been completed
+• what is coming next
+
+without confusion.

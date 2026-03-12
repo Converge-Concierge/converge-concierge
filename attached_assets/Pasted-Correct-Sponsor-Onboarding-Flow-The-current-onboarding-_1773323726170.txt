@@ -1,0 +1,150 @@
+Correct Sponsor Onboarding Flow
+
+The current onboarding concept includes steps that occur later in the event lifecycle. This creates confusion for sponsors and makes onboarding feel heavier than necessary.
+
+The onboarding flow should only cover sponsor-provided setup information.
+
+Sponsors should not see later operational tasks during onboarding.
+
+1. Create a Focused Onboarding Step
+
+When a sponsor logs in for the first time, show a Sponsor Setup page before they reach the dashboard.
+
+Page Title
+Welcome to the [Event Name] Sponsor Dashboard
+Subtitle
+Before we finalize your sponsorship materials, we need a few details from your team.
+2. Show Only Required Sponsor Inputs
+
+Onboarding should focus only on sponsor-provided information.
+
+Display a simple checklist titled:
+
+Sponsor Setup Checklist
+
+Items:
+
+Upload Company Logo
+Add Company Description
+Add Sponsor Representatives
+Select Company Categories
+Register Your Team
+
+These correspond to the actual deliverables owned by the sponsor.
+
+Do not include items handled by Converge.
+
+3. Remove Later Lifecycle Items From Onboarding
+
+Do not show the following in onboarding:
+
+• Social media graphics
+• Meeting introductions
+• Speaking engagement scheduling
+• Exhibit table information
+• Attendee contact lists
+• Email introductions
+
+These will appear later in the Deliverables dashboard but should not be introduced during onboarding.
+
+4. Clarify That Converge Handles Other Tasks
+
+Add a short explanation to avoid confusion.
+
+Example text:
+
+Some sponsorship items such as speaking sessions, exhibit tables, and marketing announcements are handled by the Converge Events team. You will see these in your dashboard, but no action is required from you.
+
+This prevents sponsors from thinking they must complete everything.
+
+5. Show Sponsorship Summary
+
+Sponsors should immediately see what their package includes.
+
+Example section:
+
+Your Sponsorship Includes
+
+Example output:
+
+Platinum Sponsor
+
+4 VIP Registrations
+2 Speaking Engagements
+Premium Exhibit Table
+Meeting Introductions
+Email Introductions
+Social Media Graphics
+Full Attendee Contact List
+
+This reinforces the value of the sponsorship.
+
+6. Add Registration Instructions Section
+
+Because registration is one of the first actions sponsors take, the onboarding screen should include a clear registration block.
+
+Example section:
+
+Register Your Team
+
+Display:
+
+Registration Access Code: [CODE]
+Register Here: [Registration Link]
+Download Instructions: [PDF]
+
+This information is entered by Julie.
+
+7. Add a “Start Setup” Button
+
+At the bottom of the onboarding page include:
+
+Start Setup
+
+This button takes the sponsor directly to the Deliverables tab, where they can complete their checklist items.
+
+8. Update the Deliverables Page to Match Onboarding
+
+Once onboarding is complete, the Deliverables page should highlight only remaining sponsor tasks.
+
+Example section:
+
+Next Steps
+
+Example list:
+
+Upload Company Logo
+Add Company Description
+Add Sponsor Representatives
+Select Company Categories
+
+These should appear above the rest of the deliverables.
+
+9. Improve the Onboarding Email
+
+Update the sponsor onboarding email to reflect this simplified process.
+
+Subject:
+
+Welcome to the [Event Name] Sponsor Dashboard
+
+Body:
+
+We're excited to have you participating in the [Event Name].
+
+Your sponsor dashboard will guide you through a short setup process so we can prepare your company profile and event participation details.
+
+Most sponsors complete this setup in under 10 minutes.
+
+Access your dashboard here:
+[Dashboard Link]
+10. Success Criteria
+
+The onboarding process should:
+
+• focus only on sponsor-provided information
+• take less than 10 minutes to complete
+• clearly explain what sponsors must provide
+• avoid overwhelming sponsors with later event tasks
+
+The Deliverables dashboard will handle the rest of the lifecycle.

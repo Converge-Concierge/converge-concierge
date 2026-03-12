@@ -3234,6 +3234,158 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
+  // ── Fulfillment Queue ─────────────────────────────────────────────────────
+
+  // GET /api/agreement/fulfillment-queue — all deliverables with enrichment for operational queue
+  app.get("/api/agreement/fulfillment-queue", requireAuth, async (req, res) => {
+    try {
+      const { eventId, sponsorId, category, ownerType, status, dueTiming, overdueOnly, remindableOnly, neverReminded, search } = req.query as Record<string, string>;
+
+      let deliverables = await storage.listAgreementDeliverables({
+        eventId: eventId || undefined,
+        sponsorId: sponsorId || undefined,
+      });
+
+      if (category) deliverables = deliverables.filter(d => d.category === category);
+      if (ownerType) deliverables = deliverables.filter(d => d.ownerType === ownerType);
+      if (status) deliverables = deliverables.filter(d => d.status === status);
+      if (dueTiming) deliverables = deliverables.filter(d => d.dueTiming === dueTiming);
+      if (remindableOnly === "true") deliverables = deliverables.filter(d => d.reminderEligible);
+
+      const now = new Date();
+      if (overdueOnly === "true") {
+        deliverables = deliverables.filter(d => d.dueDate && new Date(d.dueDate) < now);
+      }
+
+      const allSponsors = await storage.getSponsors();
+      const allEvents = await storage.getEvents();
+      const sponsorMap = Object.fromEntries(allSponsors.map(s => [s.id, s]));
+      const eventMap = Object.fromEntries(allEvents.map(e => [e.id, e]));
+
+      const uniquePairs = [...new Set(deliverables.map(d => `${d.sponsorId}|${d.eventId}`))];
+      const lastReminderMap: Record<string, string | null> = {};
+      await Promise.all(uniquePairs.map(async (pair) => {
+        const [sid, eid] = pair.split("|");
+        const rem = await storage.getLastDeliverableReminder(sid, eid);
+        lastReminderMap[pair] = rem ? rem.sentAt.toISOString() : null;
+      }));
+
+      const registrantCounts: Record<string, number> = {};
+      const quantityDeliverables = deliverables.filter(d => d.fulfillmentType === "quantity_progress");
+      await Promise.all(quantityDeliverables.map(async (d) => {
+        const regs = await storage.listDeliverableRegistrants(d.id);
+        registrantCounts[d.id] = regs.length;
+      }));
+
+      let result = deliverables.map(d => {
+        const sponsor = sponsorMap[d.sponsorId];
+        const event = eventMap[d.eventId];
+        const pairKey = `${d.sponsorId}|${d.eventId}`;
+        const isOverdue = d.dueDate ? new Date(d.dueDate) < now : false;
+        const lastReminderSent = lastReminderMap[pairKey] ?? null;
+        return {
+          ...d,
+          sponsorName: sponsor?.name ?? "",
+          eventName: event?.name ?? "",
+          eventSlug: event?.slug ?? "",
+          sponsorshipLevel: d.sponsorshipLevel ?? sponsor?.level ?? "",
+          lastReminderSent,
+          isOverdue,
+          quantityFulfilled: registrantCounts[d.id] ?? 0,
+        };
+      });
+
+      if (neverReminded === "true") {
+        result = result.filter(d => !d.lastReminderSent);
+      }
+
+      if (search) {
+        const q = search.toLowerCase();
+        result = result.filter(d =>
+          d.deliverableName.toLowerCase().includes(q) ||
+          d.sponsorName.toLowerCase().includes(q) ||
+          d.eventName.toLowerCase().includes(q) ||
+          (d.eventSlug || "").toLowerCase().includes(q)
+        );
+      }
+
+      res.json(result);
+    } catch (err: unknown) { res.status(500).json({ message: err instanceof Error ? err.message : "Unknown error" }); }
+  });
+
+  // POST /api/agreement/fulfillment-queue/bulk-status — bulk update status on multiple deliverables
+  app.post("/api/agreement/fulfillment-queue/bulk-status", requireAuth, async (req, res) => {
+    try {
+      const { ids, status } = req.body as { ids?: string[]; status?: string };
+      if (!ids?.length || !status) return res.status(400).json({ message: "ids[] and status required" });
+
+      await Promise.all(ids.map(id => storage.updateAgreementDeliverable(id, { status })));
+      res.json({ updated: ids.length });
+    } catch (err: unknown) { res.status(500).json({ message: err instanceof Error ? err.message : "Unknown error" }); }
+  });
+
+  // POST /api/agreement/fulfillment-queue/bulk-remind — grouped bulk reminders (one email per sponsor/event pair)
+  app.post("/api/agreement/fulfillment-queue/bulk-remind", requireAuth, async (req, res) => {
+    try {
+      const { ids } = req.body as { ids?: string[] };
+      if (!ids?.length) return res.status(400).json({ message: "ids[] required" });
+
+      const deliverables = (await Promise.all(ids.map(id => storage.getAgreementDeliverable(id)))).filter(Boolean) as Awaited<ReturnType<typeof storage.getAgreementDeliverable>>[];
+
+      const groups: Record<string, typeof deliverables> = {};
+      for (const d of deliverables) {
+        if (!d) continue;
+        const key = `${d.sponsorId}|${d.eventId}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(d);
+      }
+
+      const { sendDeliverableReminderEmail } = await import("../services/emailService.js");
+      const results: { sponsorId: string; eventId: string; sent: boolean; error?: string }[] = [];
+
+      for (const [key, items] of Object.entries(groups)) {
+        const [sponsorId, eventId] = key.split("|");
+        try {
+          const [sponsor, event] = await Promise.all([storage.getSponsor(sponsorId), storage.getEvent(eventId)]);
+          if (!sponsor || !event) { results.push({ sponsorId, eventId, sent: false, error: "Sponsor or event not found" }); continue; }
+
+          const sponsorUsers = await storage.getSponsorUsersBySponsor(sponsorId);
+          const primaryUser = sponsorUsers.find(u => u.isPrimary) ?? sponsorUsers.find(u => u.accessLevel === "owner") ?? sponsorUsers[0];
+          const recipientEmail = primaryUser?.email ?? sponsor.contactEmail ?? null;
+          if (!recipientEmail) { results.push({ sponsorId, eventId, sent: false, error: "No recipient email" }); continue; }
+
+          const tokens = await storage.getSponsorTokensBySponsor(sponsorId);
+          const activeToken = tokens.find(t => !t.revokedAt) ?? tokens[0];
+          const sponsorToken = activeToken?.token ?? "";
+
+          await sendDeliverableReminderEmail(storage, {
+            sponsor,
+            event,
+            deliverables: items.filter(Boolean) as NonNullable<typeof items[number]>[],
+            recipientName: primaryUser?.name ?? null,
+            recipientEmail,
+            sponsorToken,
+          });
+
+          await storage.createDeliverableReminder({
+            sponsorId, eventId, recipientEmail,
+            reminderType: "manual_admin", sentByRole: "admin",
+            sentByUserId: (req as any).user?.id ?? null,
+            sentAt: new Date(), status: "sent", errorMessage: null,
+            deliverableCount: items.length,
+          });
+
+          results.push({ sponsorId, eventId, sent: true });
+        } catch (e: unknown) {
+          results.push({ sponsorId, eventId, sent: false, error: e instanceof Error ? e.message : "Unknown error" });
+        }
+      }
+
+      const sentCount = results.filter(r => r.sent).length;
+      res.json({ sentCount, groupCount: Object.keys(groups).length, results });
+    } catch (err: unknown) { res.status(500).json({ message: err instanceof Error ? err.message : "Unknown error" }); }
+  });
+
   // ── Outstanding Items ──────────────────────────────────────────────────────
   // GET /api/agreement/outstanding-items — all sponsor-responsible incomplete deliverables
   app.get("/api/agreement/outstanding-items", requireAuth, async (req, res) => {

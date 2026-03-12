@@ -1,0 +1,547 @@
+Add Sponsor Fulfillment Queue to Deliverables
+
+Create a new operational admin view called Sponsor Fulfillment Queue inside the Deliverables module.
+
+This screen should give Julie and the Converge team a deliverable-centric working queue across all sponsors and events.
+
+Right now Deliverables is primarily sponsor-by-sponsor. That is useful, but once there are many sponsors it becomes inefficient. The Fulfillment Queue should let the team work by:
+
+what is due
+
+what is missing
+
+what is waiting on sponsor
+
+what is waiting on Converge
+
+what needs to be delivered this week
+
+This screen should be built as a daily operations tool.
+
+Primary Goal
+
+Allow admins to quickly answer:
+
+Which sponsors still owe inputs?
+
+Which deliverables are still waiting on Converge?
+
+Which logos, descriptions, speaker details, or registration items are missing?
+
+Which post-event deliverables still need to be sent?
+
+What needs attention right now across all sponsors?
+
+This should become one of the most useful admin screens in Concierge.
+
+1. Add New Page Under Deliverables
+
+Inside the Deliverables module, add a new internal tab or sub-page:
+
+Deliverables
+  Sponsor Agreements
+  Sponsor Fulfillment Queue
+  Outstanding Sponsor Items
+
+If current Deliverables navigation is already implemented differently, keep it consistent, but make sure Sponsor Fulfillment Queue is clearly accessible inside Deliverables.
+
+2. Create Sponsor Fulfillment Queue List View
+
+Build a list/table view that pulls all live agreement_deliverables records and presents them as an operational queue.
+
+This is not grouped by sponsor first. It is a flat operational list with filters.
+
+2A. Table columns
+
+Use these columns:
+
+Event
+
+Sponsor
+
+Sponsorship Level
+
+Deliverable
+
+Category
+
+Owner
+
+Status
+
+Due Timing / Due Date
+
+Last Updated
+
+Last Reminder Sent
+
+Visible to Sponsor
+
+Actions
+
+If needed on smaller desktop widths, some columns can collapse or move into a detail drawer, but the core experience should stay easy to scan.
+
+2B. Actions per row
+
+Add actions such as:
+
+Open Sponsor Agreement
+
+Update Status
+
+Send Reminder
+
+Add File / Link
+
+Mark Delivered
+
+Add Note
+
+Keep actions context-sensitive. For example:
+
+Send Reminder only when reminder-eligible
+
+Add File / Link only when that deliverable type supports it
+
+3. Add Filters
+
+This page should be filter-heavy because that is what makes it valuable.
+
+Add these filters at the top:
+
+Event
+
+Sponsor
+
+Sponsorship Level
+
+Category
+
+Deliverable
+
+Owner Type
+
+Status
+
+Due Timing
+
+Overdue Only
+
+Awaiting Sponsor Input
+
+Awaiting Converge Action
+
+Reminder Eligible Only
+
+Search
+
+Search should work at least across:
+
+Sponsor name
+
+Deliverable name
+
+Event code / event name
+
+4. Add Quick Filter Presets
+
+At the top of the queue, add quick preset buttons/tabs for the most common operational views.
+
+Recommended presets:
+
+All Items
+
+Awaiting Sponsor Input
+
+Awaiting Converge Action
+
+Overdue
+
+Compliance
+
+Post-Event
+
+This Week
+
+These should apply prebuilt filter combinations.
+
+4A. Preset logic
+Awaiting Sponsor Input
+
+Show deliverables where:
+
+owner_type = Sponsor
+or
+
+owner_type = Shared and blocked on sponsor input
+and
+
+status in (Awaiting Sponsor Input, Not Started, Needed, Issue Identified, Blocked when sponsor-caused)
+
+Awaiting Converge Action
+
+Show deliverables where:
+
+owner_type = Converge
+or
+
+owner_type = Shared and currently on Converge side
+and
+
+status not in final completed states
+
+Overdue
+
+Show deliverables with:
+
+due_date < today
+and
+
+status not completed
+
+Compliance
+
+Show deliverables in:
+
+category = Compliance
+
+Post-Event
+
+Show:
+
+Post-Event Deliverables category
+or
+
+due_timing_type = after_event
+
+This Week
+
+Show deliverables with:
+
+due_date within next 7 days
+or
+
+timing relevant to current event operations
+
+5. Add Queue Summary Cards
+
+At the top of the page, above the table, show small summary cards such as:
+
+Total Open Items
+
+Awaiting Sponsor Input
+
+Awaiting Converge Action
+
+Overdue
+
+Compliance Issues
+
+Due This Week
+
+These should update dynamically with applied filters if practical.
+
+6. Make the Queue Event-Aware
+
+Just like the rest of the admin UI, this page should support the event tab / event filtering structure.
+
+If your admin system now uses event tabs across operational pages, this page should honor that same event context.
+
+Default:
+
+closest upcoming event first
+
+If event tabs are not already available inside Deliverables, add an event filter or the same event-tab pattern used elsewhere.
+
+7. Add Bulk Selection and Bulk Actions
+
+This is extremely important.
+
+Each row should have a checkbox so the admin can select multiple deliverables.
+
+Add bulk actions such as:
+
+Send Reminder to Selected
+
+Mark as In Progress
+
+Mark as Delivered
+
+Mark as Awaiting Sponsor Input
+
+Export Selected
+
+Add Note to Selected (optional later)
+
+At minimum, implement:
+
+Send Reminder to Selected
+
+Mark as Delivered
+
+Mark as In Progress
+
+7A. Bulk reminder behavior
+
+When multiple items are selected:
+
+group reminders by sponsor + event
+
+do not send one email per deliverable
+
+send one grouped reminder email per sponsor/event listing all selected outstanding items
+
+This preserves sponsor-friendly communication.
+
+8. Add Inline Status Editing
+
+The queue should support quick status updates without requiring the admin to open each sponsor agreement.
+
+Use either:
+
+inline dropdown
+or
+
+quick action modal
+
+This is especially useful for deliverables like:
+
+logo on website
+
+social announcement posted
+
+attendee list delivered
+
+COI received
+
+Keep status editing safe and permission-checked.
+
+9. Add Deliverable Detail Drawer or Expand Row
+
+To avoid overloading the table, allow each row to expand or open a side drawer.
+
+Show useful detail such as:
+
+sponsor-facing note
+
+internal note
+
+due timing
+
+quantity / quantity progress
+
+attached files/links
+
+override/custom badge
+
+last update info
+
+This lets Julie inspect context quickly without leaving the queue.
+
+10. Show Quantity Progress Where Relevant
+
+For quantity-based deliverables, show progress directly in the queue.
+
+Examples:
+
+VIP Registrations: 2 of 4 submitted
+
+Social Graphics: 1 of 2 delivered
+
+Social Announcements: 1 of 2 posted
+
+This is much more useful than a plain quantity number.
+
+11. Add Badges for Deliverable Type / State
+
+Use visible badges for:
+
+Default
+
+Overridden
+
+Custom
+
+Sponsor Visible
+
+Reminder Eligible
+
+This helps admins quickly understand the nature of the item.
+
+Do not overdo badge clutter, but include the most useful indicators.
+
+12. Add “Last Reminder Sent” and “Never Reminded” Logic
+
+The queue should display reminder state clearly.
+
+Examples:
+
+Never
+
+Mar 15
+
+2 days ago
+
+This should pull from the reminder log data already created in earlier phases.
+
+Also add a quick filter:
+
+Never Reminded
+
+This will be very useful operationally.
+
+13. Add Export Capability
+
+Add an export button for the currently filtered queue.
+
+CSV is sufficient.
+
+Export fields should include:
+
+Event
+
+Sponsor
+
+Sponsorship Level
+
+Deliverable
+
+Category
+
+Owner
+
+Status
+
+Due Date / Due Timing
+
+Last Updated
+
+Last Reminder Sent
+
+Reminder Eligible
+
+Visible to Sponsor
+
+This gives Julie a portable operational checklist if needed.
+
+14. Integrate Queue with Admin Dashboard Alerts
+
+Update the Admin Dashboard Needs Attention section so relevant alerts can link directly to the Fulfillment Queue.
+
+Examples:
+
+4 sponsors have outstanding sponsorship inputs
+
+2 compliance items need attention
+
+6 deliverables are overdue
+
+Each alert should deep-link into the queue with the proper filters already applied.
+
+15. Add Relationship to Outstanding Sponsor Items
+
+Do not remove Outstanding Sponsor Items. Keep it as a more sponsor-input-specific screen.
+
+Use this distinction:
+
+Outstanding Sponsor Items
+
+Focused only on sponsor-owned missing inputs
+
+Sponsor Fulfillment Queue
+
+Broader operational queue across sponsor-owned, shared, and Converge-owned deliverables
+
+This gives Julie both a focused follow-up view and a complete execution view.
+
+16. Add Permission Controls
+
+Only admins with appropriate permissions should access the Fulfillment Queue.
+
+Use or add permissions such as:
+
+View Deliverables
+
+Edit Deliverables
+
+Send Deliverable Reminders
+
+Manage Deliverable Status
+
+Do not expose this screen to sponsors.
+
+17. Keep Zoho Projects Out of Scope
+
+This queue is a sponsor-fulfillment status board inside Concierge.
+
+Do not turn it into a task management system with:
+
+assignees
+
+subtasks
+
+dependencies
+
+project boards
+
+Zoho remains the internal execution tool.
+
+The queue is for:
+
+status visibility
+
+follow-up
+
+fulfillment tracking
+
+18. Recommended Default View
+
+When the page first loads, default to:
+
+current/closest event
+
+preset = Awaiting Sponsor Input
+
+This will likely be the most useful day-to-day starting point.
+
+Fallback:
+
+All Items for the closest event
+
+19. Acceptance Criteria
+
+This implementation is complete when:
+
+Deliverables includes a Sponsor Fulfillment Queue
+
+the queue shows live deliverables across sponsors/events
+
+admins can filter by event, sponsor, status, owner, category, and overdue state
+
+quick presets exist for operational use
+
+bulk actions work
+
+grouped reminders can be sent from selected items
+
+inline status updates are possible
+
+the queue can export filtered results
+
+admin dashboard alerts can link into the queue
+
+20. Success Standard
+
+After this is complete, Julie should be able to use Concierge each day to answer:
+
+What do sponsors still owe?
+
+What does Converge still need to deliver?
+
+What is overdue?
+
+What needs to happen this week?
+
+without opening sponsors one by one.
+
+That is the standard this Sponsor Fulfillment Queue should meet.

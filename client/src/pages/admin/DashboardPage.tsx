@@ -255,8 +255,8 @@ export default function DashboardPage() {
         desc: hasOverdue
           ? `${outstandingSummary.overdueCount} item${outstandingSummary.overdueCount !== 1 ? "s are" : " is"} overdue. Sponsors may need a reminder.`
           : "These items are pending sponsor input and may benefit from a reminder.",
-        link: "/admin/agreement?tab=outstanding",
-        linkText: "View Outstanding Items",
+        link: hasOverdue ? "/admin/agreement?tab=fulfillment-queue&preset=overdue" : "/admin/agreement?tab=fulfillment-queue&preset=awaiting-sponsor",
+        linkText: hasOverdue ? "View Overdue in Queue" : "View in Fulfillment Queue",
       });
     }
 

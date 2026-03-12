@@ -4,10 +4,11 @@ import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
+import FulfillmentQueueTab from "@/components/admin/FulfillmentQueueTab";
 import {
   ClipboardList, Plus, Package, Users, AlertCircle, RefreshCw,
   Eye, Archive, Copy, ChevronRight, CheckCircle2, Clock, Gem, Search, Filter,
-  Send, Calendar, TriangleAlert, Download, TrendingUp, Activity, LogIn,
+  Send, Calendar, TriangleAlert, Download, TrendingUp, Activity, LogIn, Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,7 +76,9 @@ const LEVEL_COLORS: Record<string, string> = {
 export default function AgreementDeliverablesPage() {
   const [location, nav] = useLocation();
   const { toast } = useToast();
-  const initialTab = new URLSearchParams(location.split("?")[1] ?? "").get("tab") ?? "package-templates";
+  const urlParams = new URLSearchParams(location.split("?")[1] ?? "");
+  const initialTab = urlParams.get("tab") ?? "package-templates";
+  const initialPreset = urlParams.get("preset") ?? undefined;
   const [activeTab, setActiveTab] = useState(initialTab);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState<TemplateWithCount | null>(null);
@@ -334,6 +337,9 @@ export default function AgreementDeliverablesPage() {
           </TabsTrigger>
           <TabsTrigger value="sponsor-agreements" className="gap-2" data-testid="tab-sponsor-agreements">
             <Users className="h-4 w-4" /> Sponsor Agreements
+          </TabsTrigger>
+          <TabsTrigger value="fulfillment-queue" className="gap-2" data-testid="tab-fulfillment-queue">
+            <Layers className="h-4 w-4" /> Fulfillment Queue
           </TabsTrigger>
           <TabsTrigger value="outstanding" className="gap-2" data-testid="tab-outstanding">
             <AlertCircle className="h-4 w-4" /> Outstanding Items
@@ -617,6 +623,11 @@ export default function AgreementDeliverablesPage() {
               </table>
             </div>
           )}
+        </TabsContent>
+
+        {/* ── Fulfillment Queue ── */}
+        <TabsContent value="fulfillment-queue" className="mt-4">
+          <FulfillmentQueueTab initialPreset={initialPreset} />
         </TabsContent>
 
         {/* ── Outstanding Items ── */}

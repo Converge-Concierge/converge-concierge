@@ -1,0 +1,197 @@
+Add a bulk operational view called:
+
+Sponsor Fulfillment Queue
+
+This would be more useful day-to-day than opening one sponsor at a time.
+
+Why it matters
+
+Right now the Deliverables system is sponsor-centric:
+
+open Winnow
+
+review items
+
+update status
+
+move to next sponsor
+
+That works with a few sponsors, but gets inefficient fast when Julie needs to answer questions like:
+
+which sponsors still owe logo files?
+
+who has not submitted speaker details?
+
+which social graphics still need to be uploaded?
+
+who is missing COI?
+
+what must be completed this week?
+
+She needs a deliverable-centric operations screen, not just a sponsor-centric one.
+
+Best structure
+
+Create a page under Deliverables called:
+
+Fulfillment Queue
+
+Filters
+
+Event
+
+Sponsorship Level
+
+Deliverable Type
+
+Owner Type
+
+Status
+
+Due Timing
+
+Overdue
+
+Awaiting Sponsor Input
+
+Awaiting Converge Action
+
+Table columns
+
+Sponsor
+
+Event
+
+Deliverable
+
+Category
+
+Owner
+
+Status
+
+Due
+
+Last Updated
+
+Last Reminder
+
+Actions
+
+Actions
+
+Open Sponsor Agreement
+
+Update Status
+
+Send Reminder
+
+Add File / Link
+
+Mark Delivered
+
+Why this is so valuable
+
+It lets Julie work like this:
+
+Monday
+
+Filter:
+Awaiting Sponsor Input
+
+Then handle:
+
+logos
+
+descriptions
+
+speaker details
+
+representatives
+
+Tuesday
+
+Filter:
+Awaiting Converge Action
+
+Then handle:
+
+graphics
+
+LinkedIn posts
+
+session titles
+
+event app profiles
+
+After event
+
+Filter:
+Post-Event Deliverables
+
+Then handle:
+
+attendee lists
+
+sponsor reports
+
+post-event email introductions
+
+That is much closer to how real operations work.
+
+Best additional feature inside the queue
+
+Add bulk actions for common tasks.
+
+Examples:
+
+Send Reminder to Selected
+
+Mark as In Progress
+
+Mark as Delivered
+
+Export Filtered List
+
+This will save huge amounts of time.
+
+Best mental model
+
+You should have both:
+
+Sponsor Agreement View
+
+Best for:
+
+reviewing one sponsor in full
+
+checking negotiated details
+
+seeing the sponsor-facing experience
+
+Fulfillment Queue
+
+Best for:
+
+daily execution
+
+prioritizing work
+
+managing volume across many sponsors
+
+You need both.
+
+My recommendation
+
+The next major structural improvement for Julie is:
+
+Deliverables → Fulfillment Queue
+with:
+
+filters
+
+bulk actions
+
+owner/status workflow
+
+This will make the system much more scalable as sponsorship volume grows.

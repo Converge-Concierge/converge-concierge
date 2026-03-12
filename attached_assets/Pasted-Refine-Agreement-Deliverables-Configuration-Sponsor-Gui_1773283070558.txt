@@ -1,0 +1,616 @@
+Refine Agreement Deliverables Configuration, Sponsor Guidance, and Deliverable-Specific Workflows
+
+We now have Agreement Deliverables working in Concierge. The next step is to refine the deliverable definitions and behaviors so each item works operationally the way Converge Events actually manages sponsorship fulfillment.
+
+This phase should improve both:
+
+admin usability
+
+sponsor clarity
+
+Each deliverable should feel like a real working fulfillment object, not just a generic row in a table.
+
+Primary Goal
+
+Upgrade Agreement Deliverables so that:
+
+each deliverable can contain more specific fields
+
+sponsors understand what each deliverable means
+
+sponsor-owned items trigger email notifications to Converge when completed
+
+event participation and post-event items behave more intelligently
+
+older legacy deliverables are labeled correctly
+
+deliverables better reflect actual sponsorship operations
+
+1. Add Deliverable Help / More Information Support
+
+Where possible, every deliverable should support a Help / More Information option for sponsors.
+
+Required behavior
+
+For each sponsor-visible deliverable, support:
+
+short sponsor-facing description
+
+optional Help / More Information link, tooltip, or expandable help drawer
+
+Preferred UX:
+
+a small help icon or “More Info” text link next to the deliverable name
+
+when clicked, show the sponsor-facing explanation
+
+This should work in:
+
+Sponsor Dashboard → Agreement Deliverables tab
+
+optionally admin preview view
+
+Data support
+
+Add fields if needed to template items / live deliverables:
+
+help_title nullable
+help_text nullable
+help_link nullable
+
+Use this for sponsor education and to reduce email confusion.
+
+2. Company Logo Deliverable
+Requirements
+
+provided by sponsor/company
+
+once provided, send email notification to Converge team
+
+file attachment support will come through the file system
+
+this should remain a sponsor-owned deliverable
+
+Required behavior
+
+When sponsor uploads or replaces a Company Logo:
+
+update deliverable status appropriately
+
+send email notification to Converge team
+
+notification should include sponsor name, event, and uploaded file reference
+
+Email example
+
+Subject:
+Company Logo Submitted – [Sponsor Name] – [Event Name]
+
+This should go to a configurable internal email address.
+
+3. Company Description Deliverable
+Requirements
+
+sponsor-provided text field
+
+maximum 1000 words
+
+once completed, send email notification to Converge team
+
+Required behavior
+
+enforce 1000-word limit
+
+show live word count in sponsor UI
+
+prevent saving if over limit
+
+once saved/updated, email Converge team
+
+Email example
+
+Subject:
+Company Description Submitted – [Sponsor Name] – [Event Name]
+
+4. Sponsor Representatives Deliverable
+
+This deliverable needs to become a structured data section, not a generic text item.
+
+Required fields per representative
+
+Use the same sponsor representative fields as attendee-style profile data:
+
+First Name
+
+Last Name
+
+Email
+
+Title
+
+Concierge Role
+
+Additional logic
+
+The system should check whether each sponsor representative is actually registered for the event.
+
+For each listed representative, show status such as:
+
+Registered
+
+Not Registered
+
+Registration Pending / Unknown if needed
+
+Required behavior
+
+sponsor can add/edit multiple representatives
+
+representative count should relate to registration allowance where applicable
+
+admin can also edit these records
+
+Sponsor-facing note
+
+This section should explain that these are the team members associated with their sponsorship presence and/or dashboard access.
+
+5. Replace “Three-Word Company Categories” With Better Naming and Better Input Model
+
+The current deliverable name should be improved.
+
+Rename deliverable
+
+Replace:
+Three-Word Company Categories
+
+With something clearer such as:
+
+What are 3 words or short phrases that best describe what you want to sell?
+
+Use cleaner sponsor-facing wording. If needed, shorten slightly for UI, but keep meaning clear.
+
+Input behavior
+
+This should support:
+
+selection from existing event category words/topics already used by the event
+
+free-form entry for custom words/phrases
+
+target count of 3 entries
+
+This is important because it should help streamline the attendee-facing:
+“What are you interested in?”
+matching process.
+
+Required logic
+
+let sponsor select existing event topic words
+
+let sponsor add custom terms if needed
+
+save these in a structured way
+
+later these should feed sponsor matching / attendee discovery logic
+
+6. Event Participation — Registrations
+
+Rename/structure this section more intelligently.
+
+VIP / Regular Registrations Deliverable
+
+This should become a structured data section.
+
+Julie needs to be able to enter:
+
+registration access code
+
+sponsor-specific registration instructions
+
+upload a PDF instructions file
+
+Sponsor should be able to see:
+
+access code
+
+registration instructions
+
+downloadable PDF instructions
+
+how many registrations remain
+
+Required registration tracking logic
+
+The system should accurately show how many sponsorship registrations remain based on sponsor representative registration status.
+
+Example:
+
+Gold sponsor has 3 VIP registrations
+
+2 sponsor representatives are registered
+
+remaining = 1
+
+This should update dynamically from sponsor representative data and/or event registration linkage.
+
+7. Premium / General Exhibit Table
+Required behavior
+
+Qty should default to:
+
+1
+
+This should be true in package templates and live agreement defaults unless overridden.
+
+Keep this as a Converge-controlled deliverable.
+
+8. Speaking Engagement Deliverable
+
+This needs additional structured fields.
+
+For each speaking session / engagement, Converge should be able to enter:
+
+Session Type: Panel / Peer-to-Peer / Other
+
+Session Title
+
+Sponsor Speaker
+
+Required behavior
+
+if quantity > 1, support multiple session records
+
+sponsor should be able to view these details
+
+Converge controls most of these fields
+
+sponsor may still provide speaker details if applicable
+
+This should make Speaking Engagement a structured mini-record, not just a single status row.
+
+9. Rename and Reframe Legacy Meeting / Email Introduction Deliverables
+
+These are legacy deliverables and should be labeled clearly.
+
+Rename
+
+Replace:
+
+Meeting Introductions (Pre-Event)
+with
+Meeting Introduction List (Pre-Event)
+
+Replace:
+
+Email Introductions (Post-Event)
+with
+Email Introduction List (Post-Event)
+
+Sponsor-facing note
+
+Each should indicate that:
+
+this is the legacy method previously used to share interest lists
+
+this function will be retired as Concierge becomes the full workflow
+
+Keep them in the system for now, but label them accurately.
+
+Qty
+
+Set both to:
+
+1
+
+not unlimited.
+
+10. Split “Company Logo on Website and Event Signage” Into Separate Deliverables
+
+Replace the single combined deliverable with three separate deliverables:
+
+A. Company Logo on Website
+
+Qty:
+
+1
+B. Company Logo on Signage
+
+Qty:
+
+Various
+
+or another sponsor-facing text equivalent if the quantity model does not support “Various”
+
+C. Company Profile in Event App
+
+Qty:
+
+1
+
+This is a new deliverable and should be added.
+
+All three should be Converge-controlled and sponsor-visible.
+
+11. Customized Social Media Graphics
+
+This should be split into two individual line items when quantity = 2, rather than one generic quantity row.
+
+Required behavior
+
+show as separate graphic entries
+
+allow Converge to upload preview graphic(s)
+
+sponsor should be able to preview them
+
+sponsor should be able to use a “Share on LinkedIn” action where practical
+
+If direct LinkedIn share is not practical now, at least provide:
+
+preview
+
+download
+
+clear sponsor-facing share guidance
+
+Example structure:
+
+Customized Social Media Graphic 1
+
+Customized Social Media Graphic 2
+
+12. Social Media Sponsorship Announcements
+
+This should also be split into separate line items when quantity = 2.
+
+Required behavior
+
+For each post:
+
+Converge can paste the LinkedIn URL
+
+sponsor can view it
+
+sponsor can click through and share it
+
+Example structure:
+
+Sponsorship Announcement 1
+
+Sponsorship Announcement 2
+
+This is clearer and more actionable than a single quantity row.
+
+13. Post-Event Deliverables — Attendee Contact List
+
+This needs stronger automation planning.
+
+Deliverables
+
+Support:
+
+Full Attendee Contact List
+
+Partial Attendee Contact List
+
+These should remain separate deliverables depending on sponsorship level.
+
+Automation goal
+
+Because attendee data already exists in Concierge, automate this where possible.
+
+Required behavior
+
+When ready for delivery:
+
+system generates a CSV export from Concierge attendee data
+
+full list fields:
+
+Name
+
+Title
+
+Company
+
+Email
+
+Phone Number
+
+partial list fields:
+
+Name
+
+Title
+
+Company
+
+Delivery behavior
+
+The deliverable should support:
+
+generated CSV attachment
+
+sponsor download access
+
+optional email delivery to sponsor
+
+If full automation is too much for this phase, at least structure the deliverable so this can be added cleanly next.
+
+14. Certificate of Insurance Split Into Two Deliverables
+
+Replace the single COI deliverable with two separate compliance deliverables:
+
+A. General Liability – Certificate of Insurance
+
+Qty:
+
+1
+B. Worker’s Compensation – Certificate of Insurance
+
+Qty:
+
+1
+
+Both remain:
+
+status-only
+
+sponsor-visible
+
+admin-managed
+
+reminder-eligible when needed
+
+Use the existing COI status model:
+
+Needed
+
+Received
+
+Under Review
+
+Approved
+
+Issue Identified
+
+15. Add Internal Notification Emails for Sponsor-Completed Items
+
+For sponsor-owned items that matter operationally, send email notification to the Converge team when completed or substantially updated.
+
+At minimum support notifications for:
+
+Company Logo
+
+Company Description
+
+Sponsor Representatives
+
+Company Category / “What do you want to sell?” selections
+
+registration details if relevant
+
+speaker details if sponsor-provided
+
+Use a configurable internal notification email address in settings.
+
+16. Deliverable-Specific Structured Data Support
+
+The current generic row model should remain, but support deliverable-specific structured child data where needed.
+
+If necessary, add supporting tables for:
+
+sponsor representatives
+
+registration access / registration instructions
+
+speaking session records
+
+social graphic entries
+
+social announcement URL entries
+
+attendee report delivery records
+
+Do not force everything into one text field.
+
+17. Improve Admin Deliverables UI for Structured Deliverables
+
+Where a deliverable now has structured sub-data, the admin UI should show:
+
+summary in the deliverable row
+
+edit icon opens a structured editor
+
+not just a generic text/status form
+
+Examples:
+
+Sponsor Representatives → structured grid
+
+Speaking Engagement → session detail editor
+
+Registrations → code + instructions + remaining seats
+
+Social Media Graphics → per-graphic records
+
+COI → split compliance items
+
+18. Improve Sponsor Deliverables UI for Structured Deliverables
+
+Sponsor-facing deliverables should also render appropriately.
+
+Examples:
+
+Company Description → text area with word count
+
+Sponsor Representatives → multi-person form
+
+“What do you want to sell?” → hybrid tag selection/free-form
+
+Registrations → code, instructions PDF, seats remaining
+
+Social Graphics → preview/download
+
+Social Announcements → LinkedIn links
+
+COI → status badges only
+
+This should feel like a sponsor operations portal, not a spreadsheet.
+
+19. Preserve Template + Override Architecture
+
+All these refinements must still work within the existing:
+
+package template
+
+sponsor agreement instance
+
+override model
+
+Do not hardcode the logic only for one sponsor.
+Instead:
+
+refine template item types
+
+refine live agreement rendering behavior
+
+allow overrides where needed
+
+20. Acceptance Criteria
+
+This refinement phase is complete when:
+
+deliverables support Help / More Information content
+
+Company Logo and Company Description send internal notification emails when completed
+
+Company Description enforces 1000-word limit
+
+Sponsor Representatives use structured fields and show registration status
+
+“Three-Word Company Categories” is renamed and supports both event-topic selection and free-form words
+
+Registrations include access code, instructions, PDF support, and remaining seat count
+
+Exhibit Table defaults to Qty 1
+
+Speaking Engagement supports session type/title/sponsor speaker details
+
+Meeting/Email Introduction deliverables are renamed and quantity reset to 1
+
+Website logo, signage logo, and event app profile are separate deliverables
+
+Social graphics and sponsorship announcements support separate per-item entries
+
+attendee contact list deliverables are structured for automation
+
+COI is split into General Liability and Worker’s Compensation lines
+
+structured deliverables render appropriately in both admin and sponsor views
+
+21. Success Standard
+
+After this update, Agreement Deliverables should feel like a true sponsorship fulfillment system with deliverable-specific workflows, not a generic list of rows.
+
+That is the standard this refinement phase should meet.

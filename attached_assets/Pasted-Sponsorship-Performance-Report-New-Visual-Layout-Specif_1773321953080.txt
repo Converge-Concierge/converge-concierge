@@ -1,0 +1,316 @@
+Sponsorship Performance Report — New Visual Layout Specification
+
+We need to rebuild the Sponsorship Performance Report PDF layout to follow a clean, consistent, event-branded structure.
+
+The current report mixes colors and layouts across sections. The new design should feel like a professional event report that sponsors would expect from a premium conference.
+
+1. Overall PDF Layout
+
+The report should follow this section structure:
+
+Report Header
+
+Event & Sponsor Summary
+
+Sponsorship Activity Summary
+
+Sponsorship Deliverables
+
+Meeting Activity
+
+Information Requests
+
+Footer
+
+Every report should use this structure.
+
+2. Report Header (Page 1)
+
+Create a clean branded header.
+
+Layout
+
+Left side:
+Event Name
+
+Right side:
+Event Logo
+
+Center area:
+Report Title
+
+Title
+Sponsorship Performance Report
+Under title show:
+
+Sponsor Name
+Sponsorship Level
+Event Name
+Report Generated Date
+
+Example
+
+Sponsorship Performance Report
+Winnow | Platinum Sponsor
+The 2026 Fintech Risk & Compliance Forum
+Generated: June 2026
+3. Header Color Styling
+
+Use event primary color for the header bar.
+
+Example styling:
+
+Header background
+= Event Primary Color
+
+Header text
+= White
+
+Divider lines
+= Light gray
+
+Do NOT introduce other colors.
+
+4. Section Header Style (Global Rule)
+
+All report sections should use the same design style.
+
+Section headers should include:
+
+Left side icon (optional)
+Section title
+
+Example:
+
+Sponsorship Activity Summary
+
+Styling:
+
+Background
+= light neutral
+
+Bottom border
+= event primary color
+
+Font weight
+= bold
+
+5. Event & Sponsor Summary Section
+
+Display key event details.
+
+Layout
+
+Two column grid.
+
+Left column
+
+Event Name
+Event Date
+Location
+
+Right column
+
+Sponsor Name
+Sponsorship Level
+Sponsor Company Logo (if available)
+
+6. Sponsorship Activity Summary
+
+Display top performance metrics as metric cards.
+
+Example metrics:
+
+Meetings Scheduled
+Meetings Completed
+Online Meetings
+Info Requests
+Unique Companies Engaged
+Total Engagement Actions
+
+Layout
+
+Horizontal card layout
+
+Example
+
+Meetings Scheduled     4
+Meetings Completed     3
+Online Meetings        1
+Information Requests   2
+Companies Engaged      6
+Styling
+
+Cards should use:
+
+Border = light gray
+Accent = event primary color top border
+
+Numbers should be dark text, not green.
+
+Green should only be used for status indicators.
+
+7. Sponsorship Deliverables Section
+
+This is the most important new section.
+
+Title:
+
+Sponsorship Deliverables
+
+Deliverables should be grouped by category.
+
+Categories:
+
+Company Profile
+Event Participation
+Speaking & Content
+Meetings & Introductions
+Marketing & Branding
+Post Event Deliverables
+Compliance
+
+8. Deliverables Table Format
+
+Each category should contain a table.
+
+Columns:
+
+Deliverable
+Quantity
+Owner
+Status
+Due Timing
+Notes (optional)
+
+Example:
+
+Deliverable	Qty	Owner	Status	Due
+Company Logo	1	Sponsor	Delivered	Before Event
+Company Description	1	Sponsor	Delivered	Before Event
+Sponsor Representatives	4	Sponsor	In Progress	Before Event
+9. Status Display
+
+Statuses should appear as status badges.
+
+Examples:
+
+Delivered = green badge
+In Progress = blue badge
+Awaiting Sponsor Input = amber badge
+Scheduled = blue badge
+Available After Event = gray badge
+Issue Identified = red badge
+
+Do NOT color entire rows.
+
+10. Meeting Activity Section
+
+Title
+
+Meeting Activity
+
+Table:
+
+Company	Contact	Meeting Type	Status
+Example Bank	Jane Smith	Onsite	Scheduled
+Example CU	Mark Jones	Online	Completed
+11. Information Requests Section
+
+Title
+
+Information Requests
+
+Table:
+
+Company	Contact	Request Type	Status
+BankTech	Sarah Lee	Product Inquiry	Open
+12. Event Branding Rules
+
+The report must dynamically pull branding from the event configuration.
+
+Use:
+
+Event Logo
+Event Primary Color
+Event Accent Color
+
+Do not hardcode colors.
+
+Example events:
+
+FRC
+TLS
+USBT
+CUGI
+
+Each event should produce a different colored report automatically.
+
+13. Remove Random Colors
+
+Remove these elements completely:
+
+pink header bars
+orange category bars
+green number text
+multi-colored table rows
+
+The report should use only 3–4 colors total.
+
+14. Footer
+
+Footer should include:
+
+Converge Events
+Converge Concierge Platform
+
+Optional line:
+
+Confidential Sponsorship Report
+Prepared for internal sponsor review.
+
+Footer color should be neutral gray.
+
+15. Logo Handling
+
+If sponsor logo exists:
+
+Display sponsor logo in summary section.
+
+If event logo exists:
+
+Display event logo in report header.
+
+Fallback:
+
+Use Converge Events logo.
+
+16. Pagination
+
+Ensure:
+
+Tables do not split rows across pages.
+
+Repeat table headers on new pages if possible.
+
+Maintain category grouping across pages.
+
+17. File Naming
+
+PDF filename should follow format:
+
+[event-code]-[sponsor]-sponsorship-performance-report.pdf
+
+Example:
+
+frc2026-winnow-sponsorship-performance-report.pdf
+18. Success Standard
+
+The final PDF should feel like:
+
+A professionally branded event report
+Prepared for a sponsor
+Clear and easy to read
+Consistent with the event brand
+
+Not like a raw system export.

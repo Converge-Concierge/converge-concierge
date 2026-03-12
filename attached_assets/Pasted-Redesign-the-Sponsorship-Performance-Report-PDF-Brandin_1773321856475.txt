@@ -1,0 +1,385 @@
+Redesign the Sponsorship Performance Report PDF Branding and Color System
+
+The current Sponsorship Performance Report PDF needs a full branding cleanup.
+
+Problems to fix
+
+The PDF color palette is inconsistent and visually chaotic.
+
+Green font is being used in places where it does not make sense as a text color.
+
+Some sections use unrelated accent colors like orange and pink that do not appear to follow the selected event brand.
+
+The report does not include the event logo prominently.
+
+The report does not feel like a polished, event-branded sponsor-facing document.
+
+The goal is to make the PDF look like a professional event-branded sponsorship report, not a multicolor internal export.
+
+1. Use a Controlled Event Color System
+
+Each report must follow the selected event’s color scheme only.
+
+Allowed PDF color roles
+
+For each event, define and use only these color roles:
+
+Primary color = main event brand color
+
+Secondary accent color = optional supporting event color
+
+Neutral dark = headings / text
+
+Neutral light = table fills / borders / background blocks
+
+Status colors = only for status badges, not general text
+
+Important rule
+
+Do not use random extra colors such as:
+
+pink table headers
+
+orange category bars
+
+bright green text values
+unless those colors are explicitly part of the selected event brand.
+
+The PDF should feel visually unified.
+
+2. Remove Random Color Usage
+Specifically remove / replace
+
+pink header rows
+
+orange category bars
+
+bright green numeric values
+
+green text used as standard metric text
+
+inconsistent blue/green/orange combinations
+
+Replace them with a controlled event palette.
+
+3. Correct Typography Color Usage
+Text colors should follow these rules
+Use neutral dark text for:
+
+body text
+
+table data
+
+metric labels
+
+section content
+
+report metadata
+
+Use primary event color for:
+
+report title accents
+
+section dividers if appropriate
+
+highlighted labels or subtle accents
+
+Use status colors only for:
+
+Delivered
+
+In Progress
+
+Pending
+
+Open
+
+Issue Identified
+
+Approved
+
+Do not use green font for all metric values or random headings.
+
+4. Add the Event Logo Prominently
+
+The report must include the event logo near the top of the first page.
+
+Required placement
+
+At the top of page 1, include:
+
+event logo
+
+report title
+
+sponsor name
+
+event name
+
+sponsorship level
+
+generated date
+
+Preferred layout
+
+Option A:
+
+event logo on upper right
+
+title block on upper left
+
+Option B:
+
+event logo centered above the report title
+
+Either is acceptable, but the logo must be:
+
+clearly visible
+
+properly sized
+
+not tiny
+
+not omitted
+
+5. Add Converge / Concierge Branding Cleanly
+
+Keep Converge branding present, but secondary to the event brand.
+
+Recommended placement
+
+small Converge Concierge branding in header
+or
+
+footer branding only
+
+Do not let plain text branding replace the event logo.
+
+The report should feel like:
+Converge-produced, event-branded, sponsor-facing
+
+6. Standardize Header Design
+
+Redesign the report header so it is consistent and professional.
+
+Page 1 header should include
+
+event logo
+
+report title: Sponsorship Performance Report
+
+sponsor name
+
+sponsorship level
+
+event code
+
+generated date
+
+Header styling
+
+use primary event color as the main header band or accent
+
+use white or neutral text as appropriate for contrast
+
+keep spacing balanced
+
+avoid oversized empty areas
+
+7. Standardize Section Header Design
+
+All section headers should use one consistent style.
+
+Required behavior
+
+Every major report section should use:
+
+the same primary event color bar or heading style
+
+the same typography
+
+the same padding
+
+the same divider logic
+
+Do not mix:
+
+blue bars in one section
+
+orange category headers in another
+
+pink table headers elsewhere
+
+Use one repeatable section system.
+
+8. Standardize Category Headers in Deliverables Section
+
+Inside the Sponsorship Deliverables section, category headers should not use random bright orange bars.
+
+Required replacement
+
+Use one of these:
+
+a light tinted row using the event primary color at low opacity
+
+a dark primary-color bar with white text
+
+a neutral divider with event-color accent line
+
+Keep it clean and consistent.
+
+9. Redesign Metrics Section
+
+The Sponsorship Activity Summary currently uses green numeric text inconsistently.
+
+Required behavior
+
+Metric cards should use:
+
+dark neutral numbers
+
+optional primary event accent for icons or borders
+
+status colors only when the metric represents a status
+
+Example:
+
+Meetings Scheduled → dark text
+
+Meetings Completed → dark text
+
+Pending Online Requests → optional amber/orange if truly status-related
+
+Cancelled / No-Show → optional red if truly status-related
+
+Do not make all numbers green.
+
+10. Keep Status Colors Limited and Purposeful
+
+Use a small controlled status palette only where meaningful.
+
+Suggested status colors
+
+Delivered / Approved = green
+
+In Progress = blue
+
+Pending / Awaiting = amber
+
+Open = blue
+
+Issue Identified / Cancelled / No-Show = red
+
+Scheduled = event primary or blue
+
+These should appear in:
+
+status pills
+
+status labels
+
+not across all report text
+
+11. Improve Table Header Styling
+
+Table headers should use a single consistent design.
+
+Required behavior
+
+All report tables should use:
+
+the same background style
+
+the same font treatment
+
+the same row padding
+
+the same border treatment
+
+Recommended:
+
+event primary color header row with white text
+or
+
+light neutral header row with primary-color text/accent
+
+Do not mix header treatments page to page.
+
+12. Improve Footer Styling
+
+Keep the footer subtle and consistent.
+
+Footer should include
+
+Converge Events / Converge Concierge
+
+confidentiality note if needed
+
+prepared for sponsor name if useful
+
+Use neutral styling.
+Do not introduce additional random colors in the footer.
+
+13. Ensure Logos Render on All Relevant Reports
+
+If the report is generated for a specific event, the event logo must be pulled dynamically from the event branding settings.
+
+Required behavior
+
+if event logo exists, use it
+
+if missing, use a clean fallback
+
+do not generate logo-less reports when event branding is available
+
+14. Preserve Readability Over Branding
+
+Branding should improve the report, not hurt readability.
+
+Rules
+
+strong contrast
+
+no low-contrast colored text on white
+
+no decorative colors that reduce legibility
+
+keep tables easy to scan
+
+keep sponsor-facing professionalism as the priority
+
+15. PDF Design Standard
+
+The finished report should feel like:
+
+one event
+
+one visual system
+
+one report family
+
+It should not feel like several different templates stitched together.
+
+16. Acceptance Criteria
+
+This PDF redesign is complete when:
+
+the report is titled Sponsorship Performance Report
+
+the event logo appears prominently
+
+the PDF uses the selected event color scheme consistently
+
+random pink/orange/bright green styling is removed
+
+green text is not used as a generic metric font color
+
+section headers are standardized
+
+deliverables category headers are visually consistent
+
+the final PDF looks polished and sponsor-facing
+
+17. Success Standard
+
+After this update, the Sponsorship Performance Report should look like a professional branded event report that a sponsor could receive directly, save, share internally, and associate with a premium conference experience.

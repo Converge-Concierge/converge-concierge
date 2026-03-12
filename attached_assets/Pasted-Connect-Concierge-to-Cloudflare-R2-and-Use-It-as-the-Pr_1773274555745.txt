@@ -1,0 +1,584 @@
+Connect Concierge to Cloudflare R2 and Use It as the Primary File Storage Backend
+
+We already have a Cloudflare R2 bucket created:
+
+concierge-assets
+
+We now want Concierge to use Cloudflare R2 as the primary file storage backend for sponsor/admin uploads and deliverable-linked files.
+
+The app is currently using Replit object storage. Keep any legacy code temporarily if needed, but all new file upload and download flows should use Cloudflare R2.
+
+Do not store uploaded files on Replit local disk.
+Do not store binary file blobs in the database.
+Do not make the R2 bucket public by default.
+
+Use:
+
+Cloudflare R2 for file storage
+
+Concierge database for metadata and permissions
+
+presigned URLs for secure upload/download
+
+1. Install Required Dependencies
+
+Install the AWS S3-compatible client libraries:
+
+npm install @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
+
+If the project uses TypeScript, type the service accordingly. If it uses JavaScript, standard JS is fine.
+
+2. Add Replit Secrets / Environment Variables
+
+Add the following secrets in Replit:
+
+R2_ACCOUNT_ID
+R2_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY
+R2_BUCKET_NAME=concierge-assets
+R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+
+Example endpoint format:
+
+https://abcd1234.r2.cloudflarestorage.com
+
+Do not hardcode these values anywhere in source code.
+
+3. Create a Dedicated File Storage Service
+
+Create a new service file such as:
+
+services/fileStorageService.js
+
+This service should be the single place that handles R2 operations.
+
+It should expose at minimum:
+
+generateUploadUrl(params)
+generateDownloadUrl(params)
+deleteObject(params)
+buildObjectKey(params)
+4. Configure the S3 Client for R2
+
+Inside fileStorageService, configure an S3 client using the R2 endpoint.
+
+Use configuration equivalent to:
+
+region: auto
+
+endpoint: process.env.R2_ENDPOINT
+
+credentials from Replit secrets
+
+Example configuration concept:
+
+const s3 = new S3Client({
+  region: "auto",
+  endpoint: process.env.R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+  },
+});
+5. Standardize Object Key Structure
+
+Use this key structure for all sponsor/event files:
+
+events/{eventCode}/sponsors/{sponsorSlug}/{category}/{filename}
+
+Examples:
+
+events/FRC2026/sponsors/winnow/logos/logo.png
+events/FRC2026/sponsors/winnow/headshots/john-smith.jpg
+events/FRC2026/sponsors/winnow/social-graphics/linkedin-post-1.png
+events/FRC2026/sponsors/winnow/sponsor-reports/performance-report.pdf
+events/FRC2026/sponsors/winnow/attendee-reports/full-contact-list.xlsx
+
+For admin-only event files, support:
+
+events/{eventCode}/admin/{category}/{filename}
+
+Examples:
+
+events/FRC2026/admin/contracts/winnow-agreement.pdf
+events/FRC2026/admin/internal/planning-note.pdf
+
+Do not manually create folders in R2. Let object keys define the structure.
+
+6. Build Object Key Helper
+
+Inside fileStorageService, create a helper like:
+
+buildObjectKey({ eventCode, sponsorSlug, category, filename, scope })
+
+Rules:
+
+if scope is sponsor: use events/{eventCode}/sponsors/{sponsorSlug}/{category}/{filename}
+
+if scope is admin/internal: use events/{eventCode}/admin/{category}/{filename}
+
+Sanitize:
+
+sponsor slug
+
+file name
+
+spaces / special characters
+
+Add a timestamp or UUID to filenames to avoid collisions.
+
+Recommended stored filename pattern:
+
+{timestamp}-{sanitized-original-filename}
+7. Create / Confirm File Metadata Table
+
+Ensure Concierge has a metadata table such as:
+
+file_assets
+
+Minimum fields:
+
+id
+event_id
+sponsor_id nullable
+deliverable_id nullable
+category
+object_key
+original_file_name
+stored_file_name
+mime_type
+size_bytes
+visibility
+uploaded_by_user_id nullable
+uploaded_by_role
+uploaded_at
+status
+created_at
+updated_at
+
+Recommended enum values:
+
+visibility
+
+public
+
+sponsor_private
+
+admin_private
+
+uploaded_by_role
+
+admin
+
+sponsor
+
+system
+
+status
+
+active
+
+archived
+
+replaced
+
+If versioning fields already exist, keep them.
+
+The database must remain the source of truth for files.
+
+8. Implement Presigned Upload URL Generation
+
+Uploads should be done with presigned PUT URLs.
+
+Flow:
+
+user selects file in Concierge UI
+
+frontend requests upload URL from backend
+
+backend validates upload request
+
+backend generates presigned PUT URL
+
+browser uploads directly to R2
+
+frontend notifies backend to create metadata record
+
+backend saves file_assets row
+
+Do not upload file content through the Replit server unless absolutely necessary.
+
+9. Create Upload URL API Endpoint
+
+Add a backend endpoint such as:
+
+POST /api/files/upload-url
+
+Request payload should include enough info to validate and build the object key:
+
+{
+  "eventId": 123,
+  "sponsorId": 456,
+  "deliverableId": 789,
+  "category": "logos",
+  "fileName": "logo.png",
+  "mimeType": "image/png",
+  "sizeBytes": 123456,
+  "scope": "sponsor"
+}
+
+Backend responsibilities:
+
+verify authenticated user
+
+verify upload permissions
+
+verify event/sponsor relationship
+
+verify category is allowed
+
+verify file type allowed for that category
+
+verify size limit
+
+build object key
+
+generate presigned PUT URL
+
+return:
+
+upload URL
+
+object key
+
+stored filename
+
+10. Add File Category Validation
+
+Implement allowed file types and size limits by category.
+
+Use these starter rules:
+
+Category	Allowed Types	Max Size
+logos	png, jpg, jpeg, svg if supported	5 MB
+headshots	png, jpg, jpeg	5 MB
+company-assets	pdf, docx if supported	10 MB
+social-graphics	png, jpg, jpeg, pdf if needed	10 MB
+session-assets	png, jpg, jpeg, pdf	10 MB
+promo-assets	pdf, png, jpg	10 MB
+attendee-reports	csv, xlsx, pdf	15 MB
+sponsor-reports	pdf, xlsx	15 MB
+contracts/internal	pdf, docx	10 MB
+
+Reject invalid uploads before signing the URL.
+
+11. Create Metadata Finalization Endpoint
+
+After the browser uploads to R2 successfully, create a second endpoint such as:
+
+POST /api/files/finalize
+
+Request payload should include:
+
+{
+  "eventId": 123,
+  "sponsorId": 456,
+  "deliverableId": 789,
+  "category": "logos",
+  "objectKey": "events/FRC2026/sponsors/winnow/logos/1712345678-logo.png",
+  "originalFileName": "logo.png",
+  "storedFileName": "1712345678-logo.png",
+  "mimeType": "image/png",
+  "sizeBytes": 123456,
+  "visibility": "sponsor_private"
+}
+
+Backend should:
+
+verify authenticated user again
+
+verify they are allowed to finalize this upload
+
+create file_assets record
+
+return file metadata for UI refresh
+
+Do not create metadata before upload completes.
+
+12. Implement Secure Download / View URLs
+
+Add a backend endpoint such as:
+
+GET /api/files/:id/download
+
+Backend should:
+
+load file_assets record
+
+verify access permissions
+
+generate presigned GET URL from R2
+
+return the signed URL or redirect to it
+
+Do not expose raw object keys as open links.
+
+13. Permission Rules
+
+Implement these access rules.
+
+Admin
+
+Can:
+
+upload any file
+
+view/download any file
+
+delete/archive/replace any file
+
+Sponsor Owner
+
+Can upload only allowed sponsor-owned categories such as:
+
+logos
+
+headshots
+
+company-assets
+
+other explicitly allowed sponsor deliverable assets
+
+Can only view/download files belonging to:
+
+their sponsor
+
+their event
+
+sponsor-visible/private files they are allowed to access
+
+Sponsor Editor
+
+Same as Owner for now unless you want to restrict later.
+
+Sponsor Viewer
+
+Cannot upload.
+Can only view/download sponsor-visible files they are permitted to access.
+
+Cross-sponsor restriction
+
+A sponsor user must never access another sponsor’s files.
+
+14. Keep Bucket Private
+
+Bucket should remain private.
+
+All access should happen through:
+
+presigned PUT for upload
+
+presigned GET for download/view
+
+Do not enable broad public bucket access.
+
+15. Add Upload UI Integration
+
+Update sponsor/admin upload UI so it uses the new R2 flow.
+
+For all new uploads:
+
+request upload URL from backend
+
+upload directly to R2 from browser
+
+call finalize endpoint
+
+refresh file list
+
+Do not store files in Replit object storage for new uploads.
+
+16. Add Lightweight Version Replacement
+
+For replaceable files such as:
+
+logos
+
+headshots
+
+sponsor reports
+
+attendee reports
+
+social graphics
+
+Implement simple replacement logic:
+
+When replacing a file:
+
+mark old metadata row as replaced
+
+create new metadata row as active
+
+optionally set replaces_file_asset_id
+
+Only one “latest” file should be considered active for a specific logical slot if your model supports that.
+
+Do not build full version history UI yet.
+
+17. Integrate Files Into Agreement Deliverables
+
+Allow files to be associated with individual deliverables via:
+
+deliverable_id
+
+Examples:
+
+Company Logo deliverable ↔ uploaded logo file
+
+Customized Social Media Graphic deliverable ↔ delivered graphic file
+
+Full Attendee Contact List deliverable ↔ uploaded report file
+
+This is required so the Deliverables tab can display relevant files.
+
+18. Sponsor Dashboard File Behavior
+
+Extend the sponsor-facing Agreement Deliverables tab so that where appropriate:
+
+Sponsor-owned file deliverables
+
+Show:
+
+Upload button
+
+current file name if uploaded
+
+replace option if allowed
+
+Examples:
+
+Company Logo
+
+Speaker Headshot
+
+Company Asset
+
+Converge-provided file deliverables
+
+Show:
+
+View / Download
+
+file name
+
+optional delivered date
+
+Examples:
+
+social graphics
+
+attendee reports
+
+sponsor reports
+
+COI
+
+Do not add sponsor upload for Certificate of Insurance.
+Keep COI as status-only.
+
+19. Admin Agreement Deliverables File Behavior
+
+Extend the admin-side Agreement Deliverables UI so admins can:
+
+Upload File
+
+Replace File
+
+Archive File
+
+View / Download File
+
+This can appear:
+
+directly in deliverable rows
+
+or in a lightweight “Files & Links” tab/section
+
+Keep it simple and operational.
+
+20. Add Basic Error Handling
+
+Handle these cases clearly:
+
+invalid file type
+
+file too large
+
+unauthorized upload
+
+upload canceled
+
+upload failed
+
+R2 unavailable
+
+finalize called without successful upload
+
+Show user-friendly errors and do not create broken metadata records.
+
+21. Log File Actions
+
+Where feasible, log activity for:
+
+file uploaded
+
+file replaced
+
+file archived
+
+file download requested
+
+link added if already supported
+
+This can be used later in admin activity tracking.
+
+22. Legacy Replit Storage
+
+Do not break any existing legacy file references immediately.
+
+However:
+
+all new uploads should use R2
+
+all new file management features should use R2-backed metadata and URLs
+
+You may leave Replit object storage code in place temporarily for backwards compatibility, but do not use it for new Phase 4 work.
+
+23. Acceptance Criteria
+
+This implementation is complete when:
+
+Concierge uses Cloudflare R2 for all new file uploads
+
+upload URLs are generated server-side
+
+browser uploads directly to R2
+
+download/view URLs are signed and permission-checked
+
+file metadata is stored in file_assets
+
+sponsors can upload allowed sponsor-owned files
+
+admins can upload deliverable-linked files
+
+COI remains status-only
+
+new uploads do not use Replit object storage
+
+24. Success Standard
+
+After this step, Concierge should have a production-grade file storage foundation using Cloudflare R2, ready to support sponsor onboarding assets, Agreement Deliverables, reports, and proof-of-delivery files.
+
+That is the standard this implementation should meet.

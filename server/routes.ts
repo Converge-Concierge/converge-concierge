@@ -9,6 +9,7 @@ import multer from "multer";
 import path from "path";
 import { randomBytes, createHash } from "crypto";
 import { objectStorageClient } from "./replit_integrations/object_storage/objectStorage";
+import { generateUploadUrl, generateDownloadUrl, buildObjectKeyFlat } from "./services/fileStorageService";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -3437,8 +3438,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/files/upload-url", requireAuth, async (req, res) => {
     try {
       const { category, originalFileName, mimeType, sizeBytes, eventId, sponsorId, deliverableId, visibility, title } = req.body;
-      const { ObjectStorageService } = await import("./replit_integrations/object_storage/objectStorage.js");
-      const objService = new ObjectStorageService();
 
       if (!category || !originalFileName || !mimeType) return res.status(400).json({ message: "category, originalFileName, mimeType required" });
 
@@ -3452,12 +3451,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(403).json({ message: "Only admins can upload to this category" });
       }
 
-      const { randomUUID } = await import("crypto");
-      const fileId = randomUUID();
-      const storedFileName = sanitizeFilename(originalFileName);
-      const objectKey = `file-assets/${fileId}/${storedFileName}`;
-
-      const uploadURL = await objService.getSignedUploadURL(objectKey, 900);
+      const { fileId, objectKey, storedFileName } = buildObjectKeyFlat(originalFileName);
+      const uploadURL = await generateUploadUrl(objectKey, 900);
 
       res.json({ uploadURL, fileId, objectKey, storedFileName });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -3512,9 +3507,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!file) return res.status(404).json({ message: "File not found" });
       if (file.status === "archived") return res.status(410).json({ message: "File has been archived" });
 
-      const { ObjectStorageService } = await import("./replit_integrations/object_storage/objectStorage.js");
-      const objService = new ObjectStorageService();
-      const downloadURL = await objService.getSignedDownloadURL(file.objectKey, 3600);
+      const downloadURL = await generateDownloadUrl(file.objectKey, 3600);
       res.json({ downloadURL, fileName: file.originalFileName, mimeType: file.mimeType });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -3590,6 +3583,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
+  // Sponsor-facing: GET /api/sponsor-dashboard/files/:id/download-url — signed GET URL
+  app.get("/api/sponsor-dashboard/files/:id/download-url", async (req, res) => {
+    try {
+      const token = extractSponsorToken(req);
+      if (!token) return res.status(401).json({ message: "Unauthorized" });
+      const validation = await validateSponsorToken(token);
+      if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+      const { tokenRecord } = validation;
+
+      const file = await storage.getFileAsset(req.params.id);
+      if (!file) return res.status(404).json({ message: "File not found" });
+      if (file.status === "archived") return res.status(410).json({ message: "File has been archived" });
+      if (file.visibility === "admin_private") return res.status(403).json({ message: "Access denied" });
+      if (file.sponsorId && file.sponsorId !== tokenRecord.sponsorId) return res.status(403).json({ message: "Access denied" });
+
+      const downloadURL = await generateDownloadUrl(file.objectKey, 3600);
+      res.json({ downloadURL, fileName: file.originalFileName, mimeType: file.mimeType });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   // Sponsor-facing: GET /api/sponsor-dashboard/deliverable-links/:deliverableId
   app.get("/api/sponsor-dashboard/deliverable-links/:deliverableId", async (req, res) => {
     try {
@@ -3624,13 +3637,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!rules.allowedMime.includes(mimeType)) return res.status(400).json({ message: `File type ${mimeType} not allowed for category ${category}` });
       if (sizeBytes && sizeBytes > rules.maxBytes) return res.status(400).json({ message: `File too large. Max ${rules.maxBytes / 1024 / 1024}MB for ${category}` });
 
-      const { ObjectStorageService } = await import("./replit_integrations/object_storage/objectStorage.js");
-      const { randomUUID } = await import("crypto");
-      const objService = new ObjectStorageService();
-      const fileId = randomUUID();
-      const storedFileName = sanitizeFilename(originalFileName);
-      const objectKey = `file-assets/${fileId}/${storedFileName}`;
-      const uploadURL = await objService.getSignedUploadURL(objectKey, 900);
+      const { fileId, objectKey, storedFileName } = buildObjectKeyFlat(originalFileName);
+      const uploadURL = await generateUploadUrl(objectKey, 900);
       res.json({ uploadURL, fileId, objectKey, storedFileName });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });

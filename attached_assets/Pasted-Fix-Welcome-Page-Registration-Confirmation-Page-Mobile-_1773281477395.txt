@@ -1,0 +1,290 @@
+Fix Welcome Page / Registration Confirmation Page Mobile Responsiveness
+
+The Welcome Page / Registration Confirmation page has the same mobile rendering issues as the event scheduling page.
+
+It must be fully responsive on phones and small tablets.
+
+The goal is to ensure:
+
+no horizontal overflow
+
+no clipped text or cards
+
+header stacks properly
+
+topic pills wrap correctly
+
+sponsor cards stack vertically
+
+buttons remain easy to tap
+
+Primary Goal
+
+Make the Welcome Page render cleanly on mobile so that users can:
+
+understand they are registered
+
+see the next step clearly
+
+select topics easily
+
+interact with sponsor cards without layout issues
+
+1. Eliminate Horizontal Overflow
+
+Audit the Welcome Page and all parent containers for:
+
+fixed widths
+
+oversized min-width values
+
+desktop-only flex layouts
+
+containers wider than 100%
+
+unnecessary horizontal padding
+
+Required behavior
+
+no horizontal scrolling on mobile
+
+all content remains inside the viewport
+
+header, topic section, and sponsor cards fit cleanly on screen
+
+2. Make the Welcome Header Stack Properly on Mobile
+Current mobile issue
+
+The event logo, registration confirmation badge, and headline can push content too wide.
+
+Required mobile layout
+
+On mobile, stack these in order:
+
+Event logo
+
+Registration Confirmation badge
+
+Main registration headline
+
+Example structure:
+
+[Event Logo]
+
+[Registration Confirmation]
+
+You're Registered for
+The 2026 Fintech Risk & Compliance Forum!
+
+Do not keep the desktop-style side-by-side layout on narrow screens.
+
+3. Resize Event Logo for Mobile
+
+The event logo should be significantly smaller on mobile.
+
+Required behavior
+
+reduce logo size on phones
+
+preserve aspect ratio
+
+do not let the logo force the header wider than the viewport
+
+Desktop can remain unchanged.
+
+4. Make the Registration Confirmation Badge Mobile Friendly
+
+The green badge should:
+
+remain visible
+
+wrap correctly if needed
+
+not push headline text off-screen
+
+keep a comfortable size for mobile
+
+If necessary:
+
+reduce padding slightly on mobile
+
+keep it larger than normal pill text but smaller than desktop
+
+5. Make the Welcome Headline Wrap Naturally
+
+Long headlines such as:
+
+You're Registered for The 2026 Fintech Risk & Compliance Forum!
+
+must wrap correctly on mobile.
+
+Required behavior
+
+reduce headline font size on mobile
+
+allow multiple lines
+
+keep readable line height
+
+no clipping or off-screen text
+
+6. Keep the “Next Step” Section Clean on Mobile
+
+The shaded Next Step section should remain visually prominent but fit mobile screens correctly.
+
+Required behavior
+
+reduce left/right padding on mobile
+
+keep the label and main instruction readable
+
+avoid over-wide containers
+
+no overflow from topic pills
+
+Structure should remain:
+
+NEXT STEP
+
+Make the most of your time at the conference. What topics interest you?
+
+[Topic Pills]
+7. Make Topic Pills Wrap Properly
+
+Topic pills must:
+
+wrap onto multiple rows
+
+keep touch-friendly spacing
+
+avoid clipping or overflow
+
+remain easy to tap on mobile
+
+Do not force pills into one horizontal row on narrow screens.
+
+8. Stack Sponsor Cards Vertically on Mobile
+
+On mobile, sponsor cards must:
+
+display one per row
+
+use full width or near-full width
+
+have consistent spacing
+
+not remain in a desktop multi-column layout
+
+Do not allow side-by-side sponsor cards on narrow devices.
+
+9. Make Sponsor Buttons Full Width and Tap-Friendly
+
+Within each sponsor card on mobile:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+must be:
+
+full width
+
+stacked vertically
+
+large enough for touch
+
+evenly spaced
+
+Do not let buttons become cramped or overflow.
+
+10. Adjust Sponsor Count Placement on Mobile
+
+If the page shows text such as:
+
+2 sponsors participating
+
+1 of 1 sponsor
+
+make sure it does not float awkwardly to the far right on mobile.
+
+Required behavior
+
+On mobile:
+
+place sponsor count below or beside the sponsor section heading in a natural stacked layout
+
+do not right-align it if that causes spacing problems
+
+11. Reduce Desktop-Only Spacing on Mobile
+
+Review the Welcome Page for large desktop spacing values.
+
+On mobile:
+
+reduce excessive top/bottom margins
+
+reduce oversized section padding
+
+keep clear visual separation without wasting screen space
+
+The page should feel compact but not cramped.
+
+12. Responsive Breakpoint Behavior
+
+At mobile breakpoints:
+
+header changes from row to column
+
+sponsor cards change from grid to single column
+
+topic pills wrap
+
+headline size reduces
+
+padding tightens slightly
+
+Use standard responsive breakpoints already used in Concierge where possible.
+
+13. Keep Desktop Layout Intact
+
+These changes should improve mobile only.
+
+Do not significantly alter the desktop version unless needed for shared responsive components.
+
+14. Acceptance Criteria
+
+This update is complete when:
+
+the Welcome Page has no horizontal overflow on mobile
+
+the header stacks correctly on mobile
+
+the event logo is appropriately resized
+
+the registration badge and headline wrap cleanly
+
+the Next Step section fits correctly
+
+topic pills wrap naturally
+
+sponsor cards stack vertically
+
+sponsor buttons are touch-friendly
+
+the desktop layout remains intact
+
+15. Success Standard
+
+After this update, the Welcome Page should feel polished and easy to use on mobile, with a clear flow:
+
+registration confirmed
+
+next step understood
+
+topic selection easy
+
+sponsor interaction easy
+
+That is the standard this mobile fix should meet.

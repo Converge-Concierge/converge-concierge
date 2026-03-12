@@ -274,6 +274,13 @@ export interface IStorage {
   createDeliverableSocialEntry(data: InsertDeliverableSocialEntry): Promise<DeliverableSocialEntry>;
   updateDeliverableSocialEntry(id: string, data: Partial<InsertDeliverableSocialEntry>): Promise<DeliverableSocialEntry>;
   deleteDeliverableSocialEntry(id: string): Promise<void>;
+
+  // ── Attendee CSV Helpers ────────────────────────────────────────────────────
+  generateAttendeeContactListCsv(deliverableId: string, type?: "full" | "partial"): Promise<string>;
+
+  // ── Internal Notification Email ─────────────────────────────────────────────
+  getInternalNotificationEmail(): Promise<string>;
+  setInternalNotificationEmail(email: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -922,6 +929,10 @@ export class MemStorage implements IStorage {
   async createDeliverableSocialEntry(data: InsertDeliverableSocialEntry): Promise<DeliverableSocialEntry> { return { id: randomUUID(), ...data, title: data.title ?? null, url: data.url ?? null, fileAssetId: data.fileAssetId ?? null, notes: data.notes ?? null, createdAt: new Date(), updatedAt: new Date() }; }
   async updateDeliverableSocialEntry(_id: string, _data: Partial<InsertDeliverableSocialEntry>): Promise<DeliverableSocialEntry> { return { id: _id, deliverableId: "", entryType: "graphic", entryIndex: 1, title: null, url: null, fileAssetId: null, notes: null, createdAt: new Date(), updatedAt: new Date() }; }
   async deleteDeliverableSocialEntry(_id: string): Promise<void> {}
+
+  async generateAttendeeContactListCsv(_deliverableId: string, _type?: "full" | "partial"): Promise<string> { return ""; }
+  async getInternalNotificationEmail(): Promise<string> { return ""; }
+  async setInternalNotificationEmail(_email: string): Promise<void> {}
 }
 
 export const storage = new DatabaseStorage();

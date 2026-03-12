@@ -1461,4 +1461,56 @@ export class DatabaseStorage implements IStorage {
   async deleteDeliverableSocialEntry(id: string): Promise<void> {
     await db.delete(deliverableSocialEntries).where(eq(deliverableSocialEntries.id, id));
   }
+
+  // ── Attendee CSV Helper ────────────────────────────────────────────────────
+
+  async generateAttendeeContactListCsv(deliverableId: string, type: "full" | "partial" = "full"): Promise<string> {
+    const deliverable = await this.getAgreementDeliverable(deliverableId);
+    if (!deliverable) return "";
+
+    const registrants = await this.listDeliverableRegistrants(deliverableId);
+    const allSponsors = await this.getSponsors();
+    const sponsorMap = new Map(allSponsors.map(s => [s.id, s.name]));
+    const sponsorName = sponsorMap.get(deliverable.sponsorId) ?? deliverable.sponsorId;
+
+    function csvSafe(val: string): string {
+      let s = val;
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+    }
+
+    const fullHeaders = ["sponsorName","sponsorshipLevel","deliverableName","name","firstName","lastName","email","title","conciergeRole","registrationStatus"];
+    const partialHeaders = ["firstName","lastName","email","registrationStatus"];
+    const headers = type === "partial" ? partialHeaders : fullHeaders;
+
+    const csvLines = [headers.join(",")];
+    for (const r of registrants) {
+      const row: Record<string, string> = {
+        sponsorName,
+        sponsorshipLevel: deliverable.sponsorshipLevel,
+        deliverableName: deliverable.deliverableName,
+        name: r.name ?? "",
+        firstName: r.firstName ?? "",
+        lastName: r.lastName ?? "",
+        email: r.email ?? "",
+        title: r.title ?? "",
+        conciergeRole: r.conciergeRole ?? "",
+        registrationStatus: r.registrationStatus ?? "Unknown",
+      };
+      csvLines.push(headers.map(h => csvSafe(row[h] ?? "")).join(","));
+    }
+
+    return csvLines.join("\n");
+  }
+
+  // ── Internal Notification Email ─────────────────────────────────────────────
+
+  async getInternalNotificationEmail(): Promise<string> {
+    const branding = await this.getBranding();
+    return branding.internalNotificationEmail ?? "";
+  }
+
+  async setInternalNotificationEmail(email: string): Promise<void> {
+    await this.updateBranding({ internalNotificationEmail: email });
+  }
 }

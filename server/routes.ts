@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS } from "@shared/schema";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
-import { sendEmail, sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee } from "../services/emailService";
+import { sendEmail, sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee, sendInternalDeliverableNotification as sendInternalNotification } from "../services/emailService";
 import multer from "multer";
 import path from "path";
 import { randomBytes, createHash } from "crypto";
@@ -2106,10 +2106,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(updated);
   });
 
-  async function sendInternalDeliverableNotification(sponsorId: string, deliverableName: string, action: string, eventId?: string) {
+  async function fireInternalNotification(sponsorId: string, deliverableName: string, action: string, eventId?: string) {
     try {
-      const branding = await storage.getBranding();
-      if (!branding.internalNotificationEmail) return;
       const sponsor = await storage.getSponsor(sponsorId);
       const sponsorName = sponsor?.name ?? "Unknown Sponsor";
       let eventName = "";
@@ -2117,15 +2115,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         const event = await storage.getEvent(eventId);
         eventName = event?.name ?? "";
       }
-      const timestamp = new Date().toISOString();
-      await sendEmail(
-        branding.internalNotificationEmail,
-        `Sponsor Update: ${sponsorName} — ${deliverableName}`,
-        `<p><strong>${sponsorName}</strong> has ${action} for <strong>${deliverableName}</strong>.</p>` +
-        (eventName ? `<p>Event: ${eventName}</p>` : "") +
-        `<p>Time: ${timestamp}</p>` +
-        `<p>Please log in to the admin dashboard to review.</p>`
-      );
+      await sendInternalNotification(storage, { sponsorId, sponsorName, eventId, eventName, deliverableName, action });
     } catch (err) {
       console.error("Failed to send internal notification:", err);
     }
@@ -2178,7 +2168,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const updated = await storage.updateAgreementDeliverable(req.params.id, allowed);
 
     if (allowed.status === "Submitted") {
-      sendInternalDeliverableNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted their response", deliverable.eventId).catch(() => {});
+      fireInternalNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted their response", deliverable.eventId).catch(() => {});
     }
 
     const { internalNote: _drop, ...safe } = updated as typeof updated & { internalNote: unknown };
@@ -2230,7 +2220,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const all = await storage.listDeliverableRegistrants(req.params.id);
     if (deliverable.quantity && all.length >= deliverable.quantity) {
       await storage.updateAgreementDeliverable(req.params.id, { status: "Submitted" });
-      sendInternalDeliverableNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted all registrants", deliverable.eventId).catch(() => {});
+      fireInternalNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted all registrants", deliverable.eventId).catch(() => {});
     } else if (deliverable.status === "Not Started" || deliverable.status === "Awaiting Sponsor Input") {
       await storage.updateAgreementDeliverable(req.params.id, { status: "In Progress" });
     }
@@ -2328,7 +2318,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     if (deliverable.status === "Not Started" || deliverable.status === "Awaiting Sponsor Input") {
       await storage.updateAgreementDeliverable(req.params.id, { status: "Submitted" });
-      sendInternalDeliverableNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted speaker information", deliverable.eventId).catch(() => {});
+      fireInternalNotification(deliverable.sponsorId, deliverable.deliverableName, "submitted speaker information", deliverable.eventId).catch(() => {});
     }
 
     res.json(speaker);
@@ -2451,43 +2441,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const deliverable = await storage.getAgreementDeliverable(req.params.id);
       if (!deliverable) return res.status(404).json({ message: "Deliverable not found" });
 
-      const registrants = await storage.listDeliverableRegistrants(req.params.id);
-      const allSponsors = await storage.getSponsors();
-      const sponsorMap = new Map(allSponsors.map(s => [s.id, s.name]));
-      const sponsorName = sponsorMap.get(deliverable.sponsorId) ?? deliverable.sponsorId;
-
-      const type = (req.query.type as string) ?? "full";
-
-      function csvSafe(val: string): string {
-        let s = val;
-        if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-        return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
-      }
-
-      const fullHeaders = ["sponsorName","sponsorshipLevel","deliverableName","name","firstName","lastName","email","title","conciergeRole","registrationStatus"];
-      const partialHeaders = ["firstName","lastName","email","registrationStatus"];
-      const headers = type === "partial" ? partialHeaders : fullHeaders;
-
-      const csvLines = [headers.join(",")];
-      for (const r of registrants) {
-        const row: Record<string, string> = {
-          sponsorName,
-          sponsorshipLevel: deliverable.sponsorshipLevel,
-          deliverableName: deliverable.deliverableName,
-          name: r.name ?? "",
-          firstName: r.firstName ?? "",
-          lastName: r.lastName ?? "",
-          email: r.email ?? "",
-          title: r.title ?? "",
-          conciergeRole: r.conciergeRole ?? "",
-          registrationStatus: r.registrationStatus ?? "Unknown",
-        };
-        csvLines.push(headers.map(h => csvSafe(row[h] ?? "")).join(","));
-      }
+      const type = (req.query.type as string) === "partial" ? "partial" : "full";
+      const csv = await storage.generateAttendeeContactListCsv(req.params.id, type);
 
       res.setHeader("Content-Type", "text/csv");
       res.setHeader("Content-Disposition", `attachment; filename="attendees-${req.params.id}.csv"`);
-      res.send(csvLines.join("\n"));
+      res.send(csv);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
@@ -3908,6 +3867,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         const deliverable = await storage.getAgreementDeliverable(deliverableId);
         if (deliverable && ["Not Started","Needed","Awaiting Sponsor Input"].includes(deliverable.status)) {
           await storage.updateAgreementDeliverable(deliverableId, { status: "Submitted" });
+          fireInternalNotification(tokenRecord.sponsorId, deliverable.deliverableName, "uploaded a file", deliverable.eventId).catch(() => {});
         }
       }
 

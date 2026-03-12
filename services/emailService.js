@@ -356,3 +356,32 @@ export async function sendMeetingReminderEmail(storage, attendee, sponsor, meeti
     });
   }
 }
+
+export async function sendInternalDeliverableNotification(storage, { sponsorId, sponsorName, eventId, eventName, deliverableName, action }) {
+  const branding = await storage.getBranding();
+  const recipientEmail = branding.internalNotificationEmail;
+  if (!recipientEmail) return;
+
+  const timestamp = new Date().toISOString();
+  const subject = `Sponsor Update: ${sponsorName} — ${deliverableName}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #0D1E3A;">Sponsor Deliverable Update</h2>
+      <p><strong>${sponsorName}</strong> has ${action} for <strong>${deliverableName}</strong>.</p>
+      ${eventName ? `<p><strong>Event:</strong> ${eventName}</p>` : ""}
+      <p><strong>Time:</strong> ${timestamp}</p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+      <p style="color: #666;">Please log in to the admin dashboard to review.</p>
+    </div>
+  `;
+
+  await sendAndLog(storage, {
+    emailType: "internal_deliverable_notification",
+    to: recipientEmail,
+    subject,
+    html,
+    eventId: eventId ?? null,
+    sponsorId: sponsorId ?? null,
+    attendeeId: null,
+  });
+}

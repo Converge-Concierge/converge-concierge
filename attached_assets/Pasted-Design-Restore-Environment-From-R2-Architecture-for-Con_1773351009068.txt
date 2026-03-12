@@ -1,0 +1,515 @@
+Design Restore Environment From R2 Architecture for Concierge
+
+We are now backing up critical Concierge production data to Cloudflare R2. The next step is to design and implement the restore architecture so the system can be rebuilt from backup if Concierge becomes unavailable or the database is corrupted.
+
+This does not need to be a dangerous one-click production restore at first. Phase 1 should focus on:
+
+structured restore-ready backup format
+
+restore manifests
+
+validation tools
+
+admin visibility
+
+controlled import flow for test/staging restore
+
+The goal is to make Concierge recoverable, not just backed up.
+
+Primary Goal
+
+Create a restore architecture so that Concierge can be rebuilt from R2 backups with a predictable, safe process.
+
+This should support:
+
+full system recovery
+
+event-level recovery
+
+sponsor-event recovery
+
+without relying on manual reconstruction.
+
+1. Add Backup Manifest Files
+
+Every backup written to R2 should also generate a manifest file.
+
+The manifest should describe:
+
+what is in the backup
+
+when it was created
+
+record counts
+
+object keys
+
+schema version
+
+restore scope
+
+Manifest examples
+Full backup manifest
+{
+  "backup_type": "full_system",
+  "scope": "global",
+  "created_at": "2026-03-12T20:10:19Z",
+  "schema_version": 1,
+  "data_files": [
+    "backups/full/2026-03-12/database.json",
+    "backups/full/2026-03-12/file-metadata.json"
+  ],
+  "record_counts": {
+    "events": 4,
+    "sponsors": 12,
+    "attendees": 88,
+    "deliverables": 144,
+    "meetings": 36,
+    "info_requests": 9
+  }
+}
+Event backup manifest
+{
+  "backup_type": "event",
+  "scope": "event",
+  "event_code": "FRC2026",
+  "created_at": "2026-03-12T20:10:19Z",
+  "schema_version": 1,
+  "data_files": [
+    "backups/events/FRC2026/2026-03-12/event.json"
+  ]
+}
+Sponsor-event backup manifest
+{
+  "backup_type": "sponsor_event",
+  "scope": "sponsor_event",
+  "event_code": "FRC2026",
+  "sponsor_slug": "winnow",
+  "created_at": "2026-03-12T20:10:19Z",
+  "schema_version": 1,
+  "data_files": [
+    "backups/sponsors/FRC2026/winnow/2026-03-12/sponsor.json"
+  ]
+}
+2. Standardize Backup Folder Structure for Restore Readiness
+
+Change backup storage structure from one flat JSON file to restore-ready folders.
+
+Full backup
+backups/full/2026-03-12T201019Z/
+    manifest.json
+    database.json
+    file-metadata.json
+Event backup
+backups/events/FRC2026/2026-03-12T201019Z/
+    manifest.json
+    event.json
+Sponsor-event backup
+backups/sponsors/FRC2026/winnow/2026-03-12T201019Z/
+    manifest.json
+    sponsor.json
+
+This structure makes restore much cleaner.
+
+3. Split Backups Into Restore-Friendly Files
+
+Do not keep everything in one giant opaque blob if it makes restore harder.
+
+For full system backup, generate at least:
+
+database.json
+
+file-metadata.json
+
+manifest.json
+
+Optional later:
+
+email-templates.json
+
+settings.json
+
+reports.json
+
+The goal is that each file has a clear restore purpose.
+
+4. Add Schema Versioning
+
+Every backup manifest should include:
+
+schema_version
+
+This will matter later as Concierge evolves.
+
+Example:
+
+"schema_version": 1
+
+If table structures change in future, restore logic can adapt based on schema version.
+
+5. Build Restore Validation Service
+
+Create a service such as:
+
+services/restoreValidationService.ts
+
+Purpose:
+
+inspect backup manifests
+
+validate presence of required files
+
+validate JSON structure
+
+validate record counts
+
+confirm restore readiness
+
+Functions should include:
+
+validateBackupManifest()
+validateBackupFilesExist()
+validateBackupPayloadShape()
+
+This should run before any restore is attempted.
+
+6. Add Restore Readiness Status in Admin → Data Backup
+
+In the Data Backup page, add a new column or detail field:
+
+Restore Ready
+
+Possible values:
+
+Ready
+
+Missing Files
+
+Invalid Manifest
+
+Schema Mismatch
+
+Validation Failed
+
+This gives admins confidence that a backup is actually usable.
+
+7. Add Backup Detail View
+
+From the Backup History table, add:
+
+View Details
+
+Validate Backup
+
+When opening a backup detail view, show:
+
+backup type
+
+scope
+
+created date
+
+manifest content summary
+
+record counts
+
+R2 object keys
+
+validation status
+
+restore readiness
+
+This is important before ever attempting a restore.
+
+8. Build Controlled Restore Actions (Initial Phase = Safe Mode)
+
+Do not implement a dangerous one-click production overwrite.
+
+Instead, add controlled restore modes:
+
+A. Restore to staging/test environment
+
+Preferred first implementation.
+
+B. Restore preview / dry run
+
+Simulate the restore and show what would be restored.
+
+C. Restore specific sponsor-event data
+
+Safer than full production restore.
+
+9. Add Restore Modes
+
+Support these restore modes conceptually:
+
+Full System Restore
+
+Restore all backed-up structured data into a clean environment.
+
+Event Restore
+
+Restore one event and its related data:
+
+attendees
+
+sponsors
+
+deliverables
+
+meetings
+
+info requests
+
+Sponsor-Event Restore
+
+Restore one sponsor’s relationship to one event.
+
+This is especially valuable for sponsor contractual records.
+
+10. Build Import Service
+
+Create a service such as:
+
+services/restoreImportService.ts
+
+This service should:
+
+download backup files from R2
+
+parse manifest
+
+load JSON payloads
+
+map entities in correct order
+
+write records back into the database
+
+Restore order matters. Recommended order:
+
+settings / foundational config
+
+events
+
+sponsors
+
+sponsor-event assignments
+
+sponsor dashboard users
+
+attendees
+
+deliverables/templates if included
+
+sponsor agreements
+
+meetings
+
+info requests
+
+file metadata
+
+reminder/email metadata
+
+Do not restore in random order.
+
+11. Add Dry Run Mode
+
+Before any restore, allow a dry run.
+
+Dry run should:
+
+validate files
+
+show what tables/entities will be restored
+
+show counts
+
+show collisions/conflicts
+
+not write any data
+
+Example output:
+
+Dry Run Summary
+Events: 1
+Sponsors: 3
+Deliverables: 28
+Meetings: 12
+Info Requests: 2
+Conflicts: 1 existing sponsor slug
+
+This is extremely useful and much safer.
+
+12. Add Conflict Handling Rules
+
+Restores must handle collisions carefully.
+
+Examples:
+
+event code already exists
+
+sponsor slug already exists
+
+attendee email already exists
+
+deliverable IDs conflict
+
+For phase 1, define a safe rule:
+
+do not overwrite existing production records silently
+
+require explicit choice:
+
+Skip Existing
+
+Merge Carefully
+
+Replace in non-production only
+
+For staging restore, simpler behavior is acceptable.
+
+13. Add Restore Environment Targeting
+
+The restore system should support a target environment flag:
+
+target_environment
+
+Allowed values:
+
+staging
+
+test
+
+local
+
+production (later, guarded heavily)
+
+For now, production restore should be disabled or admin-only behind confirmation.
+
+14. Add Admin Section: Data Backup → Restore Tools
+
+Inside the existing Reporting → Data Backup page, add a secondary tab or section:
+
+Backup History
+Restore Tools
+
+Restore Tools should include:
+
+Upload/Select Backup Manifest
+
+Validate Backup
+
+Dry Run Restore
+
+Restore to Staging
+
+Restore Sponsor-Event
+
+Restore Event
+
+This should be clearly separated from normal backup actions.
+
+15. Preserve File References During Restore
+
+The restore process does not need to duplicate files already in R2.
+
+It must restore:
+
+file metadata
+
+object keys
+
+sponsor/event/deliverable associations
+
+That way the restored system can reconnect to the stored files.
+
+Do not attempt to embed binary files into restore payloads.
+
+16. Add Integrity Checks
+
+Before marking a backup as restore-ready, validate:
+
+manifest exists
+
+required files exist
+
+JSON parses successfully
+
+record counts match manifest
+
+required core domains are present
+
+Example required domains for full backup:
+
+events
+
+sponsors
+
+attendees
+
+deliverables
+
+meetings
+
+info_requests
+
+file_metadata
+
+17. Add Audit Logging for Restore Actions
+
+All restore-related actions must be logged:
+
+who initiated validation
+
+who initiated dry run
+
+who initiated restore
+
+which backup was used
+
+target environment
+
+result
+
+errors
+
+This is important for trust and traceability.
+
+18. Acceptance Criteria
+
+This restore architecture phase is complete when:
+
+every backup generates a manifest
+
+backup files are organized in restore-ready folders
+
+schema versioning exists
+
+backups can be validated
+
+Data Backup page shows restore readiness
+
+admins can run backup validation
+
+admins can run dry-run restore
+
+restore/import service exists for controlled environments
+
+file metadata is restorable
+
+no unsafe blind production overwrite exists
+
+19. Success Standard
+
+After this phase, Concierge should have a real recovery architecture, not just backup files sitting in R2.
+
+Admins should be able to say:
+
+this backup is valid
+
+this backup is restore-ready
+
+this backup can rebuild the event/sponsor/system in a controlled environment
+
+That is the standard this restore architecture should meet.

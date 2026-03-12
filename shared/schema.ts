@@ -960,6 +960,8 @@ export const backupJobs = pgTable("backup_jobs", {
   sponsorId: varchar("sponsor_id"),
   sponsorSlug: varchar("sponsor_slug"),
   r2ObjectKey: varchar("r2_object_key"),
+  manifestKey: varchar("manifest_key"),
+  schemaVersion: integer("schema_version").default(1),
   fileSizeBytes: bigint("file_size_bytes", { mode: "number" }),
   recordCount: integer("record_count"),
   errorMessage: text("error_message"),

@@ -10,7 +10,9 @@ import path from "path";
 import { randomBytes, createHash } from "crypto";
 import { objectStorageClient } from "./replit_integrations/object_storage/objectStorage";
 import { generateUploadUrl, generateDownloadUrl, buildObjectKeyFlat } from "./services/fileStorageService";
-import { runFullBackup, runEventBackup, runSponsorEventBackup, listBackupJobs, getBackupObjectKey, streamBackupObject } from "./backup-service";
+import { runFullBackup, runEventBackup, runSponsorEventBackup, listBackupJobs, getBackupJob, getBackupObjectKey, streamR2Object } from "./backup-service";
+import { validateBackup, getBackupDetail } from "./services/restoreValidationService";
+import { dryRunRestore } from "./services/restoreImportService";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -4525,12 +4527,43 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/admin/backups/:id/download", requireAdmin, async (req, res) => {
     try {
       const objectKey = await getBackupObjectKey(req.params.id);
-      const stream = await streamBackupObject(objectKey);
+      const stream = await streamR2Object(objectKey);
       const filename = objectKey.split("/").pop() ?? "backup.json";
       res.set("Content-Type", "application/json");
       res.set("Content-Disposition", `attachment; filename="${filename}"`);
       stream.pipe(res);
     } catch (err: any) { res.status(404).json({ message: err.message }); }
+  });
+
+  app.get("/api/admin/backups/:id/detail", requireAdmin, async (req, res) => {
+    try {
+      const job = await getBackupJob(req.params.id);
+      if (!job) return res.status(404).json({ message: "Backup job not found" });
+      const detail = await getBackupDetail(job);
+      res.json(detail);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/backups/:id/validate", requireAdmin, async (req, res) => {
+    try {
+      const job = await getBackupJob(req.params.id);
+      if (!job) return res.status(404).json({ message: "Backup job not found" });
+      console.log(`[RESTORE] Admin initiated validation for backup ${job.id}`);
+      const result = await validateBackup(job);
+      console.log(`[RESTORE] Validation result for ${job.id}: ${result.restoreReady}`);
+      res.json(result);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/backups/:id/dry-run", requireAdmin, async (req, res) => {
+    try {
+      const job = await getBackupJob(req.params.id);
+      if (!job) return res.status(404).json({ message: "Backup job not found" });
+      console.log(`[RESTORE] Admin initiated dry-run restore for backup ${job.id}`);
+      const result = await dryRunRestore(job);
+      console.log(`[RESTORE] Dry-run result for ${job.id}: valid=${result.valid}, conflicts=${result.conflicts.length}`);
+      res.json(result);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   return httpServer;

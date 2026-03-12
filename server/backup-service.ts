@@ -15,6 +15,8 @@ import { sanitizeSlug } from "./services/fileStorageService";
 import { randomUUID } from "crypto";
 import { Readable } from "stream";
 
+export const CURRENT_SCHEMA_VERSION = 1;
+
 function getR2Client(): S3Client {
   const endpoint = process.env.R2_ENDPOINT;
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
@@ -37,30 +39,24 @@ function getR2Bucket(): string {
   return bucket;
 }
 
-async function uploadBackupToR2(objectKey: string, data: Buffer): Promise<void> {
+async function uploadToR2(objectKey: string, data: Buffer, contentType = "application/json"): Promise<void> {
   const client = getR2Client();
   const bucket = getR2Bucket();
-
-  console.log(`[BACKUP] Uploading to R2: bucket=${bucket}, key=${objectKey} (${data.byteLength} bytes)`);
 
   await client.send(new PutObjectCommand({
     Bucket: bucket,
     Key: objectKey,
     Body: data,
-    ContentType: "application/json",
+    ContentType: contentType,
   }));
-
-  console.log(`[BACKUP] Upload complete, verifying object exists...`);
 
   await client.send(new HeadObjectCommand({
     Bucket: bucket,
     Key: objectKey,
   }));
-
-  console.log(`[BACKUP] Object verified in R2: ${objectKey}`);
 }
 
-export async function streamBackupObject(objectKey: string): Promise<NodeJS.ReadableStream> {
+export async function streamR2Object(objectKey: string): Promise<NodeJS.ReadableStream> {
   const client = getR2Client();
   const bucket = getR2Bucket();
 
@@ -70,7 +66,7 @@ export async function streamBackupObject(objectKey: string): Promise<NodeJS.Read
   }));
 
   if (!response.Body) {
-    throw new Error("Backup file not found in R2 storage");
+    throw new Error("Object not found in R2 storage");
   }
 
   if (response.Body instanceof Readable) {
@@ -81,15 +77,67 @@ export async function streamBackupObject(objectKey: string): Promise<NodeJS.Read
   return Readable.fromWeb(webStream as any);
 }
 
-function nowKey(): string {
-  return new Date().toISOString().replace(/[:.]/g, "").replace("T", "T").slice(0, 17) + "Z";
+export async function downloadR2Object(objectKey: string): Promise<Buffer> {
+  const client = getR2Client();
+  const bucket = getR2Bucket();
+
+  const response = await client.send(new GetObjectCommand({
+    Bucket: bucket,
+    Key: objectKey,
+  }));
+
+  if (!response.Body) {
+    throw new Error("Object not found in R2 storage");
+  }
+
+  const chunks: Uint8Array[] = [];
+  let stream: NodeJS.ReadableStream;
+
+  if (response.Body instanceof Readable) {
+    stream = response.Body;
+  } else {
+    stream = Readable.fromWeb(response.Body as any);
+  }
+
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+
+  return Buffer.concat(chunks);
 }
 
-function buildObjectKey(type: "full" | "event" | "sponsor_event", eventCode?: string, sponsorSlug?: string): string {
-  const ts = nowKey();
-  if (type === "full") return `backups/full/full-backup-${ts}.json`;
-  if (type === "event") return `backups/events/${eventCode}/event-${eventCode}-backup-${ts}.json`;
-  return `backups/sponsors/${eventCode}/${sponsorSlug}/sponsor-${eventCode}-${sponsorSlug}-backup-${ts}.json`;
+export async function checkR2ObjectExists(objectKey: string): Promise<boolean> {
+  try {
+    const client = getR2Client();
+    const bucket = getR2Bucket();
+    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: objectKey }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export interface BackupManifest {
+  backup_type: "full_system" | "event" | "sponsor_event";
+  scope: "global" | "event" | "sponsor_event";
+  schema_version: number;
+  created_at: string;
+  job_id: string;
+  event_code?: string;
+  sponsor_slug?: string;
+  data_files: string[];
+  record_counts: Record<string, number>;
+}
+
+function nowTimestamp(): string {
+  return new Date().toISOString().replace(/[:.]/g, "").slice(0, 17) + "Z";
+}
+
+function buildFolderPrefix(type: "full" | "event" | "sponsor_event", eventCode?: string, sponsorSlug?: string): string {
+  const ts = nowTimestamp();
+  if (type === "full") return `backups/full/${ts}/`;
+  if (type === "event") return `backups/events/${eventCode}/${ts}/`;
+  return `backups/sponsors/${eventCode}/${sponsorSlug}/${ts}/`;
 }
 
 async function createJobRecord(params: {
@@ -109,16 +157,23 @@ async function createJobRecord(params: {
     eventCode: params.eventCode ?? null,
     sponsorId: params.sponsorId ?? null,
     sponsorSlug: params.sponsorSlug ?? null,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     startedAt: new Date(),
     createdAt: new Date(),
   }).returning();
   return job;
 }
 
-async function completeJob(id: string, result: { objectKey: string; fileSizeBytes: number; recordCount: number }) {
+async function completeJob(id: string, result: {
+  r2ObjectKey: string;
+  manifestKey: string;
+  fileSizeBytes: number;
+  recordCount: number;
+}) {
   await db.update(backupJobs).set({
     status: "completed",
-    r2ObjectKey: result.objectKey,
+    r2ObjectKey: result.r2ObjectKey,
+    manifestKey: result.manifestKey,
     fileSizeBytes: result.fileSizeBytes,
     recordCount: result.recordCount,
     completedAt: new Date(),
@@ -133,12 +188,28 @@ async function failJob(id: string, errorMessage: string) {
   }).where(eq(backupJobs.id, id));
 }
 
+async function uploadMultipleFiles(folder: string, files: { name: string; data: any }[]): Promise<{ totalBytes: number; keys: string[] }> {
+  let totalBytes = 0;
+  const keys: string[] = [];
+
+  for (const file of files) {
+    const json = JSON.stringify(file.data, null, 2);
+    const buf = Buffer.from(json, "utf-8");
+    const key = `${folder}${file.name}`;
+    console.log(`[BACKUP] Uploading ${key} (${buf.byteLength} bytes)`);
+    await uploadToR2(key, buf);
+    totalBytes += buf.byteLength;
+    keys.push(key);
+  }
+
+  return { totalBytes, keys };
+}
+
 export async function runFullBackup(triggerType: "manual" | "scheduled" = "manual"): Promise<BackupJob> {
   const job = await createJobRecord({ backupType: "full", triggerType });
   console.log(`[BACKUP] Starting full backup (job ${job.id})`);
 
   try {
-    console.log(`[BACKUP] Creating JSON snapshot...`);
     const [
       allEvents, allSponsors, allAttendees, allMeetings,
       allInfoRequests, allEmailTemplates, recentEmailLogs,
@@ -170,11 +241,33 @@ export async function runFullBackup(triggerType: "manual" | "scheduled" = "manua
     const settings = configRows.find((r) => r.key === "settings")?.value ?? null;
     const branding = configRows.find((r) => r.key === "branding")?.value ?? null;
 
-    const payload = {
+    const folder = buildFolderPrefix("full");
+
+    const recordCounts: Record<string, number> = {
+      events: allEvents.length,
+      sponsors: allSponsors.length,
+      attendees: allAttendees.length,
+      meetings: allMeetings.length,
+      informationRequests: allInfoRequests.length,
+      emailTemplates: allEmailTemplates.length,
+      emailLogs: recentEmailLogs.length,
+      packageTemplates: allPackageTemplates.length,
+      deliverableTemplateItems: allDeliverableTemplateItems.length,
+      agreementDeliverables: allDeliverables.length,
+      agreementDeliverableRegistrants: allRegistrants.length,
+      agreementDeliverableSpeakers: allSpeakers.length,
+      agreementDeliverableReminders: allDeliverableReminders.length,
+      deliverableLinks: allDeliverableLinks.length,
+      deliverableSocialEntries: allSocialEntries.length,
+      sponsorUsers: allSponsorUsers.length,
+      fileAssets: allFileAssets.length,
+    };
+
+    const databasePayload = {
       meta: {
         backupType: "full",
         generatedAt: new Date().toISOString(),
-        version: "1",
+        schemaVersion: CURRENT_SCHEMA_VERSION,
         jobId: job.id,
       },
       settings,
@@ -193,25 +286,52 @@ export async function runFullBackup(triggerType: "manual" | "scheduled" = "manua
       agreementDeliverableRegistrants: allRegistrants,
       agreementDeliverableSpeakers: allSpeakers,
       agreementDeliverableReminders: allDeliverableReminders,
-      fileAssets: allFileAssets,
       deliverableLinks: allDeliverableLinks,
       deliverableSocialEntries: allSocialEntries,
     };
 
-    const json = JSON.stringify(payload, null, 2);
-    const buf = Buffer.from(json, "utf-8");
-    const objectKey = buildObjectKey("full");
+    const fileMetadataPayload = {
+      meta: {
+        backupType: "full_file_metadata",
+        generatedAt: new Date().toISOString(),
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        jobId: job.id,
+      },
+      fileAssets: allFileAssets,
+    };
 
-    console.log(`[BACKUP] Uploading to R2...`);
-    await uploadBackupToR2(objectKey, buf);
+    const dataFiles = [
+      `${folder}database.json`,
+      `${folder}file-metadata.json`,
+    ];
 
-    const recordCount =
-      allEvents.length + allSponsors.length + allAttendees.length +
-      allMeetings.length + allInfoRequests.length + allDeliverables.length +
-      allFileAssets.length;
+    const manifest: BackupManifest = {
+      backup_type: "full_system",
+      scope: "global",
+      schema_version: CURRENT_SCHEMA_VERSION,
+      created_at: new Date().toISOString(),
+      job_id: job.id,
+      data_files: dataFiles,
+      record_counts: recordCounts,
+    };
 
-    await completeJob(job.id, { objectKey, fileSizeBytes: buf.byteLength, recordCount });
-    console.log(`[BACKUP] Full backup completed: ${objectKey} (${buf.byteLength} bytes, ${recordCount} records)`);
+    const { totalBytes } = await uploadMultipleFiles(folder, [
+      { name: "database.json", data: databasePayload },
+      { name: "file-metadata.json", data: fileMetadataPayload },
+      { name: "manifest.json", data: manifest },
+    ]);
+
+    const totalRecords = Object.values(recordCounts).reduce((a, b) => a + b, 0);
+    const manifestKey = `${folder}manifest.json`;
+
+    await completeJob(job.id, {
+      r2ObjectKey: `${folder}database.json`,
+      manifestKey,
+      fileSizeBytes: totalBytes,
+      recordCount: totalRecords,
+    });
+
+    console.log(`[BACKUP] Full backup completed: ${folder} (${totalBytes} bytes, ${totalRecords} records)`);
 
     const [updated] = await db.select().from(backupJobs).where(eq(backupJobs.id, job.id));
     return updated;
@@ -228,17 +348,16 @@ export async function runEventBackup(eventId: string, triggerType: "manual" | "s
   const [eventRow] = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
   if (!eventRow) throw new Error(`Event ${eventId} not found`);
 
+  const eventCode = eventRow.slug ?? eventRow.id;
   const job = await createJobRecord({
     backupType: "event",
     triggerType,
     eventId,
-    eventCode: eventRow.slug ?? eventRow.id,
+    eventCode,
   });
-  const eventCode = eventRow.slug ?? eventRow.id;
   console.log(`[BACKUP] Starting event backup for ${eventCode} (job ${job.id})`);
 
   try {
-    console.log(`[BACKUP] Creating JSON snapshot for event ${eventCode}...`);
     const [
       eventAttendees, eventMeetings, eventInfoRequests,
       eventDeliverables, eventFileAssets, eventDeliverableReminders,
@@ -261,13 +380,26 @@ export async function runEventBackup(eventId: string, triggerType: "manual" | "s
       ? await db.select().from(sponsors).then((rows) => rows.filter((s) => sponsorIdSet.has(s.id)))
       : [];
 
-    const payload = {
+    const folder = buildFolderPrefix("event", eventCode);
+
+    const recordCounts: Record<string, number> = {
+      events: 1,
+      sponsors: allSponsors.length,
+      attendees: eventAttendees.length,
+      meetings: eventMeetings.length,
+      informationRequests: eventInfoRequests.length,
+      agreementDeliverables: eventDeliverables.length,
+      agreementDeliverableReminders: eventDeliverableReminders.length,
+      fileAssets: eventFileAssets.length,
+    };
+
+    const eventPayload = {
       meta: {
         backupType: "event",
         eventId,
         eventCode,
         generatedAt: new Date().toISOString(),
-        version: "1",
+        schemaVersion: CURRENT_SCHEMA_VERSION,
         jobId: job.id,
       },
       event: eventRow,
@@ -280,19 +412,35 @@ export async function runEventBackup(eventId: string, triggerType: "manual" | "s
       fileAssets: eventFileAssets,
     };
 
-    const json = JSON.stringify(payload, null, 2);
-    const buf = Buffer.from(json, "utf-8");
-    const objectKey = buildObjectKey("event", eventCode);
+    const dataFiles = [`${folder}event.json`];
 
-    console.log(`[BACKUP] Uploading event backup to R2...`);
-    await uploadBackupToR2(objectKey, buf);
+    const manifest: BackupManifest = {
+      backup_type: "event",
+      scope: "event",
+      schema_version: CURRENT_SCHEMA_VERSION,
+      created_at: new Date().toISOString(),
+      job_id: job.id,
+      event_code: eventCode,
+      data_files: dataFiles,
+      record_counts: recordCounts,
+    };
 
-    const recordCount =
-      eventAttendees.length + eventMeetings.length + eventInfoRequests.length +
-      eventDeliverables.length + eventFileAssets.length;
+    const { totalBytes } = await uploadMultipleFiles(folder, [
+      { name: "event.json", data: eventPayload },
+      { name: "manifest.json", data: manifest },
+    ]);
 
-    await completeJob(job.id, { objectKey, fileSizeBytes: buf.byteLength, recordCount });
-    console.log(`[BACKUP] Event backup completed: ${objectKey} (${buf.byteLength} bytes)`);
+    const totalRecords = Object.values(recordCounts).reduce((a, b) => a + b, 0);
+    const manifestKey = `${folder}manifest.json`;
+
+    await completeJob(job.id, {
+      r2ObjectKey: `${folder}event.json`,
+      manifestKey,
+      fileSizeBytes: totalBytes,
+      recordCount: totalRecords,
+    });
+
+    console.log(`[BACKUP] Event backup completed: ${folder} (${totalBytes} bytes)`);
 
     const [updated] = await db.select().from(backupJobs).where(eq(backupJobs.id, job.id));
     return updated;
@@ -328,7 +476,6 @@ export async function runSponsorEventBackup(sponsorId: string, eventId: string, 
   console.log(`[BACKUP] Starting sponsor backup for ${sponsorSlug}/${eventCode} (job ${job.id})`);
 
   try {
-    console.log(`[BACKUP] Creating JSON snapshot for sponsor ${sponsorSlug}...`);
     const [
       sponsorMeetings, sponsorInfoRequests, sponsorDeliverables,
       sponsorFileAssets, sponsorSponsorUsers, sponsorDeliverableReminders,
@@ -356,7 +503,23 @@ export async function runSponsorEventBackup(sponsorId: string, eventId: string, 
         ])
       : [[], [], [], []];
 
-    const payload = {
+    const folder = buildFolderPrefix("sponsor_event", eventCode, sponsorSlug);
+
+    const recordCounts: Record<string, number> = {
+      sponsors: 1,
+      sponsorUsers: sponsorSponsorUsers.length,
+      meetings: sponsorMeetings.length,
+      informationRequests: sponsorInfoRequests.length,
+      agreementDeliverables: sponsorDeliverables.length,
+      agreementDeliverableRegistrants: allRegistrants.length,
+      agreementDeliverableSpeakers: allSpeakers.length,
+      agreementDeliverableReminders: sponsorDeliverableReminders.length,
+      deliverableLinks: allLinks.length,
+      deliverableSocialEntries: allSocial.length,
+      fileAssets: sponsorFileAssets.length,
+    };
+
+    const sponsorPayload = {
       meta: {
         backupType: "sponsor_event",
         sponsorId,
@@ -364,7 +527,7 @@ export async function runSponsorEventBackup(sponsorId: string, eventId: string, 
         eventId,
         eventCode,
         generatedAt: new Date().toISOString(),
-        version: "1",
+        schemaVersion: CURRENT_SCHEMA_VERSION,
         jobId: job.id,
       },
       sponsor: sponsorRow,
@@ -381,19 +544,36 @@ export async function runSponsorEventBackup(sponsorId: string, eventId: string, 
       fileAssets: sponsorFileAssets,
     };
 
-    const json = JSON.stringify(payload, null, 2);
-    const buf = Buffer.from(json, "utf-8");
-    const objectKey = buildObjectKey("sponsor_event", eventCode, sponsorSlug);
+    const dataFiles = [`${folder}sponsor.json`];
 
-    console.log(`[BACKUP] Uploading sponsor backup to R2...`);
-    await uploadBackupToR2(objectKey, buf);
+    const manifest: BackupManifest = {
+      backup_type: "sponsor_event",
+      scope: "sponsor_event",
+      schema_version: CURRENT_SCHEMA_VERSION,
+      created_at: new Date().toISOString(),
+      job_id: job.id,
+      event_code: eventCode,
+      sponsor_slug: sponsorSlug,
+      data_files: dataFiles,
+      record_counts: recordCounts,
+    };
 
-    const recordCount =
-      sponsorMeetings.length + sponsorInfoRequests.length +
-      sponsorDeliverables.length + sponsorFileAssets.length;
+    const { totalBytes } = await uploadMultipleFiles(folder, [
+      { name: "sponsor.json", data: sponsorPayload },
+      { name: "manifest.json", data: manifest },
+    ]);
 
-    await completeJob(job.id, { objectKey, fileSizeBytes: buf.byteLength, recordCount });
-    console.log(`[BACKUP] Sponsor backup completed: ${objectKey} (${buf.byteLength} bytes)`);
+    const totalRecords = Object.values(recordCounts).reduce((a, b) => a + b, 0);
+    const manifestKey = `${folder}manifest.json`;
+
+    await completeJob(job.id, {
+      r2ObjectKey: `${folder}sponsor.json`,
+      manifestKey,
+      fileSizeBytes: totalBytes,
+      recordCount: totalRecords,
+    });
+
+    console.log(`[BACKUP] Sponsor backup completed: ${folder} (${totalBytes} bytes)`);
 
     const [updated] = await db.select().from(backupJobs).where(eq(backupJobs.id, job.id));
     return updated;
@@ -408,6 +588,11 @@ export async function runSponsorEventBackup(sponsorId: string, eventId: string, 
 
 export async function listBackupJobs(limit = 100): Promise<BackupJob[]> {
   return db.select().from(backupJobs).orderBy(desc(backupJobs.createdAt)).limit(limit);
+}
+
+export async function getBackupJob(jobId: string): Promise<BackupJob | null> {
+  const [job] = await db.select().from(backupJobs).where(eq(backupJobs.id, jobId)).limit(1);
+  return job ?? null;
 }
 
 export async function getBackupObjectKey(jobId: string): Promise<string> {

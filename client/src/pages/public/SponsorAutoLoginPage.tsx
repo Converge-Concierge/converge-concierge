@@ -19,7 +19,8 @@ export default function SponsorAutoLoginPage() {
           return;
         }
         localStorage.setItem("sponsor_token", token);
-        nav("/sponsor/dashboard");
+        const seen = localStorage.getItem(`onboarding_seen_${token}`);
+        nav(seen ? "/sponsor/dashboard" : "/sponsor/onboarding");
       })
       .catch(() => setError("Network error. Please try again."));
   }, [token]);

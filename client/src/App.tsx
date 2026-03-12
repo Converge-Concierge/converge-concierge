@@ -14,6 +14,7 @@ import EventPage from "@/pages/public/EventPage";
 import SponsorLoginPage from "@/pages/public/SponsorLoginPage";
 import SponsorDashboardPage from "@/pages/public/SponsorDashboardPage";
 import SponsorAutoLoginPage from "@/pages/public/SponsorAutoLoginPage";
+import SponsorOnboardingPage from "@/pages/public/SponsorOnboardingPage";
 import SponsorProfilePage from "@/pages/public/SponsorProfilePage";
 import WelcomePage from "@/pages/public/WelcomePage";
 import ResetPasswordPage from "@/pages/public/ResetPasswordPage";
@@ -65,6 +66,7 @@ function Router() {
       <Route path="/event/:slug/welcome" component={WelcomePage} />
       <Route path="/event/:slug" component={EventPage} />
       <Route path="/sponsor/login" component={SponsorLoginPage} />
+      <Route path="/sponsor/onboarding" component={SponsorOnboardingPage} />
       <Route path="/sponsor/dashboard" component={SponsorDashboardPage} />
       <Route path="/sponsor-access/:token" component={SponsorAutoLoginPage} />
       <Route path="/event/:slug/book/:rest*">

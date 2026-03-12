@@ -59,9 +59,9 @@ const TEMPLATES = [
   },
   {
     templateKey: "sponsor_magic_login",
-    displayName: "Sponsor Magic Login",
-    subjectTemplate: "Your dashboard access link for {{event_name}}",
-    description: "Magic login email sent to sponsor users. Contains a one-time secure link to access the sponsor dashboard.",
+    displayName: "Sponsor Dashboard Welcome",
+    subjectTemplate: "Welcome to the {{event_name}} Sponsor Dashboard",
+    description: "Welcome email sent to sponsors when their dashboard access link is created. Guides them through the short setup process.",
     variables: [
       "sponsor_user_name",
       "sponsor_name",

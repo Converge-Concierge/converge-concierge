@@ -137,7 +137,11 @@ export default function SponsorDashboardPage() {
   const qc = useQueryClient();
 
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    const t = localStorage.getItem("sponsor_initial_tab");
+    if (t) { localStorage.removeItem("sponsor_initial_tab"); return t; }
+    return "overview";
+  });
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [linkInput, setLinkInput] = useState("");
   const notifSectionRef = useRef<HTMLDivElement>(null);

@@ -12,6 +12,7 @@ import type { BackupJob } from "@shared/schema";
 import { eq, and, desc, gte } from "drizzle-orm";
 import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { sanitizeSlug } from "./services/fileStorageService";
+import { getDemoStoragePrefix } from "./services/demoModeService";
 import { randomUUID } from "crypto";
 import { Readable } from "stream";
 
@@ -135,9 +136,10 @@ function nowTimestamp(): string {
 
 function buildFolderPrefix(type: "full" | "event" | "sponsor_event", eventCode?: string, sponsorSlug?: string): string {
   const ts = nowTimestamp();
-  if (type === "full") return `backups/full/${ts}/`;
-  if (type === "event") return `backups/events/${eventCode}/${ts}/`;
-  return `backups/sponsors/${eventCode}/${sponsorSlug}/${ts}/`;
+  const prefix = getDemoStoragePrefix();
+  if (type === "full") return `${prefix}backups/full/${ts}/`;
+  if (type === "event") return `${prefix}backups/events/${eventCode}/${ts}/`;
+  return `${prefix}backups/sponsors/${eventCode}/${sponsorSlug}/${ts}/`;
 }
 
 async function createJobRecord(params: {

@@ -24,6 +24,17 @@ const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 // ── Core send function ────────────────────────────────────────────────────────
 
 export async function sendEmail(to, subject, htmlContent, attachments) {
+  const isDemo = (process.env.APP_ENV || "").toLowerCase() === "demo";
+  if (isDemo) {
+    const domain = (to.split("@")[1] || "").toLowerCase();
+    const allowedDomains = ["convergeevents.com", "converge.com"];
+    if (!allowedDomains.some((d) => domain === d)) {
+      console.log(`[DEMO] Email suppressed — to: ${to}, subject: "${subject}" (external recipient blocked in demo mode)`);
+      return { messageId: `demo-suppressed-${Date.now()}` };
+    }
+    console.log(`[DEMO] Email allowed to internal domain — to: ${to}`);
+  }
+
   const email = {
     sender: {
       name: "Converge Concierge",

@@ -3,7 +3,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Settings2, Clock, Globe, Calendar, Edit2, Save, X,
-  Lock, Info, CheckCircle2, XCircle,
+  Lock, Info, CheckCircle2, XCircle, FlaskConical, RotateCcw,
+  Mail, Database, Shield, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -320,6 +321,135 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
+
+      <DemoToolsSection />
     </motion.div>
+  );
+}
+
+function DemoToolsSection() {
+  const { toast } = useToast();
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  const { data: envData } = useQuery<{ env: string; isDemoMode: boolean }>({
+    queryKey: ["/api/app-env"],
+  });
+
+  const { data: demoStatus } = useQuery<{
+    isDemoMode: boolean;
+    counts: { events: number; sponsors: number; attendees: number; meetings: number; informationRequests: number };
+  }>({
+    queryKey: ["/api/admin/demo/status"],
+    enabled: !!envData?.isDemoMode,
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/demo/reset"),
+    onSuccess: () => {
+      toast({ title: "Demo Reset Complete", description: "All data has been reset with fresh demo data." });
+      setConfirmReset(false);
+      queryClient.invalidateQueries();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Reset Failed", description: err.message, variant: "destructive" });
+      setConfirmReset(false);
+    },
+  });
+
+  if (!envData?.isDemoMode) return null;
+
+  return (
+    <div data-testid="demo-tools-section" className="bg-amber-50 dark:bg-amber-950/30 rounded-2xl border-2 border-amber-300 dark:border-amber-700 shadow-sm p-6 space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+          <FlaskConical className="h-5 w-5 text-amber-600" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-foreground">Demo Environment Tools</h3>
+          <p className="text-xs text-muted-foreground">Manage the demo environment for sales presentations</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex items-center gap-2 text-sm">
+          <Mail className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="text-muted-foreground">Emails suppressed to external recipients</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <Shield className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="text-muted-foreground">Webhooks blocked in demo mode</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <Database className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="text-muted-foreground">Storage uses demo/ prefix</span>
+        </div>
+      </div>
+
+      {demoStatus && (
+        <div className="bg-white dark:bg-background rounded-lg border border-border/60 p-4">
+          <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Current Demo Data</p>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {Object.entries(demoStatus.counts).map(([key, value]) => (
+              <div key={key} data-testid={`demo-count-${key}`} className="text-center">
+                <p className="text-lg font-bold text-foreground">{value}</p>
+                <p className="text-xs text-muted-foreground capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white dark:bg-background rounded-lg border border-border/60 p-4 space-y-3">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Quick Login Credentials</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+          <div className="flex items-center gap-2">
+            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-mono text-xs">admin@converge.com / password</span>
+            <span className="text-xs text-muted-foreground">(Admin)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-mono text-xs">manager@converge.com / password</span>
+            <span className="text-xs text-muted-foreground">(Manager)</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 pt-2">
+        {!confirmReset ? (
+          <Button
+            data-testid="button-demo-reset"
+            variant="outline"
+            className="border-amber-400 text-amber-700 hover:bg-amber-100"
+            onClick={() => setConfirmReset(true)}
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Reset Demo Environment
+          </Button>
+        ) : (
+          <div className="flex items-center gap-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3">
+            <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
+            <span className="text-sm text-red-700 dark:text-red-300">This will delete all data and reseed fresh demo data. Are you sure?</span>
+            <Button
+              data-testid="button-confirm-demo-reset"
+              variant="destructive"
+              size="sm"
+              disabled={resetMutation.isPending}
+              onClick={() => resetMutation.mutate()}
+            >
+              {resetMutation.isPending ? "Resetting..." : "Yes, Reset"}
+            </Button>
+            <Button
+              data-testid="button-cancel-demo-reset"
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfirmReset(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

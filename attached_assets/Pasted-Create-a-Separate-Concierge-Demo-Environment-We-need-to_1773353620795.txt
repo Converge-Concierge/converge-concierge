@@ -1,0 +1,600 @@
+Create a Separate Concierge Demo Environment
+
+We need to create a separate demo instance of Concierge for sales and product demonstrations.
+
+This should not be a live clone of production and should not share production data directly.
+
+The demo environment should be:
+
+its own deployed instance
+
+its own database
+
+its own storage area
+
+its own environment settings
+
+seeded with realistic demo data
+
+easy to reset
+
+kept current with production code updates
+
+The purpose is to let us demo Concierge safely without exposing real sponsor, attendee, meeting, or deliverable data.
+
+Primary Goal
+
+Create a demo environment for Concierge that:
+
+runs the same application code as production
+
+uses a separate demo database
+
+uses separate demo storage paths / backup paths
+
+contains seeded fake data for realistic demos
+
+can be reset quickly
+
+does not send real emails or affect production
+
+stays aligned with production feature updates
+
+1. Create a Separate Demo Deployment
+
+Create a separate deployed instance of Concierge.
+
+Recommended URLs
+
+Production:
+
+concierge.convergeevents.com
+
+Demo:
+
+demo.concierge.convergeevents.com
+
+If needed temporarily, the demo can live on a Replit deployment URL, but the long-term goal should be a separate branded demo domain.
+
+Important
+
+The demo environment must be its own deployment, not just a route inside production.
+
+2. Create Separate Environment Configuration
+
+Add environment separation with a variable such as:
+
+APP_ENV=demo
+
+Supported values:
+
+production
+
+demo
+
+development
+
+Use this flag to control demo-only behavior.
+
+3. Create a Separate Demo Database
+
+The demo environment must use its own database, not the production database.
+
+Required behavior
+
+Create a separate database/schema/instance for demo.
+
+Examples:
+
+separate Postgres database
+
+separate Neon branch
+
+separate Supabase project
+
+separate DB connection string
+
+Add a separate environment variable such as:
+
+DATABASE_URL_DEMO
+
+Or simply use the demo deployment’s own DATABASE_URL.
+
+Important
+
+There must be no risk that demo activity writes to production tables.
+
+4. Create Separate Demo Storage Prefix
+
+The demo environment should not mix files/backups with production objects.
+
+If using the same Cloudflare R2 bucket, create a dedicated prefix such as:
+
+demo/
+
+Examples:
+
+demo/events/DEMOFRC2026/...
+demo/backups/...
+demo/reports/...
+
+If preferred later, use a separate R2 bucket for demo, but a dedicated prefix is fine for now.
+
+Required behavior
+
+When APP_ENV=demo, all file/object paths should use the demo prefix.
+
+Do not write demo assets into production paths.
+
+5. Add Demo Mode Safety Rules
+
+When APP_ENV=demo, enable demo-safe behavior.
+
+Required demo restrictions
+
+Disable or reroute:
+
+real sponsor emails
+
+real attendee emails
+
+real password reset emails
+
+real dashboard access emails
+
+destructive production backup/restore actions
+
+any external integrations that could affect real systems
+
+Demo-safe alternatives
+
+Instead:
+
+log emails to Email Logs only
+
+optionally allow sending test emails only to approved internal addresses
+
+show visible demo warnings before destructive actions
+
+6. Add a Visible Demo Environment Banner
+
+When APP_ENV=demo, show a prominent but clean banner in the admin UI and sponsor dashboard.
+
+Example:
+
+DEMO ENVIRONMENT
+This environment contains sample data and resets regularly.
+
+This prevents confusion during demos and internal testing.
+
+7. Seed Realistic Demo Data
+
+Build a reusable demo seed process that creates realistic Concierge data.
+
+This should include:
+
+A. Demo Events
+
+Create 2–3 demo events, such as:
+
+Demo Fintech Risk & Compliance Forum 2026
+
+Demo U.S. BankTech Summit 2026
+
+Demo Treasury Leadership Summit 2026
+
+Each should include:
+
+event dates
+
+branding
+
+logo
+
+location
+
+event color scheme
+
+topic categories
+
+B. Demo Sponsors
+
+Create 10–15 realistic fake sponsors.
+
+Examples:
+
+Acme AI
+
+FuturePay
+
+CoreNova
+
+RiskPilot
+
+CloudTreasury
+
+EngageCX
+
+BankGuard
+
+Summit RegTech
+
+Each sponsor should have:
+
+company description
+
+sponsor level
+
+main contact
+
+sponsor reps
+
+dashboard users
+
+deliverables
+
+meetings / info requests where appropriate
+
+C. Demo Attendees
+
+Create 50–100 realistic fake attendees.
+
+Examples:
+
+CIO, CRO, Head of Payments, VP Compliance, CTO
+
+companies like Midwest Bank, Horizon Credit Union, Summit Financial, First Trust Bank
+
+Each attendee should have:
+
+title
+
+company
+
+attendee type
+
+interest categories
+
+email (fake)
+
+phone (fake)
+
+event registration
+
+D. Demo Meetings
+
+Seed sample meeting activity:
+
+scheduled meetings
+
+completed meetings
+
+online meetings
+
+onsite meetings
+
+pending requests
+
+This makes sponsor dashboards and reports look real.
+
+E. Demo Info Requests
+
+Seed multiple info requests across sponsors and events.
+
+F. Demo Deliverables
+
+Pre-generate sponsor deliverables for all seeded sponsors, including:
+
+some completed
+
+some in progress
+
+some awaiting sponsor input
+
+This is especially important for Deliverables demos.
+
+G. Demo Reports
+
+If reports are generated from live data, ensure demo data is rich enough for:
+
+sponsorship performance report
+
+dashboard metrics
+
+backup/export examples
+
+8. Create a Demo Seed Script
+
+Create a dedicated seed script such as:
+
+scripts/seedDemoEnvironment.ts
+
+This script should:
+
+clear demo data safely
+
+create demo events
+
+create demo sponsors
+
+assign sponsorship levels
+
+auto-generate sponsor deliverables from templates
+
+create attendees
+
+create meetings
+
+create info requests
+
+create demo dashboard users
+
+optionally create demo file metadata
+
+This script must be idempotent or safely resettable.
+
+9. Add a Demo Reset Tool
+
+Create an admin-only tool for resetting the demo environment.
+
+Location
+
+Admin → Settings or Admin → Demo Tools
+
+Button
+Reset Demo Environment
+Required behavior
+
+When clicked:
+
+delete/reset demo data
+
+rerun demo seed script
+
+rebuild sponsor dashboards
+
+rebuild demo deliverables
+
+preserve demo environment settings
+
+Confirmation
+
+Show a confirmation modal:
+
+Reset the demo environment?
+This will clear current demo activity and reseed the environment with fresh sample data.
+
+Buttons:
+
+Cancel
+
+Reset Demo
+
+This should only exist in demo mode.
+
+10. Add Optional Nightly Demo Reset
+
+Optionally add a scheduled job to reset demo nightly.
+
+Recommended if demo data will get messy from internal use.
+
+Example:
+
+nightly at 2:00 AM local or UTC
+
+reset demo DB
+
+reseed demo data
+
+This keeps the demo environment fresh.
+
+11. Keep Production Code in Sync With Demo
+
+The demo environment should use the same codebase as production.
+
+Recommended workflow
+
+same repository
+
+same main branch or release branch
+
+separate deployment target
+
+separate env vars
+
+This ensures that new features built for production also appear in demo after deployment.
+
+Important
+
+Do not fork the codebase just for demo.
+
+One codebase, multiple environments.
+
+12. Sync Only Safe Configuration From Production
+
+The demo instance should not mirror production data, but it can safely mirror certain non-sensitive configuration.
+
+Allowed sync candidates:
+
+sponsorship templates
+
+event branding structures
+
+role definitions
+
+deliverables configuration
+
+email templates if scrubbed/safe
+
+UI settings
+
+category/topic taxonomies
+
+Do not sync:
+
+real sponsor contacts
+
+real attendee emails
+
+real meeting data
+
+real dashboard tokens
+
+real info requests
+
+13. Add Demo-Specific Fake Email Rules
+
+All demo users should use fake or internal-safe email addresses.
+
+Examples:
+
+jane.smith.demo@convergeevents.com
+
+acme-owner.demo@convergeevents.com
+
+If email sending is enabled in demo, restrict it to:
+
+internal allowlist
+or
+
+test-only recipients
+
+Otherwise, keep emails logged but not sent externally.
+
+14. Add Demo Login Helpers
+
+To make sales demos easy, add quick demo access options.
+
+Examples:
+
+Login as Sponsor Owner
+
+Login as Attendee
+
+Login as Admin
+
+This can be a hidden demo-only admin tool or seeded accounts documented for internal use.
+
+Do not enable this in production.
+
+15. Add Demo Scenario Data
+
+Create demo sponsors/events that support common sales stories.
+
+Examples:
+
+sponsor with lots of meetings
+
+sponsor with lots of info requests
+
+sponsor with incomplete deliverables
+
+sponsor with multi-event participation
+
+attendee-heavy event
+
+event with strong reporting data
+
+This helps sales show different use cases intentionally.
+
+16. Add Demo Data Labels
+
+Where useful, clearly label demo entities so they are recognizable internally.
+
+Examples:
+
+prefix some events with “Demo”
+
+use obviously fictional companies
+
+use clearly safe email domains
+
+But keep them realistic enough for a strong sales presentation.
+
+17. Add Demo Backup / Restore Separation
+
+If backups exist in demo mode, they must write to demo backup paths only.
+
+Example:
+
+demo/backups/full/
+demo/backups/events/
+demo/backups/sponsors/
+
+Never mix demo backups with production backups.
+
+18. Add Demo Mode Protection for Integrations
+
+If Concierge integrates with:
+
+Eventzilla
+
+Nunify
+
+email providers
+
+external APIs
+
+ensure demo mode either:
+
+disables these integrations
+
+uses test/sandbox endpoints
+
+logs actions only
+
+This prevents accidental external impact.
+
+19. Add Internal Documentation Block
+
+Create a simple internal note or admin page section explaining:
+
+what demo environment is
+
+how it resets
+
+what data is fake
+
+who can use it
+
+how to reset it
+
+how to log in as demo users
+
+This helps Julie, Dan, and future team members use it consistently.
+
+20. Acceptance Criteria
+
+This implementation is complete when:
+
+Concierge has a separate demo deployment
+
+demo uses its own database
+
+demo uses separate file/object prefixes
+
+demo contains seeded fake sponsors, attendees, meetings, deliverables, and info requests
+
+demo can be reset safely
+
+demo does not send real external communications
+
+demo remains aligned with production code updates
+
+production and demo data are fully separated
+
+21. Success Standard
+
+After this implementation, Concierge should have a reliable sales/demo environment that:
+
+looks realistic
+
+is safe to use
+
+is easy to reset
+
+stays current with the product
+
+never risks exposing or altering production data
+
+That is the standard this demo environment should meet.

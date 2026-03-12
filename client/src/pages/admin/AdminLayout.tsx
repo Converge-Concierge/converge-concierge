@@ -23,6 +23,7 @@ import SponsorAgreementDetailPage from "./SponsorAgreementDetailPage";
 import SponsorDashboardsAdminPage from "./SponsorDashboardsAdminPage";
 import SponsorshipTemplatesPage from "./SponsorshipTemplatesPage";
 import DataBackupPage from "./DataBackupPage";
+import DemoBanner from "@/components/DemoBanner";
 
 function AccessDenied() {
   return (
@@ -68,6 +69,7 @@ export default function AdminLayout() {
       <div className="flex h-screen w-full bg-[#f8fafc]">
         <AppSidebar isAdmin={isAdmin} />
         <div className="flex flex-col flex-1 min-w-0">
+          <DemoBanner />
           <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border/40 bg-white/80 backdrop-blur-md px-6 sticky top-0 z-10">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="-ml-2 hover:bg-muted" />

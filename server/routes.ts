@@ -13,6 +13,10 @@ import { generateUploadUrl, generateDownloadUrl, buildObjectKeyFlat } from "./se
 import { runFullBackup, runEventBackup, runSponsorEventBackup, listBackupJobs, getBackupJob, getBackupObjectKey, streamR2Object } from "./backup-service";
 import { validateBackup, getBackupDetail } from "./services/restoreValidationService";
 import { dryRunRestore } from "./services/restoreImportService";
+import { isDemoMode, getAppEnv } from "./services/demoModeService";
+import { db } from "./db";
+import { events as eventsTable, sponsors as sponsorsTable, attendees as attendeesTable, meetings as meetingsTable, informationRequests as informationRequestsTable } from "@shared/schema";
+import { sql } from "drizzle-orm";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -1591,6 +1595,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(publicBranding);
   });
 
+  app.get("/api/app-env", (_req, res) => {
+    res.json({ env: getAppEnv(), isDemoMode: isDemoMode() });
+  });
+
   app.get("/api/branding", requireAuth, async (_req, res) => {
     res.json(await storage.getBranding());
   });
@@ -1800,6 +1808,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ── Eventzilla Webhook — Zapier registration intake ────────────────────────
   app.post("/api/integrations/eventzilla/registration", async (req, res) => {
+    if (isDemoMode()) {
+      console.log("[DEMO] Eventzilla webhook blocked in demo mode");
+      return res.status(200).json({ ok: true, message: "Demo mode — webhook logged but not processed" });
+    }
     const secret = process.env.EVENTZILLA_WEBHOOK_SECRET;
     const incomingSecret = req.headers["x-converge-secret"];
 
@@ -4564,6 +4576,55 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       console.log(`[RESTORE] Dry-run result for ${job.id}: valid=${result.valid}, conflicts=${result.conflicts.length}`);
       res.json(result);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/admin/demo/status", requireAdmin, async (_req, res) => {
+    if (!isDemoMode()) {
+      return res.status(404).json({ message: "Not in demo mode" });
+    }
+    const [eventCount] = await db.select({ count: sql<number>`count(*)` }).from(eventsTable);
+    const [sponsorCount] = await db.select({ count: sql<number>`count(*)` }).from(sponsorsTable);
+    const [attendeeCount] = await db.select({ count: sql<number>`count(*)` }).from(attendeesTable);
+    const [meetingCount] = await db.select({ count: sql<number>`count(*)` }).from(meetingsTable);
+    const [irCount] = await db.select({ count: sql<number>`count(*)` }).from(informationRequestsTable);
+    res.json({
+      isDemoMode: true,
+      counts: {
+        events: Number(eventCount.count),
+        sponsors: Number(sponsorCount.count),
+        attendees: Number(attendeeCount.count),
+        meetings: Number(meetingCount.count),
+        informationRequests: Number(irCount.count),
+      },
+    });
+  });
+
+  let demoResetInProgress = false;
+  app.post("/api/admin/demo/reset", requireAdmin, async (_req, res) => {
+    if (!isDemoMode()) {
+      return res.status(403).json({ message: "Demo reset is only available in demo mode" });
+    }
+    if (demoResetInProgress) {
+      return res.status(409).json({ message: "A demo reset is already in progress. Please wait." });
+    }
+    try {
+      demoResetInProgress = true;
+      console.log("[DEMO] Admin initiated demo environment reset...");
+      const { execSync } = await import("child_process");
+      execSync("npx tsx scripts/seedDemoEnvironment.ts --force", {
+        cwd: process.cwd(),
+        stdio: "pipe",
+        timeout: 60000,
+        env: { ...process.env, APP_ENV: "demo" },
+      });
+      console.log("[DEMO] Demo environment reset complete.");
+      res.json({ ok: true, message: "Demo environment has been reset with fresh data." });
+    } catch (err: any) {
+      console.error("[DEMO] Reset failed:", err.message);
+      res.status(500).json({ message: "Demo reset failed. Please check the server logs." });
+    } finally {
+      demoResetInProgress = false;
+    }
   });
 
   return httpServer;

@@ -66,6 +66,7 @@ The platform utilizes a modern web stack with a distinct separation between fron
 - **Branding**: Public endpoint for displaying `appLogoUrl` and `appName`.
 - **Legal**: Dedicated pages for Terms of Use and Privacy Policy.
 - **Eventzilla Webhook**: Integration for attendee registration events.
+- **Demo Environment**: Controlled by `APP_ENV=demo` env var. Features: email suppression (external emails logged but not sent; internal @convergeevents.com/@converge.com allowed), R2 storage prefix `demo/` for isolation, Eventzilla webhook blocking, admin demo tools (Settings page → Demo Environment Tools section with reset button, data counts, quick login credentials). Demo seed script at `scripts/seedDemoEnvironment.ts` creates 3 events, 12 sponsors, 80 attendees, meetings, info requests, and deliverables. Demo mode service at `server/services/demoModeService.ts`. Demo banner component at `client/src/components/DemoBanner.tsx` shows amber bar when in demo mode. API: `GET /api/app-env` (public), `GET /api/admin/demo/status` (admin), `POST /api/admin/demo/reset` (admin).
 
 ## External Dependencies
 

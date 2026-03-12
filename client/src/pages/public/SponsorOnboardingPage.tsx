@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Hexagon, CheckCircle2, Circle, Upload, FileText, Users, Tag,
+  Hexagon, CheckCircle2, Square, Upload, FileText, Users, Tag,
   ClipboardList, ArrowRight, Package, CalendarDays, LogOut, Info,
   Key, ExternalLink, FileDown,
 } from "lucide-react";
@@ -193,8 +193,11 @@ export default function SponsorOnboardingPage() {
 
         <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">Sponsor Setup Checklist</h2>
-            <span className="text-xs text-muted-foreground" data-testid="text-setup-progress">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Sponsor Setup Checklist</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">You'll complete these items on the next page inside your Deliverables dashboard.</p>
+            </div>
+            <span className="text-xs text-muted-foreground shrink-0 ml-4" data-testid="text-setup-progress">
               {completedCount} of {SETUP_STEPS.length} complete
             </span>
           </div>
@@ -212,13 +215,13 @@ export default function SponsorOnboardingPage() {
                     {done ? (
                       <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                     ) : (
-                      <Circle className="h-5 w-5 text-muted-foreground/50" />
+                      <Square className="h-4 w-4 text-muted-foreground/40 mt-0.5" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <p className={cn("text-sm font-medium", done && "text-emerald-700 dark:text-emerald-400")}>{step.label}</p>
+                      <p className={cn("text-sm font-medium", done ? "text-emerald-700 dark:text-emerald-400" : "text-foreground")}>{step.label}</p>
                       {done && (
                         <Badge variant="outline" className="text-[10px] text-emerald-700 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 py-0">
                           Done
@@ -335,10 +338,10 @@ export default function SponsorOnboardingPage() {
             onClick={handleStartSetup}
             data-testid="button-start-setup"
           >
-            Start Setup
+            Continue to Setup
             <ArrowRight className="h-4 w-4" />
           </Button>
-          <p className="text-xs text-muted-foreground">You can return to this checklist anytime from your dashboard.</p>
+          <p className="text-xs text-muted-foreground">Your checklist will be waiting for you on the Deliverables page.</p>
         </div>
       </main>
     </div>

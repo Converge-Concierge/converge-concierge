@@ -1,0 +1,254 @@
+Fix Meeting Introductions Actions, Split Logo Deliverables, and Improve Sponsor Welcome Checklist UI
+
+We need to make three corrections to the current sponsor-facing experience:
+
+In Meetings & Introductions, remove the View Details buttons because these are status-only items and will be handled separately by email.
+
+In Marketing & Branding, split Company Logo on Website and Event Signage into separate status rows.
+
+On the Sponsor Welcome Page, replace the current radio-button style checklist because it is confusing and implies interaction. Use clearer check-state visuals and explicitly tell sponsors that the actual data entry happens on the next page.
+
+These are refinement fixes. Keep the existing onboarding flow and Deliverables structure, but correct the UX.
+
+1. Meetings & Introductions — Remove “View Details” Buttons
+Problem
+
+The Meeting Introduction List (Pre-Event) and Email Introduction List (Post-Event) rows currently show a View Details button. Based on the intended workflow, this is misleading because these are not interactive sponsor-entry sections. They are status-only items and the actual content will be emailed separately.
+
+Required behavior
+
+For these two deliverables:
+
+Meeting Introduction List (Pre-Event)
+
+Email Introduction List (Post-Event)
+
+remove the View Details button from the sponsor-facing dashboard.
+
+Sponsor-facing display
+
+These should render as simple status rows only, showing:
+
+Deliverable name
+
+Status badge
+
+Due timing
+
+No CTA button.
+
+Example
+Meeting Introduction List (Pre-Event)
+[In Progress]   Due before event
+
+Email Introduction List (Post-Event)
+[In Progress]   After event
+Admin side
+
+If admin needs details, keep that capability on the admin side only. Do not expose it to the sponsor dashboard.
+
+Acceptance
+
+The sponsor-facing Deliverables tab should no longer show View Details for these two items.
+
+2. Split “Company Logo on Website and Event Signage” Into Separate Rows
+Problem
+
+The Deliverables tab still shows one combined item:
+
+Company Logo on Website and Event Signage
+
+This should have already been split.
+
+Required behavior
+
+Replace the combined item with two separate status rows:
+
+Company Logo on Website
+
+Company Logo on Signage
+
+Optional third row
+
+If already supported in the system, also include:
+
+Company Profile in Event App
+
+This is acceptable as a separate row in the same section if already implemented.
+
+Sponsor-facing display
+
+Each should be a separate Converge-managed deliverable row with:
+
+Deliverable name
+
+Status badge
+
+Due timing
+
+no sponsor action button unless specifically required later
+
+Example
+Company Logo on Website
+[In Progress]   Due before event
+
+Company Logo on Signage
+[In Progress]   Due before event
+Template / agreement model
+
+Update:
+
+Sponsorship Templates
+
+live sponsor agreement instances
+
+sponsor-facing rendering
+
+So the combined version no longer appears.
+
+Acceptance
+
+The sponsor dashboard should no longer display Company Logo on Website and Event Signage as one row.
+
+3. Sponsor Welcome Page — Replace Radio Buttons / Circles
+Problem
+
+The current welcome page checklist uses empty circles/radio-button style UI. This is confusing because:
+
+it looks clickable
+
+it suggests the sponsor can check items there
+
+it implies the checklist itself is interactive on the onboarding page
+
+That is not the intended behavior.
+
+Required behavior
+
+Replace the radio-button / empty-circle UI with a clearer non-interactive checklist style.
+
+Recommended replacement
+
+Use one of these styles:
+
+Preferred
+
+Simple checklist icons that are neutral and non-interactive:
+
+outline check-square
+
+muted checklist icon
+
+simple numbered checklist
+
+Do not use radio buttons.
+
+Example visual concept
+[ ] Upload Company Logo
+[ ] Add Company Description
+[ ] Add Sponsor Representatives
+[ ] Select Company Categories
+[ ] Register Your Team
+
+Where the icon is clearly display-only, not a form control.
+
+If there is completion state later, use:
+
+gray check icon for incomplete
+
+green check icon for complete
+
+But do not use actual form radio controls.
+
+4. Sponsor Welcome Page — Clarify That Data Entry Happens on the Next Page
+Problem
+
+The current welcome page suggests setup items, but it is not clear enough that the sponsor will enter the information on the next page, not on the onboarding screen itself.
+
+Required behavior
+
+Add a short line of explanatory text above or below the checklist.
+
+Recommended text:
+
+On the next page, you’ll be able to enter this information directly in your sponsor dashboard.
+
+Alternative wording:
+
+You’ll complete these items on the next page inside your Deliverables dashboard.
+
+This should be short, clear, and placed near the checklist.
+
+5. Update the Welcome Page CTA
+
+The onboarding page should reinforce that the checklist is a preview.
+
+CTA button
+
+Keep or update the main CTA to something like:
+
+Continue to Setup
+
+Go to Deliverables
+
+Start Setup
+
+Recommended:
+
+Continue to Setup
+
+This makes it obvious the next page is where the sponsor actually enters information.
+
+6. Optional Small UX Improvement — Make Checklist Items Non-Clickable
+
+If the checklist rows currently behave like clickable items, disable that behavior on the welcome page.
+
+The onboarding screen should be:
+
+explanatory
+
+directional
+
+lightweight
+
+The actual interaction belongs in the Deliverables tab.
+
+7. Keep Completion Count, But Make It Read-Only
+
+If the welcome page shows:
+
+0 of 5 complete
+
+that is fine, but it should clearly be informational only.
+
+Do not pair it with interactive radio controls.
+
+8. Acceptance Criteria
+
+This update is complete when:
+
+Meeting Introduction List (Pre-Event) has no sponsor-facing View Details button
+
+Email Introduction List (Post-Event) has no sponsor-facing View Details button
+
+Company Logo on Website and Company Logo on Signage appear as separate deliverable rows
+
+the welcome page no longer uses radio-button style controls
+
+the welcome page clearly explains that the information will be entered on the next page
+
+the CTA continues the sponsor into the actual setup flow
+
+9. Success Standard
+
+After this update:
+
+the Deliverables tab feels more accurate and less confusing
+
+status-only rows do not pretend to be interactive
+
+the welcome page feels like a clean onboarding introduction, not a broken form
+
+sponsors understand that the actual setup work happens in the next step
+
+That is the standard this refinement should meet.

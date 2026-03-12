@@ -1279,7 +1279,7 @@ function DeliverableRow({
   const dueLabel = dueLabelStr(deliverable);
   const hasHelp = !!(deliverable.helpTitle || deliverable.helpText);
 
-  const hasEditor = hasStructured || (inputType !== "none" && canEdit);
+  const hasEditor = (hasStructured && st !== "legacy_intro") || (inputType !== "none" && canEdit);
   const hasExpandableContent = hasEditor || deliverable.deliverableDescription || deliverable.sponsorFacingNote || hasHelp;
 
   const n = deliverable.deliverableName.toLowerCase();

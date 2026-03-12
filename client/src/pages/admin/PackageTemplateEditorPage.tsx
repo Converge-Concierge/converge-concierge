@@ -43,6 +43,10 @@ type ItemForm = {
   dueTiming: string;
   dueOffsetDays: string;
   displayOrder: string;
+  sponsorFacingNote: string;
+  helpTitle: string;
+  helpText: string;
+  helpLink: string;
 };
 
 const emptyItemForm = (): ItemForm => ({
@@ -59,6 +63,10 @@ const emptyItemForm = (): ItemForm => ({
   dueTiming: "not_applicable",
   dueOffsetDays: "",
   displayOrder: "0",
+  sponsorFacingNote: "",
+  helpTitle: "",
+  helpText: "",
+  helpLink: "",
 });
 
 const FULFILLMENT_LABELS: Record<string, string> = {
@@ -191,6 +199,10 @@ export default function PackageTemplateEditorPage() {
       dueTiming: item.dueTiming,
       dueOffsetDays: item.dueOffsetDays !== null ? String(item.dueOffsetDays) : "",
       displayOrder: String(item.displayOrder),
+      sponsorFacingNote: item.sponsorFacingNote ?? "",
+      helpTitle: item.helpTitle ?? "",
+      helpText: item.helpText ?? "",
+      helpLink: item.helpLink ?? "",
     });
     setShowItemDialog(true);
   }
@@ -211,6 +223,10 @@ export default function PackageTemplateEditorPage() {
       dueOffsetDays: itemForm.dueOffsetDays ? parseInt(itemForm.dueOffsetDays) : null,
       displayOrder: parseInt(itemForm.displayOrder) || 0,
       isActive: true,
+      sponsorFacingNote: itemForm.sponsorFacingNote.trim() || null,
+      helpTitle: itemForm.helpTitle.trim() || null,
+      helpText: itemForm.helpText.trim() || null,
+      helpLink: itemForm.helpLink.trim() || null,
     };
     if (editingItem) {
       updateItem.mutate({ itemId: editingItem.id, data: payload });
@@ -495,6 +511,25 @@ export default function PackageTemplateEditorPage() {
               <div className="space-y-1.5">
                 <Label htmlFor="item-order">Display Order</Label>
                 <Input id="item-order" type="number" min="0" value={itemForm.displayOrder} onChange={(e) => setItemForm((f) => ({ ...f, displayOrder: e.target.value }))} />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label htmlFor="item-sponsor-note">Sponsor-Facing Note</Label>
+                <Textarea id="item-sponsor-note" rows={2} value={itemForm.sponsorFacingNote} onChange={(e) => setItemForm((f) => ({ ...f, sponsorFacingNote: e.target.value }))} placeholder="Visible to sponsor on their dashboard..." data-testid="input-item-sponsor-note" />
+              </div>
+              <div className="col-span-2 pt-2 border-t border-border/50">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Sponsor Help Content</p>
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label htmlFor="item-help-title">Help Title</Label>
+                <Input id="item-help-title" value={itemForm.helpTitle} onChange={(e) => setItemForm((f) => ({ ...f, helpTitle: e.target.value }))} placeholder="e.g. How to submit your logo files" data-testid="input-item-help-title" />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label htmlFor="item-help-text">Help Text</Label>
+                <Textarea id="item-help-text" rows={3} value={itemForm.helpText} onChange={(e) => setItemForm((f) => ({ ...f, helpText: e.target.value }))} placeholder="Instructions or guidance shown to the sponsor..." data-testid="input-item-help-text" />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label htmlFor="item-help-link">Help Link</Label>
+                <Input id="item-help-link" value={itemForm.helpLink} onChange={(e) => setItemForm((f) => ({ ...f, helpLink: e.target.value }))} placeholder="https://example.com/help-guide" data-testid="input-item-help-link" />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4 pt-1">

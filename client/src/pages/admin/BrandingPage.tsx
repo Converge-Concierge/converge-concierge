@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Palette, Globe, Edit2, Save, X, Lock, ImagePlus, Eye,
-  Monitor, LayoutDashboard, CheckCircle,
+  Monitor, LayoutDashboard, CheckCircle, Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -372,6 +372,39 @@ export default function BrandingPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Internal Notification Email ─────────────────────────────────────────── */}
+      <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6 space-y-5">
+        <SectionHeader
+          icon={Mail}
+          title="Internal Notification Email"
+          desc="Email address that receives internal notifications when sponsors submit deliverables."
+        />
+
+        {editing ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="br-notif-email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notification Email</Label>
+            <Input
+              id="br-notif-email"
+              type="email"
+              value={b.internalNotificationEmail}
+              onChange={(e) => set("internalNotificationEmail", e.target.value)}
+              placeholder="admin@example.com"
+              data-testid="input-notification-email"
+            />
+            <p className="text-xs text-muted-foreground">
+              When a sponsor submits registrants, speakers, or other deliverable data, a notification will be sent to this address.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between py-2.5">
+            <span className="text-sm text-muted-foreground">Notification Email</span>
+            <span className="text-sm font-semibold text-foreground">
+              {b.internalNotificationEmail || <span className="italic text-muted-foreground font-normal">Not set</span>}
+            </span>
           </div>
         )}
       </div>

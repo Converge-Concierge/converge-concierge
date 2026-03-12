@@ -32,6 +32,12 @@ import {
 } from "@shared/schema";
 import type { Sponsor, Event } from "@shared/schema";
 
+type EnrichedDeliverable = AgreementDeliverable & {
+  registrantCount: number;
+  speakerCount: number;
+  socialEntryCount: number;
+};
+
 type EditDeliverableForm = {
   deliverableName: string;
   deliverableDescription: string;
@@ -46,6 +52,9 @@ type EditDeliverableForm = {
   ownerType: string;
   fulfillmentType: string;
   category: string;
+  helpTitle: string;
+  helpText: string;
+  helpLink: string;
 };
 
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode }> = {
@@ -430,6 +439,9 @@ function emptyEditForm(d?: AgreementDeliverable): EditDeliverableForm {
     ownerType: d?.ownerType ?? "Converge",
     fulfillmentType: d?.fulfillmentType ?? "status_only",
     category: d?.category ?? "Company Profile",
+    helpTitle: d?.helpTitle ?? "",
+    helpText: d?.helpText ?? "",
+    helpLink: d?.helpLink ?? "",
   };
 }
 
@@ -443,7 +455,7 @@ export default function SponsorAgreementDetailPage() {
   const [editForm, setEditForm] = useState<EditDeliverableForm>(emptyEditForm());
   const [customForm, setCustomForm] = useState<EditDeliverableForm>(emptyEditForm());
 
-  const { data: deliverables = [], isLoading } = useQuery<AgreementDeliverable[]>({
+  const { data: deliverables = [], isLoading } = useQuery<EnrichedDeliverable[]>({
     queryKey: ["/api/agreement/deliverables/detail", sponsorId, eventId],
     queryFn: async () => {
       const res = await fetch(`/api/agreement/deliverables/detail?sponsorId=${sponsorId}&eventId=${eventId}`, { credentials: "include" });
@@ -554,7 +566,7 @@ export default function SponsorAgreementDetailPage() {
   const byCategory = DELIVERABLE_CATEGORIES.reduce((acc, cat) => {
     acc[cat] = deliverables.filter((d) => d.category === cat).sort((a, b) => a.displayOrder - b.displayOrder);
     return acc;
-  }, {} as Record<string, AgreementDeliverable[]>);
+  }, {} as Record<string, EnrichedDeliverable[]>);
 
   if (isLoading) {
     return (
@@ -804,6 +816,33 @@ export default function SponsorAgreementDetailPage() {
                                 {d.deliverableDescription && (
                                   <p className="text-[11px] text-muted-foreground truncate">{d.deliverableDescription}</p>
                                 )}
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  {d.speakerCount > 0 && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 font-medium whitespace-nowrap" data-testid={`badge-speakers-${d.id}`}>
+                                      {d.speakerCount} speaker{d.speakerCount !== 1 ? "s" : ""}
+                                    </span>
+                                  )}
+                                  {d.registrantCount > 0 && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 font-medium whitespace-nowrap" data-testid={`badge-registrants-${d.id}`}>
+                                      {d.registrantCount} registrant{d.registrantCount !== 1 ? "s" : ""}
+                                      {d.quantity != null && d.quantity > 0 ? ` / ${d.quantity}` : ""}
+                                    </span>
+                                  )}
+                                  {d.socialEntryCount > 0 && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-medium whitespace-nowrap" data-testid={`badge-social-${d.id}`}>
+                                      {d.socialEntryCount} social entr{d.socialEntryCount !== 1 ? "ies" : "y"}
+                                    </span>
+                                  )}
+                                  {d.deliverableName.toLowerCase().includes("attendee") && d.deliverableName.toLowerCase().includes("contact") && (
+                                    <Button
+                                      variant="ghost" size="sm" className="h-5 px-1.5 text-[10px] text-blue-700 hover:text-blue-800 hover:bg-blue-50 gap-0.5"
+                                      onClick={(e) => { e.stopPropagation(); window.open(`/api/agreement/deliverables/${d.id}/attendee-csv`, "_blank"); }}
+                                      data-testid={`button-csv-download-${d.id}`}
+                                    >
+                                      <Download className="h-2.5 w-2.5" /> CSV
+                                    </Button>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-4 py-2.5 text-center text-muted-foreground text-xs">
                                 {d.quantity !== null ? `${d.quantity}${d.quantityUnit ? ` ${d.quantityUnit}` : ""}` : "—"}
@@ -1057,6 +1096,21 @@ export default function SponsorAgreementDetailPage() {
                 <Switch id="edit-visible" checked={editForm.sponsorVisible} onCheckedChange={(v) => setEditForm((f) => ({ ...f, sponsorVisible: v }))} />
                 <Label htmlFor="edit-visible" className="cursor-pointer">Visible to sponsor</Label>
               </div>
+              <div className="col-span-2 pt-2 border-t border-border/50">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Sponsor Help Content</p>
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Help Title</Label>
+                <Input value={editForm.helpTitle} onChange={(e) => setEditForm((f) => ({ ...f, helpTitle: e.target.value }))} placeholder="e.g. How to submit your logo files" data-testid="input-edit-help-title" />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Help Text</Label>
+                <Textarea rows={2} value={editForm.helpText} onChange={(e) => setEditForm((f) => ({ ...f, helpText: e.target.value }))} placeholder="Instructions shown to sponsor..." data-testid="input-edit-help-text" />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Help Link</Label>
+                <Input value={editForm.helpLink} onChange={(e) => setEditForm((f) => ({ ...f, helpLink: e.target.value }))} placeholder="https://example.com/guide" data-testid="input-edit-help-link" />
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -1076,6 +1130,9 @@ export default function SponsorAgreementDetailPage() {
                   internalNote: editForm.internalNote.trim() || null,
                   sponsorVisible: editForm.sponsorVisible,
                   ownerType: editForm.ownerType,
+                  helpTitle: editForm.helpTitle.trim() || null,
+                  helpText: editForm.helpText.trim() || null,
+                  helpLink: editForm.helpLink.trim() || null,
                 },
               })}
               disabled={!editForm.deliverableName.trim() || updateDeliverable.isPending}

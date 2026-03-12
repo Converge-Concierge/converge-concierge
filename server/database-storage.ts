@@ -1127,6 +1127,7 @@ export class DatabaseStorage implements IStorage {
         dueOffsetDays: item.dueOffsetDays,
         displayOrder: item.displayOrder,
         isActive: item.isActive,
+        sponsorFacingNote: item.sponsorFacingNote,
         helpTitle: item.helpTitle,
         helpText: item.helpText,
         helpLink: item.helpLink,

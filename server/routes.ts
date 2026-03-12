@@ -2915,7 +2915,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const { sponsorId, eventId } = req.query;
       if (!sponsorId || !eventId) return res.status(400).json({ message: "sponsorId and eventId required" });
       const deliverables = await storage.listAgreementDeliverables({ sponsorId: String(sponsorId), eventId: String(eventId) });
-      res.json(deliverables);
+      const enriched = await Promise.all(deliverables.map(async (d) => {
+        const registrants = await storage.listDeliverableRegistrants(d.id);
+        const speakers = await storage.listDeliverableSpeakers(d.id);
+        const socialEntries = await storage.listDeliverableSocialEntries(d.id);
+        return {
+          ...d,
+          registrantCount: registrants.length,
+          speakerCount: speakers.length,
+          socialEntryCount: socialEntries.length,
+        };
+      }));
+      res.json(enriched);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
@@ -2995,7 +3006,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         fulfillmentType: templateItem.fulfillmentType,
         dueTiming: templateItem.dueTiming,
         dueDate: null,
-        sponsorFacingNote: null,
+        sponsorFacingNote: templateItem.sponsorFacingNote ?? null,
         internalNote: null,
         isOverridden: false,
         helpTitle: templateItem.helpTitle,

@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Attendee, InsertAttendee, Event } from "@shared/schema";
+import { Loader2 } from "lucide-react";
 
-const CATEGORY_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "— Not Set —" },
-  { value: "PRACTITIONER", label: "Practitioner" },
-  { value: "GOVERNMENT_NONPROFIT", label: "Government / Non-Profit" },
-  { value: "SOLUTION_PROVIDER", label: "Solution Provider" },
-];
+interface CategoryDef {
+  id: string;
+  key: string;
+  label: string;
+  isActive: boolean;
+}
 
 interface AttendeeFormModalProps {
   isOpen: boolean;
@@ -22,6 +24,25 @@ interface AttendeeFormModalProps {
 }
 
 export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events, readOnly }: AttendeeFormModalProps) {
+  const categoriesQuery = useQuery<CategoryDef[]>({
+    queryKey: ["/api/admin/attendee-categories"],
+    enabled: isOpen,
+  });
+
+  const categoryOptions = (() => {
+    const cats = categoriesQuery.data ?? [];
+    const activeCats = cats.filter(c => c.isActive);
+    const options: { value: string; label: string }[] = [{ value: "", label: "— Not Set —" }];
+    for (const c of activeCats) {
+      options.push({ value: c.key, label: c.label });
+    }
+    if (attendee?.attendeeCategory && !options.some(o => o.value === attendee.attendeeCategory)) {
+      const savedCat = cats.find(c => c.key === attendee.attendeeCategory);
+      options.push({ value: attendee.attendeeCategory, label: savedCat?.label ?? attendee.attendeeCategory });
+    }
+    return options;
+  })();
+
   const [formData, setFormData] = useState<Partial<InsertAttendee>>({
     firstName: "",
     lastName: "",
@@ -194,10 +215,17 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
               {readOnly ? (
                 <Input
                   id="at-category"
-                  value={CATEGORY_OPTIONS.find(o => o.value === (formData.attendeeCategory || ""))?.label || formData.attendeeCategory || "— Not Set —"}
+                  value={categoryOptions.find(o => o.value === (formData.attendeeCategory || ""))?.label || formData.attendeeCategory || "— Not Set —"}
                   readOnly
                   data-testid="input-attendee-category-readonly"
                 />
+              ) : categoriesQuery.isLoading ? (
+                <div className="flex items-center gap-2 h-9 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading categories...
+                </div>
+              ) : categoriesQuery.isError ? (
+                <div className="text-sm text-destructive">Unable to load attendee categories.</div>
               ) : (
                 <select
                   id="at-category"
@@ -206,11 +234,15 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
                   onChange={(e) => setFormData({ ...formData, attendeeCategory: e.target.value })}
                   data-testid="select-attendee-category"
                 >
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
+                  {categoryOptions.length <= 1 ? (
+                    <option value="" disabled>No attendee categories configured</option>
+                  ) : (
+                    categoryOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))
+                  )}
                 </select>
               )}
               <p className="text-[10px] text-muted-foreground">Used for attendee segmentation, matchmaking, and reporting.</p>

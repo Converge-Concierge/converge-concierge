@@ -1,0 +1,248 @@
+Fix Attendee Category Dropdown Not Loading New Category Rules / Categories
+
+We added the new Attendee Category Rules system, but the new categories are not appearing in the Attendee Category dropdown in the Edit Attendee form.
+
+In the screenshot, the dropdown only shows:
+
+— Not Set —
+
+This means the edit form is not correctly loading the configured attendee categories from the new category management system.
+
+We need to connect the Attendee Categories configuration to the attendee edit UI.
+
+Primary Goal
+
+Ensure that:
+
+admin-defined attendee categories appear in the Edit Attendee dropdown
+
+the dropdown is populated from the new category configuration source
+
+admins can select and save those categories
+
+the dropdown stays in sync with future category additions/changes
+
+1. Verify the Edit Attendee Form Is Pulling From the New Category Source
+Problem
+
+The Edit Attendee form is likely still using:
+
+a hard-coded category list
+
+an old enum source
+
+or no source at all
+
+instead of the new Attendee Categories configuration.
+
+Required behavior
+
+The Category dropdown in Edit Attendee must load its options from the new admin-managed Attendee Categories dataset.
+
+It should not rely on a stale hard-coded list.
+
+2. Populate the Dropdown With Active Categories
+
+The dropdown should display all active attendee categories defined in the new configuration area.
+
+Examples:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+Banker
+
+If a category is inactive, it should not appear as a selectable option for new edits unless needed for legacy handling.
+
+3. Use Category Labels in the UI, Keys in the Saved Value
+Required behavior
+
+The dropdown should show friendly labels, for example:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+Banker
+
+But save the normalized internal key, for example:
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+BANKER
+
+This is the same pattern we need everywhere else.
+
+4. Add a Loading State / Empty State
+
+If categories are still loading asynchronously, the dropdown should not silently appear empty.
+
+Required behavior
+
+Add one of these states:
+
+While loading
+Loading categories...
+If no categories exist
+No attendee categories configured
+
+Do not default to only — Not Set — with no explanation.
+
+That makes the issue look like the form is broken.
+
+5. Keep “Not Set” as an Option, But Not the Only Option
+
+The dropdown can keep:
+
+— Not Set —
+
+as the blank/default option.
+
+But it should then list all configured categories underneath it.
+
+Example:
+
+— Not Set —
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+Banker
+
+6. Verify Category API / Query / Hook Used by the Form
+
+Audit how the Edit Attendee modal fetches category options.
+
+Likely issues:
+
+wrong query endpoint
+
+wrong permissions
+
+using old enum list
+
+categories not returned because only rules were built, not category records
+
+categories not filtered correctly
+
+only active categories should be returned, but none are marked active
+
+Required action
+
+Trace the actual data path from:
+
+Attendee Categories config
+to
+
+Edit Attendee form dropdown
+
+and fix the connection.
+
+7. Confirm Category Records Actually Exist
+
+The dropdown may be empty because only rules were created, but no actual category definitions exist.
+
+Required check
+
+Verify that the system contains real category records such as:
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+BANKER
+
+If not, seed/create them.
+
+The rules engine cannot populate the dropdown unless category definitions exist.
+
+8. Ensure Category Definitions and Rules Are Separate but Linked
+
+The Edit Attendee dropdown should pull from category definitions, not directly from the rules table.
+
+The structure should be:
+
+Category definitions
+
+internal key
+
+label
+
+active/inactive
+
+Category rules
+
+category key
+
+source field
+
+match type
+
+search term
+
+priority
+
+The dropdown should use the first one.
+
+9. Support Existing Saved Categories
+
+If an attendee already has a saved category, the dropdown should display that selected value correctly.
+
+Example:
+If attendee category is BANKER, the dropdown should show:
+
+Banker
+
+This is important for editing existing records.
+
+10. Improve Error Handling if Categories Fail to Load
+
+If the categories API/query fails, log it and show a useful UI fallback.
+
+Example:
+
+Unable to load attendee categories.
+
+This is better than showing only a blank dropdown.
+
+11. Verify Permissions Do Not Block Category Loading
+
+If category configuration is behind permissions, make sure users who can edit attendees can still read category definitions.
+
+They do not necessarily need permission to manage categories, but they must be able to load the category list.
+
+This may be why the dropdown is blank for some users.
+
+12. Acceptance Criteria
+
+This is complete when:
+
+the Edit Attendee Category dropdown shows configured attendee categories
+
+categories come from the new category definition source
+
+— Not Set — remains optional but is not the only choice
+
+admins can select a category and save successfully
+
+the dropdown stays in sync with new category additions such as Banker
+
+13. Success Standard
+
+After this fix, the Edit Attendee form should reflect the new Attendee Categories system properly, and admins should be able to assign any configured category directly from the dropdown.
+
+That is the standard this fix should meet.

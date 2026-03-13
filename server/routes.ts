@@ -1981,7 +1981,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // ── Attendee Category Definitions CRUD ───────────────────────────────────
-  app.get("/api/admin/attendee-categories", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/attendee-categories", requireAuth, async (_req, res) => {
     const categories = await storage.getAttendeeCategories();
     res.json(categories);
   });

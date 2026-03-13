@@ -23,6 +23,7 @@ import SponsorAgreementDetailPage from "./SponsorAgreementDetailPage";
 import SponsorDashboardsAdminPage from "./SponsorDashboardsAdminPage";
 import SponsorshipTemplatesPage from "./SponsorshipTemplatesPage";
 import DataBackupPage from "./DataBackupPage";
+import CategoryRulesPage from "./CategoryRulesPage";
 import DemoBanner from "@/components/DemoBanner";
 
 function AccessDenied() {
@@ -110,6 +111,7 @@ export default function AdminLayout() {
               <Route path="/admin/reports" component={ReportsPage} />
               <Route path="/admin/users" component={() => isAdmin ? <UsersPage /> : <AccessDenied />} />
               <Route path="/admin/branding" component={BrandingPage} />
+              <Route path="/admin/category-rules" component={CategoryRulesPage} />
               <Route path="/admin/settings" component={SettingsPage} />
               <Route path="/admin/information-requests" component={InformationRequestsPage} />
               <Route path="/admin/email-center" component={EmailCenterPage} />

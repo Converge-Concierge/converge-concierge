@@ -19,6 +19,7 @@ import {
   LayoutGrid,
   Package,
   Shield,
+  Tags,
 } from "lucide-react";
 import {
   Sidebar,
@@ -57,6 +58,7 @@ const reportingItems = [
 ];
 
 const configItems = [
+  { title: "Category Rules", url: "/admin/category-rules", icon: Tags },
   { title: "Branding", url: "/admin/branding", icon: Palette },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];

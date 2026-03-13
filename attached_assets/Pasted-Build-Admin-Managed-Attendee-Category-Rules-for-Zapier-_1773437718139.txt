@@ -1,0 +1,424 @@
+Build Admin-Managed Attendee Category Rules for Zapier Imports
+
+We need to improve attendee category determination so it is no longer dependent on a small fixed set of hard-coded ticket type matches.
+
+Problem
+
+Eventzilla ticket type names can vary by:
+
+event
+
+timing
+
+pricing period
+
+registration wording
+
+Example from Treasury event:
+
+Banker - "No Risk" Early Registration
+
+We need to identify this attendee as a specific category such as:
+
+BANKER
+
+The current approach of only matching a few hard-coded values is too limited.
+
+Primary Goal
+
+Create a flexible Attendee Category Rules system that allows admins to define category rules that automatically search incoming Zapier/Eventzilla values for keywords or phrases and assign the correct attendee category.
+
+This should support categories like:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+Banker
+
+and future categories without code changes.
+
+1. Add a New Admin Configuration Area
+
+Create a new admin configuration section called:
+
+Attendee Categories
+
+Place it under:
+
+Configuration
+
+This page should allow admins to:
+
+define attendee categories
+
+define matching rules
+
+set priority/order
+
+test rule behavior
+
+view examples
+
+2. Separate Category Definitions From Matching Rules
+
+We need two related concepts:
+
+A. Attendee Categories
+
+These are the normalized categories used across Concierge.
+
+Examples:
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+BANKER
+
+Each category should have:
+
+internal key
+
+display label
+
+description
+
+active/inactive
+
+B. Category Matching Rules
+
+These are the search rules used to assign categories from imported source text.
+
+Each rule should include:
+
+category key
+
+source field to inspect
+
+match type
+
+search term
+
+priority
+
+3. Add Support for Admin-Defined Search Terms
+
+For each category, admins should be able to add one or more keyword/phrase rules.
+
+Example:
+
+Category
+BANKER
+Rules
+
+contains Banker
+
+contains Bank
+
+contains Treasury Banker (optional)
+
+contains Commercial Banker (optional)
+
+Example source value:
+
+Banker - "No Risk" Early Registration
+
+This should match Banker and assign:
+
+BANKER
+4. Support Match Types
+
+Each category rule should support multiple match types.
+
+Required initial match types:
+
+contains
+
+equals
+
+starts with
+
+ends with
+
+Preferred default:
+
+contains
+
+This gives flexibility without overcomplicating the UI.
+
+5. Make Matching Case-Insensitive
+
+All matching should be case-insensitive.
+
+Example:
+
+Banker
+
+banker
+
+BANKER
+
+should all match the same rule.
+
+This is required.
+
+6. Allow Rules to Target Specific Source Fields
+
+Right now the main source field is ticket type from Zapier/Eventzilla.
+
+But we should make the rules system future-proof.
+
+Each rule should specify the source field to inspect, such as:
+
+ticket_type
+
+registration_type
+
+company
+
+title
+
+For now, ticket_type will likely be the primary field.
+
+Example:
+
+Source Field: ticket_type
+Match Type: contains
+Search Term: Banker
+Category: BANKER
+7. Add Rule Priority / Precedence
+
+Sometimes a source value may match more than one rule.
+
+Example:
+
+Practitioner Banker Registration
+
+This could match:
+
+Practitioner
+
+Banker
+
+We need a clear rule precedence system.
+
+Required behavior
+
+Add a priority/order field.
+
+Higher priority rules should win first.
+
+Example:
+
+BANKER priority 10
+
+PRACTITIONER priority 20
+
+Or vice versa, depending on your business logic.
+
+This must be configurable.
+
+8. Add a Rule Evaluation Order
+
+When processing imported attendees:
+
+read source field(s)
+
+evaluate active rules in priority order
+
+first matching rule wins
+
+assign attendee_category
+
+store matched rule reference if helpful
+
+If no rule matches:
+
+assign UNMAPPED
+or leave blank and flag for review
+
+Do not fail silently.
+
+9. Preserve Raw Source Data
+
+Continue storing the original imported value, for example:
+
+ticket_type = Banker - "No Risk" Early Registration
+
+Then separately store:
+
+attendee_category = BANKER
+
+This is important for:
+
+auditability
+
+troubleshooting
+
+rule refinement
+
+10. Add Admin UI for Category Rules
+
+The new Attendee Categories admin page should include:
+
+Categories section
+
+Columns:
+
+Category Label
+
+Internal Key
+
+Status
+
+Rules Count
+
+Actions
+
+Rules section
+
+For a selected category, show rules like:
+
+Source Field
+
+Match Type
+
+Search Term
+
+Priority
+
+Active
+
+Actions
+
+Allow:
+
+add rule
+
+edit rule
+
+delete rule
+
+reorder / reprioritize rule
+
+11. Add a Rule Testing Tool
+
+This is very important.
+
+Add a small admin utility:
+
+Test Category Rule
+
+Admin can enter sample source text, such as:
+
+Banker - "No Risk" Early Registration
+
+Then the system should show:
+
+Matched Category: BANKER
+Matched Rule: contains "Banker"
+
+This will make the rules much easier to maintain.
+
+12. Apply Rules During Zapier Import
+
+During attendee import from Zapier/Eventzilla:
+
+save raw ticket_type
+
+run category rules engine
+
+assign normalized attendee_category
+
+save matched category
+
+This should happen automatically on every attendee import/update.
+
+13. Add a Backfill Tool for Existing Attendees
+
+Once the rule engine is implemented, add an admin action like:
+
+Backfill Attendee Categories
+
+This should:
+
+find attendees with ticket_type present
+
+re-run the category rules
+
+populate/update attendee_category
+
+This is important for old imported records.
+
+14. Add “Unmapped” Visibility
+
+If an attendee does not match any rule, make that visible.
+
+Display:
+
+Unmapped
+
+in the attendee table/detail view instead of a blank dash.
+
+This helps admins identify new ticket type patterns that need rules added.
+
+15. Update Matchmaking to Use the New Categories
+
+Once BANKER and other categories are supported, update matchmaking logic accordingly.
+
+For Treasury events, Banker may be a priority category similar to Practitioner.
+
+This should be configurable later, but first we need the rule engine to classify these attendees correctly.
+
+16. Add Friendly Labels
+
+In UI, show labels like:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+Banker
+
+Internally, use normalized keys like:
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+BANKER
+
+17. Acceptance Criteria
+
+This is complete when:
+
+admins can define attendee categories
+
+admins can define keyword/phrase search rules
+
+ticket types like Banker - "No Risk" Early Registration are automatically mapped to BANKER
+
+matching is case-insensitive
+
+priority rules are respected
+
+Zapier imports use the rule engine automatically
+
+existing attendees can be backfilled
+
+unmapped records are visible for admin cleanup
+
+18. Success Standard
+
+After this update, Concierge should no longer rely on brittle hard-coded attendee category logic. Instead, admins should be able to maintain attendee classification rules directly in the platform as registration naming evolves.
+
+That is the standard this feature should meet.

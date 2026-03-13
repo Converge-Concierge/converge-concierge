@@ -1,8 +1,9 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS, INVITATION_QUOTAS, MAX_INVITATIONS_PER_ATTENDEE } from "@shared/schema";
-import { normalizeAttendeeCategory, rankAttendees, categoryLabel } from "./services/matchmakingService";
+import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, insertAttendeeCategorySchema, insertCategoryMatchingRuleSchema, DEFAULT_ATTENDEE_CATEGORIES, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS, INVITATION_QUOTAS, MAX_INVITATIONS_PER_ATTENDEE } from "@shared/schema";
+import { normalizeAttendeeCategory, rankAttendees, categoryLabel, setCategoryWeights, setCategoryLabels } from "./services/matchmakingService";
+import { evaluateRules, testRulesAgainstValue } from "./services/categoryRuleEngine";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
 import { sendEmail, sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee, sendInternalDeliverableNotification as sendInternalNotification } from "../services/emailService";
@@ -172,6 +173,33 @@ async function seedUsers() {
   if (existing.length > 0) return;
   await storage.createUser({ name: "Admin User", email: "admin@converge.com", password: "password", role: "admin", isActive: true });
   await storage.createUser({ name: "Manager User", email: "manager@converge.com", password: "password", role: "manager", isActive: true });
+}
+
+async function deriveAttendeeCategory(sourceData: Record<string, string | null | undefined>): Promise<string | null> {
+  const rules = await storage.getCategoryMatchingRules();
+  const categories = await storage.getAttendeeCategories();
+  const activeRules = rules.filter(r => r.isActive);
+  if (activeRules.length > 0) {
+    const result = evaluateRules(sourceData, activeRules, categories);
+    if (result.categoryKey) return result.categoryKey;
+  }
+  return normalizeAttendeeCategory((sourceData.ticket_type ?? sourceData.ticketType ?? "") as string);
+}
+
+async function refreshCategoryConfig() {
+  try {
+    const cats = await storage.getAttendeeCategories();
+    if (cats.length > 0) {
+      const weights: Record<string, number> = {};
+      const labels: Record<string, string> = {};
+      for (const c of cats) {
+        weights[c.key] = c.matchWeight;
+        labels[c.key] = c.label;
+      }
+      setCategoryWeights(weights);
+      setCategoryLabels(labels);
+    }
+  } catch {}
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -1878,11 +1906,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const fullName = [firstName, lastName].filter(Boolean).join(" ");
     const existing = await storage.getAttendeeByEmailAndEvent(String(email).toLowerCase(), event.id);
 
-    const normalizedCategory = normalizeAttendeeCategory(rawTicket);
-    if (rawTicket && normalizedCategory) {
-      console.log(`[eventzilla] ticket type "${rawTicket}" → category ${normalizedCategory}`);
-    } else if (rawTicket && !normalizedCategory) {
-      console.log(`[eventzilla] ⚠ Unmapped attendee ticket type: "${rawTicket}" — category will be null`);
+    let normalizedCategory: string | null = null;
+    if (rawTicket) {
+      normalizedCategory = await deriveAttendeeCategory({
+        ticket_type: rawTicket,
+        company: company ? String(company) : undefined,
+        title: title ? String(title) : undefined,
+      });
+      if (normalizedCategory) {
+        console.log(`[eventzilla] ticket type "${rawTicket}" → category ${normalizedCategory}`);
+      } else {
+        console.log(`[eventzilla] ⚠ Unmapped attendee ticket type: "${rawTicket}" — category will be null`);
+      }
     }
 
     const ticketAndCategory = {
@@ -1945,36 +1980,150 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     return res.status(201).json({ ok: true, action: "created", attendeeId: created.id, eventCode });
   });
 
+  // ── Attendee Category Definitions CRUD ───────────────────────────────────
+  app.get("/api/admin/attendee-categories", requireAdmin, async (_req, res) => {
+    const categories = await storage.getAttendeeCategories();
+    res.json(categories);
+  });
+
+  app.post("/api/admin/attendee-categories", requireAdmin, async (req, res) => {
+    const parsed = insertAttendeeCategorySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    const existing = await storage.getAttendeeCategoryByKey(parsed.data.key);
+    if (existing) return res.status(409).json({ error: `Category key "${parsed.data.key}" already exists` });
+    const created = await storage.createAttendeeCategory(parsed.data);
+    await refreshCategoryConfig();
+    res.status(201).json(created);
+  });
+
+  app.patch("/api/admin/attendee-categories/:id", requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    const updates = req.body;
+    const updated = await storage.updateAttendeeCategory(id, updates);
+    if (!updated) return res.status(404).json({ error: "Category not found" });
+    await refreshCategoryConfig();
+    res.json(updated);
+  });
+
+  app.delete("/api/admin/attendee-categories/:id", requireAdmin, async (req, res) => {
+    const cat = await storage.getAttendeeCategory(req.params.id);
+    if (cat) {
+      const rules = await storage.getCategoryMatchingRules();
+      const dependentRules = rules.filter(r => r.categoryKey === cat.key);
+      if (dependentRules.length > 0) {
+        return res.status(409).json({ error: `Cannot delete: ${dependentRules.length} matching rule(s) reference this category. Delete or reassign them first.` });
+      }
+    }
+    await storage.deleteAttendeeCategory(req.params.id);
+    await refreshCategoryConfig();
+    res.json({ ok: true });
+  });
+
+  // ── Category Matching Rules CRUD ────────────────────────────────────────
+  app.get("/api/admin/category-rules", requireAdmin, async (_req, res) => {
+    const rules = await storage.getCategoryMatchingRules();
+    res.json(rules);
+  });
+
+  app.post("/api/admin/category-rules", requireAdmin, async (req, res) => {
+    const parsed = insertCategoryMatchingRuleSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    const cat = await storage.getAttendeeCategoryByKey(parsed.data.categoryKey);
+    if (!cat) return res.status(400).json({ error: `Category key "${parsed.data.categoryKey}" does not exist` });
+    if (!cat.isActive) return res.status(400).json({ error: `Category "${parsed.data.categoryKey}" is inactive` });
+    const created = await storage.createCategoryMatchingRule(parsed.data);
+    res.status(201).json(created);
+  });
+
+  app.patch("/api/admin/category-rules/:id", requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    if (req.body.categoryKey) {
+      const cat = await storage.getAttendeeCategoryByKey(req.body.categoryKey);
+      if (!cat) return res.status(400).json({ error: `Category key "${req.body.categoryKey}" does not exist` });
+    }
+    const updated = await storage.updateCategoryMatchingRule(id, req.body);
+    if (!updated) return res.status(404).json({ error: "Rule not found" });
+    res.json(updated);
+  });
+
+  app.delete("/api/admin/category-rules/:id", requireAdmin, async (req, res) => {
+    await storage.deleteCategoryMatchingRule(req.params.id);
+    res.json({ ok: true });
+  });
+
+  // ── Test rules against a value ──────────────────────────────────────────
+  app.post("/api/admin/category-rules/test", requireAdmin, async (req, res) => {
+    const { value, sourceField } = req.body;
+    if (!value || typeof value !== "string") return res.status(400).json({ error: "value is required" });
+    const rules = await storage.getCategoryMatchingRules();
+    const categories = await storage.getAttendeeCategories();
+    const results = testRulesAgainstValue(value, sourceField ?? "ticket_type", rules, categories);
+    res.json(results);
+  });
+
+  // ── Seed default categories (idempotent) ────────────────────────────────
+  app.post("/api/admin/attendee-categories/seed-defaults", requireAdmin, async (_req, res) => {
+    const defaults = [
+      { key: "PRACTITIONER", label: "Practitioner", description: "Finance practitioners and industry professionals", sortOrder: 0, matchWeight: 100 },
+      { key: "GOVERNMENT_NONPROFIT", label: "Government / Nonprofit", description: "Government and nonprofit organization representatives", sortOrder: 1, matchWeight: 70 },
+      { key: "SOLUTION_PROVIDER", label: "Solution Provider", description: "Technology and service solution providers", sortOrder: 2, matchWeight: 20 },
+    ];
+    let created = 0;
+    let skipped = 0;
+    for (const def of defaults) {
+      const existing = await storage.getAttendeeCategoryByKey(def.key);
+      if (existing) { skipped++; continue; }
+      await storage.createAttendeeCategory(def);
+      created++;
+    }
+    await refreshCategoryConfig();
+    res.json({ ok: true, created, skipped });
+  });
+
+  // ── Backfill using DB-driven rules ──────────────────────────────────────
   app.post("/api/admin/attendees/backfill-categories", requireAdmin, async (req, res) => {
     const adminUser = (req as any).user?.name ?? "admin";
-    console.log(`[backfill] Category backfill triggered by ${adminUser}`);
+    const forceAll = req.body?.forceAll === true;
+    console.log(`[backfill] Category backfill triggered by ${adminUser}, forceAll=${forceAll}`);
+
     const allAttendees = await storage.getAttendees();
-    const validCategories = new Set(["PRACTITIONER", "GOVERNMENT_NONPROFIT", "SOLUTION_PROVIDER"]);
+    const rules = await storage.getCategoryMatchingRules();
+    const activeRules = rules.filter(r => r.isActive);
+    const categories = await storage.getAttendeeCategories();
+    const validKeys = new Set(categories.map(c => c.key));
+
     let updated = 0;
     let skipped = 0;
     const unmapped: string[] = [];
 
     for (const att of allAttendees) {
-      const hasValidCategory = att.attendeeCategory && validCategories.has(att.attendeeCategory);
-      if (hasValidCategory) {
+      if (!forceAll && att.attendeeCategory && validKeys.has(att.attendeeCategory)) {
         skipped++;
         continue;
       }
 
-      const rawTicket = att.ticketType;
-      if (!rawTicket) {
-        skipped++;
-        continue;
+      const sourceData: Record<string, string> = {};
+      if (att.ticketType) sourceData.ticket_type = att.ticketType;
+      if (att.attendeeCategory) sourceData.attendee_category = att.attendeeCategory;
+      if (att.company) sourceData.company = att.company;
+      if (att.title) sourceData.title = att.title;
+
+      let derived: string | null = null;
+      if (activeRules.length > 0) {
+        const result = evaluateRules(sourceData, activeRules, categories);
+        derived = result.categoryKey;
+      }
+      if (!derived) {
+        derived = normalizeAttendeeCategory(att.ticketType ?? "");
       }
 
-      const derived = normalizeAttendeeCategory(rawTicket);
       if (derived) {
         await storage.updateAttendee(att.id, { attendeeCategory: derived });
         updated++;
-        console.log(`[backfill] ${att.id} ticket="${rawTicket}" → ${derived}`);
+        console.log(`[backfill] ${att.id} → ${derived}`);
       } else {
-        unmapped.push(rawTicket);
-        console.log(`[backfill] ⚠ Unmapped ticket type: "${rawTicket}" for attendee ${att.id}`);
+        if (att.ticketType) unmapped.push(att.ticketType);
+        skipped++;
       }
     }
 
@@ -2037,15 +2186,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (csvTicketType) csvCategoryFields.ticketType = String(csvTicketType);
       if (csvCategory) {
         const upper = String(csvCategory).toUpperCase().replace(/[\s/]+/g, "_").replace(/-/g, "_");
-        if (["PRACTITIONER", "GOVERNMENT_NONPROFIT", "SOLUTION_PROVIDER"].includes(upper)) {
-          csvCategoryFields.attendeeCategory = upper;
-        } else {
-          const normalized = normalizeAttendeeCategory(String(csvCategory));
-          if (normalized) csvCategoryFields.attendeeCategory = normalized;
-        }
+        csvCategoryFields.attendeeCategory = upper;
       }
-      if (!csvCategoryFields.attendeeCategory && csvTicketType) {
-        const derived = normalizeAttendeeCategory(String(csvTicketType));
+      if (!csvCategoryFields.attendeeCategory) {
+        const derived = await deriveAttendeeCategory({
+          ticket_type: csvTicketType ? String(csvTicketType) : undefined,
+          attendee_category: csvCategory ? String(csvCategory) : undefined,
+          company: row.company ? String(row.company) : undefined,
+          title: row.title ? String(row.title) : undefined,
+        });
         if (derived) csvCategoryFields.attendeeCategory = derived;
       }
 
@@ -5126,6 +5275,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       demoResetInProgress = false;
     }
   });
+
+  await refreshCategoryConfig();
 
   return httpServer;
 }

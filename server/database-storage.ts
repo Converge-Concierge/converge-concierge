@@ -32,6 +32,9 @@ import {
   type DeliverableLink, type InsertDeliverableLink,
   type DeliverableSocialEntry, type InsertDeliverableSocialEntry,
   type MeetingInvitation, type InsertMeetingInvitation, type MeetingInvitationStatus,
+  type AttendeeCategoryDef, type InsertAttendeeCategoryDef,
+  type CategoryMatchingRule, type InsertCategoryMatchingRule,
+  attendeeCategories, categoryMatchingRules,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -1561,5 +1564,47 @@ export class DatabaseStorage implements IStorage {
     const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(meetingInvitations)
       .where(and(eq(meetingInvitations.attendeeId, attendeeId), eq(meetingInvitations.eventId, eventId)));
     return row?.count ?? 0;
+  }
+
+  async getAttendeeCategories(): Promise<AttendeeCategoryDef[]> {
+    return db.select().from(attendeeCategories).orderBy(attendeeCategories.sortOrder);
+  }
+  async getAttendeeCategory(id: string): Promise<AttendeeCategoryDef | undefined> {
+    const [row] = await db.select().from(attendeeCategories).where(eq(attendeeCategories.id, id)).limit(1);
+    return row;
+  }
+  async getAttendeeCategoryByKey(key: string): Promise<AttendeeCategoryDef | undefined> {
+    const [row] = await db.select().from(attendeeCategories).where(eq(attendeeCategories.key, key)).limit(1);
+    return row;
+  }
+  async createAttendeeCategory(data: InsertAttendeeCategoryDef): Promise<AttendeeCategoryDef> {
+    const [row] = await db.insert(attendeeCategories).values(data).returning();
+    return row;
+  }
+  async updateAttendeeCategory(id: string, updates: Partial<InsertAttendeeCategoryDef>): Promise<AttendeeCategoryDef | undefined> {
+    const [row] = await db.update(attendeeCategories).set({ ...updates, updatedAt: new Date() }).where(eq(attendeeCategories.id, id)).returning();
+    return row;
+  }
+  async deleteAttendeeCategory(id: string): Promise<void> {
+    await db.delete(attendeeCategories).where(eq(attendeeCategories.id, id));
+  }
+
+  async getCategoryMatchingRules(): Promise<CategoryMatchingRule[]> {
+    return db.select().from(categoryMatchingRules).orderBy(categoryMatchingRules.priority);
+  }
+  async getCategoryMatchingRule(id: string): Promise<CategoryMatchingRule | undefined> {
+    const [row] = await db.select().from(categoryMatchingRules).where(eq(categoryMatchingRules.id, id)).limit(1);
+    return row;
+  }
+  async createCategoryMatchingRule(data: InsertCategoryMatchingRule): Promise<CategoryMatchingRule> {
+    const [row] = await db.insert(categoryMatchingRules).values(data).returning();
+    return row;
+  }
+  async updateCategoryMatchingRule(id: string, updates: Partial<InsertCategoryMatchingRule>): Promise<CategoryMatchingRule | undefined> {
+    const [row] = await db.update(categoryMatchingRules).set({ ...updates, updatedAt: new Date() }).where(eq(categoryMatchingRules.id, id)).returning();
+    return row;
+  }
+  async deleteCategoryMatchingRule(id: string): Promise<void> {
+    await db.delete(categoryMatchingRules).where(eq(categoryMatchingRules.id, id));
   }
 }

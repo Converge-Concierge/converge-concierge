@@ -1,10 +1,20 @@
 import type { Attendee, Sponsor, AttendeeCategory } from "@shared/schema";
 
-const CATEGORY_WEIGHTS: Record<string, number> = {
+const DEFAULT_CATEGORY_WEIGHTS: Record<string, number> = {
   PRACTITIONER: 100,
   GOVERNMENT_NONPROFIT: 70,
   SOLUTION_PROVIDER: 20,
 };
+
+let dynamicCategoryWeights: Record<string, number> | null = null;
+
+export function setCategoryWeights(weights: Record<string, number>) {
+  dynamicCategoryWeights = weights;
+}
+
+function getCategoryWeights(): Record<string, number> {
+  return dynamicCategoryWeights ?? DEFAULT_CATEGORY_WEIGHTS;
+}
 
 export function normalizeAttendeeCategory(ticketType: string | null | undefined): AttendeeCategory | null {
   if (!ticketType) return null;
@@ -15,8 +25,15 @@ export function normalizeAttendeeCategory(ticketType: string | null | undefined)
   return null;
 }
 
+let dynamicCategoryLabels: Record<string, string> | null = null;
+
+export function setCategoryLabels(labels: Record<string, string>) {
+  dynamicCategoryLabels = labels;
+}
+
 export function categoryLabel(cat: string | null | undefined): string {
   if (!cat) return "Unknown";
+  if (dynamicCategoryLabels?.[cat]) return dynamicCategoryLabels[cat];
   switch (cat) {
     case "PRACTITIONER": return "Practitioner";
     case "GOVERNMENT_NONPROFIT": return "Government / Non-Profit";
@@ -38,9 +55,10 @@ export function computeMatchScore(
   let score = 0;
   const reasons: string[] = [];
 
+  const weights = getCategoryWeights();
   const cat = attendee.attendeeCategory || null;
-  if (cat && CATEGORY_WEIGHTS[cat]) {
-    score += CATEGORY_WEIGHTS[cat];
+  if (cat && weights[cat]) {
+    score += weights[cat];
     if (cat === "PRACTITIONER") {
       reasons.push("Practitioner attendee");
     } else if (cat === "GOVERNMENT_NONPROFIT") {

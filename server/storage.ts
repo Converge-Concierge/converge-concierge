@@ -24,6 +24,8 @@ import {
   type DeliverableLink, type InsertDeliverableLink,
   type DeliverableSocialEntry, type InsertDeliverableSocialEntry,
   type MeetingInvitation, type InsertMeetingInvitation, type MeetingInvitationStatus,
+  type AttendeeCategoryDef, type InsertAttendeeCategoryDef,
+  type CategoryMatchingRule, type InsertCategoryMatchingRule,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -291,6 +293,21 @@ export interface IStorage {
   updateMeetingInvitation(id: string, updates: Partial<InsertMeetingInvitation>): Promise<MeetingInvitation | undefined>;
   countSponsorInvitations(sponsorId: string, eventId: string): Promise<number>;
   countAttendeeInvitations(attendeeId: string, eventId: string): Promise<number>;
+
+  // ── Attendee Category Definitions ────────────────────────────────────────
+  getAttendeeCategories(): Promise<AttendeeCategoryDef[]>;
+  getAttendeeCategory(id: string): Promise<AttendeeCategoryDef | undefined>;
+  getAttendeeCategoryByKey(key: string): Promise<AttendeeCategoryDef | undefined>;
+  createAttendeeCategory(data: InsertAttendeeCategoryDef): Promise<AttendeeCategoryDef>;
+  updateAttendeeCategory(id: string, updates: Partial<InsertAttendeeCategoryDef>): Promise<AttendeeCategoryDef | undefined>;
+  deleteAttendeeCategory(id: string): Promise<void>;
+
+  // ── Category Matching Rules ──────────────────────────────────────────────
+  getCategoryMatchingRules(): Promise<CategoryMatchingRule[]>;
+  getCategoryMatchingRule(id: string): Promise<CategoryMatchingRule | undefined>;
+  createCategoryMatchingRule(data: InsertCategoryMatchingRule): Promise<CategoryMatchingRule>;
+  updateCategoryMatchingRule(id: string, updates: Partial<InsertCategoryMatchingRule>): Promise<CategoryMatchingRule | undefined>;
+  deleteCategoryMatchingRule(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -951,6 +968,42 @@ export class MemStorage implements IStorage {
   async updateMeetingInvitation(_id: string, _updates: Partial<InsertMeetingInvitation>): Promise<MeetingInvitation | undefined> { return undefined; }
   async countSponsorInvitations(_sponsorId: string, _eventId: string): Promise<number> { return 0; }
   async countAttendeeInvitations(_attendeeId: string, _eventId: string): Promise<number> { return 0; }
+
+  private catDefs = new Map<string, AttendeeCategoryDef>();
+  private catRules = new Map<string, CategoryMatchingRule>();
+
+  async getAttendeeCategories(): Promise<AttendeeCategoryDef[]> { return [...this.catDefs.values()].sort((a, b) => a.sortOrder - b.sortOrder); }
+  async getAttendeeCategory(id: string): Promise<AttendeeCategoryDef | undefined> { return this.catDefs.get(id); }
+  async getAttendeeCategoryByKey(key: string): Promise<AttendeeCategoryDef | undefined> { return [...this.catDefs.values()].find(c => c.key === key); }
+  async createAttendeeCategory(data: InsertAttendeeCategoryDef): Promise<AttendeeCategoryDef> {
+    const cat = { id: randomUUID(), ...data, description: data.description ?? null, isActive: data.isActive ?? true, sortOrder: data.sortOrder ?? 0, matchWeight: data.matchWeight ?? 50, createdAt: new Date(), updatedAt: new Date() } as AttendeeCategoryDef;
+    this.catDefs.set(cat.id, cat);
+    return cat;
+  }
+  async updateAttendeeCategory(id: string, updates: Partial<InsertAttendeeCategoryDef>): Promise<AttendeeCategoryDef | undefined> {
+    const existing = this.catDefs.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...updates, updatedAt: new Date() } as AttendeeCategoryDef;
+    this.catDefs.set(id, updated);
+    return updated;
+  }
+  async deleteAttendeeCategory(id: string): Promise<void> { this.catDefs.delete(id); }
+
+  async getCategoryMatchingRules(): Promise<CategoryMatchingRule[]> { return [...this.catRules.values()].sort((a, b) => a.priority - b.priority); }
+  async getCategoryMatchingRule(id: string): Promise<CategoryMatchingRule | undefined> { return this.catRules.get(id); }
+  async createCategoryMatchingRule(data: InsertCategoryMatchingRule): Promise<CategoryMatchingRule> {
+    const rule = { id: randomUUID(), ...data, sourceField: data.sourceField ?? "ticket_type", matchType: data.matchType ?? "contains", isActive: data.isActive ?? true, priority: data.priority ?? 0, createdAt: new Date(), updatedAt: new Date() } as CategoryMatchingRule;
+    this.catRules.set(rule.id, rule);
+    return rule;
+  }
+  async updateCategoryMatchingRule(id: string, updates: Partial<InsertCategoryMatchingRule>): Promise<CategoryMatchingRule | undefined> {
+    const existing = this.catRules.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...updates, updatedAt: new Date() } as CategoryMatchingRule;
+    this.catRules.set(id, updated);
+    return updated;
+  }
+  async deleteCategoryMatchingRule(id: string): Promise<void> { this.catRules.delete(id); }
 }
 
 export const storage = new DatabaseStorage();

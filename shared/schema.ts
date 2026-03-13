@@ -162,9 +162,58 @@ export const insertSponsorSchema = createInsertSchema(sponsors).extend({
 export type Sponsor = typeof sponsors.$inferSelect;
 export type InsertSponsor = z.infer<typeof insertSponsorSchema>;
 
-// --- Attendee ---
+// --- Attendee Category Definitions & Matching Rules ---
+export const DEFAULT_ATTENDEE_CATEGORIES = ["PRACTITIONER", "GOVERNMENT_NONPROFIT", "SOLUTION_PROVIDER"] as const;
+
+export const attendeeCategories = pgTable("attendee_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  label: text("label").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  matchWeight: integer("match_weight").notNull().default(50),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertAttendeeCategorySchema = createInsertSchema(attendeeCategories).extend({
+  key: z.string().min(1).max(50),
+  label: z.string().min(1).max(100),
+  description: z.string().nullable().optional(),
+  matchWeight: z.number().int().min(0).max(1000).default(50),
+});
+export type AttendeeCategoryDef = typeof attendeeCategories.$inferSelect;
+export type InsertAttendeeCategoryDef = z.infer<typeof insertAttendeeCategorySchema>;
+
+export const MATCH_TYPES = ["contains", "equals", "starts_with", "ends_with"] as const;
+export type MatchType = typeof MATCH_TYPES[number];
+
+export const categoryMatchingRules = pgTable("category_matching_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  categoryKey: text("category_key").notNull(),
+  sourceField: text("source_field").notNull().default("ticket_type"),
+  matchType: text("match_type", { enum: ["contains", "equals", "starts_with", "ends_with"] }).notNull().default("contains"),
+  searchTerm: text("search_term").notNull(),
+  priority: integer("priority").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertCategoryMatchingRuleSchema = createInsertSchema(categoryMatchingRules).extend({
+  categoryKey: z.string().min(1),
+  sourceField: z.string().min(1).default("ticket_type"),
+  matchType: z.enum(MATCH_TYPES).default("contains"),
+  searchTerm: z.string().min(1),
+  priority: z.number().int().min(0).default(0),
+});
+export type CategoryMatchingRule = typeof categoryMatchingRules.$inferSelect;
+export type InsertCategoryMatchingRule = z.infer<typeof insertCategoryMatchingRuleSchema>;
+
+// Legacy constant kept for backward compat
 export const ATTENDEE_CATEGORIES = ["PRACTITIONER", "GOVERNMENT_NONPROFIT", "SOLUTION_PROVIDER"] as const;
-export type AttendeeCategory = typeof ATTENDEE_CATEGORIES[number];
+export type AttendeeCategory = string;
 
 export const attendees = pgTable("attendees", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -196,7 +245,7 @@ export const insertAttendeeSchema = createInsertSchema(attendees).extend({
   interests: z.array(z.string()).nullable().optional(),
   notes: z.string().nullable().optional(),
   ticketType: z.string().nullable().optional(),
-  attendeeCategory: z.enum(ATTENDEE_CATEGORIES).nullable().optional(),
+  attendeeCategory: z.string().nullable().optional(),
 });
 export type Attendee = typeof attendees.$inferSelect;
 export type InsertAttendee = z.infer<typeof insertAttendeeSchema>;

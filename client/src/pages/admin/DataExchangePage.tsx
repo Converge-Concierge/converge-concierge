@@ -87,7 +87,7 @@ interface ImportResult {
   importedCount: number;
   updatedCount: number;
   rejectedCount: number;
-  rejections: { row: number; data: any; error: string }[];
+  rejected: { row: number; identifier: string; reason: string }[];
 }
 
 // --- Helpers ---
@@ -102,6 +102,123 @@ function downloadCSV(filename: string, content: string) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let cur = "";
+  let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQuote && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuote = !inQuote;
+      }
+    } else if (c === ',' && !inQuote) {
+      result.push(cur.trim());
+      cur = "";
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+const HEADER_ALIASES: Record<string, string> = {
+  firstname: "FirstName",
+  first_name: "FirstName",
+  "first name": "FirstName",
+  lastname: "LastName",
+  last_name: "LastName",
+  "last name": "LastName",
+  company: "Company",
+  title: "Title",
+  email: "Email",
+  phone: "Phone",
+  linkedinurl: "LinkedinUrl",
+  linkedin_url: "LinkedinUrl",
+  "linkedin url": "LinkedinUrl",
+  linkedin: "LinkedinUrl",
+  eventcode: "EventCode",
+  event_code: "EventCode",
+  "event code": "EventCode",
+  interests: "Interests",
+  notes: "Notes",
+  name: "Name",
+  level: "Level",
+  allowonlinemeetings: "AllowOnlineMeetings",
+  allow_online_meetings: "AllowOnlineMeetings",
+  shortdescription: "ShortDescription",
+  short_description: "ShortDescription",
+  websiteurl: "WebsiteUrl",
+  website_url: "WebsiteUrl",
+  contactname: "ContactName",
+  contact_name: "ContactName",
+  contactemail: "ContactEmail",
+  contact_email: "ContactEmail",
+  contactphone: "ContactPhone",
+  contact_phone: "ContactPhone",
+  attributes: "Attributes",
+  sponsorname: "SponsorName",
+  sponsor_name: "SponsorName",
+  attendeeemail: "AttendeeEmail",
+  attendee_email: "AttendeeEmail",
+  meetingtype: "MeetingType",
+  meeting_type: "MeetingType",
+  date: "Date",
+  time: "Time",
+  location: "Location",
+  status: "Status",
+  meetinglink: "MeetingLink",
+  meeting_link: "MeetingLink",
+  tickettype: "TicketType",
+  ticket_type: "TicketType",
+  "ticket type": "TicketType",
+  attendeecategory: "AttendeeCategory",
+  attendee_category: "AttendeeCategory",
+  "attendee category": "AttendeeCategory",
+  category: "Category",
+  source: "Source",
+  externalregistrationid: "ExternalRegistrationId",
+  external_registration_id: "ExternalRegistrationId",
+  "registration id": "ExternalRegistrationId",
+};
+
+function normalizeHeader(raw: string): string {
+  const cleaned = raw.trim().replace(/^["']|["']$/g, "");
+  return HEADER_ALIASES[cleaned.toLowerCase()] || cleaned;
+}
+
+const BACKEND_FIELD_MAP: Record<string, string> = {
+  FirstName: "firstName",
+  LastName: "lastName",
+  Company: "company",
+  Title: "title",
+  Email: "email",
+  Phone: "phone",
+  LinkedinUrl: "linkedinUrl",
+  EventCode: "eventCode",
+  Interests: "interests",
+  Notes: "notes",
+  TicketType: "ticketType",
+  AttendeeCategory: "attendeeCategory",
+  Category: "category",
+  Source: "source",
+  ExternalRegistrationId: "externalRegistrationId",
+  Status: "status",
+};
+
+function mapRowToBackend(rowData: Record<string, string>): Record<string, any> {
+  const mapped: Record<string, any> = {};
+  for (const [header, value] of Object.entries(rowData)) {
+    const backendKey = BACKEND_FIELD_MAP[header] || header;
+    mapped[backendKey] = value;
+  }
+  return mapped;
 }
 
 // --- FileUploadZone ---
@@ -283,54 +400,65 @@ function CategorySection({
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const text = event.target?.result as string;
-      const lines = text.split(/\r?\n/).filter(line => line.trim());
-      if (lines.length < 1) {
-        toast({ title: "Empty File", description: "The selected CSV file is empty.", variant: "destructive" });
-        return;
-      }
-
-      const headers = lines[0].split(",").map(h => h.trim());
-      const expectedHeaders = headersMap[category];
-      
-      const missingHeaders = expectedHeaders.filter(h => !headers.includes(h));
-      if (missingHeaders.length > 0) {
-        toast({ 
-          title: "Invalid Headers", 
-          description: `Missing headers: ${missingHeaders.join(", ")}`, 
-          variant: "destructive" 
-        });
-        return;
-      }
-
-      const rows: PreviewRow[] = lines.slice(1).map((line, idx) => {
-        const values = line.split(",").map(v => v.trim());
-        const rowData: any = {};
-        headers.forEach((h, i) => {
-          rowData[h] = values[i];
-        });
-
-        const errors: string[] = [];
-        if (category === "sponsors" && !rowData.Name) errors.push("Name is required");
-        if (category === "attendees") {
-          if (!rowData.Email) errors.push("Email is required");
-          if (!rowData.EventCode) errors.push("EventCode is required");
-        }
-        if (category === "meetings") {
-          if (!rowData.EventCode) errors.push("EventCode is required");
-          if (!rowData.SponsorName) errors.push("SponsorName is required");
-          if (!rowData.AttendeeEmail) errors.push("AttendeeEmail is required");
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split(/\r?\n/).filter(line => line.trim());
+        if (lines.length < 1) {
+          toast({ title: "Empty File", description: "The selected CSV file is empty.", variant: "destructive" });
+          return;
         }
 
-        return {
-          index: idx + 1,
-          data: rowData,
-          isValid: errors.length === 0,
-          errors
+        const rawHeaders = parseCSVLine(lines[0]);
+        const headers = rawHeaders.map(normalizeHeader);
+        const expectedHeaders = headersMap[category];
+
+        const requiredForCategory: Record<Category, string[]> = {
+          sponsors: ["Name"],
+          attendees: ["Email", "EventCode"],
+          meetings: ["EventCode", "SponsorName", "AttendeeEmail"],
         };
-      });
+        const missingRequired = requiredForCategory[category].filter(h => !headers.includes(h));
+        if (missingRequired.length > 0) {
+          toast({
+            title: "Missing Required Headers",
+            description: `Required: ${missingRequired.join(", ")}. Found: ${headers.join(", ")}`,
+            variant: "destructive"
+          });
+          return;
+        }
 
-      setPreview(rows);
+        const rows: PreviewRow[] = lines.slice(1).map((line, idx) => {
+          const values = parseCSVLine(line);
+          const rowData: any = {};
+          headers.forEach((h, i) => { rowData[h] = values[i] ?? ""; });
+
+          const errors: string[] = [];
+          if (category === "sponsors" && !rowData.Name) errors.push("Name is required");
+          if (category === "attendees") {
+            if (!rowData.Email) errors.push("Email is required");
+            if (!rowData.EventCode) errors.push("EventCode is required");
+            if (!rowData.FirstName) errors.push("FirstName is required");
+            if (!rowData.LastName) errors.push("LastName is required");
+          }
+          if (category === "meetings") {
+            if (!rowData.EventCode) errors.push("EventCode is required");
+            if (!rowData.SponsorName) errors.push("SponsorName is required");
+            if (!rowData.AttendeeEmail) errors.push("AttendeeEmail is required");
+          }
+
+          return {
+            index: idx + 1,
+            data: rowData,
+            isValid: errors.length === 0,
+            errors
+          };
+        });
+
+        setPreview(rows);
+      } catch (err: any) {
+        console.error("CSV parse error:", err);
+        toast({ title: "File Parse Error", description: `Could not parse CSV: ${err.message}`, variant: "destructive" });
+      }
     };
     reader.readAsText(selectedFile);
   };
@@ -340,7 +468,10 @@ function CategorySection({
     setIsImporting(true);
     
     try {
-      const validRows = preview.filter(r => r.isValid).map(r => r.data);
+      const validRows = preview.filter(r => r.isValid).map(r => {
+        if (category === "attendees") return mapRowToBackend(r.data);
+        return r.data;
+      });
       const res = await apiRequest("POST", `/api/admin/data-exchange/import/${category}`, {
         rows: validRows,
         fileName: file?.name
@@ -348,16 +479,18 @@ function CategorySection({
       const result: ImportResult = await res.json();
       setImportResult(result);
       queryClient.invalidateQueries({ queryKey: [`/api/${category}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendees"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/data-exchange/logs"] });
       
       toast({ 
         title: "Import Finished", 
-        description: `Successfully processed ${result.totalRows} rows.` 
+        description: `Created: ${result.importedCount}, Updated: ${result.updatedCount}, Rejected: ${result.rejectedCount}` 
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Import error:", error);
       toast({ 
         title: "Import Failed", 
-        description: "An error occurred during import.", 
+        description: error?.message || "An error occurred during import. Check the file format and try again.", 
         variant: "destructive" 
       });
     } finally {
@@ -366,13 +499,14 @@ function CategorySection({
   };
 
   const handleDownloadRejections = () => {
-    if (!importResult || importResult.rejections.length === 0) return;
-    const headers = [...headersMap[category], "Error"];
+    if (!importResult || importResult.rejected.length === 0) return;
+    const headers = ["Row", "Identifier", "Reason"];
     const csvContent = [
       headers.join(","),
-      ...importResult.rejections.map(r => [
-        ...headersMap[category].map(h => `"${(r.data[h] || "").toString().replace(/"/g, '""')}"`),
-        `"${r.error.replace(/"/g, '""')}"`
+      ...importResult.rejected.map(r => [
+        r.row,
+        `"${(r.identifier || "").replace(/"/g, '""')}"`,
+        `"${(r.reason || "").replace(/"/g, '""')}"`
       ].join(","))
     ].join("\n");
     downloadCSV(`${category}_rejections.csv`, csvContent);
@@ -581,18 +715,16 @@ function CategorySection({
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-12 text-center">Row</TableHead>
-                        <TableHead>Error Reason</TableHead>
-                        <TableHead>Data Snippet</TableHead>
+                        <TableHead>Identifier</TableHead>
+                        <TableHead>Reason</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {importResult.rejections.slice(0, 20).map((rej, idx) => (
+                      {importResult.rejected.slice(0, 20).map((rej, idx) => (
                         <TableRow key={idx}>
                           <TableCell className="text-center font-mono text-xs">{rej.row}</TableCell>
-                          <TableCell className="text-xs text-red-600 font-medium">{rej.error}</TableCell>
-                          <TableCell className="text-xs font-mono text-muted-foreground">
-                            {JSON.stringify(rej.data).substring(0, 100)}...
-                          </TableCell>
+                          <TableCell className="text-xs font-medium">{rej.identifier}</TableCell>
+                          <TableCell className="text-xs text-red-600 font-medium">{rej.reason}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -799,13 +931,14 @@ function NunifySection({
   };
 
   const handleDownloadRejections = () => {
-    if (!importResult || importResult.rejections.length === 0) return;
-    const headers = [...nunifyHeaders, "Error"];
+    if (!importResult || importResult.rejected.length === 0) return;
+    const headers = ["Row", "Identifier", "Reason"];
     const csvContent = [
       headers.join(","),
-      ...importResult.rejections.map(r => [
-        ...nunifyHeaders.map(h => `"${(r.data[h] || "").toString().replace(/"/g, '""')}"`),
-        `"${r.error.replace(/"/g, '""')}"`
+      ...importResult.rejected.map(r => [
+        r.row,
+        `"${(r.identifier || "").replace(/"/g, '""')}"`,
+        `"${(r.reason || "").replace(/"/g, '""')}"`
       ].join(","))
     ].join("\n");
     downloadCSV(`nunify_rejections.csv`, csvContent);

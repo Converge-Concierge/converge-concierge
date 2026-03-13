@@ -627,9 +627,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.patch("/api/attendees/:id", async (req, res) => {
-    const attendee = await storage.updateAttendee(req.params.id, req.body);
-    if (!attendee) return res.status(404).json({ message: "Attendee not found" });
-    res.json(attendee);
+    try {
+      const updates = { ...req.body };
+      if (updates.attendeeCategory === "") updates.attendeeCategory = null;
+      if (updates.ticketType === "") updates.ticketType = null;
+      const attendee = await storage.updateAttendee(req.params.id, updates);
+      if (!attendee) return res.status(404).json({ message: "Attendee not found" });
+      res.json(attendee);
+    } catch (err: any) {
+      console.error(`[attendees] PATCH error for ${req.params.id}:`, err.message);
+      res.status(500).json({ message: "Failed to update attendee", detail: err.message });
+    }
   });
 
   app.delete("/api/attendees/:id", async (req, res) => {
@@ -2020,53 +2028,74 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       if (existing) {
-        await storage.updateAttendee(existing.id, {
-          firstName: row.firstName ?? existing.firstName,
-          lastName: row.lastName ?? existing.lastName,
-          company: row.company ?? existing.company,
-          title: row.title ?? existing.title,
-          phone: row.phone ?? existing.phone,
-          externalSource: row.source ? String(row.source) : (existing.externalSource ?? "csv"),
-          externalRegistrationId: row.externalRegistrationId ? String(row.externalRegistrationId) : existing.externalRegistrationId,
-          ...csvCategoryFields,
-        });
-        updatedCount++;
+        try {
+          await storage.updateAttendee(existing.id, {
+            firstName: row.firstName ?? existing.firstName,
+            lastName: row.lastName ?? existing.lastName,
+            company: row.company ?? existing.company,
+            title: row.title ?? existing.title,
+            phone: row.phone ?? existing.phone,
+            linkedinUrl: row.linkedinUrl ?? existing.linkedinUrl,
+            externalSource: row.source ? String(row.source) : (existing.externalSource ?? "csv"),
+            externalRegistrationId: row.externalRegistrationId ? String(row.externalRegistrationId) : existing.externalRegistrationId,
+            ...csvCategoryFields,
+          });
+          updatedCount++;
+        } catch (rowErr: any) {
+          rejected.push({ row: rowNum, identifier: email, reason: `Update error: ${rowErr.message}` });
+        }
         continue;
       }
 
       const archived = await storage.getArchivedAttendeeByEmailAndEvent(email, event.id);
       if (archived) {
-        await storage.updateAttendee(archived.id, {
-          firstName: row.firstName ?? archived.firstName,
-          lastName: row.lastName ?? archived.lastName,
-          company: row.company ?? archived.company,
-          title: row.title ?? archived.title,
-          phone: row.phone ?? archived.phone,
-          archiveState: "active",
-          archiveSource: null,
-          externalSource: row.source ? String(row.source) : (archived.externalSource ?? "csv"),
-          ...csvCategoryFields,
-        });
-        updatedCount++;
+        try {
+          await storage.updateAttendee(archived.id, {
+            firstName: row.firstName ?? archived.firstName,
+            lastName: row.lastName ?? archived.lastName,
+            company: row.company ?? archived.company,
+            title: row.title ?? archived.title,
+            phone: row.phone ?? archived.phone,
+            linkedinUrl: row.linkedinUrl ?? archived.linkedinUrl,
+            archiveState: "active",
+            archiveSource: null,
+            externalSource: row.source ? String(row.source) : (archived.externalSource ?? "csv"),
+            ...csvCategoryFields,
+          });
+          updatedCount++;
+        } catch (rowErr: any) {
+          rejected.push({ row: rowNum, identifier: email, reason: `Update error: ${rowErr.message}` });
+        }
         continue;
       }
 
-      await storage.createAttendee({
-        firstName: String(row.firstName),
-        lastName: String(row.lastName),
-        name: `${row.firstName} ${row.lastName}`.trim(),
-        email,
-        company: row.company ? String(row.company) : "",
-        title: row.title ? String(row.title) : "",
-        phone: row.phone ? String(row.phone) : undefined,
-        assignedEvent: event.id,
-        archiveState: "active",
-        archiveSource: null,
-        externalSource: row.source ? String(row.source) : "csv",
-        externalRegistrationId: row.externalRegistrationId ? String(row.externalRegistrationId) : undefined,
-        ...csvCategoryFields,
-      });
-      importedCount++;
+      const interestsArr = row.interests
+        ? String(row.interests).split(";").map((s: string) => s.trim()).filter(Boolean)
+        : undefined;
+
+      try {
+        await storage.createAttendee({
+          firstName: String(row.firstName),
+          lastName: String(row.lastName),
+          name: `${row.firstName} ${row.lastName}`.trim(),
+          email,
+          company: row.company ? String(row.company) : "",
+          title: row.title ? String(row.title) : "",
+          phone: row.phone ? String(row.phone) : undefined,
+          assignedEvent: event.id,
+          archiveState: "active",
+          archiveSource: null,
+          externalSource: row.source ? String(row.source) : "csv",
+          externalRegistrationId: row.externalRegistrationId ? String(row.externalRegistrationId) : undefined,
+          linkedinUrl: row.linkedinUrl ? String(row.linkedinUrl) : undefined,
+          interests: interestsArr,
+          notes: row.notes ? String(row.notes) : undefined,
+          ...csvCategoryFields,
+        });
+        importedCount++;
+      } catch (rowErr: any) {
+        rejected.push({ row: rowNum, identifier: email, reason: `Create error: ${rowErr.message}` });
+      }
     }
 
     await storage.createDataExchangeLog({

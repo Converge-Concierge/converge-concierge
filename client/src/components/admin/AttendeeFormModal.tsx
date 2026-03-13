@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Attendee, InsertAttendee, Event, ATTENDEE_CATEGORIES } from "@shared/schema";
+import { Attendee, InsertAttendee, Event } from "@shared/schema";
 
 const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "— Not Set —" },
@@ -11,15 +11,6 @@ const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "GOVERNMENT_NONPROFIT", label: "Government / Non-Profit" },
   { value: "SOLUTION_PROVIDER", label: "Solution Provider" },
 ];
-
-function deriveCategory(ticketType: string | null | undefined): string | null {
-  if (!ticketType) return null;
-  const t = ticketType.toLowerCase();
-  if (t.includes("practitioner")) return "PRACTITIONER";
-  if (t.includes("government") || t.includes("non-profit") || t.includes("nonprofit")) return "GOVERNMENT_NONPROFIT";
-  if (t.includes("solution provider")) return "SOLUTION_PROVIDER";
-  return null;
-}
 
 interface AttendeeFormModalProps {
   isOpen: boolean;
@@ -40,10 +31,8 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
     email: "",
     linkedinUrl: "",
     assignedEvent: "",
-    ticketType: "",
     attendeeCategory: "",
   });
-  const [categoryManuallyEdited, setCategoryManuallyEdited] = useState(false);
 
   useEffect(() => {
     if (attendee) {
@@ -52,29 +41,12 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
         firstName: attendee.firstName || attendee.name?.split(" ")[0] || "",
         lastName: attendee.lastName || attendee.name?.split(" ").slice(1).join(" ") || "",
         linkedinUrl: attendee.linkedinUrl || "",
-        ticketType: attendee.ticketType || "",
         attendeeCategory: attendee.attendeeCategory || "",
       });
-      setCategoryManuallyEdited(false);
     } else {
-      setFormData({ firstName: "", lastName: "", name: "", company: "", title: "", email: "", linkedinUrl: "", assignedEvent: "", ticketType: "", attendeeCategory: "" });
-      setCategoryManuallyEdited(false);
+      setFormData({ firstName: "", lastName: "", name: "", company: "", title: "", email: "", linkedinUrl: "", assignedEvent: "", attendeeCategory: "" });
     }
   }, [attendee, isOpen]);
-
-  const handleTicketTypeChange = (newTicketType: string) => {
-    const updates: Partial<InsertAttendee> = { ...formData, ticketType: newTicketType };
-    if (!categoryManuallyEdited) {
-      const derived = deriveCategory(newTicketType);
-      updates.attendeeCategory = derived || "";
-    }
-    setFormData(updates);
-  };
-
-  const handleCategoryChange = (newCategory: string) => {
-    setCategoryManuallyEdited(true);
-    setFormData({ ...formData, attendeeCategory: newCategory || "" });
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,7 +54,6 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
     if (!data.linkedinUrl) delete data.linkedinUrl;
     const fullName = [data.firstName, data.lastName].filter(Boolean).join(" ");
     data.name = fullName;
-    if (!data.ticketType) data.ticketType = null;
     if (!data.attendeeCategory) data.attendeeCategory = null;
     onSubmit(data as InsertAttendee);
   };
@@ -177,80 +148,60 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="at-event">Assigned Event</Label>
-            {readOnly ? (
-              <Input
-                id="at-event"
-                value={assignedEvent ? `[${assignedEvent.slug}] ${assignedEvent.name}` : formData.assignedEvent || ""}
-                readOnly
-                data-testid="input-attendee-event-readonly"
-              />
-            ) : (
-              <select
-                id="at-event"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={formData.assignedEvent}
-                onChange={(e) => setFormData({ ...formData, assignedEvent: e.target.value })}
-                required
-                data-testid="select-attendee-event"
-              >
-                <option value="">Select an event...</option>
-                {activeEvents.map((ev) => (
-                  <option key={ev.id} value={ev.id}>
-                    [{ev.slug}] {ev.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          <div className="border-t pt-4 mt-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Classification</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="at-ticketType">Ticket Type <span className="text-muted-foreground font-normal">(source)</span></Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="at-event">Assigned Event</Label>
+              {readOnly ? (
                 <Input
-                  id="at-ticketType"
-                  value={formData.ticketType || ""}
-                  onChange={(e) => !readOnly && handleTicketTypeChange(e.target.value)}
-                  placeholder="e.g. Practitioner - Individual"
-                  readOnly={readOnly}
-                  data-testid="input-attendee-ticket-type"
+                  id="at-event"
+                  value={assignedEvent ? `[${assignedEvent.slug}] ${assignedEvent.name}` : formData.assignedEvent || ""}
+                  readOnly
+                  data-testid="input-attendee-event-readonly"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="at-category">Category</Label>
-                {readOnly ? (
-                  <Input
-                    id="at-category"
-                    value={CATEGORY_OPTIONS.find(o => o.value === (formData.attendeeCategory || ""))?.label || formData.attendeeCategory || "— Not Set —"}
-                    readOnly
-                    data-testid="input-attendee-category-readonly"
-                  />
-                ) : (
-                  <select
-                    id="at-category"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    value={formData.attendeeCategory || ""}
-                    onChange={(e) => handleCategoryChange(e.target.value)}
-                    data-testid="select-attendee-category"
-                  >
-                    {CATEGORY_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
+              ) : (
+                <select
+                  id="at-event"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  value={formData.assignedEvent}
+                  onChange={(e) => setFormData({ ...formData, assignedEvent: e.target.value })}
+                  required
+                  data-testid="select-attendee-event"
+                >
+                  <option value="">Select an event...</option>
+                  {activeEvents.map((ev) => (
+                    <option key={ev.id} value={ev.id}>
+                      [{ev.slug}] {ev.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
-            {formData.ticketType && !categoryManuallyEdited && (
-              <p className="text-[10px] text-muted-foreground mt-1.5">Category auto-derived from ticket type. Edit Category to override.</p>
-            )}
-            {categoryManuallyEdited && (
-              <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1.5">Category manually set (overrides auto-derivation).</p>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="at-category">Category</Label>
+              {readOnly ? (
+                <Input
+                  id="at-category"
+                  value={CATEGORY_OPTIONS.find(o => o.value === (formData.attendeeCategory || ""))?.label || formData.attendeeCategory || "— Not Set —"}
+                  readOnly
+                  data-testid="input-attendee-category-readonly"
+                />
+              ) : (
+                <select
+                  id="at-category"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  value={formData.attendeeCategory || ""}
+                  onChange={(e) => setFormData({ ...formData, attendeeCategory: e.target.value })}
+                  data-testid="select-attendee-category"
+                >
+                  {CATEGORY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <p className="text-[10px] text-muted-foreground">Used for attendee segmentation, matchmaking, and reporting.</p>
+            </div>
           </div>
         </form>
         <DialogFooter className="px-6 pb-6 border-t pt-4 bg-muted/30">

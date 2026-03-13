@@ -1,0 +1,301 @@
+Fix Attendee CSV Import Causing White Screen on Data Exchange
+
+When importing attendees into FRC2026 using the uploaded CSV file, the screen goes completely white and nothing imports.
+
+I reviewed the CSV structure and it appears valid:
+
+45 rows
+
+headers present
+
+event code present (FRC2026)
+
+no obvious malformed rows
+
+This suggests the problem is likely:
+
+a frontend crash during import
+
+an unhandled exception in CSV parsing/mapping
+
+a backend validation error not being surfaced
+
+a mismatch between expected attendee import field names and actual CSV headers
+
+We need to fix the import flow so it handles this file correctly and shows useful errors instead of a blank white screen.
+
+1. Reproduce the Issue With the Uploaded File
+
+Use the uploaded file:
+
+Concierge Upload for FRC.csv
+
+Try the attendee import in the FRC2026 context and capture:
+
+browser console errors
+
+network request errors
+
+backend/server logs
+
+stack trace if the frontend crashes
+
+The white screen strongly suggests an unhandled frontend exception.
+
+2. Verify the CSV Headers Against the Attendee Import Parser
+
+The uploaded CSV headers are:
+
+FirstName
+LastName
+Company
+Title
+Email
+Phone
+LinkedinUrl
+EventCode
+Interests
+Notes
+
+Confirm the attendee import logic expects these exact headers, or normalize them safely.
+
+Required behavior
+
+The attendee import parser should accept these headers and map them as:
+
+FirstName → first_name
+
+LastName → last_name
+
+Company → company
+
+Title → title
+
+Email → email
+
+Phone → phone
+
+LinkedinUrl → linkedin_url
+
+EventCode → event_code
+
+Interests → interests
+
+Notes → notes
+
+If the parser expects different casing or names, add a header normalization layer instead of failing.
+
+3. Add Defensive Header Normalization
+
+The import system should not crash because of minor header formatting differences.
+
+Normalize headers by:
+
+trimming whitespace
+
+case-insensitive matching
+
+mapping common variants
+
+Example mappings:
+
+FirstName, first_name, First Name
+
+LastName, last_name, Last Name
+
+LinkedinUrl, LinkedIn URL, linkedin_url
+
+EventCode, Event Code, event_code
+
+This will make attendee import far more resilient.
+
+4. Check EventCode Resolution Logic
+
+All rows in the uploaded CSV use:
+
+FRC2026
+
+Confirm that the import process:
+
+successfully finds the event by code
+
+does not crash if event lookup happens per row
+
+handles event assignment cleanly
+
+If event lookup fails, surface a proper validation error instead of blanking the page.
+
+5. Add Robust Error Handling to Prevent White Screen
+
+The Data Exchange import UI should never go fully white.
+
+Required fix
+
+Wrap the attendee import flow in proper error handling so that:
+
+frontend exceptions are caught
+
+backend validation errors are displayed
+
+the UI remains usable
+
+the user sees a clear import failure message
+
+Example user-facing error:
+
+Attendee import failed. Please review the file format or see the detailed error log below.
+
+Do not allow an unhandled exception to crash the page.
+
+6. Add Import Validation Before Processing
+
+Before creating attendees, validate the uploaded file and show a preview summary.
+
+Suggested preflight validation
+
+Show:
+
+total rows detected
+
+valid rows
+
+missing required fields
+
+unknown event codes
+
+duplicate emails
+
+unmapped headers
+
+Example:
+
+Import Preview
+Rows detected: 45
+Valid rows: 45
+Warnings: 0
+Errors: 0
+
+This should run before the final import begins.
+
+7. Validate Required Attendee Fields
+
+At minimum, attendee import should validate:
+
+FirstName
+
+LastName
+
+Company
+
+Title
+
+Email
+
+EventCode
+
+If any are missing, report row-level errors clearly.
+
+Do not crash the import.
+
+8. Check Whether Interests or Notes Parsing Is Causing the Failure
+
+Because Interests and Notes are present but mostly blank, confirm the parser handles:
+
+empty strings
+
+null values
+
+missing optional data
+
+These fields should not cause import failure if blank.
+
+9. Check for Duplicate Handling
+
+If some attendees already exist in the system, confirm the import logic handles duplicates cleanly.
+
+Required behavior
+
+Decide and implement one of these behaviors:
+
+update existing attendees by email + event
+
+skip duplicates with warning
+
+allow import as new only if no match found
+
+But do not crash on duplicates.
+
+Surface counts like:
+
+created
+
+updated
+
+skipped
+
+rejected
+
+10. Add Better Audit Log Details
+
+If the import fails, the Audit Log should record:
+
+file name
+
+category = attendees
+
+failure status
+
+number of rows parsed before failure
+
+actual error reason
+
+Right now the white screen makes troubleshooting too difficult.
+
+11. Add Import Result Summary Modal
+
+After import, show:
+
+Attendee Import Complete
+Created: X
+Updated: Y
+Skipped: Z
+Rejected: N
+
+If failed, show:
+
+Attendee Import Failed
+Reason: <error>
+
+This should happen instead of silently failing or blanking the UI.
+
+12. Test With the Uploaded CSV Specifically
+
+Please test the import using the exact uploaded file and confirm that it now:
+
+parses successfully
+
+imports all valid rows
+
+assigns attendees to FRC2026
+
+does not white-screen the page
+
+13. Acceptance Criteria
+
+This is fixed when:
+
+the uploaded CSV imports without crashing the page
+
+the UI no longer goes white
+
+attendee rows are created or updated correctly
+
+FRC2026 event assignment works
+
+errors are surfaced clearly if something goes wrong
+
+the Data Exchange attendee import becomes resilient to normal CSV formatting variations
+
+14. Success Standard
+
+After this fix, Data Exchange should handle attendee CSV imports reliably and gracefully, and admins should never lose the page to a white-screen crash during import.

@@ -1,0 +1,237 @@
+Fix Attendee Category Update Error and Remove Ticket Type From Edit Form
+
+When editing an attendee and changing the Category field, the save fails with:
+
+Failed to update attendee
+
+At the same time, the Ticket Type field is not needed in the admin edit form.
+
+We want a simpler and cleaner attendee editing experience:
+
+admins should be able to edit Category
+
+saving Category should work
+
+Ticket Type should not appear in the edit form
+
+ticket type can still exist in the database for import/reference, but it does not need to be editable in the UI
+
+Primary Goal
+
+Fix the attendee update flow so that:
+
+Category can be updated successfully
+
+the backend accepts and saves the category change
+
+Ticket Type is removed from the Edit Attendee form
+
+attendee classification remains usable for matchmaking and reporting
+
+1. Diagnose the Category Save Failure
+
+Right now changing Category causes the attendee update request to fail.
+
+Required checks
+
+Inspect the update request payload and backend handler to identify why the save fails.
+
+Likely causes:
+
+backend does not accept attendee_category
+
+enum/value mismatch
+
+field name mismatch between frontend and backend
+
+validation still expects ticket type logic
+
+update DTO/schema does not include category
+
+manual override logic is incomplete
+
+Required action
+
+Log the actual backend error and fix the update path.
+
+Do not leave this as a generic:
+
+Failed to update attendee
+2. Ensure the Backend Accepts Category Updates
+
+The attendee update API must explicitly accept a category field.
+
+Required behavior
+
+Support updating:
+
+attendee_category
+
+Accepted values should be normalized internal values such as:
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+If the frontend is sending display labels instead:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+then map them safely before save.
+
+The backend and frontend must use a consistent value contract.
+
+3. Fix Frontend-to-Backend Value Mapping
+
+The dropdown currently displays:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+Make sure the selected dropdown option is sent in a format the backend expects.
+
+Preferred implementation
+
+Frontend dropdown values:
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+Frontend labels:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+This avoids save errors caused by display-label mismatch.
+
+4. Remove Ticket Type From the Edit Attendee Form
+
+The Ticket Type field is not needed in the edit form.
+
+Required behavior
+
+Remove the Ticket Type (source) field entirely from the Edit Attendee modal/drawer.
+
+Do not show:
+
+editable ticket type
+
+placeholder ticket type input
+
+This will simplify the form and reduce confusion.
+
+5. Keep Ticket Type in the Database / Detail View if Needed
+
+Ticket type can still be preserved behind the scenes for:
+
+import troubleshooting
+
+audit/debugging
+
+source reference
+
+But it does not need to be editable in the main admin form.
+
+If useful, keep it read-only in the attendee detail side panel only.
+
+That is optional.
+
+6. Make Category the Only Editable Classification Field
+
+In the Edit Attendee form, under Classification, keep only:
+
+Category
+
+This should be a simple dropdown/select.
+
+No Ticket Type input should appear.
+
+7. Update the Category Help Text
+
+The current text references auto-derivation from ticket type.
+
+Since Ticket Type is being removed from the edit form, simplify the help text.
+
+Replace:
+Category manually set (overrides auto-derivation).
+With something like:
+Used for attendee segmentation, matchmaking, and reporting.
+
+Keep it simple and admin-friendly.
+
+8. Improve the Error Message if Save Fails
+
+If attendee update fails again, show a more specific message where possible.
+
+Examples:
+
+Failed to update attendee category
+
+Invalid attendee category
+
+Attendee update failed due to validation error
+
+Also log the backend reason.
+
+Do not rely only on the generic failure toast.
+
+9. Ensure Existing Category Display Still Works
+
+After the fix:
+
+the Attendees table Category column should still display correctly
+
+the attendee detail view should still show the saved category
+
+pie chart / category breakdown should still use the saved category field
+
+This fix should not break reporting or attendee segmentation.
+
+10. Backfill / Preserve Existing Imported Data
+
+Do not delete existing ticket_type data in the database.
+
+Keep it for import/reference purposes, but remove it only from the edit UI.
+
+The attendee update flow should only change:
+
+editable attendee fields
+
+attendee_category
+
+without requiring ticket type to be present in the form.
+
+11. Acceptance Criteria
+
+This is complete when:
+
+admins can change attendee Category and save successfully
+
+changing Category no longer throws an update error
+
+Ticket Type is removed from the Edit Attendee form
+
+attendee category still displays correctly in the table and detail view
+
+backend accepts and persists category updates correctly
+
+12. Success Standard
+
+After this fix, attendee editing should be simpler and reliable, with Category functioning as the clear operational classification field for admins.
+
+That is the standard this fix should meet.

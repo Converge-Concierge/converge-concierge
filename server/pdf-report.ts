@@ -68,19 +68,17 @@ export interface SponsorReportData {
   };
 }
 
-// ── Category sort order ───────────────────────────────────────────────────────
-
 const CATEGORY_ORDER = [
   "Company Profile",
+  "Event Production",
   "Event Participation",
   "Speaking & Content",
   "Meetings & Introductions",
   "Marketing & Branding",
+  "Post-Event",
   "Post-Event Deliverables",
   "Compliance",
 ];
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt12(t: string) {
   const [h, m] = t.split(":").map(Number);
@@ -103,7 +101,6 @@ function formatDueTiming(timing: string, dueDate: string | null): string {
   return map[timing] ?? timing.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// Status color — ONLY used for status text/badge coloring
 function meetingStatusColor(s: string, C: { blue: string; red: string; gray: string; amber: string; green: string; navy: string }): string {
   if (s === "Completed") return C.green;
   if (s === "Cancelled" || s === "NoShow") return C.red;
@@ -113,11 +110,12 @@ function meetingStatusColor(s: string, C: { blue: string; red: string; gray: str
 }
 
 function deliverableStatusColor(s: string, C: { blue: string; red: string; gray: string; amber: string; green: string }): string {
-  if (s === "Delivered" || s === "Approved") return C.green;
-  if (s === "In Progress" || s === "Scheduled") return C.blue;
-  if (s === "Awaiting Sponsor Input") return C.amber;
-  if (s === "Available After Event") return C.gray;
-  if (s === "Issue Identified" || s === "Blocked") return C.red;
+  const lower = s.toLowerCase();
+  if (lower === "completed" || lower === "complete" || lower === "delivered" || lower === "approved") return C.green;
+  if (lower === "in progress" || lower === "scheduled") return C.blue;
+  if (lower === "awaiting sponsor input" || lower === "awaiting sponsor" || lower === "overdue") return C.amber;
+  if (lower === "issue identified" || lower === "blocked") return C.red;
+  if (lower === "available after event" || lower === "not started" || lower === "pending") return C.gray;
   return C.gray;
 }
 
@@ -129,9 +127,6 @@ function infoStatusColor(s: string, C: { blue: string; red: string; gray: string
   return C.blue;
 }
 
-// ── Drawing Primitives ────────────────────────────────────────────────────────
-
-// Unified section heading: light neutral bg + left primary accent bar + dark bold text
 function drawSectionHeading(doc: any, y: number, lm: number, cw: number, title: string, navy: string): number {
   const H = 26;
   doc.rect(lm, y, cw, H).fill("#F1F5F9");
@@ -141,7 +136,6 @@ function drawSectionHeading(doc: any, y: number, lm: number, cw: number, title: 
   return y + H + 8;
 }
 
-// Category bar for deliverables: neutral bg + accent left bar + accent bold text
 function drawCategoryBar(doc: any, y: number, lm: number, cw: number, label: string, accent: string): number {
   const H = 18;
   doc.rect(lm, y, cw, H).fill("#F1F5F9");
@@ -151,7 +145,6 @@ function drawCategoryBar(doc: any, y: number, lm: number, cw: number, label: str
   return y + H;
 }
 
-// Universal table header row: primary color bg + white text
 function drawTableHeader(doc: any, y: number, lm: number, navy: string, cols: { label: string; w: number }[]): number {
   const H = 18;
   const totalW = cols.reduce((s, c) => s + c.w, 0);
@@ -165,7 +158,6 @@ function drawTableHeader(doc: any, y: number, lm: number, navy: string, cols: { 
   return y + H;
 }
 
-// Metric card: white bg + top primary accent bar + dark number + muted label
 function drawMetricCard(doc: any, mx: number, my: number, w: number, h: number, value: string, label: string, navy: string, C: any): void {
   doc.rect(mx, my, w, h).fill(C.white).stroke(C.border);
   doc.rect(mx, my, w, 3).fill(navy);
@@ -175,39 +167,170 @@ function drawMetricCard(doc: any, mx: number, my: number, w: number, h: number, 
     .text(label, mx + 8, my + 34, { width: w - 16, lineBreak: false });
 }
 
-// Status pill: colored text only (no heavy background)
-function drawStatusPill(doc: any, text: string, x: number, y: number, w: number, color: string): void {
-  doc.fontSize(7).font("Helvetica-Bold").fillColor(color)
-    .text(text, x, y, { width: w, lineBreak: false });
+function drawStatusBadge(doc: any, text: string, x: number, y: number, w: number, color: string, bgColor: string): void {
+  const textW = doc.fontSize(6.5).font("Helvetica-Bold").widthOfString(text);
+  const badgeW = Math.min(textW + 12, w - 4);
+  const badgeH = 14;
+  const badgeX = x + 2;
+  const badgeY = y + 3;
+  doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 3).fill(bgColor);
+  doc.fontSize(6.5).font("Helvetica-Bold").fillColor(color)
+    .text(text, badgeX + 6, badgeY + 3, { width: badgeW - 12, lineBreak: false });
 }
 
-// ── PDF Builder ───────────────────────────────────────────────────────────────
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace("#", "");
+  return {
+    r: parseInt(h.substring(0, 2), 16),
+    g: parseInt(h.substring(2, 4), 16),
+    b: parseInt(h.substring(4, 6), 16),
+  };
+}
+
+function lightenHex(hex: string, factor: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  const lr = Math.round(r + (255 - r) * factor);
+  const lg = Math.round(g + (255 - g) * factor);
+  const lb = Math.round(b + (255 - b) * factor);
+  return `#${lr.toString(16).padStart(2, "0")}${lg.toString(16).padStart(2, "0")}${lb.toString(16).padStart(2, "0")}`;
+}
+
+function deliverableBadgeBg(s: string): string {
+  const lower = s.toLowerCase();
+  if (lower === "completed" || lower === "complete" || lower === "delivered" || lower === "approved") return "#DCFCE7";
+  if (lower === "in progress" || lower === "scheduled") return "#DBEAFE";
+  if (lower === "awaiting sponsor input" || lower === "awaiting sponsor" || lower === "overdue") return "#FEF3C7";
+  if (lower === "issue identified" || lower === "blocked") return "#FEE2E2";
+  return "#F1F5F9";
+}
+
+function drawPieChart(
+  doc: any,
+  cx: number,
+  cy: number,
+  radius: number,
+  slices: { label: string; value: number; color: string }[],
+  title: string,
+  navy: string,
+  C: any,
+): number {
+  const total = slices.reduce((s, sl) => s + sl.value, 0);
+
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(C.text)
+    .text(title, cx - radius - 10, cy - radius - 18, { width: radius * 2 + 20, align: "center" });
+
+  if (total === 0) {
+    doc.circle(cx, cy, radius).fill("#F1F5F9");
+    doc.fontSize(7.5).font("Helvetica").fillColor(C.gray)
+      .text("No meeting data", cx - 40, cy - 5, { width: 80, align: "center" });
+    return cy + radius + 14;
+  }
+
+  let startAngle = -Math.PI / 2;
+  for (const slice of slices) {
+    if (slice.value === 0) continue;
+    const sliceAngle = (slice.value / total) * 2 * Math.PI;
+    const endAngle = startAngle + sliceAngle;
+
+    const x1 = cx + radius * Math.cos(startAngle);
+    const y1 = cy + radius * Math.sin(startAngle);
+    const x2 = cx + radius * Math.cos(endAngle);
+    const y2 = cy + radius * Math.sin(endAngle);
+
+    const largeArc = sliceAngle > Math.PI ? 1 : 0;
+
+    if (slices.filter(s => s.value > 0).length === 1) {
+      doc.circle(cx, cy, radius).fill(slice.color);
+    } else {
+      doc.save();
+      doc.path(`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`)
+        .fill(slice.color);
+      doc.restore();
+    }
+    startAngle = endAngle;
+  }
+
+  doc.circle(cx, cy, radius * 0.35).fill("#FFFFFF");
+
+  let legendY = cy - radius;
+  const legendX = cx + radius + 16;
+  for (const slice of slices) {
+    if (slice.value === 0) continue;
+    const pct = Math.round((slice.value / total) * 100);
+    doc.rect(legendX, legendY + 2, 8, 8).fill(slice.color);
+    doc.fontSize(7).font("Helvetica").fillColor(C.text)
+      .text(`${slice.label}: ${slice.value} (${pct}%)`, legendX + 12, legendY + 2, { width: 140, lineBreak: false });
+    legendY += 14;
+  }
+
+  return cy + radius + 14;
+}
+
+function drawBarChart(
+  doc: any,
+  x: number,
+  y: number,
+  chartW: number,
+  bars: { label: string; value: number }[],
+  title: string,
+  barColor: string,
+  C: any,
+): number {
+  const maxVal = Math.max(...bars.map(b => b.value), 1);
+  const barH = 18;
+  const barGap = 6;
+  const labelW = 110;
+  const valueW = 36;
+  const barAreaW = chartW - labelW - valueW - 10;
+
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(C.text)
+    .text(title, x, y, { width: chartW });
+  y += 18;
+
+  for (const bar of bars) {
+    const filledW = maxVal > 0 ? (bar.value / maxVal) * barAreaW : 0;
+
+    doc.fontSize(7).font("Helvetica").fillColor(C.textMid)
+      .text(bar.label, x, y + 4, { width: labelW - 6, lineBreak: false, align: "right" });
+
+    doc.roundedRect(x + labelW, y + 2, barAreaW, barH - 4, 2).fill("#F1F5F9");
+    if (filledW > 2) {
+      doc.roundedRect(x + labelW, y + 2, filledW, barH - 4, 2).fill(barColor);
+    }
+
+    doc.fontSize(7).font("Helvetica-Bold").fillColor(C.text)
+      .text(String(bar.value), x + labelW + barAreaW + 6, y + 4, { width: valueW, lineBreak: false });
+
+    y += barH + barGap;
+  }
+
+  return y + 4;
+}
+
 
 export function buildSponsorReportPDF(data: SponsorReportData): Readable {
   const doc = new PDFDocument({ size: "LETTER", margin: 0, autoFirstPage: true, bufferPages: true });
 
-  const pw  = doc.page.width;   // 612
-  const ph  = doc.page.height;  // 792
+  const pw  = doc.page.width;
+  const ph  = doc.page.height;
   const lm  = 50;
   const rm  = 50;
-  const cw  = pw - lm - rm;     // 512
+  const cw  = pw - lm - rm;
   const footerH = 28;
   const contentBottom = ph - footerH - 14;
 
-  // ── Event-aware color palette — strictly controlled ───────────────────────
   const navy   = data.event.primaryColor  || "#0D1E3A";
   const accent = data.event.accentColor   || "#0D9488";
 
   const C = {
     navy,
     accent,
-    text:     "#1E293B",   // ALL body text, metric numbers, table data — never colored for data
-    textMid:  "#475569",   // labels, secondary text
-    textSub:  "#94A3B8",   // very muted — header sub-branding, page numbers
-    border:   "#E2E8F0",   // table / card borders
-    rowAlt:   "#F8FAFC",   // alternating table row background
+    text:     "#1E293B",
+    textMid:  "#475569",
+    textSub:  "#94A3B8",
+    border:   "#E2E8F0",
+    rowAlt:   "#F8FAFC",
     white:    "#FFFFFF",
-    // Status colors — ONLY for status indicators, never generic text
     green:    "#16A34A",
     blue:     "#2563EB",
     amber:    "#D97706",
@@ -215,41 +338,25 @@ export function buildSponsorReportPDF(data: SponsorReportData): Readable {
     gray:     "#64748B",
   };
 
-  // ── Derived stats ─────────────────────────────────────────────────────────
   const { meetings, infoRequests, deliverables, analytics } = data;
 
   const totalMeetings  = meetings.length;
   const completed      = meetings.filter((m) => m.status === "Completed").length;
-  const pending        = meetings.filter((m) => m.status === "Pending").length;
   const cancelled      = meetings.filter((m) => m.status === "Cancelled" || m.status === "NoShow").length;
+  const scheduled      = meetings.filter((m) => m.status === "Confirmed" || m.status === "Scheduled").length;
   const onsite         = meetings.filter((m) => m.meetingType !== "online_request").length;
   const online         = meetings.filter((m) => m.meetingType === "online_request").length;
-  const confirmed      = meetings.filter((m) => m.status === "Confirmed" || m.status === "Scheduled").length;
 
-  // Unique companies across meetings + info requests
   const companySet = new Set<string>();
   for (const m of meetings) { if (m.attendeeCompany) companySet.add(m.attendeeCompany.trim()); }
   for (const r of infoRequests) { if (r.attendeeCompany) companySet.add(r.attendeeCompany.trim()); }
   const uniqueCompanies = companySet.size;
 
-  // Companies from meetings only (for top companies table)
-  const companyCount: Record<string, number> = {};
-  for (const m of meetings) {
-    if (m.attendeeCompany) companyCount[m.attendeeCompany] = (companyCount[m.attendeeCompany] ?? 0) + 1;
-  }
-  const topCompanies = Object.entries(companyCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const completedDeliverables = deliverables.filter((d) => {
+    const lower = d.status.toLowerCase();
+    return lower === "completed" || lower === "complete" || lower === "delivered" || lower === "approved";
+  }).length;
 
-  // Unique leads
-  const leadMap = new Map<string, ReportMeeting>();
-  for (const m of meetings) {
-    const key = m.attendeeEmail || m.attendeeName;
-    if (!leadMap.has(key)) leadMap.set(key, m);
-  }
-
-  // Deliverables completion
-  const completedDeliverables = deliverables.filter((d) => d.status === "Delivered" || d.status === "Approved").length;
-
-  // Group deliverables by category
   const deliverablesByCategory: Record<string, ReportDeliverable[]> = {};
   for (const d of deliverables) {
     const cat = d.category || "Other";
@@ -263,35 +370,27 @@ export function buildSponsorReportPDF(data: SponsorReportData): Readable {
 
   // ── PAGE 1 HEADER ─────────────────────────────────────────────────────────
 
-  // Primary-color header band
   doc.rect(0, 0, pw, 108).fill(navy);
-  // Thin accent divider below header
   doc.rect(0, 108, pw, 3).fill(accent);
 
-  // Small branding label (top-left)
   doc.fontSize(6.5).font("Helvetica").fillColor(C.textSub)
     .text("CONVERGE EVENTS  ·  CONVERGE CONCIERGE", lm, 14, { characterSpacing: 0.4 });
 
-  // Report title (large, white)
   doc.fontSize(20).font("Helvetica-Bold").fillColor(C.white)
     .text("Sponsorship Performance Report", lm, 28);
 
-  // Sponsor · Level line
   doc.fontSize(9.5).font("Helvetica").fillColor(C.textSub)
     .text(`${data.sponsor.name}  ·  ${data.sponsor.level} Sponsor`, lm, 60);
 
-  // Event name
   doc.fontSize(8).font("Helvetica").fillColor(C.textSub)
     .text(data.event.name, lm, 76);
 
-  // Generated date
   doc.fontSize(7.5).font("Helvetica").fillColor(C.textSub)
     .text(
       `Generated: ${data.generatedAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
       lm, 92,
     );
 
-  // Event logo — right side of header band
   if (data.event.logoBuffer) {
     try {
       doc.image(data.event.logoBuffer, pw - rm - 90, 12, {
@@ -299,9 +398,7 @@ export function buildSponsorReportPDF(data: SponsorReportData): Readable {
         align: "right",
         valign: "center",
       });
-    } catch (_e) {
-      // logo embed failed — skip silently
-    }
+    } catch (_e) { /* skip */ }
   }
 
   let y = 126;
@@ -312,7 +409,6 @@ export function buildSponsorReportPDF(data: SponsorReportData): Readable {
 
   const colW = (cw - 12) / 2;
 
-  // Event card
   doc.rect(lm, y, colW, 80).fill(C.rowAlt).stroke(C.border);
   doc.rect(lm, y, colW, 3).fill(navy);
   doc.fontSize(6.5).font("Helvetica-Bold").fillColor(C.textMid).text("EVENT", lm + 12, y + 10);
@@ -323,7 +419,6 @@ export function buildSponsorReportPDF(data: SponsorReportData): Readable {
     .text(`Location: ${data.event.location}`, lm + 12, y + 55)
     .text(`Event Code: ${data.event.slug}`, lm + 12, y + 66);
 
-  // Sponsor card
   const sx = lm + colW + 12;
   doc.rect(sx, y, colW, 80).fill(C.rowAlt).stroke(C.border);
   doc.rect(sx, y, colW, 3).fill(accent);
@@ -337,11 +432,10 @@ export function buildSponsorReportPDF(data: SponsorReportData): Readable {
 
   y += 96;
 
-  // ── SECTION 2: SPONSORSHIP VALUE SUMMARY (NEW) ────────────────────────────
+  // ── SECTION 2: SPONSORSHIP VALUE SUMMARY ────────────────────────────────
 
   y = drawSectionHeading(doc, y, lm, cw, "2  ·  SPONSORSHIP VALUE SUMMARY", navy);
 
-  // 6 value metrics in 3-per-row layout
   const valueMetrics: [string, string][] = [
     ["Companies Engaged",       String(uniqueCompanies)],
     ["Meetings Scheduled",      String(totalMeetings)],
@@ -367,70 +461,96 @@ export function buildSponsorReportPDF(data: SponsorReportData): Readable {
 
   y += vmRows * (vmH + vmGap) + 4;
 
-  // Narrative paragraph
   const topChannel = online > onsite ? "online meetings" : onsite > 0 ? "onsite meetings" : "information requests";
-  const narrativeLines = [
+  const narrativeText =
     `During the event engagement period, ${data.sponsor.name} connected with ${uniqueCompanies} unique ` +
     `financial institution${uniqueCompanies !== 1 ? "s" : ""} through ${totalMeetings} scheduled meeting${totalMeetings !== 1 ? "s" : ""} ` +
     `and ${infoRequests.length} information request${infoRequests.length !== 1 ? "s" : ""}. ` +
-    `${completed} meeting${completed !== 1 ? "s were" : " was"} completed, and ` +
-    (deliverables.length > 0
-      ? `${completedDeliverables} of ${deliverables.length} sponsorship deliverables have been fulfilled. `
-      : "") +
-    (uniqueCompanies > 0 ? `The primary engagement channel was ${topChannel}.` : ""),
-  ];
+    `${completed} meeting${completed !== 1 ? "s were" : " was"} completed` +
+    (deliverables.length > 0 ? `, and ${completedDeliverables} of ${deliverables.length} sponsorship deliverables have been fulfilled` : "") +
+    `. The primary engagement channel was ${topChannel}.`;
 
   doc.fontSize(8.5).font("Helvetica").fillColor(C.textMid)
-    .text(narrativeLines[0], lm, y, { width: cw, lineGap: 2 });
-  y += 38;
+    .text(narrativeText, lm, y, { width: cw, lineGap: 2 });
+  y += doc.heightOfString(narrativeText, { width: cw, lineGap: 2 }) + 12;
 
-  // ── SECTION 3: SPONSORSHIP ACTIVITY SUMMARY ───────────────────────────────
+  // ── SECTION 3: SPONSORSHIP ACTIVITY SUMMARY (SIMPLIFIED + CHARTS) ──────
 
-  if (y + 80 > contentBottom) { doc.addPage(); y = 50; }
+  if (y + 220 > contentBottom) { doc.addPage(); y = 50; }
   y = drawSectionHeading(doc, y, lm, cw, "3  ·  SPONSORSHIP ACTIVITY SUMMARY", navy);
 
-  const activityMetrics: [string, string | number][] = [
-    ["Meetings Scheduled",    totalMeetings],
-    ["Meetings Completed",    completed],
-    ["Confirmed / Scheduled", confirmed],
-    ["Pending Online Req.",   pending],
-    ["Cancelled / No-Show",   cancelled],
-    ["Onsite Meetings",       onsite],
-    ["Online Meetings",       online],
-    ["Unique Companies",      uniqueCompanies],
-    ["Info Requests Received",infoRequests.length],
-    ["Unique Contacts",       leadMap.size],
-    ["Profile Views",         analytics.profileViews],
-    ["Meeting CTA Clicks",    analytics.meetingCtaClicks],
+  // A. Clean KPI row — 5 cards
+  const kpiMetrics: [string, string][] = [
+    ["Meetings Scheduled", String(totalMeetings)],
+    ["Meetings Completed", String(completed)],
+    ["Information Requests", String(infoRequests.length)],
+    ["Profile Views", String(analytics.profileViews)],
+    ["Unique Companies", String(uniqueCompanies)],
   ];
 
-  const amCols  = 4;
-  const amGap   = 0;
-  const amW     = cw / amCols;
-  const amH     = 52;
-  const amRows  = Math.ceil(activityMetrics.length / amCols);
+  const kpiCols = 5;
+  const kpiGap  = 6;
+  const kpiW    = (cw - kpiGap * (kpiCols - 1)) / kpiCols;
+  const kpiH    = 50;
 
-  for (let i = 0; i < activityMetrics.length; i++) {
-    const col = i % amCols;
-    const row = Math.floor(i / amCols);
-    const mx  = lm + col * amW;
-    const my  = y + row * amH;
-    const isAlt = (row + col) % 2 === 1;
-    doc.rect(mx, my, amW, amH - 1).fill(isAlt ? C.rowAlt : C.white).stroke(C.border);
-    doc.rect(mx, my, amW, 3).fill(navy);
-    doc.fontSize(17).font("Helvetica-Bold").fillColor(C.text)
-      .text(String(activityMetrics[i][1]), mx + 8, my + 8, { width: amW - 16, lineBreak: false });
-    doc.fontSize(7).font("Helvetica").fillColor(C.textMid)
-      .text(activityMetrics[i][0], mx + 8, my + 33, { width: amW - 16, lineBreak: false });
+  for (let i = 0; i < kpiMetrics.length; i++) {
+    const mx = lm + i * (kpiW + kpiGap);
+    drawMetricCard(doc, mx, y, kpiW, kpiH, kpiMetrics[i][1], kpiMetrics[i][0], navy, C);
   }
 
-  y += amRows * amH + 16;
+  y += kpiH + 16;
+
+  // B. Charts row — Pie chart (left) + Engagement Funnel (right)
+
+  const chartRowStartY = y;
+  const chartHalfW = (cw - 20) / 2;
+
+  // Pie chart: Meeting Status Distribution
+  const pieSlices = [
+    { label: "Completed", value: completed, color: C.green },
+    { label: "Scheduled", value: scheduled, color: navy },
+    { label: "Cancelled / No-Show", value: cancelled, color: "#CBD5E1" },
+  ];
+
+  const pieRadius = 46;
+  const pieCx = lm + pieRadius + 10;
+  const pieCy = y + pieRadius + 20;
+
+  const pieEndY = drawPieChart(doc, pieCx, pieCy, pieRadius, pieSlices, "Meeting Status Distribution", navy, C);
+
+  // Engagement Funnel bar chart (right side)
+  const funnelX = lm + chartHalfW + 20;
+  const funnelBars = [
+    { label: "Profile Views", value: analytics.profileViews },
+    { label: "Meeting CTA Clicks", value: analytics.meetingCtaClicks },
+    { label: "Info Requests", value: infoRequests.length },
+    { label: "Meetings Scheduled", value: totalMeetings },
+  ];
+
+  const funnelEndY = drawBarChart(doc, funnelX, y, chartHalfW, funnelBars, "Sponsor Engagement Funnel", navy, C);
+
+  y = Math.max(pieEndY, funnelEndY) + 8;
+
+  // Optional insight line
+  if (totalMeetings > 0 || infoRequests.length > 0) {
+    const insightText = `This sponsor generated ${completed} completed meeting${completed !== 1 ? "s" : ""} and ${infoRequests.length} information request${infoRequests.length !== 1 ? "s" : ""} from ${uniqueCompanies} unique compan${uniqueCompanies !== 1 ? "ies" : "y"} during the event cycle.`;
+    doc.fontSize(7.5).font("Helvetica").fillColor(C.textMid)
+      .text(insightText, lm, y, { width: cw, align: "center" });
+    y += 18;
+  }
+
+  y += 6;
 
   // ── SECTION 4: SPONSORSHIP DELIVERABLES ──────────────────────────────────
 
-  if (sortedCategories.length > 0) {
-    if (y + 60 > contentBottom) { doc.addPage(); y = 50; }
-    y = drawSectionHeading(doc, y, lm, cw, "4  ·  SPONSORSHIP DELIVERABLES", navy);
+  if (y + 60 > contentBottom) { doc.addPage(); y = 50; }
+  y = drawSectionHeading(doc, y, lm, cw, "4  ·  SPONSORSHIP DELIVERABLES", navy);
+
+  if (sortedCategories.length === 0) {
+    doc.fontSize(9).font("Helvetica").fillColor(C.textMid)
+      .text("No deliverables configured for this sponsorship.", lm, y + 6);
+    y += 28;
+  } else {
 
     const dlvCols = [
       { label: "Deliverable",  w: 182 },
@@ -485,24 +605,29 @@ export function buildSponsorReportPDF(data: SponsorReportData): Readable {
 
         const dueLabel = formatDueTiming(d.dueTiming, d.dueDate);
         const sColor   = deliverableStatusColor(d.status, C);
+        const sBgColor = deliverableBadgeBg(d.status);
         const hasNote  = !!d.sponsorFacingNote;
 
         let cx = lm;
-        const rowCells: { text: string; bold?: boolean; color?: string }[] = [
-          { text: d.deliverableName },
-          { text: qtyLabel,   color: C.textMid },
-          { text: d.ownerType, color: C.textMid },
-          { text: d.status,   bold: true, color: sColor },
-          { text: dueLabel,   color: C.textMid },
-          { text: hasNote ? "Yes" : "—", color: hasNote ? accent : C.textMid },
-        ];
+        const statusColIdx = 3;
 
-        rowCells.forEach(({ text, bold, color }, j) => {
+        [
+          { text: d.deliverableName },
+          { text: qtyLabel, color: C.textMid },
+          { text: d.ownerType, color: C.textMid },
+          null,
+          { text: dueLabel, color: C.textMid },
+          { text: hasNote ? "Yes" : "—", color: hasNote ? accent : C.textMid },
+        ].forEach((cell, j) => {
           const w = dlvScaled[j].w;
-          doc.fontSize(7.5)
-            .font(bold ? "Helvetica-Bold" : "Helvetica")
-            .fillColor(color ?? C.text)
-            .text(text, cx + 5, y + 6, { width: w - 10, lineBreak: false });
+          if (j === statusColIdx) {
+            drawStatusBadge(doc, d.status, cx, y, w, sColor, sBgColor);
+          } else if (cell) {
+            doc.fontSize(7.5)
+              .font("Helvetica")
+              .fillColor(cell.color ?? C.text)
+              .text(cell.text, cx + 5, y + 6, { width: w - 10, lineBreak: false });
+          }
           cx += w;
         });
 

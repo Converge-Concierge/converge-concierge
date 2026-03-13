@@ -1,0 +1,351 @@
+Improve the Sponsorship Performance Report
+Reduce clutter in Sponsorship Activity Summary, add charts, and improve Deliverables status styling
+
+We need to improve the Sponsorship Performance Report PDF so it feels more polished, easier to read, and more valuable to sponsors.
+
+Current problems
+
+The Sponsorship Activity Summary feels too busy and crowded.
+
+It duplicates too much information already shown in the Sponsorship Value Summary.
+
+The report would benefit from simple visual charts instead of a dense metric grid.
+
+In the Sponsorship Deliverables section, completed items should visually stand out with a green Complete status, similar to status styling used in the Meeting Activity section.
+
+The goal is to make this report feel more like an executive sponsorship summary and less like a raw dashboard export.
+
+Primary Goal
+
+Improve the PDF so that:
+
+the Sponsorship Activity Summary is simplified
+
+redundant metrics are removed
+
+one or two simple charts are added
+
+the report feels more readable and sponsor-facing
+
+deliverables statuses are easier to scan
+
+1. Simplify the Sponsorship Activity Summary
+Problem
+
+The current Activity Summary uses too many metric boxes and repeats information already covered in the Sponsorship Value Summary.
+
+Required behavior
+
+Reduce the Activity Summary to a smaller, cleaner KPI section.
+
+Keep only the most useful summary metrics
+
+Recommended final KPIs:
+
+Meetings Scheduled
+
+Meetings Completed
+
+Information Requests
+
+Profile Views
+
+Unique Companies
+
+Do not show an oversized 10–12 metric grid.
+
+2. Remove Redundant Metrics
+Remove or de-emphasize metrics that duplicate other sections
+
+Examples that should not appear as separate primary boxes if already covered or inferable:
+
+Confirmed / Scheduled
+
+Pending Online Requests
+
+Cancelled / No-Show as a main KPI box
+
+Online Meetings and Onsite Meetings as standalone primary boxes
+
+Unique Contacts if it adds little beyond Unique Companies / Value Summary
+
+These metrics can still be used in charts or detail sections if useful, but they should not all be top-level summary boxes.
+
+3. Replace Dense Metric Grid With a Cleaner Layout
+New Activity Summary layout should be:
+Section 3 — Sponsorship Activity Summary
+A. KPI row
+
+Show 4–5 clean summary cards:
+
+Meetings Scheduled
+
+Meetings Completed
+
+Information Requests
+
+Profile Views
+
+Unique Companies
+
+B. Charts row
+
+Add 1–2 simple charts below the KPI row
+
+This should feel visually lighter and more structured than the current crowded grid.
+
+4. Add a Meeting Status Pie Chart
+
+Add a simple pie chart titled:
+
+Meeting Status Distribution
+Use the following data if available:
+
+Completed
+
+Scheduled
+
+Cancelled / No-Show
+
+If one category is zero, that is fine — the chart should still render cleanly.
+
+Purpose
+
+This chart should show sponsors the balance between:
+
+booked meetings
+
+completed meetings
+
+lost meetings
+
+This is more intuitive than separate raw metric boxes.
+
+5. Add an Engagement Funnel / Engagement Bar Chart
+
+Add a simple horizontal or vertical bar chart titled:
+
+Sponsor Engagement Funnel
+
+Recommended funnel steps:
+
+Profile Views
+
+Meeting CTA Clicks
+
+Information Requests
+
+Meetings Scheduled
+
+Use actual available data from the sponsor/event.
+
+Purpose
+
+This visually shows the sponsor how attendee interest moved through the engagement process.
+
+This is very useful for sponsor ROI storytelling.
+
+6. Use Event Branding for Charts
+
+Charts should follow the same report branding rules already defined:
+
+primary event color
+
+light neutral fills
+
+limited color palette
+
+no random bright colors
+
+Specific guidance
+
+bar chart primary bars should use the event primary color
+
+pie chart slices can use a controlled palette:
+
+event primary color
+
+neutral gray
+
+one muted accent if needed
+
+Do not introduce unrelated pink/orange/bright green chart colors.
+
+7. Keep Charts Simple and Print-Friendly
+
+The charts are for PDF output, so they must be:
+
+static
+
+clean
+
+easy to read when printed
+
+not overloaded with labels
+
+Preferred style:
+
+concise title
+
+visible values
+
+minimal legends
+
+consistent spacing
+
+Do not add overly decorative charts.
+
+8. Improve Section Hierarchy in the PDF
+
+Update the report structure so this sequence feels intentional:
+
+Report Header
+
+Event & Sponsor Summary
+
+Sponsorship Value Summary
+
+Sponsorship Activity Summary
+
+KPI row
+
+Meeting Status chart
+
+Engagement Funnel chart
+
+Sponsorship Deliverables
+
+Meeting Activity
+
+Information Requests
+
+Footer
+
+This is a better narrative structure.
+
+9. Improve Deliverables Status Styling
+
+In the Sponsorship Deliverables section, completed items should visually stand out.
+
+Required behavior
+
+If a deliverable status is:
+
+Complete
+
+or
+
+Completed
+
+render the word in green, consistent with the style already used for positive status indicators elsewhere in the report.
+
+Recommended deliverable status styles
+Complete / Completed
+
+green text or green badge
+
+visually similar to successful status badges in Meeting Activity
+
+In Progress
+
+blue badge/text
+
+Pending / Not Started
+
+gray badge/text
+
+Overdue / Issue Identified
+
+red badge/text
+
+Available After Event
+
+neutral muted style
+
+Do not leave all statuses styled the same.
+
+10. Prefer Badge Styling Over Plain Text for Deliverables Status
+
+If feasible, render Deliverables status as small status pills/badges.
+
+Example:
+
+Complete → green badge
+
+In Progress → blue badge
+
+Pending → gray badge
+
+Issue Identified → red badge
+
+This will make the Deliverables section much easier to scan in the PDF.
+
+If badge styling is not practical in PDF generation, at minimum color the status text appropriately.
+
+11. Preserve the Deliverables Table Content
+
+Do not reduce the Deliverables section content.
+
+Keep:
+
+category grouping
+
+deliverable name
+
+qty
+
+owner
+
+status
+
+due timing/date
+
+notes if applicable
+
+This section is important because it shows fulfillment of contracted sponsorship benefits.
+
+We are only improving status readability, not reducing detail.
+
+12. Optional Small Insight Line Below Charts
+
+If it fits well, add a short one-sentence summary below the charts, such as:
+
+This sponsor generated 2 meetings and 2 information requests from 1 unique company during the event cycle.
+
+This is optional, but useful if it reads naturally.
+
+Do not overdo narrative text.
+
+13. Acceptance Criteria
+
+This report update is complete when:
+
+the Sponsorship Activity Summary is visibly less crowded
+
+redundant metric boxes are removed
+
+a Meeting Status pie chart is added
+
+an Engagement Funnel bar chart is added
+
+charts use the event color scheme
+
+the report remains print-friendly and readable
+
+Deliverables statuses show green for Complete/Completed
+
+Deliverables statuses are easier to scan overall
+
+14. Success Standard
+
+After this update, the Sponsorship Performance Report should feel more like a polished sponsor-facing executive summary, with:
+
+fewer redundant numbers
+
+better visual hierarchy
+
+clear charts
+
+easier-to-read deliverables status
+
+That is the standard this improvement should meet.

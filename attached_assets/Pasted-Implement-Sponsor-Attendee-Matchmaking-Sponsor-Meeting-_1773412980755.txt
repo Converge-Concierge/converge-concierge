@@ -1,0 +1,618 @@
+Implement Sponsor / Attendee Matchmaking + Sponsor Meeting Request Tool
+
+We want to add a new matchmaking and meeting invitation system to Concierge that helps sponsors identify the most relevant attendees and send controlled meeting requests.
+
+This feature must respect the event experience and attendee privacy.
+
+Sponsors should be able to:
+
+browse recommended attendees
+
+filter attendees by category and relevance
+
+send a limited number of meeting invitations
+
+see invitation status
+
+never receive contact information unless the attendee proactively engages
+
+Attendees do not need a login for this to work.
+
+Instead, attendees will respond through secure email-driven invitation links.
+
+Primary Goal
+
+Create a system where:
+
+attendees are categorized into:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+sponsors can browse and prioritize attendees in this order:
+
+Practitioners first
+
+Government / Non-Profit second
+
+Solution Providers third
+
+sponsors can send a limited number of meeting invitations based on sponsorship level
+
+attendees receive those invitations through secure email links and can:
+
+accept
+
+decline
+
+choose a meeting time
+
+sponsors do not receive attendee contact information unless:
+
+the attendee schedules a meeting
+
+or the attendee submits an information request
+
+1. Normalize Attendee Category From Eventzilla Ticket Type
+
+We currently receive ticket type data from Eventzilla/Zapier, not a perfectly normalized attendee category.
+
+Examples of ticket types:
+
+Practitioner - Individual Registration
+
+Practitioner - Team Registration (3 or More People)
+
+Solution Provider - Individual or Group Registration
+
+Government - Individual Registration
+
+Required behavior
+
+Add a mapping layer during attendee import / Zapier ingestion.
+
+Create and store:
+
+attendee_category
+
+Supported normalized values:
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+Mapping rules
+
+If ticket type contains:
+
+Practitioner → PRACTITIONER
+
+Government → GOVERNMENT_NONPROFIT
+
+Non-Profit → GOVERNMENT_NONPROFIT
+
+Solution Provider → SOLUTION_PROVIDER
+
+Also continue storing the original ticket type:
+
+ticket_type
+
+So Concierge has both:
+
+raw source value
+
+normalized category for matchmaking
+
+2. Create Matchmaking Priority Logic
+
+Attendee category should be the strongest ranking signal for sponsor matchmaking.
+
+Base category weights
+
+Use these default weights:
+
+PRACTITIONER = 100
+
+GOVERNMENT_NONPROFIT = 70
+
+SOLUTION_PROVIDER = 20
+
+This reflects sponsor preference.
+
+3. Add Additional Match Factors
+
+Build a simple scoring engine that combines category priority with other relevant signals.
+
+Recommended scoring inputs:
+
+attendee_category
+
+attendee interests / topic selections
+
+sponsor categories / “what they want to sell”
+
+attendee role/title
+
+optional company type if available
+
+Example match score formula
+
+Use something like:
+
+match_score =
+category_weight +
+interest_match_score +
+role_relevance_score
+Recommended starting weights
+
+attendee category = highest weight
+
+topic/category match = medium-high weight
+
+role relevance = medium weight
+
+Keep the first version simple and explainable.
+
+4. Add a New Sponsor Dashboard Tab: Attendee Discovery
+
+Add a new sponsor-facing tab:
+
+Overview
+Deliverables
+Meetings
+Info Requests
+Attendee Discovery
+Reports
+
+Place Attendee Discovery after Info Requests or Meetings, whichever fits best.
+
+This tab will be the sponsor prospecting tool.
+
+5. Build the Sponsor Attendee Discovery Page
+
+Inside Attendee Discovery, show:
+
+Summary row
+
+Practitioners Attending: X
+
+Government / Non-Profit: Y
+
+Solution Providers: Z
+
+Invitations Remaining: N
+
+This should be event-specific.
+
+Main content
+
+A list or card/grid of attendees for the selected event.
+
+Each attendee card should show:
+
+full name
+
+title
+
+company
+
+attendee category
+
+interest tags
+
+optional short “Why this is a match” reason
+
+match score badge if helpful
+
+Invite to Meeting button
+
+Do not show:
+
+email
+
+phone
+
+LinkedIn
+
+direct contact details
+
+6. Add Default Sorting and Filters
+
+Default sorting should prioritize attendees by:
+
+category priority
+
+match score
+
+relevance of interests
+
+So the top of the list should mostly be Practitioners.
+
+Filters to include
+
+Attendee Category
+
+Interest / Topic
+
+Title / Role
+
+Company search
+
+“Recommended Only”
+
+Default filter state should favor:
+
+Practitioners first
+
+Recommended matches first
+
+Solution Providers should not dominate the default list.
+
+7. Add Sponsor Invitation Limits by Sponsorship Level
+
+Create invitation quotas by sponsorship level.
+
+Recommended defaults:
+
+Platinum = 25
+
+Gold = 15
+
+Silver = 10
+
+Bronze = 5
+
+Store this as configurable sponsorship-level logic if possible.
+
+Required behavior
+
+Sponsors should see:
+
+Invitations Remaining: 12 of 15
+
+Prevent sending invitations once the quota is reached.
+
+This becomes part of the sponsor benefit structure.
+
+8. Create a New Data Object: Meeting Invitations
+
+Create a new table/model such as:
+
+meeting_invitations
+
+Suggested fields:
+
+id
+
+event_id
+
+sponsor_id
+
+attendee_id
+
+sponsor_user_id nullable
+
+status
+
+message nullable
+
+category_snapshot nullable
+
+match_score nullable
+
+created_at
+
+updated_at
+
+responded_at nullable
+
+accepted_at nullable
+
+declined_at nullable
+
+expires_at nullable
+
+secure_token nullable
+
+Status values
+
+pending
+
+accepted
+
+declined
+
+expired
+
+scheduled
+
+Keep invitations separate from meetings.
+
+A meeting should only be created after an attendee accepts and chooses a time.
+
+9. Add the Sponsor Invitation Flow
+
+When a sponsor clicks Invite to Meeting:
+
+Open a modal with:
+
+attendee name
+
+sponsor name
+
+optional short message
+
+optional topic/reason
+
+current invitation count remaining
+
+Buttons:
+
+Cancel
+
+Send Invitation
+
+When sent:
+
+create a meeting_invitations record
+
+decrement remaining invitation count
+
+send invitation email to the attendee
+
+show success message
+
+Do not create a meeting yet.
+
+10. Build the Attendee Invitation Email Flow (No Login Required)
+
+Attendees do not have logins, so invitations must work through secure email links.
+
+Email subject example
+A Sponsor Would Like to Meet With You at [Event Name]
+Email body should include
+
+sponsor name
+
+sponsor description or topic focus
+
+optional invitation message
+
+Accept Meeting button
+
+Decline button
+
+Each button should use a secure signed token link.
+
+11. Create Secure Attendee Invitation Pages
+
+Build attendee-facing secure pages accessed via email token.
+
+Example route patterns:
+
+/invite/:token
+
+/meeting-invitation/:token
+
+Token should resolve:
+
+attendee
+
+sponsor
+
+event
+
+invitation record
+
+expiration
+
+Do not require account creation or login.
+
+12. Invitation Landing Page UX
+
+When attendee opens the invitation link, show:
+
+Page content
+
+sponsor name
+
+sponsor summary
+
+why this meeting may be relevant
+
+Accept Meeting
+
+Decline
+
+If accepted:
+
+show available meeting time selection flow
+
+If declined:
+
+mark invitation declined and show confirmation page
+
+13. Build Attendee Meeting Scheduling After Acceptance
+
+If attendee clicks Accept Meeting:
+
+Show a simple scheduling page where they can:
+
+pick from available meeting slots
+
+select onsite or online if relevant
+
+confirm the meeting
+
+Then:
+
+create the actual meeting record
+
+mark invitation as scheduled/accepted
+
+notify sponsor
+
+optionally send confirmation email
+
+This should reuse existing Concierge meeting scheduling logic where possible.
+
+14. Protect Attendee Contact Information
+
+This is critical.
+
+Sponsors must not receive attendee contact information unless the attendee proactively engages.
+
+Rule
+
+Sponsors only get attendee contact details if:
+
+attendee schedules a meeting
+
+or attendee submits an information request
+
+Before that, the sponsor may only see:
+
+name
+
+title
+
+company
+
+interests/category
+
+relevance context
+
+Do not expose email or phone.
+
+15. Add Invitation Limits Per Attendee (Optional but Recommended)
+
+To protect the attendee experience, prevent a practitioner from receiving too many invitations.
+
+Recommended starting rule:
+
+max 6 sponsor invitations per attendee per event
+
+If limit reached:
+
+additional invitation attempts are blocked
+
+or the attendee is deprioritized in sponsor discovery
+
+This keeps the experience curated.
+
+16. Add Sponsor Invitation Analytics
+
+In the sponsor dashboard, show invitation stats:
+
+Invitations Sent
+
+Invitations Remaining
+
+Accepted
+
+Declined
+
+Pending
+
+Scheduled Meetings from Invitations
+
+This reinforces sponsor value.
+
+17. Add Match Reasons
+
+Where possible, show a short match explanation on attendee cards.
+
+Examples:
+
+Interested in AI Compliance
+
+Matches your sponsor categories
+
+Practitioner attendee in your target area
+
+Government / Non-Profit attendee with relevant interests
+
+This helps sponsors make better invitation choices.
+
+18. Add Admin Visibility and Controls
+
+In admin, add visibility into:
+
+invitations sent by sponsor
+
+invitation status
+
+invitations by event
+
+attendee invitation load
+
+invitation quota usage
+
+This can live under:
+
+Meetings
+
+Sponsor Dashboards
+
+Reporting
+
+or a new Meeting Invitations view
+
+Admins should be able to:
+
+view invitations
+
+resend if needed
+
+expire/cancel if needed
+
+19. Add Event-Level Controls
+
+In event settings, add matchmaking controls such as:
+
+enable attendee discovery
+
+enable sponsor invitations
+
+enable category-based ranking
+
+max invitations per attendee
+
+sponsorship-level invitation quotas
+
+This allows different behavior by event if needed.
+
+20. Acceptance Criteria
+
+This feature is complete when:
+
+attendee category is normalized from Eventzilla ticket type
+
+sponsors can browse attendees in Attendee Discovery
+
+attendees are ranked with Practitioners first
+
+sponsors can send meeting invitations
+
+invitation count is limited by sponsorship level
+
+attendees receive secure email invitations without needing a login
+
+attendees can accept/decline and schedule meetings
+
+sponsors do not receive contact info unless attendee proactively engages
+
+invitation analytics are visible
+
+admin can monitor invitation activity
+
+21. Success Standard
+
+After implementation, Concierge should function as a curated sponsor-to-attendee matchmaking platform, where sponsors can proactively invite the most relevant attendees to meet, while preserving attendee control and privacy.
+
+That is the standard this feature should meet.

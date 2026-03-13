@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS } from "@shared/schema";
+import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS, INVITATION_QUOTAS, MAX_INVITATIONS_PER_ATTENDEE } from "@shared/schema";
+import { normalizeAttendeeCategory, rankAttendees, categoryLabel } from "./services/matchmakingService";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
 import { sendEmail, sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee, sendInternalDeliverableNotification as sendInternalNotification } from "../services/emailService";
@@ -1825,7 +1826,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.status(401).json({ ok: false, error: "Invalid authentication" });
     }
 
-    const { eventCode, registrationId, firstName, lastName, email, company, title, status, phone } = req.body ?? {};
+    const { eventCode, registrationId, firstName, lastName, email, company, title, status, phone, ticketType } = req.body ?? {};
 
     console.log(`[eventzilla] webhook received — eventCode=${eventCode} email=${email} registrationId=${registrationId}`);
 
@@ -1848,8 +1849,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     // Upsert: check active attendee first, then archived
     const existing = await storage.getAttendeeByEmailAndEvent(String(email).toLowerCase(), event.id);
 
+    const normalizedCategory = normalizeAttendeeCategory(ticketType ? String(ticketType) : null);
+
     if (existing) {
-      // Update existing active attendee
       await storage.updateAttendee(existing.id, {
         firstName:              String(firstName),
         lastName:               String(lastName),
@@ -1859,12 +1861,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         phone:                  phone   ? String(phone)   : existing.phone ?? undefined,
         externalSource:         "eventzilla",
         externalRegistrationId: String(registrationId),
+        ...(ticketType ? { ticketType: String(ticketType) } : {}),
+        ...(normalizedCategory ? { attendeeCategory: normalizedCategory } : {}),
       });
       console.log(`[eventzilla] updated attendee ${existing.id} for ${email} / ${eventCode}`);
       return res.json({ ok: true, action: "updated", attendeeId: existing.id, eventCode });
     }
 
-    // Check archived
     const archived = await storage.getArchivedAttendeeByEmailAndEvent(String(email).toLowerCase(), event.id);
     if (archived) {
       await storage.updateAttendee(archived.id, {
@@ -1878,12 +1881,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         archiveSource:          null,
         externalSource:         "eventzilla",
         externalRegistrationId: String(registrationId),
+        ...(ticketType ? { ticketType: String(ticketType) } : {}),
+        ...(normalizedCategory ? { attendeeCategory: normalizedCategory } : {}),
       });
       console.log(`[eventzilla] reactivated + updated archived attendee ${archived.id} for ${email} / ${eventCode}`);
       return res.json({ ok: true, action: "updated", attendeeId: archived.id, eventCode });
     }
 
-    // Create new attendee
     const created = await storage.createAttendee({
       firstName:              String(firstName),
       lastName:               String(lastName),
@@ -1897,6 +1901,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       archiveSource:          null,
       externalSource:         "eventzilla",
       externalRegistrationId: String(registrationId),
+      ticketType:             ticketType ? String(ticketType) : undefined,
+      attendeeCategory:       normalizedCategory ?? undefined,
     });
     console.log(`[eventzilla] created attendee ${created.id} for ${email} / ${eventCode}`);
     return res.status(201).json({ ok: true, action: "created", attendeeId: created.id, eventCode });
@@ -4503,6 +4509,379 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       res.json(fileAsset);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Meeting Invitations — Sponsor Dashboard ────────────────────────────────
+
+  app.get("/api/sponsor-dashboard/discovery/attendees", async (req, res) => {
+    try {
+      const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+      if (!token) return res.status(401).json({ message: "No token provided" });
+      const validation = await validateSponsorToken(token);
+      if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+      const tokenRecord = validation.tokenRecord;
+
+      const event = await storage.getEvent(tokenRecord.eventId);
+      if (!event || !event.matchmakingEnabled) return res.json({ attendees: [], matchmakingEnabled: false });
+
+      const sponsor = await storage.getSponsor(tokenRecord.sponsorId);
+      if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+
+      const allAttendees = (await storage.getAttendees()).filter(
+        a => a.assignedEvent === event.id && a.archiveState === "active"
+      );
+
+      const ranked = rankAttendees(allAttendees, sponsor);
+
+      const sponsorLevel = sponsor.level || "Bronze";
+      const quotas = event.invitationQuotas || INVITATION_QUOTAS;
+      const invitationLimit = quotas[sponsorLevel] ?? INVITATION_QUOTAS[sponsorLevel] ?? 5;
+      const sentCount = await storage.countSponsorInvitations(sponsor.id, event.id);
+
+      const existingInvitations = await storage.listMeetingInvitations({ sponsorId: sponsor.id, eventId: event.id });
+      const invitedAttendeeIds = new Set(existingInvitations.map(i => i.attendeeId));
+
+      const safeAttendees = ranked.map(r => ({
+        id: r.attendee.id,
+        name: r.attendee.name,
+        firstName: r.attendee.firstName,
+        lastName: r.attendee.lastName,
+        company: r.attendee.company,
+        title: r.attendee.title,
+        attendeeCategory: r.attendee.attendeeCategory,
+        interests: r.attendee.interests || [],
+        matchScore: r.score,
+        matchReasons: r.reasons,
+        invited: invitedAttendeeIds.has(r.attendee.id),
+      }));
+
+      const categoryCounts = {
+        practitioner: allAttendees.filter(a => a.attendeeCategory === "PRACTITIONER").length,
+        governmentNonprofit: allAttendees.filter(a => a.attendeeCategory === "GOVERNMENT_NONPROFIT").length,
+        solutionProvider: allAttendees.filter(a => a.attendeeCategory === "SOLUTION_PROVIDER").length,
+      };
+
+      res.json({
+        matchmakingEnabled: true,
+        attendees: safeAttendees,
+        categoryCounts,
+        invitationsUsed: sentCount,
+        invitationLimit,
+      });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/sponsor-dashboard/invitations", async (req, res) => {
+    try {
+      const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+      if (!token) return res.status(401).json({ message: "No token provided" });
+      const validation = await validateSponsorToken(token);
+      if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+      const tokenRecord = validation.tokenRecord;
+      const invitations = await storage.listMeetingInvitations({
+        sponsorId: tokenRecord.sponsorId,
+        eventId: tokenRecord.eventId,
+      });
+      const attendeeIds = [...new Set(invitations.map(i => i.attendeeId))];
+      const allAttendees = await storage.getAttendees();
+      const attendeeMap = new Map(allAttendees.map(a => [a.id, a]));
+      const enriched = invitations.map(inv => {
+        const att = attendeeMap.get(inv.attendeeId);
+        return {
+          ...inv,
+          attendeeName: att?.name ?? "Unknown",
+          attendeeCompany: att?.company ?? "",
+          attendeeTitle: att?.title ?? "",
+          attendeeCategory: att?.attendeeCategory ?? null,
+        };
+      });
+      res.json(enriched);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/sponsor-dashboard/invitations", async (req, res) => {
+    try {
+      const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+      if (!token) return res.status(401).json({ message: "No token provided" });
+      const validation = await validateSponsorToken(token);
+      if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+      const tokenRecord = validation.tokenRecord;
+
+      const { attendeeId, message } = req.body;
+      if (!attendeeId) return res.status(400).json({ message: "attendeeId required" });
+
+      const event = await storage.getEvent(tokenRecord.eventId);
+      if (!event || !event.matchmakingEnabled) return res.status(400).json({ message: "Matchmaking not enabled for this event" });
+
+      const sponsor = await storage.getSponsor(tokenRecord.sponsorId);
+      if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+
+      const sponsorLevel = sponsor.level || "Bronze";
+      const quotas = event.invitationQuotas || INVITATION_QUOTAS;
+      const invitationLimit = quotas[sponsorLevel] ?? INVITATION_QUOTAS[sponsorLevel] ?? 5;
+      const sentCount = await storage.countSponsorInvitations(sponsor.id, event.id);
+      if (sentCount >= invitationLimit) return res.status(400).json({ message: "Invitation quota exceeded" });
+
+      const attendee = await storage.getAttendee(attendeeId);
+      if (!attendee || attendee.assignedEvent !== event.id) return res.status(404).json({ message: "Attendee not found" });
+
+      const maxPerAttendee = event.maxInvitationsPerAttendee ?? MAX_INVITATIONS_PER_ATTENDEE;
+      const attendeeInvCount = await storage.countAttendeeInvitations(attendeeId, event.id);
+      if (attendeeInvCount >= maxPerAttendee) return res.status(400).json({ message: "This attendee has reached their invitation limit" });
+
+      const existing = await storage.listMeetingInvitations({ sponsorId: sponsor.id, eventId: event.id, attendeeId });
+      if (existing.length > 0) return res.status(400).json({ message: "Invitation already sent to this attendee" });
+
+      const secureToken = randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+      const { score } = rankAttendees([attendee], sponsor)[0] || { score: 0 };
+
+      const invitation = await storage.createMeetingInvitation({
+        eventId: event.id,
+        sponsorId: sponsor.id,
+        attendeeId,
+        message: message || null,
+        categorySnapshot: attendee.attendeeCategory || null,
+        matchScore: score,
+        secureToken,
+        expiresAt,
+        status: "pending",
+      });
+
+      const branding = await storage.getBranding();
+      const baseUrl = branding.appBaseUrl || `https://${req.get("host")}`;
+      const inviteUrl = `${baseUrl}/meeting-invitation/${secureToken}`;
+
+      try {
+        await sendEmail({
+          to: attendee.email,
+          subject: `A Sponsor Would Like to Meet With You at ${event.name}`,
+          html: `
+            <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+              <h2 style="color:#0D1E3A;">Meeting Invitation</h2>
+              <p><strong>${sponsor.name}</strong> would like to schedule a meeting with you at <strong>${event.name}</strong>.</p>
+              ${sponsor.shortDescription ? `<p style="color:#64748b;">${sponsor.shortDescription}</p>` : ""}
+              ${message ? `<p><em>"${message}"</em></p>` : ""}
+              <div style="margin:24px 0;">
+                <a href="${inviteUrl}" style="display:inline-block;padding:12px 24px;background-color:#0D9488;color:white;text-decoration:none;border-radius:6px;font-weight:bold;">View Invitation</a>
+              </div>
+              <p style="color:#94a3b8;font-size:12px;">This invitation expires in 14 days.</p>
+            </div>
+          `,
+        });
+      } catch (emailErr) {
+        console.error("[invitations] failed to send invitation email:", emailErr);
+      }
+
+      res.status(201).json(invitation);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Public Invitation Response Pages ─────────────────────────────────────
+
+  app.get("/api/meeting-invitation/:token", async (req, res) => {
+    try {
+      const invitation = await storage.getMeetingInvitationByToken(req.params.token);
+      if (!invitation) return res.status(404).json({ message: "Invitation not found" });
+      if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
+        if (invitation.status === "pending") {
+          await storage.updateMeetingInvitation(invitation.id, { status: "expired" });
+        }
+        return res.status(410).json({ message: "Invitation has expired" });
+      }
+
+      const sponsor = await storage.getSponsor(invitation.sponsorId);
+      const event = await storage.getEvent(invitation.eventId);
+      const attendee = await storage.getAttendee(invitation.attendeeId);
+
+      const meetingBlocks = event?.meetingBlocks || [];
+      const meetingLocations = event?.meetingLocations || [];
+
+      res.json({
+        id: invitation.id,
+        status: invitation.status,
+        message: invitation.message,
+        sponsorName: sponsor?.name ?? "Sponsor",
+        sponsorDescription: sponsor?.shortDescription ?? "",
+        sponsorSolutions: sponsor?.solutionsSummary ?? "",
+        eventName: event?.name ?? "Event",
+        eventLocation: event?.location ?? "",
+        eventStartDate: event?.startDate,
+        eventEndDate: event?.endDate,
+        attendeeName: attendee?.name ?? "",
+        meetingBlocks,
+        meetingLocations,
+      });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/meeting-invitation/:token/accept", async (req, res) => {
+    try {
+      const invitation = await storage.getMeetingInvitationByToken(req.params.token);
+      if (!invitation) return res.status(404).json({ message: "Invitation not found" });
+      if (invitation.status !== "pending") return res.status(400).json({ message: `Invitation is already ${invitation.status}` });
+      if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
+        await storage.updateMeetingInvitation(invitation.id, { status: "expired" });
+        return res.status(410).json({ message: "Invitation has expired" });
+      }
+
+      const { date, time, location } = req.body;
+      if (!date || !time) return res.status(400).json({ message: "date and time are required" });
+
+      const event = await storage.getEvent(invitation.eventId);
+      if (!event) return res.status(404).json({ message: "Event not found" });
+
+      const validBlocks = event.meetingBlocks || [];
+      const blockMatch = validBlocks.some((b: any) => b.date === date && time >= b.startTime && time < b.endTime);
+      if (!blockMatch) return res.status(400).json({ message: "Selected time slot is not within an available meeting block" });
+
+      if (location && location !== "TBD") {
+        const validLocations = (event.meetingLocations || []).map((l: any) => l.name);
+        if (!validLocations.includes(location)) return res.status(400).json({ message: "Invalid meeting location" });
+      }
+
+      const [sponsorConflict, attendeeConflict, locationConflict] = await Promise.all([
+        storage.getMeetingConflict(invitation.eventId, invitation.sponsorId, date, time),
+        storage.getAttendeeConflict(invitation.eventId, invitation.attendeeId, date, time),
+        location && location !== "TBD" ? storage.getLocationConflict(invitation.eventId, location, date, time) : Promise.resolve(undefined),
+      ]);
+      if (sponsorConflict) return res.status(409).json({ conflict: true, message: "This sponsor already has a meeting at this time." });
+      if (attendeeConflict) return res.status(409).json({ conflict: true, message: "You already have a meeting at this time." });
+      if (locationConflict) return res.status(409).json({ conflict: true, message: "This location is already booked at this time." });
+
+      const meeting = await storage.createMeeting({
+        eventId: invitation.eventId,
+        sponsorId: invitation.sponsorId,
+        attendeeId: invitation.attendeeId,
+        meetingType: "onsite",
+        date,
+        time,
+        location: location || "TBD",
+        status: "Scheduled",
+        source: "public",
+        notes: invitation.message ? `Invitation message: ${invitation.message}` : undefined,
+      });
+
+      await storage.updateMeetingInvitation(invitation.id, {
+        status: "scheduled",
+        respondedAt: new Date(),
+        acceptedAt: new Date(),
+      });
+
+      const sponsor = await storage.getSponsor(invitation.sponsorId);
+      const attendee = await storage.getAttendee(invitation.attendeeId);
+
+      if (sponsor && event && attendee) {
+        try {
+          await sendMeetingNotificationToSponsor(storage, attendee, sponsor, meeting, event, null);
+          await storage.createNotification({
+            sponsorId: sponsor.id,
+            eventId: event.id,
+            meetingId: meeting.id,
+            type: "onsite_booked" as SponsorNotificationType,
+            attendeeName: attendee.name,
+            attendeeCompany: attendee.company,
+            eventName: event.name,
+            date: meeting.date,
+            time: meeting.time,
+            isRead: false,
+          });
+        } catch (e) { console.error("[invitations] notification error:", e); }
+      }
+
+      res.json({ ok: true, meetingId: meeting.id });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/meeting-invitation/:token/decline", async (req, res) => {
+    try {
+      const invitation = await storage.getMeetingInvitationByToken(req.params.token);
+      if (!invitation) return res.status(404).json({ message: "Invitation not found" });
+      if (invitation.status !== "pending") return res.status(400).json({ message: `Invitation is already ${invitation.status}` });
+
+      await storage.updateMeetingInvitation(invitation.id, {
+        status: "declined",
+        respondedAt: new Date(),
+        declinedAt: new Date(),
+      });
+
+      res.json({ ok: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Admin: Meeting Invitations ───────────────────────────────────────────
+
+  app.get("/api/admin/meeting-invitations", requireAuth, async (req, res) => {
+    try {
+      const { eventId, sponsorId } = req.query;
+      const invitations = await storage.listMeetingInvitations({
+        eventId: eventId as string | undefined,
+        sponsorId: sponsorId as string | undefined,
+      });
+      const allAttendees = await storage.getAttendees();
+      const allSponsors = await storage.getSponsors();
+      const attendeeMap = new Map(allAttendees.map(a => [a.id, a]));
+      const sponsorMap = new Map(allSponsors.map(s => [s.id, s]));
+      const enriched = invitations.map(inv => {
+        const att = attendeeMap.get(inv.attendeeId);
+        const sp = sponsorMap.get(inv.sponsorId);
+        return {
+          ...inv,
+          attendeeName: att?.name ?? "Unknown",
+          attendeeCompany: att?.company ?? "",
+          attendeeEmail: att?.email ?? "",
+          sponsorName: sp?.name ?? "Unknown",
+        };
+      });
+      res.json(enriched);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.patch("/api/admin/meeting-invitations/:id", requireAuth, async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (!status) return res.status(400).json({ message: "status required" });
+      const validStatuses = ["pending", "sent", "viewed", "accepted", "scheduled", "declined", "expired", "cancelled"];
+      if (!validStatuses.includes(status)) return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+      const updated = await storage.updateMeetingInvitation(req.params.id, { status });
+      if (!updated) return res.status(404).json({ message: "Invitation not found" });
+      res.json(updated);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/meeting-invitations/:id/resend", requireAuth, async (req, res) => {
+    try {
+      const invitation = await storage.getMeetingInvitation(req.params.id);
+      if (!invitation) return res.status(404).json({ message: "Invitation not found" });
+      if (invitation.status !== "pending") return res.status(400).json({ message: "Can only resend pending invitations" });
+
+      const attendee = await storage.getAttendee(invitation.attendeeId);
+      const sponsor = await storage.getSponsor(invitation.sponsorId);
+      const event = await storage.getEvent(invitation.eventId);
+      if (!attendee || !sponsor || !event) return res.status(404).json({ message: "Related records not found" });
+
+      const branding = await storage.getBranding();
+      const baseUrl = branding.appBaseUrl || `https://${req.get("host")}`;
+      const inviteUrl = `${baseUrl}/meeting-invitation/${invitation.secureToken}`;
+
+      await sendEmail({
+        to: attendee.email,
+        subject: `Reminder: ${sponsor.name} Would Like to Meet at ${event.name}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+            <h2 style="color:#0D1E3A;">Meeting Invitation Reminder</h2>
+            <p><strong>${sponsor.name}</strong> would like to schedule a meeting with you at <strong>${event.name}</strong>.</p>
+            ${sponsor.shortDescription ? `<p style="color:#64748b;">${sponsor.shortDescription}</p>` : ""}
+            <div style="margin:24px 0;">
+              <a href="${inviteUrl}" style="display:inline-block;padding:12px 24px;background-color:#0D9488;color:white;text-decoration:none;border-radius:6px;font-weight:bold;">View Invitation</a>
+            </div>
+          </div>
+        `,
+      });
+
+      res.json({ ok: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 

@@ -92,6 +92,9 @@ export const events = pgTable("events", {
   externalSchedulingUrl: text("external_scheduling_url"),
   externalSchedulingMessage: text("external_scheduling_message"),
   websiteUrl: text("website_url"),
+  matchmakingEnabled: boolean("matchmaking_enabled").notNull().default(false),
+  maxInvitationsPerAttendee: integer("max_invitations_per_attendee").notNull().default(6),
+  invitationQuotas: jsonb("invitation_quotas").$type<Record<string, number>>(),
 });
 
 export const insertEventSchema = createInsertSchema(events).extend({
@@ -110,6 +113,9 @@ export const insertEventSchema = createInsertSchema(events).extend({
   externalSchedulingUrl: z.string().nullable().optional(),
   externalSchedulingMessage: z.string().nullable().optional(),
   websiteUrl: z.string().url("Must be a valid URL").nullable().optional().or(z.literal("")),
+  matchmakingEnabled: z.boolean().default(false).optional(),
+  maxInvitationsPerAttendee: z.number().int().min(1).default(6).optional(),
+  invitationQuotas: z.record(z.string(), z.number()).nullable().optional(),
 });
 export type Event = typeof events.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;
@@ -157,6 +163,9 @@ export type Sponsor = typeof sponsors.$inferSelect;
 export type InsertSponsor = z.infer<typeof insertSponsorSchema>;
 
 // --- Attendee ---
+export const ATTENDEE_CATEGORIES = ["PRACTITIONER", "GOVERNMENT_NONPROFIT", "SOLUTION_PROVIDER"] as const;
+export type AttendeeCategory = typeof ATTENDEE_CATEGORIES[number];
+
 export const attendees = pgTable("attendees", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   firstName: text("first_name").notNull().default(""),
@@ -174,6 +183,8 @@ export const attendees = pgTable("attendees", {
   externalRegistrationId: text("external_registration_id"),
   interests: text("interests").array(),
   notes: text("notes"),
+  ticketType: text("ticket_type"),
+  attendeeCategory: text("attendee_category"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -184,6 +195,8 @@ export const insertAttendeeSchema = createInsertSchema(attendees).extend({
   archiveSource: z.enum(["event", "manual"]).nullable().optional(),
   interests: z.array(z.string()).nullable().optional(),
   notes: z.string().nullable().optional(),
+  ticketType: z.string().nullable().optional(),
+  attendeeCategory: z.enum(ATTENDEE_CATEGORIES).nullable().optional(),
 });
 export type Attendee = typeof attendees.$inferSelect;
 export type InsertAttendee = z.infer<typeof insertAttendeeSchema>;
@@ -943,6 +956,57 @@ export const agreementDeliverableReminders = pgTable("agreement_deliverable_remi
 export const insertAgreementDeliverableReminderSchema = createInsertSchema(agreementDeliverableReminders).omit({ id: true, createdAt: true });
 export type InsertAgreementDeliverableReminder = z.infer<typeof insertAgreementDeliverableReminderSchema>;
 export type AgreementDeliverableReminder = typeof agreementDeliverableReminders.$inferSelect;
+
+// ── Meeting Invitations ───────────────────────────────────────────────────────
+
+export const MEETING_INVITATION_STATUSES = ["pending", "accepted", "declined", "expired", "scheduled"] as const;
+export type MeetingInvitationStatus = typeof MEETING_INVITATION_STATUSES[number];
+
+export const INVITATION_QUOTAS: Record<string, number> = {
+  Platinum: 25,
+  Gold: 15,
+  Silver: 10,
+  Bronze: 5,
+};
+
+export const MAX_INVITATIONS_PER_ATTENDEE = 6;
+
+export const meetingInvitations = pgTable("meeting_invitations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull(),
+  sponsorId: varchar("sponsor_id").notNull(),
+  attendeeId: varchar("attendee_id").notNull(),
+  sponsorUserId: varchar("sponsor_user_id"),
+  status: text("status", { enum: ["pending", "accepted", "declined", "expired", "scheduled"] }).notNull().default("pending"),
+  message: text("message"),
+  categorySnapshot: text("category_snapshot"),
+  matchScore: integer("match_score"),
+  secureToken: varchar("secure_token"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  respondedAt: timestamp("responded_at"),
+  acceptedAt: timestamp("accepted_at"),
+  declinedAt: timestamp("declined_at"),
+  expiresAt: timestamp("expires_at"),
+});
+
+export const insertMeetingInvitationSchema = createInsertSchema(meetingInvitations).omit({
+  id: true, createdAt: true, updatedAt: true,
+}).extend({
+  status: z.enum(MEETING_INVITATION_STATUSES).default("pending"),
+  message: z.string().nullable().optional(),
+  categorySnapshot: z.string().nullable().optional(),
+  matchScore: z.number().nullable().optional(),
+  sponsorUserId: z.string().nullable().optional(),
+  secureToken: z.string().nullable().optional(),
+  respondedAt: z.coerce.date().nullable().optional(),
+  acceptedAt: z.coerce.date().nullable().optional(),
+  declinedAt: z.coerce.date().nullable().optional(),
+  expiresAt: z.coerce.date().nullable().optional(),
+});
+
+export type InsertMeetingInvitation = z.infer<typeof insertMeetingInvitationSchema>;
+export type MeetingInvitation = typeof meetingInvitations.$inferSelect;
 
 // ── Backup Jobs ───────────────────────────────────────────────────────────────
 

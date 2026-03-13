@@ -23,6 +23,7 @@ import {
   type FileAsset, type InsertFileAsset,
   type DeliverableLink, type InsertDeliverableLink,
   type DeliverableSocialEntry, type InsertDeliverableSocialEntry,
+  type MeetingInvitation, type InsertMeetingInvitation, type MeetingInvitationStatus,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -281,6 +282,15 @@ export interface IStorage {
   // ── Internal Notification Email ─────────────────────────────────────────────
   getInternalNotificationEmail(): Promise<string>;
   setInternalNotificationEmail(email: string): Promise<void>;
+
+  // ── Meeting Invitations ────────────────────────────────────────────────────
+  createMeetingInvitation(data: InsertMeetingInvitation): Promise<MeetingInvitation>;
+  getMeetingInvitation(id: string): Promise<MeetingInvitation | undefined>;
+  getMeetingInvitationByToken(token: string): Promise<MeetingInvitation | undefined>;
+  listMeetingInvitations(filters: { eventId?: string; sponsorId?: string; attendeeId?: string; status?: MeetingInvitationStatus }): Promise<MeetingInvitation[]>;
+  updateMeetingInvitation(id: string, updates: Partial<InsertMeetingInvitation>): Promise<MeetingInvitation | undefined>;
+  countSponsorInvitations(sponsorId: string, eventId: string): Promise<number>;
+  countAttendeeInvitations(attendeeId: string, eventId: string): Promise<number>;
 }
 
 export class MemStorage implements IStorage {
@@ -933,6 +943,14 @@ export class MemStorage implements IStorage {
   async generateAttendeeContactListCsv(_deliverableId: string, _type?: "full" | "partial"): Promise<string> { return ""; }
   async getInternalNotificationEmail(): Promise<string> { return ""; }
   async setInternalNotificationEmail(_email: string): Promise<void> {}
+
+  async createMeetingInvitation(data: InsertMeetingInvitation): Promise<MeetingInvitation> { return { id: randomUUID(), ...data, sponsorUserId: data.sponsorUserId ?? null, message: data.message ?? null, categorySnapshot: data.categorySnapshot ?? null, matchScore: data.matchScore ?? null, secureToken: data.secureToken ?? null, respondedAt: null, acceptedAt: null, declinedAt: null, expiresAt: data.expiresAt ?? null, createdAt: new Date(), updatedAt: new Date() } as MeetingInvitation; }
+  async getMeetingInvitation(_id: string): Promise<MeetingInvitation | undefined> { return undefined; }
+  async getMeetingInvitationByToken(_token: string): Promise<MeetingInvitation | undefined> { return undefined; }
+  async listMeetingInvitations(_filters: { eventId?: string; sponsorId?: string; attendeeId?: string; status?: MeetingInvitationStatus }): Promise<MeetingInvitation[]> { return []; }
+  async updateMeetingInvitation(_id: string, _updates: Partial<InsertMeetingInvitation>): Promise<MeetingInvitation | undefined> { return undefined; }
+  async countSponsorInvitations(_sponsorId: string, _eventId: string): Promise<number> { return 0; }
+  async countAttendeeInvitations(_attendeeId: string, _eventId: string): Promise<number> { return 0; }
 }
 
 export const storage = new DatabaseStorage();

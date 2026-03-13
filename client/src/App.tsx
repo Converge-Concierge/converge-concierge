@@ -19,6 +19,7 @@ import SponsorProfilePage from "@/pages/public/SponsorProfilePage";
 import WelcomePage from "@/pages/public/WelcomePage";
 import ResetPasswordPage from "@/pages/public/ResetPasswordPage";
 import HelpCenterPage from "@/pages/public/HelpCenterPage";
+import MeetingInvitationPage from "@/pages/public/MeetingInvitationPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import AdminResetPasswordPage from "@/pages/AdminResetPasswordPage";
 import TermsPage from "@/pages/TermsPage";
@@ -68,6 +69,7 @@ function Router() {
       <Route path="/sponsor/login" component={SponsorLoginPage} />
       <Route path="/sponsor/onboarding" component={SponsorOnboardingPage} />
       <Route path="/sponsor/dashboard" component={SponsorDashboardPage} />
+      <Route path="/meeting-invitation/:token" component={MeetingInvitationPage} />
       <Route path="/sponsor-access/:token" component={SponsorAutoLoginPage} />
       <Route path="/event/:slug/book/:rest*">
         {(params) => <Redirect to={`/event/${params.slug}`} />}

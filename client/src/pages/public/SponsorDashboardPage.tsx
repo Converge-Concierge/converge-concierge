@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { downloadICS, googleCalendarUrl } from "@/lib/ics";
 import { SPONSOR_INFO_REQUEST_STATUSES } from "@shared/schema";
 import SponsorDeliverablesTab from "@/components/sponsor/SponsorDeliverablesTab";
+import AttendeeDiscoveryTab from "@/components/sponsor/AttendeeDiscoveryTab";
 
 import { useToast } from "@/hooks/use-toast";
 
@@ -530,19 +531,20 @@ export default function SponsorDashboardPage() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-muted/50 border border-border/40 rounded-xl mb-8">
-              {(["overview", "deliverables", "meetings", "info-requests", "leads", "reports"] as const).map((tab) => (
+            <TabsList className="grid w-full grid-cols-7 h-auto p-1 bg-muted/50 border border-border/40 rounded-xl mb-8">
+              {(["overview", "deliverables", "meetings", "info-requests", "discovery", "leads", "reports"] as const).map((tab) => (
                 <TabsTrigger
                   key={tab}
                   value={tab}
-                  data-testid={tab === "deliverables" ? "tab-deliverables" : undefined}
-                  className="py-2.5 rounded-lg data-[state=active]:shadow-sm transition-all"
+                  data-testid={tab === "deliverables" ? "tab-deliverables" : `tab-${tab}`}
+                  className="py-2.5 rounded-lg data-[state=active]:shadow-sm transition-all text-[11px] sm:text-sm"
                   style={activeTab === tab ? { backgroundColor: eventAccent, color: "#ffffff" } : {}}
                 >
                   {tab === "overview" ? "Overview"
                     : tab === "deliverables" ? "Deliverables"
                     : tab === "meetings" ? "Meetings"
                     : tab === "info-requests" ? "Info Requests"
+                    : tab === "discovery" ? "Discovery"
                     : tab === "leads" ? "Leads"
                     : "Reports"}
                 </TabsTrigger>
@@ -974,6 +976,10 @@ export default function SponsorDashboardPage() {
                   </div>
                 )}
               </div>
+            </TabsContent>
+
+            <TabsContent value="discovery" className="outline-none">
+              <AttendeeDiscoveryTab token={token ?? ""} eventAccent={eventAccent} />
             </TabsContent>
 
             <TabsContent value="leads" className="outline-none">

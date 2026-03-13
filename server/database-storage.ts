@@ -8,7 +8,7 @@ import {
   userPermissions, permissionAuditLogs, informationRequests, sponsorAnalytics, emailLogs,
   agreementPackageTemplates, agreementDeliverableTemplateItems, agreementDeliverables,
   agreementDeliverableRegistrants, agreementDeliverableSpeakers, agreementDeliverableReminders,
-  fileAssets, deliverableLinks, deliverableSocialEntries,
+  fileAssets, deliverableLinks, deliverableSocialEntries, meetingInvitations,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -31,6 +31,7 @@ import {
   type FileAsset, type InsertFileAsset,
   type DeliverableLink, type InsertDeliverableLink,
   type DeliverableSocialEntry, type InsertDeliverableSocialEntry,
+  type MeetingInvitation, type InsertMeetingInvitation, type MeetingInvitationStatus,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -1516,5 +1517,49 @@ export class DatabaseStorage implements IStorage {
 
   async setInternalNotificationEmail(email: string): Promise<void> {
     await this.updateBranding({ internalNotificationEmail: email });
+  }
+
+  // ── Meeting Invitations ────────────────────────────────────────────────────
+
+  async createMeetingInvitation(data: InsertMeetingInvitation): Promise<MeetingInvitation> {
+    const [inv] = await db.insert(meetingInvitations).values(data).returning();
+    return inv;
+  }
+
+  async getMeetingInvitation(id: string): Promise<MeetingInvitation | undefined> {
+    const [inv] = await db.select().from(meetingInvitations).where(eq(meetingInvitations.id, id));
+    return inv;
+  }
+
+  async getMeetingInvitationByToken(token: string): Promise<MeetingInvitation | undefined> {
+    const [inv] = await db.select().from(meetingInvitations).where(eq(meetingInvitations.secureToken, token));
+    return inv;
+  }
+
+  async listMeetingInvitations(filters: { eventId?: string; sponsorId?: string; attendeeId?: string; status?: MeetingInvitationStatus }): Promise<MeetingInvitation[]> {
+    const conditions: any[] = [];
+    if (filters.eventId) conditions.push(eq(meetingInvitations.eventId, filters.eventId));
+    if (filters.sponsorId) conditions.push(eq(meetingInvitations.sponsorId, filters.sponsorId));
+    if (filters.attendeeId) conditions.push(eq(meetingInvitations.attendeeId, filters.attendeeId));
+    if (filters.status) conditions.push(eq(meetingInvitations.status, filters.status));
+    if (conditions.length === 0) return db.select().from(meetingInvitations).orderBy(desc(meetingInvitations.createdAt));
+    return db.select().from(meetingInvitations).where(and(...conditions)).orderBy(desc(meetingInvitations.createdAt));
+  }
+
+  async updateMeetingInvitation(id: string, updates: Partial<InsertMeetingInvitation>): Promise<MeetingInvitation | undefined> {
+    const [inv] = await db.update(meetingInvitations).set({ ...updates, updatedAt: new Date() }).where(eq(meetingInvitations.id, id)).returning();
+    return inv;
+  }
+
+  async countSponsorInvitations(sponsorId: string, eventId: string): Promise<number> {
+    const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(meetingInvitations)
+      .where(and(eq(meetingInvitations.sponsorId, sponsorId), eq(meetingInvitations.eventId, eventId)));
+    return row?.count ?? 0;
+  }
+
+  async countAttendeeInvitations(attendeeId: string, eventId: string): Promise<number> {
+    const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(meetingInvitations)
+      .where(and(eq(meetingInvitations.attendeeId, attendeeId), eq(meetingInvitations.eventId, eventId)));
+    return row?.count ?? 0;
   }
 }

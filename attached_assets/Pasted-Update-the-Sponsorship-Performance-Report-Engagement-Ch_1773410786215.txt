@@ -1,0 +1,313 @@
+Update the Sponsorship Performance Report Engagement Chart
+Make meetings and information requests the visual priority
+
+We need to revise the new Sponsor Engagement Funnel bar chart in the Sponsorship Performance Report.
+
+Problem
+
+The current chart visually emphasizes:
+
+Profile Views
+
+Meeting CTA Clicks
+
+more than:
+
+Information Requests
+
+Meetings Scheduled
+
+Even though the most valuable outcomes to the sponsor are:
+
+Meetings
+
+Information Requests
+
+Right now the presentation makes those high-value outcomes look small and secondary, which sends the wrong message in the sponsor report.
+
+The chart should reflect business value, not just raw volume.
+
+Primary Goal
+
+Redesign the engagement chart so that:
+
+meetings and information requests are the visual focus
+
+low-value activity like clicks/views is de-emphasized
+
+the report tells a stronger sponsor ROI story
+
+sponsors clearly understand the most important engagement outcomes
+
+1. Do Not Use a Pure Raw-Volume Funnel for This Section
+Current issue
+
+The current funnel treats all steps equally and scales the bar sizes only by raw count.
+
+That causes:
+
+Profile Views = 7
+
+Meeting CTA Clicks = 7
+
+to dominate visually, while:
+
+Information Requests = 2
+
+Meetings Scheduled = 2
+
+look minor.
+
+This is misleading in a sponsor-facing report because those smaller numbers are actually the more valuable outcomes.
+
+Required change
+
+Do not present this as a standard raw-volume funnel if that makes the higher-value outcomes look weak.
+
+2. Reframe the Chart Around Sponsor Value
+
+Rename and redesign this section so it reflects engagement value, not just traffic progression.
+
+Preferred new chart title
+
+Use one of these:
+
+High-Value Sponsor Engagement
+
+or
+
+Sponsor Engagement Outcomes
+
+Preferred:
+
+Sponsor Engagement Outcomes
+
+This better matches what matters to the sponsor.
+
+3. Make Meetings and Information Requests the First Items Shown
+
+Reorder the chart so the highest-value outcomes appear first.
+
+New order
+
+Meetings Scheduled
+
+Information Requests
+
+Meeting CTA Clicks
+
+Profile Views
+
+This ensures the sponsor sees the most important outcomes first.
+
+Do not lead with Profile Views.
+
+4. Visually Emphasize High-Value Outcomes
+
+Use visual styling to make the most important outcomes stand out.
+
+Required behavior
+
+Apply stronger styling to:
+
+Meetings Scheduled
+
+Information Requests
+
+Apply lighter/de-emphasized styling to:
+
+Meeting CTA Clicks
+
+Profile Views
+
+Example approach
+
+Meetings Scheduled and Information Requests use the primary event color
+
+Meeting CTA Clicks and Profile Views use lighter neutral or muted secondary styling
+
+This ensures the chart communicates value hierarchy, not just quantity.
+
+5. Do Not Let Low-Value Metrics Dominate the Bar Length Story
+
+If raw counts make low-value items look disproportionately important, adjust the visualization approach.
+
+Acceptable alternatives
+
+Instead of one single same-scale bar chart, use one of these:
+
+Option A — Split the section into two groups
+Outcomes
+
+Meetings Scheduled
+
+Information Requests
+
+Interest Signals
+
+Meeting CTA Clicks
+
+Profile Views
+
+This is strongly recommended.
+
+Option B — Use a weighted emphasis chart
+
+Keep all four metrics, but visually highlight the high-value outcomes with:
+
+darker color
+
+bolder labels
+
+callout styling
+
+first position
+
+and de-emphasize clicks/views.
+
+Option C — Use KPI cards for Meetings + Info Requests, and a smaller secondary chart for views/clicks
+
+This is also a good option.
+
+Example:
+
+High-Value Outcomes
+
+Meetings Scheduled: 2
+
+Information Requests: 2
+
+Interest Signals
+
+CTA Clicks: 7
+
+Profile Views: 7
+
+This may be the clearest presentation.
+
+6. Recommended Final Structure
+
+Use this layout:
+
+Section title
+Sponsor Engagement Outcomes
+A. Primary outcome row or cards
+
+Show prominently:
+
+Meetings Scheduled
+
+Information Requests
+
+B. Secondary interest chart
+
+Show below in smaller or lighter styling:
+
+Meeting CTA Clicks
+
+Profile Views
+
+This makes the report much more sponsor-friendly.
+
+7. Add Short Explanatory Text if Helpful
+
+If useful, add a small line under the section title:
+
+The most meaningful sponsor engagement signals are meetings scheduled and information requests from attendees.
+
+Keep this short and professional.
+
+8. Preserve the Data, But Change the Storytelling
+
+Do not remove Profile Views or Meeting CTA Clicks entirely.
+
+They are still useful as supporting indicators.
+
+But they should be clearly framed as:
+
+early engagement
+
+interest signals
+
+supporting activity
+
+not the main result.
+
+The main result is:
+
+meetings
+
+information requests
+
+9. Use Clear Labels
+
+Update labels if needed so they are easier for sponsors to understand.
+
+Recommended labels:
+
+Meetings Scheduled
+
+Information Requests
+
+Profile Page Views
+
+Meeting Button Clicks
+
+These are slightly more natural than “Meeting CTA Clicks.”
+
+10. Keep It PDF-Friendly
+
+Whatever redesign is used, it must still:
+
+render cleanly in PDF
+
+look polished when printed
+
+avoid clutter
+
+remain readable with small sponsor datasets
+
+Do not overcomplicate the chart.
+
+11. Recommended Preferred Implementation
+
+Preferred implementation for this report:
+
+Section: Sponsor Engagement Outcomes
+Primary KPI cards
+
+Meetings Scheduled
+
+Information Requests
+
+Secondary mini bar chart
+
+Profile Page Views
+
+Meeting Button Clicks
+
+This is the clearest and most sponsor-appropriate solution.
+
+12. Acceptance Criteria
+
+This update is complete when:
+
+meetings and information requests are visually emphasized over clicks/views
+
+the chart/section no longer makes low-value metrics look more important than high-value outcomes
+
+the section title and ordering better reflect sponsor value
+
+the report tells a stronger ROI story
+
+13. Success Standard
+
+After this update, a sponsor reading the report should immediately understand that the most important outcomes are:
+
+meetings generated
+
+information requests received
+
+while profile views and clicks are supporting signals only.
+
+That is the standard this chart redesign should meet.

@@ -518,18 +518,61 @@ export function buildSponsorReportPDF(data: SponsorReportData): Readable {
 
   const pieEndY = drawPieChart(doc, pieCx, pieCy, pieRadius, pieSlices, "Meeting Status Distribution", navy, C);
 
-  // Engagement Funnel bar chart (right side)
-  const funnelX = lm + chartHalfW + 20;
-  const funnelBars = [
-    { label: "Profile Views", value: analytics.profileViews },
-    { label: "Meeting CTA Clicks", value: analytics.meetingCtaClicks },
-    { label: "Info Requests", value: infoRequests.length },
-    { label: "Meetings Scheduled", value: totalMeetings },
+  // Sponsor Engagement Outcomes (right side)
+  const engX = lm + chartHalfW + 20;
+
+  doc.fontSize(8).font("Helvetica-Bold").fillColor(C.text)
+    .text("Sponsor Engagement Outcomes", engX, y, { width: chartHalfW });
+  doc.fontSize(6.5).font("Helvetica").fillColor(C.textMid)
+    .text("Meetings and information requests are the most meaningful engagement signals.", engX, y + 12, { width: chartHalfW });
+
+  const engCardY = y + 28;
+  const engCardW = (chartHalfW - 8) / 2;
+  const engCardH = 46;
+
+  // Primary outcome cards — Meetings Scheduled + Information Requests
+  drawMetricCard(doc, engX, engCardY, engCardW, engCardH, String(totalMeetings), "Meetings Scheduled", navy, C);
+  drawMetricCard(doc, engX + engCardW + 8, engCardY, engCardW, engCardH, String(infoRequests.length), "Information Requests", navy, C);
+
+  // Secondary interest signals — smaller muted bar chart
+  const sigY = engCardY + engCardH + 12;
+  doc.fontSize(7).font("Helvetica-Bold").fillColor(C.textMid)
+    .text("INTEREST SIGNALS", engX, sigY, { width: chartHalfW });
+
+  const sigBarY = sigY + 12;
+  const sigLabelW = 100;
+  const sigBarAreaW = chartHalfW - sigLabelW - 30;
+  const sigBarH = 14;
+  const sigGap = 4;
+  const sigColor = "#CBD5E1";
+  const sigMaxVal = Math.max(analytics.profileViews, analytics.meetingCtaClicks, 1);
+
+  const sigBars = [
+    { label: "Profile Page Views", value: analytics.profileViews },
+    { label: "Meeting Button Clicks", value: analytics.meetingCtaClicks },
   ];
 
-  const funnelEndY = drawBarChart(doc, funnelX, y, chartHalfW, funnelBars, "Sponsor Engagement Funnel", navy, C);
+  let sigCurY = sigBarY;
+  for (const bar of sigBars) {
+    const filledW = sigMaxVal > 0 ? (bar.value / sigMaxVal) * sigBarAreaW : 0;
 
-  y = Math.max(pieEndY, funnelEndY) + 8;
+    doc.fontSize(6.5).font("Helvetica").fillColor(C.textMid)
+      .text(bar.label, engX, sigCurY + 2, { width: sigLabelW - 4, lineBreak: false, align: "right" });
+
+    doc.roundedRect(engX + sigLabelW, sigCurY, sigBarAreaW, sigBarH, 2).fill("#F1F5F9");
+    if (filledW > 2) {
+      doc.roundedRect(engX + sigLabelW, sigCurY, filledW, sigBarH, 2).fill(sigColor);
+    }
+
+    doc.fontSize(6.5).font("Helvetica").fillColor(C.textMid)
+      .text(String(bar.value), engX + sigLabelW + sigBarAreaW + 4, sigCurY + 2, { width: 24, lineBreak: false });
+
+    sigCurY += sigBarH + sigGap;
+  }
+
+  const engEndY = sigCurY + 4;
+
+  y = Math.max(pieEndY, engEndY) + 8;
 
   // Optional insight line
   if (totalMeetings > 0 || infoRequests.length > 0) {

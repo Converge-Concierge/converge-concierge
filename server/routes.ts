@@ -627,15 +627,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.patch("/api/attendees/:id", async (req, res) => {
+    const UPDATABLE_FIELDS = [
+      "firstName", "lastName", "name", "email", "company", "title", "phone",
+      "linkedinUrl", "assignedEvent", "archiveState", "archiveSource",
+      "externalSource", "externalRegistrationId", "interests", "notes",
+      "ticketType", "attendeeCategory",
+    ];
     try {
-      const updates = { ...req.body };
+      const raw = req.body ?? {};
+      const updates: Record<string, any> = {};
+      for (const key of UPDATABLE_FIELDS) {
+        if (key in raw) updates[key] = raw[key];
+      }
       if (updates.attendeeCategory === "") updates.attendeeCategory = null;
       if (updates.ticketType === "") updates.ticketType = null;
+
+      if (updates.attendeeCategory && !["PRACTITIONER", "GOVERNMENT_NONPROFIT", "SOLUTION_PROVIDER"].includes(updates.attendeeCategory)) {
+        const normalized = String(updates.attendeeCategory).toUpperCase().replace(/[\s/]+/g, "_").replace(/-/g, "_");
+        const validCategories = ["PRACTITIONER", "GOVERNMENT_NONPROFIT", "SOLUTION_PROVIDER"];
+        if (validCategories.includes(normalized)) {
+          updates.attendeeCategory = normalized;
+        } else {
+          return res.status(400).json({ message: `Invalid attendee category: "${updates.attendeeCategory}"` });
+        }
+      }
+
+      console.log(`[attendees] PATCH ${req.params.id}:`, JSON.stringify(updates));
       const attendee = await storage.updateAttendee(req.params.id, updates);
       if (!attendee) return res.status(404).json({ message: "Attendee not found" });
       res.json(attendee);
     } catch (err: any) {
-      console.error(`[attendees] PATCH error for ${req.params.id}:`, err.message);
+      console.error(`[attendees] PATCH error for ${req.params.id}:`, err.message, err.stack);
       res.status(500).json({ message: "Failed to update attendee", detail: err.message });
     }
   });

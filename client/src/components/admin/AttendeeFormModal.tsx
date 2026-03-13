@@ -37,10 +37,14 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
   useEffect(() => {
     if (attendee) {
       setFormData({
-        ...attendee,
         firstName: attendee.firstName || attendee.name?.split(" ")[0] || "",
         lastName: attendee.lastName || attendee.name?.split(" ").slice(1).join(" ") || "",
+        name: attendee.name || "",
+        company: attendee.company || "",
+        title: attendee.title || "",
+        email: attendee.email || "",
         linkedinUrl: attendee.linkedinUrl || "",
+        assignedEvent: attendee.assignedEvent || "",
         attendeeCategory: attendee.attendeeCategory || "",
       });
     } else {
@@ -50,12 +54,21 @@ export function AttendeeFormModal({ isOpen, onClose, onSubmit, attendee, events,
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...formData } as any;
-    if (!data.linkedinUrl) delete data.linkedinUrl;
-    const fullName = [data.firstName, data.lastName].filter(Boolean).join(" ");
-    data.name = fullName;
-    if (!data.attendeeCategory) data.attendeeCategory = null;
-    onSubmit(data as InsertAttendee);
+    const fullName = [formData.firstName, formData.lastName].filter(Boolean).join(" ");
+    const payload: Partial<InsertAttendee> = {
+      firstName: formData.firstName || "",
+      lastName: formData.lastName || "",
+      name: fullName,
+      company: formData.company || "",
+      title: formData.title || "",
+      email: formData.email || "",
+      assignedEvent: formData.assignedEvent || "",
+      attendeeCategory: formData.attendeeCategory || null,
+    };
+    if (formData.linkedinUrl) {
+      payload.linkedinUrl = formData.linkedinUrl;
+    }
+    onSubmit(payload as InsertAttendee);
   };
 
   const activeEvents = events.filter((e) => (e.archiveState ?? "active") === "active");

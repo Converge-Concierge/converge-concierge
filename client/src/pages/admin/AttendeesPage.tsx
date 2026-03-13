@@ -99,7 +99,19 @@ export default function AttendeesPage() {
       toast({ title: "Attendee updated successfully" });
       setIsModalOpen(false);
     },
-    onError: () => toast({ title: "Error", description: "Failed to update attendee", variant: "destructive" }),
+    onError: (err: any) => {
+      let detail = "Failed to update attendee";
+      try {
+        const raw = err?.message || "";
+        const jsonStart = raw.indexOf("{");
+        if (jsonStart >= 0) {
+          const parsed = JSON.parse(raw.substring(jsonStart));
+          detail = parsed.detail || parsed.message || detail;
+        }
+      } catch { /* use default */ }
+      console.error("[AttendeesPage] Update error:", err);
+      toast({ title: "Update Failed", description: detail, variant: "destructive" });
+    },
   });
 
   const deleteMutation = useMutation({

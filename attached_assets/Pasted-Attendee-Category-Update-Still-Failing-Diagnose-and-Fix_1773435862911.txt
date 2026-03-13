@@ -1,0 +1,278 @@
+Attendee Category Update Still Failing — Diagnose and Fix the Save Path Completely
+
+We are still getting this error when editing an attendee and clicking Update Attendee after changing the Category field:
+
+Failed to update attendee
+
+The UI has already been simplified so that:
+
+Ticket Type is removed from the edit form
+
+Category is present as a dropdown
+
+But the actual save/update path is still broken.
+
+We need to fully diagnose and fix the attendee update pipeline so category updates work reliably.
+
+Primary Goal
+
+Ensure that:
+
+updating attendee category succeeds
+
+the backend accepts and persists the category value correctly
+
+the frontend sends the correct payload
+
+the UI shows a useful error if something still fails
+
+the Attendees table/detail view refresh correctly after save
+
+1. Capture the Actual Backend Error
+
+Right now the UI only shows:
+
+Failed to update attendee
+
+That is not enough.
+
+Required action
+
+Instrument the attendee update endpoint and log the actual failure reason.
+
+Log:
+
+attendee id
+
+request payload keys
+
+category value received
+
+validation error message
+
+database error message
+
+stack trace if present
+
+Do not log secrets.
+
+This is the first thing to fix. We need the real error, not a generic toast.
+
+2. Verify the Frontend Payload Being Sent
+
+Inspect the network request for Update Attendee and confirm the payload includes the correct category field.
+
+Required checks
+
+Confirm whether the frontend is sending one of these:
+
+category
+
+attendeeCategory
+
+attendee_category
+
+The backend and frontend must match exactly.
+
+Preferred contract
+
+Send:
+
+attendee_category
+
+with normalized values such as:
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+Do not send only the display labels unless the backend explicitly maps them.
+
+3. Fix the Dropdown Value Mapping
+
+The Category dropdown currently displays labels like:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+The save failure may be caused by sending the display label instead of the normalized enum/string expected by the backend.
+
+Required behavior
+
+The dropdown should use:
+
+Labels
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+Underlying values
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+When the user selects “Practitioner”, the request should send:
+
+attendee_category = PRACTITIONER
+
+This is likely the main source of the failure.
+
+4. Verify Backend Update Schema Accepts attendee_category
+
+Check the attendee update schema / validator / DTO / Zod schema / route parser.
+
+Likely problem:
+the frontend now includes category, but the backend update validator does not allow it yet.
+
+Required fix
+
+Ensure the attendee update handler explicitly accepts:
+
+attendee_category
+
+as an allowed updatable field.
+
+If validation is strict, update the schema to include the normalized enum values.
+
+5. Verify Database Column and ORM Mapping
+
+Confirm the attendee table/model actually has a writable field for category.
+
+Check:
+
+column name
+
+ORM field name
+
+enum type if used
+
+allowed values
+
+Possible failure scenarios:
+
+DB column is named differently
+
+ORM expects category, not attendee_category
+
+enum mismatch between app and DB
+
+null/constraint issue
+
+database migration missing
+
+Required action
+
+Verify the DB schema and ORM update logic align with the value being sent.
+
+6. Check If the Save Fails Only When Category Changes
+
+Run two test cases:
+
+Test A
+
+Edit attendee and save with no category change.
+
+Test B
+
+Edit attendee and change only category.
+
+If Test A succeeds and Test B fails, the issue is isolated to category persistence.
+
+Log results clearly.
+
+7. Add Safe Category Mapping in the Backend
+
+Even if the frontend sends normalized values, make the backend resilient.
+
+Backend should safely accept either:
+
+PRACTITIONER
+
+Practitioner
+
+and normalize internally.
+
+Recommended mapping:
+
+Practitioner → PRACTITIONER
+
+Government / Non-Profit → GOVERNMENT_NONPROFIT
+
+Solution Provider → SOLUTION_PROVIDER
+
+This avoids fragile save behavior.
+
+8. Improve the User-Facing Error
+
+If the save fails again, show a more specific toast.
+
+Examples:
+
+Invalid attendee category value
+
+Attendee update failed: category could not be saved
+
+Attendee update failed due to validation error
+
+Do not leave it as the generic “Failed to update attendee”.
+
+Also surface the error in console during admin testing.
+
+9. Verify Successful Save Updates the UI Everywhere
+
+After the fix, when category is updated:
+
+attendee row in the Attendees table should update
+
+attendee detail side panel should show the new category
+
+attendee category pie chart should reflect the new count distribution after refresh
+
+“Unmapped” should disappear if category is successfully set
+
+10. Add a Temporary Diagnostic for One Known Record
+
+Use the attendee shown in the screenshot as a direct test case.
+
+Confirm:
+
+current category value in DB
+
+payload being sent
+
+backend normalization
+
+DB update result
+
+This is a good known failing example and should be used to confirm the fix.
+
+11. Acceptance Criteria
+
+This is complete when:
+
+changing attendee category and clicking Update Attendee succeeds
+
+no error toast appears for valid category changes
+
+the backend accepts and persists the category value
+
+the table/detail/chart reflect the updated category
+
+logs clearly show the save path is working
+
+12. Success Standard
+
+After this fix, attendee category should function as a stable editable field in the admin UI, fully usable for attendee segmentation, matchmaking, and reporting.
+
+That is the standard this fix should meet.

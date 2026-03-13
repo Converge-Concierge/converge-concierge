@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2, Linkedin, Archive, RotateCcw, Eye } from "lucide-react";
+import { categoryLabel, categoryBadgeClass } from "@/lib/categoryUtils";
 import { Attendee, Event } from "@shared/schema";
 import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
 import { cn } from "@/lib/utils";
@@ -20,24 +21,6 @@ interface AttendeesTableProps {
   onDelete: (attendee: Attendee) => void;
 }
 
-function categoryLabel(cat: string | null | undefined): string {
-  if (!cat) return "—";
-  switch (cat) {
-    case "PRACTITIONER": return "Practitioner";
-    case "GOVERNMENT_NONPROFIT": return "Gov / Non-Profit";
-    case "SOLUTION_PROVIDER": return "Solution Provider";
-    default: return cat;
-  }
-}
-
-function categoryBadgeClass(cat: string | null | undefined): string {
-  switch (cat) {
-    case "PRACTITIONER": return "bg-emerald-100 text-emerald-800 border-emerald-200";
-    case "GOVERNMENT_NONPROFIT": return "bg-blue-100 text-blue-800 border-blue-200";
-    case "SOLUTION_PROVIDER": return "bg-amber-100 text-amber-800 border-amber-200";
-    default: return "bg-gray-100 text-gray-500 border-gray-200";
-  }
-}
 
 export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete }: AttendeesTableProps) {
   const { sort, toggle } = useSortState("added", "desc");

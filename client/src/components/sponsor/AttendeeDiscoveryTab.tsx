@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { categoryLabel, categoryBadgeClass } from "@/lib/categoryUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Users, Search, Send, Filter, Building2, Briefcase, Star } from "lucide-react";
 
@@ -33,24 +34,6 @@ interface DiscoveryData {
   invitationLimit: number;
 }
 
-function categoryLabel(cat: string | null): string {
-  if (!cat) return "Unknown";
-  switch (cat) {
-    case "PRACTITIONER": return "Practitioner";
-    case "GOVERNMENT_NONPROFIT": return "Gov / Non-Profit";
-    case "SOLUTION_PROVIDER": return "Solution Provider";
-    default: return cat;
-  }
-}
-
-function categoryColor(cat: string | null): string {
-  switch (cat) {
-    case "PRACTITIONER": return "bg-emerald-100 text-emerald-800";
-    case "GOVERNMENT_NONPROFIT": return "bg-blue-100 text-blue-800";
-    case "SOLUTION_PROVIDER": return "bg-amber-100 text-amber-800";
-    default: return "bg-gray-100 text-gray-600";
-  }
-}
 
 export default function AttendeeDiscoveryTab({ token, eventAccent }: { token: string; eventAccent: string }) {
   const { toast } = useToast();
@@ -117,6 +100,12 @@ export default function AttendeeDiscoveryTab({ token, eventAccent }: { token: st
 
   const remaining = data.invitationLimit - data.invitationsUsed;
 
+  const uniqueCategories = useMemo(() => {
+    const cats = new Set<string>();
+    data.attendees.forEach(a => { if (a.attendeeCategory) cats.add(a.attendeeCategory); });
+    return Array.from(cats).sort();
+  }, [data.attendees]);
+
   let filtered = data.attendees;
   if (categoryFilter !== "all") {
     filtered = filtered.filter(a => a.attendeeCategory === categoryFilter);
@@ -178,9 +167,9 @@ export default function AttendeeDiscoveryTab({ token, eventAccent }: { token: st
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="PRACTITIONER">Practitioners</SelectItem>
-            <SelectItem value="GOVERNMENT_NONPROFIT">Gov / Non-Profit</SelectItem>
-            <SelectItem value="SOLUTION_PROVIDER">Solution Providers</SelectItem>
+            {uniqueCategories.map(cat => (
+              <SelectItem key={cat} value={cat}>{categoryLabel(cat)}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -198,7 +187,7 @@ export default function AttendeeDiscoveryTab({ token, eventAccent }: { token: st
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="font-semibold text-sm" data-testid={`text-name-${attendee.id}`}>{attendee.name}</h4>
-                    <Badge variant="outline" className={`text-[10px] ${categoryColor(attendee.attendeeCategory)}`}>
+                    <Badge variant="outline" className={`text-[10px] ${categoryBadgeClass(attendee.attendeeCategory)}`}>
                       {categoryLabel(attendee.attendeeCategory)}
                     </Badge>
                     {attendee.matchScore >= 100 && (

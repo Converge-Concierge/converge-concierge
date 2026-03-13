@@ -670,13 +670,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (updates.attendeeCategory === "") updates.attendeeCategory = null;
       if (updates.ticketType === "") updates.ticketType = null;
 
-      if (updates.attendeeCategory && !["PRACTITIONER", "GOVERNMENT_NONPROFIT", "SOLUTION_PROVIDER"].includes(updates.attendeeCategory)) {
-        const normalized = String(updates.attendeeCategory).toUpperCase().replace(/[\s/]+/g, "_").replace(/-/g, "_");
-        const validCategories = ["PRACTITIONER", "GOVERNMENT_NONPROFIT", "SOLUTION_PROVIDER"];
-        if (validCategories.includes(normalized)) {
+      if (updates.attendeeCategory) {
+        const configuredCategories = await storage.getAttendeeCategories();
+        const validKeys = new Set(configuredCategories.filter(c => c.isActive).map(c => c.key));
+        const raw = String(updates.attendeeCategory);
+        const normalized = raw.toUpperCase().replace(/[\s/]+/g, "_").replace(/-/g, "_");
+        if (validKeys.has(raw)) {
+          updates.attendeeCategory = raw;
+        } else if (validKeys.has(normalized)) {
           updates.attendeeCategory = normalized;
         } else {
-          return res.status(400).json({ message: `Invalid attendee category: "${updates.attendeeCategory}"` });
+          return res.status(400).json({ message: `Invalid attendee category. "${raw}" is not a configured active attendee category.` });
         }
       }
 

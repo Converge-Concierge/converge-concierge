@@ -1,0 +1,285 @@
+Fix Dynamic Attendee Categories So Newly Added Categories Like “Staff” Can Be Saved
+
+We added a new attendee category:
+
+Staff
+
+through the new Attendee Category Rules / Categories system.
+
+The category now appears in the Edit Attendee dropdown, but when trying to save it on an attendee, the update fails with:
+
+Invalid attendee category: "STAFF"
+
+This means the UI is now using the new dynamic category system, but the backend validation/save layer is still restricted to an old hard-coded allowed list such as:
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+So the frontend and configuration system have moved forward, but the attendee update endpoint and/or database validation has not.
+
+We need to fully align the backend with the new admin-managed category system.
+
+Primary Goal
+
+Ensure that:
+
+admin-created attendee categories like STAFF can be assigned to attendees
+
+attendee updates accept configured dynamic categories
+
+category validation is based on active configured categories, not a stale hard-coded enum
+
+existing categories and reports continue to work
+
+1. Remove Hard-Coded Category Validation From the Attendee Update Path
+Current problem
+
+The attendee update endpoint is rejecting:
+
+STAFF
+
+as invalid.
+
+That means validation is likely still using:
+
+a fixed enum
+
+a Zod enum
+
+a TypeScript enum
+
+a switch statement
+
+a database enum constraint
+
+that only knows the original three categories.
+
+Required fix
+
+Update the attendee update validation so it no longer relies on a hard-coded category list.
+
+Instead, category validity should come from the configured Attendee Categories records.
+
+2. Validate Against Configured Active Category Keys
+
+When an attendee is updated with:
+
+attendee_category = STAFF
+
+the backend should check whether STAFF exists as an active configured attendee category.
+
+Required behavior
+
+Validation logic should be:
+
+load active attendee categories from configuration
+
+compare the submitted category key against that set
+
+accept it if it exists
+
+reject only if it is not a configured category
+
+This should apply to:
+
+attendee edit/update
+
+attendee create
+
+Zapier import normalization
+
+backfill tools
+
+bulk imports if applicable
+
+3. Check Whether the Database Column Is an Old Enum
+
+The error may also be caused by the database schema itself.
+
+Required check
+
+Inspect the attendee table column for category.
+
+If the column is a strict database enum with only old values such as:
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+then STAFF will always fail.
+
+Required fix
+
+If so, change the database storage model for attendee category from a restrictive enum to a flexible string/key field.
+
+Recommended approach:
+
+store the category key as text/varchar/string
+
+validate against configured category definitions at the application layer
+
+This is necessary if categories are now admin-managed and dynamic.
+
+4. Keep Category Keys Normalized
+
+The system should continue using normalized internal keys such as:
+
+PRACTITIONER
+
+GOVERNMENT_NONPROFIT
+
+SOLUTION_PROVIDER
+
+BANKER
+
+STAFF
+
+The dropdown can show labels like:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+Banker
+
+Staff
+
+But the stored value should remain the normalized key.
+
+This is already the right pattern; we just need the backend/database to support it.
+
+5. Update All Category Validation Layers, Not Just One
+
+This problem may exist in multiple places.
+
+Audit and update all category validation points:
+
+frontend form submission schema
+
+API request validator
+
+service-layer validation
+
+ORM/model validation
+
+database schema constraints
+
+import pipeline mapping
+
+reporting/chart grouping logic
+
+matchmaking filters
+
+Do not fix only the edit form if other paths still reject new categories.
+
+6. Ensure Dynamic Categories Work Everywhere
+
+After fixing validation, newly added categories like STAFF should work consistently in:
+
+Edit Attendee form
+
+Attendee table Category column
+
+Attendee detail view
+
+Attendee category pie chart
+
+category filtering
+
+Zapier import mapping results
+
+matchmaking logic where relevant
+
+If a category is active and configured, the system should not treat it as invalid.
+
+7. Decide How Dynamic Categories Affect Matchmaking
+
+Not every category should necessarily be part of sponsor matchmaking priority.
+
+Example:
+
+STAFF likely should not be treated like Practitioner/Government/Solution Provider for sponsor discovery
+
+Required behavior
+
+Allow categories to exist operationally without forcing them into sponsor matchmaking priority logic.
+
+Recommended future-safe approach:
+add category metadata such as:
+
+show_in_matchmaking = true/false
+
+matchmaking_priority nullable
+
+For now, at minimum, STAFF should save successfully and appear in attendee/admin reporting.
+
+8. Update the Pie Chart / Reporting Labels to Accept Dynamic Categories
+
+The attendee category pie chart and any category summaries should not assume only the original three categories.
+
+If STAFF is assigned, it should appear as its own category in:
+
+attendee breakdown chart
+
+counts
+
+filters
+
+summaries
+
+Do not drop or mislabel dynamic categories.
+
+9. Improve the Error Message if Validation Fails Again
+
+If a category truly is invalid, the error should be more helpful.
+
+Instead of:
+
+Invalid attendee category: "STAFF"
+
+use something like:
+
+Invalid attendee category. The selected category is not configured as an active attendee category.
+
+But after this fix, STAFF should no longer produce an error if it exists in configuration.
+
+10. Add a Migration / Backfill Safety Check
+
+If existing attendee rows use old enum values, ensure the migration from enum to flexible string does not break old records.
+
+Required behavior:
+
+preserve all existing category values
+
+allow new configured categories going forward
+
+do not lose current attendee classifications
+
+11. Acceptance Criteria
+
+This is complete when:
+
+adding a new category like Staff through Attendee Categories works
+
+that category appears in the Edit Attendee dropdown
+
+selecting Staff and saving the attendee succeeds
+
+the attendee record stores the new category correctly
+
+charts, filters, and displays tolerate dynamic categories
+
+backend validation no longer rejects valid configured categories because of stale hard-coded logic
+
+12. Success Standard
+
+After this fix, Concierge should fully support admin-managed attendee categories as a dynamic system, rather than a partially dynamic UI layered on top of a hard-coded backend.
+
+That is the standard this fix should meet.

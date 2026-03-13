@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Plus, Search, Users as UsersIcon, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { categoryLabel as getCategoryLabel, categoryChartColor, setCategoryLabelCache } from "@/lib/categoryUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,19 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const CATEGORY_COLORS: Record<string, string> = {
-  PRACTITIONER: "#10b981",
-  GOVERNMENT_NONPROFIT: "#3b82f6",
-  SOLUTION_PROVIDER: "#f59e0b",
-  UNCATEGORIZED: "#94a3b8",
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  PRACTITIONER: "Practitioner",
-  GOVERNMENT_NONPROFIT: "Gov / Non-Profit",
-  SOLUTION_PROVIDER: "Solution Provider",
-  UNCATEGORIZED: "Unmapped",
-};
+interface CategoryDef { id: string; key: string; label: string; isActive: boolean; matchWeight: number; }
 
 export default function AttendeesPage() {
   const { isAdmin } = useAuth();
@@ -53,6 +42,15 @@ export default function AttendeesPage() {
 
   const { data: attendees = [], isLoading } = useQuery<Attendee[]>({ queryKey: ["/api/attendees"] });
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
+  const { data: categoryDefs = [] } = useQuery<CategoryDef[]>({ queryKey: ["/api/admin/attendee-categories"] });
+
+  useEffect(() => {
+    if (categoryDefs.length > 0) {
+      const labels: Record<string, string> = {};
+      categoryDefs.forEach(c => { labels[c.key] = c.label; });
+      setCategoryLabelCache(labels);
+    }
+  }, [categoryDefs]);
 
   useEffect(() => {
     if (hasAutoSelected.current || events.length === 0) return;
@@ -174,29 +172,20 @@ export default function AttendeesPage() {
   const displayedAttendees = tab === "active" ? activeAttendees : archivedAttendees;
 
   const categoryData = useMemo(() => {
-    const counts: Record<string, number> = {
-      PRACTITIONER: 0,
-      GOVERNMENT_NONPROFIT: 0,
-      SOLUTION_PROVIDER: 0,
-      UNCATEGORIZED: 0,
-    };
+    const counts: Record<string, number> = {};
     eventFilteredActive.forEach((a) => {
-      const cat = a.attendeeCategory;
-      if (cat && counts[cat] !== undefined) {
-        counts[cat]++;
-      } else {
-        counts.UNCATEGORIZED++;
-      }
+      const cat = a.attendeeCategory || "UNCATEGORIZED";
+      counts[cat] = (counts[cat] || 0) + 1;
     });
     return Object.entries(counts)
       .filter(([_, count]) => count > 0)
       .map(([key, count]) => ({
-        name: CATEGORY_LABELS[key] || key,
+        name: key === "UNCATEGORIZED" ? "Unmapped" : getCategoryLabel(key),
         value: count,
-        color: CATEGORY_COLORS[key] || "#94a3b8",
+        color: key === "UNCATEGORIZED" ? "#94a3b8" : categoryChartColor(key),
         key,
       }));
-  }, [eventFilteredActive]);
+  }, [eventFilteredActive, categoryDefs]);
 
   const totalForChart = categoryData.reduce((sum, d) => sum + d.value, 0);
 

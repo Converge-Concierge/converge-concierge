@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { categoryLabel } from "@/lib/categoryUtils";
 import { AttendeeDetail } from "server/storage";
 import { format } from "date-fns";
 import { User, Calendar, Tag, FileText, Info, Pencil, Check, X } from "lucide-react";
@@ -112,10 +113,7 @@ export function AttendeeDetailDrawer({ attendeeId, open, onClose }: AttendeeDeta
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Category</p>
                     <p className="text-sm font-medium" data-testid="text-attendee-category">
-                      {attendee.attendeeCategory === "PRACTITIONER" ? "Practitioner" :
-                       attendee.attendeeCategory === "GOVERNMENT_NONPROFIT" ? "Gov / Non-Profit" :
-                       attendee.attendeeCategory === "SOLUTION_PROVIDER" ? "Solution Provider" :
-                       attendee.attendeeCategory || "Unmapped"}
+                      {categoryLabel(attendee.attendeeCategory)}
                     </p>
                   </div>
                   {attendee.ticketType && (

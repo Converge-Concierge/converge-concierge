@@ -4611,6 +4611,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       demoResetInProgress = true;
       console.log("[DEMO] Admin initiated demo environment reset...");
       const { execSync } = await import("child_process");
+      console.log("[DEMO] Step 1/2 — Updating database schema...");
+      execSync("npm run db:push", {
+        cwd: process.cwd(),
+        stdio: "pipe",
+        timeout: 60000,
+        env: { ...process.env },
+      });
+      console.log("[DEMO] Step 2/2 — Reseeding demo data...");
       execSync("npx tsx scripts/seedDemoEnvironment.ts --force", {
         cwd: process.cwd(),
         stdio: "pipe",

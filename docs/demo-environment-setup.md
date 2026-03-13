@@ -110,11 +110,41 @@ When `APP_ENV=demo`, the following protections are automatically enforced:
 
 ---
 
-## Updating the Demo Environment
+## How to Update Demo
 
-Since the project is not using GitHub for syncing between production and demo, follow this manual update procedure when production code changes need to be reflected in the demo.
+After copying updated code from production into the demo Repl, run:
 
-### Update Procedure
+```bash
+npx tsx scripts/updateDemoEnvironment.ts
+```
+
+Or use the shell shortcut:
+
+```bash
+bash scripts/update-demo.sh
+```
+
+This single command:
+1. Verifies `APP_ENV=demo` (refuses to run otherwise)
+2. Verifies the database connection is not production
+3. Updates the database schema (`db:push`)
+4. Clears and reseeds all demo data
+
+To preview what would happen without making changes:
+
+```bash
+npx tsx scripts/updateDemoEnvironment.ts --dry-run
+```
+
+The same workflow also runs from the admin panel: **Admin → Settings → Reset Demo Environment** button.
+
+---
+
+## Full Update Procedure
+
+For syncing production code changes into the demo environment:
+
+### Step-by-Step
 
 1. **Review production changes**
    - Note what files changed and whether any database schema changes were made
@@ -129,19 +159,13 @@ Since the project is not using GitHub for syncing between production and demo, f
    - Verify all required secrets are present
    - Verify `DATABASE_URL` still points to the demo database (not production)
 
-4. **Run database migrations if needed**
+4. **Run the update command**
    ```bash
-   npm run db:push
+   npx tsx scripts/updateDemoEnvironment.ts
    ```
+   This handles schema push and data reseed in one step.
 
-5. **Reset demo data**
-   - Option A: Use Admin → Settings → Reset Demo Environment button
-   - Option B: Run from terminal:
-     ```bash
-     npx tsx scripts/seedDemoEnvironment.ts
-     ```
-
-6. **Verify demo protections**
+5. **Verify demo protections**
    - Confirm demo banner is visible
    - Confirm emails are suppressed
    - Confirm R2 writes use `demo/` prefix
@@ -193,6 +217,8 @@ The demo instance must never contain real production data.
 | Demo banner | `client/src/components/DemoBanner.tsx` |
 | Demo tools UI | `client/src/pages/admin/SettingsPage.tsx` |
 | Demo seed script | `scripts/seedDemoEnvironment.ts` |
+| Demo update script | `scripts/updateDemoEnvironment.ts` |
+| Shell shortcut | `scripts/update-demo.sh` |
 
 ---
 

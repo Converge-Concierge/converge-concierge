@@ -1,0 +1,275 @@
+Create a Simple “Update Demo” Command
+
+The demo environment is working. Now we want to simplify the production-to-demo refresh workflow so the team can use a single command:
+
+update demo
+
+The goal is to make demo maintenance easy and repeatable.
+
+Primary Goal
+
+Create a single scripted workflow called:
+
+update demo
+
+that handles the standard demo refresh process in the demo Repl.
+
+This should reduce the current multi-step manual process into one predictable command.
+
+1. Create a Single Demo Update Script
+
+Add a script that runs the full demo refresh workflow.
+
+Recommended file:
+
+scripts/updateDemoEnvironment.ts
+
+or a shell wrapper if that is easier.
+
+This script should become the source of truth for refreshing the demo instance.
+
+2. Define What “Update Demo” Should Do
+
+The update demo workflow should do these steps in order:
+
+A. Confirm demo mode
+
+Verify:
+
+APP_ENV=demo
+
+If not, stop immediately and show a clear error.
+
+Example:
+
+Update demo can only run in APP_ENV=demo.
+
+This is an important safety guard.
+
+B. Verify demo database connection
+
+Check that the script is connected to the demo database, not production.
+
+At minimum:
+
+log current environment
+
+log safe database identifier if possible
+
+stop if the environment looks wrong
+
+C. Run schema update
+
+Run the equivalent of:
+
+npm run db:push
+
+This ensures the demo database structure matches the current code.
+
+D. Reset demo data safely
+
+Clear/reset the current demo dataset.
+
+This should remove current demo operational data so the reseed is clean.
+
+Do this safely and only in demo mode.
+
+E. Rerun demo seed
+
+Run the equivalent of:
+
+npx tsx scripts/seedDemoEnvironment.ts
+
+This should recreate the full standard demo dataset:
+
+demo events
+
+demo sponsors
+
+demo attendees
+
+demo meetings
+
+demo info requests
+
+demo deliverables
+
+demo dashboards
+
+F. Rebuild any derived demo records if needed
+
+If the app requires regeneration of:
+
+sponsor agreements
+
+deliverables
+
+dashboard records
+
+reports metadata
+
+cached summary data
+
+include that in the script.
+
+G. Print success summary
+
+At the end, show a summary such as:
+
+Demo environment updated successfully.
+Events: 3
+Sponsors: 12
+Attendees: 90
+Meetings: 24
+Info Requests: 10
+Deliverables regenerated.
+
+This makes it obvious that the reset worked.
+
+3. Expose the Command in package.json
+
+Add a package script so the team can run:
+
+npm run update-demo
+
+This should execute the new script.
+
+Example package.json entry:
+
+{
+  "scripts": {
+    "update-demo": "tsx scripts/updateDemoEnvironment.ts"
+  }
+}
+4. Add a Plain-Language Alias in Documentation
+
+Since the human workflow is:
+
+update demo
+
+add internal documentation stating that this means:
+
+npm run update-demo
+
+If Replit supports a task/command shortcut, expose that too.
+
+If possible, also add a Run button / task labeled:
+
+Update Demo
+
+in the Repl workflow tools.
+
+5. Add Safety Guards
+
+This script must refuse to run if:
+
+APP_ENV is not demo
+
+database connection appears to be production
+
+required demo seed files are missing
+
+Do not allow accidental execution against production.
+
+6. Add Optional “Dry Run” Mode
+
+If practical, support:
+
+npm run update-demo -- --dry-run
+
+This should:
+
+verify environment
+
+verify DB target
+
+show what would be reset/reseed
+
+not write changes
+
+This is optional but useful.
+
+7. Add an Admin Button That Calls the Same Workflow
+
+If feasible, add an admin-only button in the demo environment such as:
+
+Reset / Update Demo
+
+This button should call the same underlying update-demo workflow, not a separate inconsistent path.
+
+That way:
+
+terminal workflow
+
+admin button workflow
+
+both stay aligned.
+
+8. Add Logging
+
+Log each major step:
+
+demo environment verified
+
+schema updated
+
+demo data cleared
+
+demo seed started
+
+demo seed completed
+
+derived data regenerated
+
+update completed
+
+If the script fails, show exactly where.
+
+9. Add Internal Documentation
+
+Create or update a short doc such as:
+
+docs/demo-environment-setup.md
+
+Add a section:
+
+How to Update Demo
+
+with:
+
+Run:
+npm run update-demo
+
+and explain that it:
+
+updates schema
+
+resets demo data
+
+reseeds the demo environment
+
+10. Acceptance Criteria
+
+This is complete when:
+
+there is one standard demo refresh script
+
+npm run update-demo works
+
+it only runs in demo mode
+
+it updates schema and reseeds data
+
+it prints a clear success summary
+
+the team no longer has to remember multiple separate commands
+
+11. Success Standard
+
+After this change, the demo refresh process should be simple enough that the team can think of it as:
+
+update demo
+
+with one reliable command behind it.
+
+That is the standard this improvement should meet.

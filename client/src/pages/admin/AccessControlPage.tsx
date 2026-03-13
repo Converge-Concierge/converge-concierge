@@ -5,7 +5,6 @@ import {
   Shield, 
   User as UserIcon, 
   ShieldCheck, 
-  ShieldAlert, 
   Search, 
   Save, 
   RotateCcw,
@@ -20,7 +19,16 @@ import {
   Settings,
   Users2,
   Lock,
-  History
+  History,
+  MessageSquare,
+  ClipboardCheck,
+  Package,
+  Mail,
+  Database,
+  Sparkles,
+  FlaskConical,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -31,12 +39,14 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   type User, 
   type UserPermissions, 
   type PermissionAuditLog,
-  DEFAULT_USER_PERMISSIONS 
+  DEFAULT_USER_PERMISSIONS,
+  ROLE_PRESETS,
 } from "@shared/schema";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -46,11 +56,245 @@ interface UserWithPermissions extends User {
   permissionsUpdatedBy?: string;
 }
 
+interface PermGroup {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  permissions: { key: keyof UserPermissions; label: string }[];
+}
+
+const PERMISSION_GROUPS: PermGroup[] = [
+  {
+    title: "Module Access",
+    icon: LayoutDashboard,
+    permissions: [
+      { key: "mod_dashboard", label: "Dashboard" },
+      { key: "mod_events", label: "Events" },
+      { key: "mod_sponsors", label: "Sponsors" },
+      { key: "mod_attendees", label: "Attendees" },
+      { key: "mod_meetings", label: "Meetings" },
+      { key: "mod_infoRequests", label: "Info Requests" },
+      { key: "mod_deliverables", label: "Deliverables" },
+      { key: "mod_sponsorDashboards", label: "Sponsor Dashboards" },
+      { key: "mod_sponsorshipTemplates", label: "Sponsorship Templates" },
+      { key: "mod_reports", label: "Reports" },
+      { key: "mod_emailCenter", label: "Email Center" },
+      { key: "mod_dataExchange", label: "Data Exchange" },
+      { key: "mod_dataBackup", label: "Data Backup" },
+      { key: "mod_branding", label: "Branding" },
+      { key: "mod_settings", label: "Settings" },
+      { key: "mod_users", label: "Users" },
+      { key: "mod_accessControl", label: "Access Control" },
+    ],
+  },
+  {
+    title: "Events",
+    icon: Calendar,
+    permissions: [
+      { key: "ev_create", label: "Create Events" },
+      { key: "ev_edit", label: "Edit Events" },
+      { key: "ev_archive", label: "Archive Events" },
+      { key: "ev_delete", label: "Delete Events" },
+      { key: "ev_copy", label: "Copy Events" },
+      { key: "ev_editBranding", label: "Edit Event Branding" },
+      { key: "ev_editMeetingBlocks", label: "Edit Meeting Blocks" },
+      { key: "ev_toggleScheduling", label: "Toggle Scheduling" },
+    ],
+  },
+  {
+    title: "Sponsors",
+    icon: Building2,
+    permissions: [
+      { key: "sp_create", label: "Create Sponsors" },
+      { key: "sp_edit", label: "Edit Sponsors" },
+      { key: "sp_archive", label: "Archive Sponsors" },
+      { key: "sp_delete", label: "Delete Sponsors" },
+      { key: "sp_copy", label: "Copy Sponsors" },
+      { key: "sp_export", label: "Export Sponsors" },
+      { key: "sp_import", label: "Import Sponsors" },
+      { key: "sp_manageContacts", label: "Manage Sponsor Contacts" },
+    ],
+  },
+  {
+    title: "Attendees",
+    icon: Users,
+    permissions: [
+      { key: "at_create", label: "Create Attendees" },
+      { key: "at_edit", label: "Edit Attendees" },
+      { key: "at_archive", label: "Archive Attendees" },
+      { key: "at_delete", label: "Delete Attendees" },
+      { key: "at_export", label: "Export Attendees" },
+      { key: "at_import", label: "Import Attendees" },
+      { key: "at_viewDetail", label: "View Full Detail" },
+      { key: "at_viewContacts", label: "View Contact Info" },
+      { key: "at_viewInterests", label: "View Interests" },
+    ],
+  },
+  {
+    title: "Meetings",
+    icon: Handshake,
+    permissions: [
+      { key: "mt_create", label: "Create Meetings" },
+      { key: "mt_edit", label: "Edit Meetings" },
+      { key: "mt_cancel", label: "Cancel Meetings" },
+      { key: "mt_delete", label: "Delete Meetings" },
+      { key: "mt_export", label: "Export Meetings" },
+      { key: "mt_import", label: "Import Meetings" },
+      { key: "mt_approvePending", label: "Approve Pending" },
+      { key: "mt_nunifySync", label: "Nunify Sync" },
+      { key: "mt_manageInvitations", label: "Manage Meeting Invitations" },
+    ],
+  },
+  {
+    title: "Info Requests",
+    icon: MessageSquare,
+    permissions: [
+      { key: "ir_view", label: "View Info Requests" },
+      { key: "ir_edit", label: "Edit Info Requests" },
+      { key: "ir_delete", label: "Delete Info Requests" },
+    ],
+  },
+  {
+    title: "Deliverables",
+    icon: ClipboardCheck,
+    permissions: [
+      { key: "dl_view", label: "View Deliverables" },
+      { key: "dl_edit", label: "Edit Deliverables" },
+      { key: "dl_manageStatus", label: "Manage Status" },
+      { key: "dl_sendReminders", label: "Send Reminders" },
+      { key: "dl_viewFulfillmentQueue", label: "View Fulfillment Queue" },
+    ],
+  },
+  {
+    title: "Sponsorship Templates",
+    icon: Package,
+    permissions: [
+      { key: "st_viewTemplates", label: "View Templates" },
+      { key: "st_editTemplates", label: "Edit Templates" },
+      { key: "st_generateAgreements", label: "Generate Agreements" },
+    ],
+  },
+  {
+    title: "Sponsor Dashboards",
+    icon: LayoutDashboard,
+    permissions: [
+      { key: "sd_view", label: "View Sponsor Dashboards" },
+      { key: "sd_sendAccess", label: "Send Dashboard Access" },
+      { key: "sd_manageContacts", label: "Manage Dashboard Contacts" },
+    ],
+  },
+  {
+    title: "Reports",
+    icon: BarChart3,
+    permissions: [
+      { key: "rp_view", label: "View Reports" },
+      { key: "rp_export", label: "Export Reports" },
+      { key: "rp_generate", label: "Generate Reports" },
+      { key: "rp_download", label: "Download Reports" },
+      { key: "rp_viewContactData", label: "View Contact Data" },
+    ],
+  },
+  {
+    title: "Email Center",
+    icon: Mail,
+    permissions: [
+      { key: "ec_viewTemplates", label: "View Email Templates" },
+      { key: "ec_editTemplates", label: "Edit Email Templates" },
+      { key: "ec_sendTestEmail", label: "Send Test Email" },
+      { key: "ec_viewLogs", label: "View Email Logs" },
+    ],
+  },
+  {
+    title: "Data Exchange",
+    icon: ArrowLeftRight,
+    permissions: [
+      { key: "de_exportSponsors", label: "Export Sponsors" },
+      { key: "de_exportAttendees", label: "Export Attendees" },
+      { key: "de_exportMeetings", label: "Export Meetings" },
+      { key: "de_importSponsors", label: "Import Sponsors" },
+      { key: "de_importAttendees", label: "Import Attendees" },
+      { key: "de_importMeetings", label: "Import Meetings" },
+      { key: "de_nunify", label: "Nunify Import/Export" },
+      { key: "de_viewHistory", label: "View History" },
+    ],
+  },
+  {
+    title: "Data Backup",
+    icon: Database,
+    permissions: [
+      { key: "db_viewStatus", label: "View Backup Status" },
+      { key: "db_runBackups", label: "Run Backups" },
+      { key: "db_downloadBackups", label: "Download Backups" },
+      { key: "db_validateBackups", label: "Validate Backups" },
+      { key: "db_accessRestoreTools", label: "Access Restore Tools" },
+    ],
+  },
+  {
+    title: "Branding & Settings",
+    icon: Palette,
+    permissions: [
+      { key: "br_edit", label: "Edit Branding" },
+      { key: "st_edit", label: "Edit Settings" },
+    ],
+  },
+  {
+    title: "Users & Access Control",
+    icon: Users2,
+    permissions: [
+      { key: "us_create", label: "Create Users" },
+      { key: "us_edit", label: "Edit Users" },
+      { key: "us_deactivate", label: "Deactivate Users" },
+      { key: "us_resetPassword", label: "Reset Passwords" },
+      { key: "us_managePermissions", label: "Manage Permissions" },
+      { key: "us_manageRoles", label: "Manage Roles" },
+    ],
+  },
+  {
+    title: "Matchmaking & Invitations",
+    icon: Sparkles,
+    permissions: [
+      { key: "mm_viewDiscovery", label: "View Attendee Discovery" },
+      { key: "mm_manageSettings", label: "Manage Matchmaking Settings" },
+      { key: "mm_viewInvitations", label: "View Meeting Invitations" },
+      { key: "mm_manageInvitations", label: "Manage Meeting Invitations" },
+      { key: "mm_sendInvitations", label: "Send Sponsor Invitations" },
+      { key: "mm_viewAnalytics", label: "View Invitation Analytics" },
+    ],
+  },
+  {
+    title: "Demo Environment",
+    icon: FlaskConical,
+    permissions: [
+      { key: "demo_viewTools", label: "View Demo Tools" },
+      { key: "demo_resetEnvironment", label: "Reset Demo Environment" },
+      { key: "demo_runSeed", label: "Run Demo Seed / Update" },
+    ],
+  },
+  {
+    title: "Sensitive Data",
+    icon: Lock,
+    permissions: [
+      { key: "data_viewAttendeeEmails", label: "View Attendee Emails" },
+      { key: "data_viewAttendeePhones", label: "View Attendee Phones" },
+      { key: "data_viewSponsorContacts", label: "View Sponsor Contacts" },
+      { key: "data_exportContacts", label: "Export Contact Info" },
+    ],
+  },
+  {
+    title: "Account Controls",
+    icon: Settings,
+    permissions: [
+      { key: "account_canSignIn", label: "Can Sign In" },
+      { key: "account_requirePasswordReset", label: "Require Password Reset" },
+    ],
+  },
+];
+
 export default function AccessControlPage() {
   const { toast } = useToast();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [localPermissions, setLocalPermissions] = useState<UserPermissions | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<UserWithPermissions[]>({
     queryKey: ["/api/users"],
@@ -62,7 +306,15 @@ export default function AccessControlPage() {
   });
 
   const { data: auditLogs = [] } = useQuery<PermissionAuditLog[]>({
-    queryKey: ["/api/admin/permission-audit-logs", { userId: selectedUserId }],
+    queryKey: ["/api/admin/permission-audit-logs", selectedUserId ?? "all"],
+    queryFn: async () => {
+      const url = selectedUserId
+        ? `/api/admin/permission-audit-logs?userId=${selectedUserId}`
+        : `/api/admin/permission-audit-logs`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch audit logs");
+      return res.json();
+    },
     enabled: true,
   });
 
@@ -83,7 +335,6 @@ export default function AccessControlPage() {
 
   const selectedUser = users.find(u => u.id === selectedUserId);
 
-  // Initialize local permissions when userPermissions loads
   if (userPermissions && !localPermissions && selectedUserId) {
     setLocalPermissions(userPermissions.permissions);
   }
@@ -102,10 +353,27 @@ export default function AccessControlPage() {
     setLocalPermissions(DEFAULT_USER_PERMISSIONS);
   };
 
+  const handleApplyPreset = (presetName: string) => {
+    const preset = ROLE_PRESETS[presetName];
+    if (!preset) return;
+    const merged = { ...DEFAULT_USER_PERMISSIONS, ...preset };
+    setLocalPermissions(merged);
+    toast({ title: "Preset applied", description: `"${presetName}" permissions loaded. Save to apply.` });
+  };
+
   const handleSave = () => {
     if (localPermissions) {
       updateMutation.mutate(localPermissions);
     }
+  };
+
+  const toggleGroup = (title: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
   };
 
   const filteredUsers = users.filter(u => 
@@ -113,28 +381,67 @@ export default function AccessControlPage() {
     u.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  const renderPermissionGroup = (title: string, icon: any, permissions: { key: keyof UserPermissions, label: string }[]) => (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        {icon && <icon.type {...icon.props} className="h-4 w-4 text-accent" />}
-        <h3 className="text-sm font-semibold">{title}</h3>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {permissions.map(({ key, label }) => (
-          <div key={key} className="flex items-center justify-between space-x-2 rounded-lg border p-3 bg-muted/30">
-            <Label htmlFor={key} className="text-xs font-medium cursor-pointer">{label}</Label>
-            <Switch 
-              id={key} 
-              checked={!!localPermissions?.[key]} 
-              onCheckedChange={() => handleToggle(key)}
-              disabled={selectedUser?.role === 'admin' || updateMutation.isPending}
-              data-testid={`switch-permission-${key}`}
-            />
+  const countEnabled = (perms: { key: keyof UserPermissions }[]): number => {
+    if (!localPermissions) return 0;
+    return perms.filter(p => localPermissions[p.key]).length;
+  };
+
+  const toggleAllInGroup = (group: PermGroup, enable: boolean) => {
+    if (!localPermissions) return;
+    const updated = { ...localPermissions };
+    group.permissions.forEach(p => { updated[p.key] = enable; });
+    setLocalPermissions(updated);
+  };
+
+  const renderPermissionGroup = (group: PermGroup) => {
+    const isCollapsed = collapsedGroups.has(group.title);
+    const enabledCount = countEnabled(group.permissions);
+    const totalCount = group.permissions.length;
+    const Icon = group.icon;
+
+    return (
+      <div key={group.title} className="border border-border/40 rounded-lg overflow-hidden">
+        <button
+          onClick={() => toggleGroup(group.title)}
+          className="w-full flex items-center gap-2 px-4 py-3 bg-muted/20 hover:bg-muted/40 transition-colors text-left"
+          data-testid={`group-toggle-${group.title.replace(/\s+/g, '-').toLowerCase()}`}
+        >
+          {isCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+          <Icon className="h-4 w-4 text-accent" />
+          <span className="text-sm font-semibold flex-1">{group.title}</span>
+          <Badge variant="outline" className={cn("text-[10px] h-5", enabledCount === totalCount ? "bg-emerald-50 text-emerald-700 border-emerald-200" : enabledCount === 0 ? "bg-gray-50 text-gray-500" : "bg-blue-50 text-blue-700 border-blue-200")}>
+            {enabledCount}/{totalCount}
+          </Badge>
+        </button>
+        {!isCollapsed && (
+          <div className="p-4">
+            <div className="flex justify-end gap-2 mb-3">
+              <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => toggleAllInGroup(group, true)} disabled={selectedUser?.role === 'admin'} data-testid={`enable-all-${group.title.replace(/\s+/g, '-').toLowerCase()}`}>
+                Enable All
+              </Button>
+              <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => toggleAllInGroup(group, false)} disabled={selectedUser?.role === 'admin'} data-testid={`disable-all-${group.title.replace(/\s+/g, '-').toLowerCase()}`}>
+                Disable All
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {group.permissions.map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between space-x-2 rounded-lg border p-2.5 bg-muted/20">
+                  <Label htmlFor={key} className="text-xs font-medium cursor-pointer">{label}</Label>
+                  <Switch 
+                    id={key} 
+                    checked={!!localPermissions?.[key]} 
+                    onCheckedChange={() => handleToggle(key)}
+                    disabled={selectedUser?.role === 'admin' || updateMutation.isPending}
+                    data-testid={`switch-permission-${key}`}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <motion.div
@@ -150,7 +457,6 @@ export default function AccessControlPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* User List Panel */}
         <div className="lg:col-span-4 space-y-4">
           <div className="bg-card rounded-xl border border-border/60 shadow-sm overflow-hidden flex flex-col h-[700px]">
             <div className="p-4 border-b bg-muted/30">
@@ -207,7 +513,6 @@ export default function AccessControlPage() {
           </div>
         </div>
 
-        {/* Permission Editor Panel */}
         <div className="lg:col-span-8">
           <div className="bg-card rounded-xl border border-border/60 shadow-sm overflow-hidden flex flex-col h-[700px]">
             {!selectedUserId ? (
@@ -229,12 +534,22 @@ export default function AccessControlPage() {
                </div>
             ) : (
               <>
-                <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
+                <div className="p-4 border-b bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="font-bold text-lg">{selectedUser?.name}</h2>
                     <p className="text-xs text-muted-foreground">Manager Permissions</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <Select onValueChange={handleApplyPreset}>
+                      <SelectTrigger className="h-8 w-[160px] text-xs" data-testid="select-role-preset">
+                        <SelectValue placeholder="Apply preset..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.keys(ROLE_PRESETS).map((name) => (
+                          <SelectItem key={name} value={name} className="text-xs" data-testid={`select-preset-${name.toLowerCase().replace(/\s+/g, '-')}`}>{name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button variant="outline" size="sm" onClick={handleReset} disabled={updateMutation.isPending} data-testid="button-reset-permissions">
                       <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
                     </Button>
@@ -244,139 +559,8 @@ export default function AccessControlPage() {
                   </div>
                 </div>
                 <ScrollArea className="flex-1">
-                  <div className="p-6 space-y-10 pb-12">
-                    {/* General Access */}
-                    {renderPermissionGroup("General Access", <LayoutDashboard />, [
-                      { key: "mod_dashboard", label: "Dashboard Module" },
-                      { key: "mod_events", label: "Events Module" },
-                      { key: "mod_sponsors", label: "Sponsors Module" },
-                      { key: "mod_attendees", label: "Attendees Module" },
-                      { key: "mod_meetings", label: "Meetings Module" },
-                      { key: "mod_reports", label: "Reports Module" },
-                      { key: "mod_dataExchange", label: "Data Exchange Module" },
-                      { key: "mod_branding", label: "Branding Module" },
-                      { key: "mod_settings", label: "Settings Module" },
-                      { key: "mod_users", label: "Users Module" },
-                    ])}
-
-                    <Separator />
-
-                    {/* Events */}
-                    {renderPermissionGroup("Events Actions", <Calendar />, [
-                      { key: "ev_create", label: "Create Events" },
-                      { key: "ev_edit", label: "Edit Events" },
-                      { key: "ev_archive", label: "Archive Events" },
-                      { key: "ev_delete", label: "Delete Events" },
-                      { key: "ev_copy", label: "Copy Events" },
-                      { key: "ev_editMeetingBlocks", label: "Edit Meeting Blocks" },
-                      { key: "ev_toggleScheduling", label: "Toggle Scheduling" },
-                    ])}
-
-                    <Separator />
-
-                    {/* Sponsors */}
-                    {renderPermissionGroup("Sponsors Actions", <Building2 />, [
-                      { key: "sp_create", label: "Create Sponsors" },
-                      { key: "sp_edit", label: "Edit Sponsors" },
-                      { key: "sp_archive", label: "Archive Sponsors" },
-                      { key: "sp_delete", label: "Delete Sponsors" },
-                      { key: "sp_copy", label: "Copy Sponsors" },
-                      { key: "sp_export", label: "Export Sponsors" },
-                      { key: "sp_import", label: "Import Sponsors" },
-                    ])}
-
-                    <Separator />
-
-                    {/* Attendees */}
-                    {renderPermissionGroup("Attendees Actions", <Users />, [
-                      { key: "at_create", label: "Create Attendees" },
-                      { key: "at_edit", label: "Edit Attendees" },
-                      { key: "at_archive", label: "Archive Attendees" },
-                      { key: "at_delete", label: "Delete Attendees" },
-                      { key: "at_export", label: "Export Attendees" },
-                      { key: "at_import", label: "Import Attendees" },
-                      { key: "at_viewDetail", label: "View Full Detail" },
-                      { key: "at_viewContacts", label: "View Contact Info" },
-                      { key: "at_viewInterests", label: "View Interests" },
-                    ])}
-
-                    <Separator />
-
-                    {/* Meetings */}
-                    {renderPermissionGroup("Meetings Actions", <Handshake />, [
-                      { key: "mt_create", label: "Create Meetings" },
-                      { key: "mt_edit", label: "Edit Meetings" },
-                      { key: "mt_cancel", label: "Cancel Meetings" },
-                      { key: "mt_delete", label: "Delete Meetings" },
-                      { key: "mt_export", label: "Export Meetings" },
-                      { key: "mt_import", label: "Import Meetings" },
-                      { key: "mt_approvePending", label: "Approve Pending" },
-                      { key: "mt_nunifySync", label: "Nunify Sync" },
-                    ])}
-
-                    <Separator />
-
-                    {/* Reports */}
-                    {renderPermissionGroup("Reports Actions", <BarChart3 />, [
-                      { key: "rp_view", label: "View Reports" },
-                      { key: "rp_export", label: "Export Reports" },
-                      { key: "rp_viewContactData", label: "View Contact Data" },
-                    ])}
-
-                    <Separator />
-
-                    {/* Data Exchange */}
-                    {renderPermissionGroup("Data Exchange Actions", <ArrowLeftRight />, [
-                      { key: "de_exportSponsors", label: "Export Sponsors" },
-                      { key: "de_exportAttendees", label: "Export Attendees" },
-                      { key: "de_exportMeetings", label: "Export Meetings" },
-                      { key: "de_importSponsors", label: "Import Sponsors" },
-                      { key: "de_importAttendees", label: "Import Attendees" },
-                      { key: "de_importMeetings", label: "Import Meetings" },
-                      { key: "de_nunify", label: "Nunify Import/Export" },
-                      { key: "de_viewHistory", label: "View History" },
-                    ])}
-
-                    <Separator />
-
-                    {/* Branding & Settings */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {renderPermissionGroup("Branding", <Palette />, [
-                        { key: "br_edit", label: "Edit Branding" },
-                      ])}
-                      {renderPermissionGroup("Settings", <Settings />, [
-                        { key: "st_edit", label: "Edit Settings" },
-                      ])}
-                    </div>
-
-                    <Separator />
-
-                    {/* Users */}
-                    {renderPermissionGroup("Users Actions", <Users2 />, [
-                      { key: "us_create", label: "Create Users" },
-                      { key: "us_edit", label: "Edit Users" },
-                      { key: "us_deactivate", label: "Deactivate Users" },
-                      { key: "us_resetPassword", label: "Reset Passwords" },
-                      { key: "us_managePermissions", label: "Manage Permissions" },
-                    ])}
-
-                    <Separator />
-
-                    {/* Sensitive Data */}
-                    {renderPermissionGroup("Sensitive Data", <Lock />, [
-                      { key: "data_viewAttendeeEmails", label: "View Attendee Emails" },
-                      { key: "data_viewAttendeePhones", label: "View Attendee Phones" },
-                      { key: "data_viewSponsorContacts", label: "View Sponsor Contacts" },
-                      { key: "data_exportContacts", label: "Export Contact Info" },
-                    ])}
-
-                    <Separator />
-
-                    {/* Account Controls */}
-                    {renderPermissionGroup("Account Controls", <Settings />, [
-                      { key: "account_canSignIn", label: "Can Sign In" },
-                      { key: "account_requirePasswordReset", label: "Require Password Reset" },
-                    ])}
+                  <div className="p-5 space-y-3 pb-12">
+                    {PERMISSION_GROUPS.map((group) => renderPermissionGroup(group))}
 
                     <div className="pt-4 text-xs text-muted-foreground italic">
                       {userPermissions?.updatedAt ? (
@@ -393,7 +577,6 @@ export default function AccessControlPage() {
         </div>
       </div>
 
-      {/* Audit Logs */}
       <div className="bg-card rounded-xl border border-border/60 shadow-sm overflow-hidden">
         <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
           <div className="flex items-center gap-2">

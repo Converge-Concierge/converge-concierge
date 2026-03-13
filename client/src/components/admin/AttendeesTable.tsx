@@ -20,6 +20,25 @@ interface AttendeesTableProps {
   onDelete: (attendee: Attendee) => void;
 }
 
+function categoryLabel(cat: string | null | undefined): string {
+  if (!cat) return "—";
+  switch (cat) {
+    case "PRACTITIONER": return "Practitioner";
+    case "GOVERNMENT_NONPROFIT": return "Gov / Non-Profit";
+    case "SOLUTION_PROVIDER": return "Solution Provider";
+    default: return cat;
+  }
+}
+
+function categoryBadgeClass(cat: string | null | undefined): string {
+  switch (cat) {
+    case "PRACTITIONER": return "bg-emerald-100 text-emerald-800 border-emerald-200";
+    case "GOVERNMENT_NONPROFIT": return "bg-blue-100 text-blue-800 border-blue-200";
+    case "SOLUTION_PROVIDER": return "bg-amber-100 text-amber-800 border-amber-200";
+    default: return "bg-gray-100 text-gray-500 border-gray-200";
+  }
+}
+
 export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete }: AttendeesTableProps) {
   const { sort, toggle } = useSortState("added", "desc");
 
@@ -32,6 +51,7 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
     if (key === "company") return a.company;
     if (key === "title") return a.title;
     if (key === "email") return a.email;
+    if (key === "category") return a.attendeeCategory || "";
     if (key === "event") return getEvent(a.assignedEvent)?.slug ?? "";
     if (key === "added") return new Date(a.createdAt).getTime();
     return "";
@@ -48,6 +68,7 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
             <SortHead sortKey="firstName" sort={sort} onSort={toggle}>First Name</SortHead>
             <SortHead sortKey="company" sort={sort} onSort={toggle}>Company</SortHead>
             <SortHead sortKey="title" sort={sort} onSort={toggle}>Title</SortHead>
+            <SortHead sortKey="category" sort={sort} onSort={toggle}>Category</SortHead>
             <SortHead sortKey="email" sort={sort} onSort={toggle}>Email</SortHead>
             <SortHead sortKey="event" sort={sort} onSort={toggle}>Assigned Event</SortHead>
             <SortHead sortKey="added" sort={sort} onSort={toggle}>Added</SortHead>
@@ -78,6 +99,15 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
               <TableCell className="font-medium">{attendee.firstName || attendee.name?.split(" ")[0] || "—"}</TableCell>
               <TableCell>{attendee.company}</TableCell>
               <TableCell>{attendee.title}</TableCell>
+              <TableCell>
+                {attendee.attendeeCategory ? (
+                  <Badge variant="outline" className={cn("text-[10px] font-medium", categoryBadgeClass(attendee.attendeeCategory))} data-testid={`badge-category-${attendee.id}`}>
+                    {categoryLabel(attendee.attendeeCategory)}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground text-xs italic">—</span>
+                )}
+              </TableCell>
               <TableCell className="text-muted-foreground text-sm">{attendee.email}</TableCell>
               <TableCell>
                 {getEvent(attendee.assignedEvent) ? (
@@ -131,7 +161,7 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
           ))}
           {sorted.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                 {tab === "active" ? "No active attendees." : "No archived attendees."}
               </TableCell>
             </TableRow>

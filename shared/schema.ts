@@ -416,11 +416,18 @@ export interface UserPermissions {
   mod_sponsors: boolean;
   mod_attendees: boolean;
   mod_meetings: boolean;
+  mod_infoRequests: boolean;
   mod_reports: boolean;
   mod_dataExchange: boolean;
   mod_branding: boolean;
   mod_settings: boolean;
   mod_users: boolean;
+  mod_accessControl: boolean;
+  mod_deliverables: boolean;
+  mod_sponsorDashboards: boolean;
+  mod_sponsorshipTemplates: boolean;
+  mod_emailCenter: boolean;
+  mod_dataBackup: boolean;
   // Events actions
   ev_create: boolean;
   ev_edit: boolean;
@@ -438,6 +445,7 @@ export interface UserPermissions {
   sp_copy: boolean;
   sp_export: boolean;
   sp_import: boolean;
+  sp_manageContacts: boolean;
   // Attendees actions
   at_create: boolean;
   at_edit: boolean;
@@ -457,10 +465,36 @@ export interface UserPermissions {
   mt_import: boolean;
   mt_approvePending: boolean;
   mt_nunifySync: boolean;
+  mt_manageInvitations: boolean;
+  // Info Requests
+  ir_view: boolean;
+  ir_edit: boolean;
+  ir_delete: boolean;
+  // Deliverables
+  dl_view: boolean;
+  dl_edit: boolean;
+  dl_manageStatus: boolean;
+  dl_sendReminders: boolean;
+  dl_viewFulfillmentQueue: boolean;
+  // Sponsorship Templates
+  st_viewTemplates: boolean;
+  st_editTemplates: boolean;
+  st_generateAgreements: boolean;
+  // Sponsor Dashboards
+  sd_view: boolean;
+  sd_sendAccess: boolean;
+  sd_manageContacts: boolean;
   // Reports
   rp_view: boolean;
   rp_export: boolean;
+  rp_generate: boolean;
+  rp_download: boolean;
   rp_viewContactData: boolean;
+  // Email Center
+  ec_viewTemplates: boolean;
+  ec_editTemplates: boolean;
+  ec_sendTestEmail: boolean;
+  ec_viewLogs: boolean;
   // Data Exchange
   de_exportSponsors: boolean;
   de_exportAttendees: boolean;
@@ -470,16 +504,34 @@ export interface UserPermissions {
   de_importMeetings: boolean;
   de_nunify: boolean;
   de_viewHistory: boolean;
+  // Data Backup
+  db_viewStatus: boolean;
+  db_runBackups: boolean;
+  db_downloadBackups: boolean;
+  db_validateBackups: boolean;
+  db_accessRestoreTools: boolean;
   // Branding
   br_edit: boolean;
   // Settings
   st_edit: boolean;
-  // Users
+  // Users & Access Control
   us_create: boolean;
   us_edit: boolean;
   us_deactivate: boolean;
   us_resetPassword: boolean;
   us_managePermissions: boolean;
+  us_manageRoles: boolean;
+  // Matchmaking & Invitations
+  mm_viewDiscovery: boolean;
+  mm_manageSettings: boolean;
+  mm_viewInvitations: boolean;
+  mm_manageInvitations: boolean;
+  mm_sendInvitations: boolean;
+  mm_viewAnalytics: boolean;
+  // Demo Environment
+  demo_viewTools: boolean;
+  demo_resetEnvironment: boolean;
+  demo_runSeed: boolean;
   // Sensitive data
   data_viewAttendeeEmails: boolean;
   data_viewAttendeePhones: boolean;
@@ -492,23 +544,37 @@ export interface UserPermissions {
 
 export const DEFAULT_USER_PERMISSIONS: UserPermissions = {
   mod_dashboard: false, mod_events: false, mod_sponsors: false, mod_attendees: false,
-  mod_meetings: false, mod_reports: false, mod_dataExchange: false, mod_branding: false,
-  mod_settings: false, mod_users: false,
+  mod_meetings: false, mod_infoRequests: false, mod_reports: false, mod_dataExchange: false,
+  mod_branding: false, mod_settings: false, mod_users: false, mod_accessControl: false,
+  mod_deliverables: false, mod_sponsorDashboards: false, mod_sponsorshipTemplates: false,
+  mod_emailCenter: false, mod_dataBackup: false,
   ev_create: false, ev_edit: false, ev_archive: false, ev_delete: false, ev_copy: false,
   ev_editBranding: false, ev_editMeetingBlocks: false, ev_toggleScheduling: false,
   sp_create: false, sp_edit: false, sp_archive: false, sp_delete: false, sp_copy: false,
-  sp_export: false, sp_import: false,
+  sp_export: false, sp_import: false, sp_manageContacts: false,
   at_create: false, at_edit: false, at_archive: false, at_delete: false, at_export: false,
   at_import: false, at_viewDetail: false, at_viewContacts: false, at_viewInterests: false,
   mt_create: false, mt_edit: false, mt_cancel: false, mt_delete: false, mt_export: false,
-  mt_import: false, mt_approvePending: false, mt_nunifySync: false,
-  rp_view: false, rp_export: false, rp_viewContactData: false,
+  mt_import: false, mt_approvePending: false, mt_nunifySync: false, mt_manageInvitations: false,
+  ir_view: false, ir_edit: false, ir_delete: false,
+  dl_view: false, dl_edit: false, dl_manageStatus: false, dl_sendReminders: false,
+  dl_viewFulfillmentQueue: false,
+  st_viewTemplates: false, st_editTemplates: false, st_generateAgreements: false,
+  sd_view: false, sd_sendAccess: false, sd_manageContacts: false,
+  rp_view: false, rp_export: false, rp_generate: false, rp_download: false,
+  rp_viewContactData: false,
+  ec_viewTemplates: false, ec_editTemplates: false, ec_sendTestEmail: false, ec_viewLogs: false,
   de_exportSponsors: false, de_exportAttendees: false, de_exportMeetings: false,
   de_importSponsors: false, de_importAttendees: false, de_importMeetings: false,
   de_nunify: false, de_viewHistory: false,
+  db_viewStatus: false, db_runBackups: false, db_downloadBackups: false,
+  db_validateBackups: false, db_accessRestoreTools: false,
   br_edit: false, st_edit: false,
   us_create: false, us_edit: false, us_deactivate: false, us_resetPassword: false,
-  us_managePermissions: false,
+  us_managePermissions: false, us_manageRoles: false,
+  mm_viewDiscovery: false, mm_manageSettings: false, mm_viewInvitations: false,
+  mm_manageInvitations: false, mm_sendInvitations: false, mm_viewAnalytics: false,
+  demo_viewTools: false, demo_resetEnvironment: false, demo_runSeed: false,
   data_viewAttendeeEmails: false, data_viewAttendeePhones: false,
   data_viewSponsorContacts: false, data_exportContacts: false,
   account_canSignIn: true, account_requirePasswordReset: false,
@@ -518,6 +584,80 @@ export const ADMIN_PERMISSIONS: UserPermissions = Object.keys(DEFAULT_USER_PERMI
   (acc, key) => ({ ...acc, [key]: true }),
   {} as UserPermissions
 );
+
+export const ROLE_PRESETS: Record<string, Partial<UserPermissions>> = {
+  "Event Producer": {
+    mod_dashboard: true, mod_events: true, mod_sponsors: true, mod_attendees: true,
+    mod_meetings: true, mod_infoRequests: true, mod_reports: true, mod_deliverables: true,
+    mod_sponsorDashboards: true, mod_sponsorshipTemplates: true, mod_emailCenter: true,
+    ev_create: true, ev_edit: true, ev_archive: true, ev_copy: true,
+    ev_editBranding: true, ev_editMeetingBlocks: true, ev_toggleScheduling: true,
+    sp_create: true, sp_edit: true, sp_archive: true, sp_copy: true, sp_export: true,
+    sp_import: true, sp_manageContacts: true,
+    at_create: true, at_edit: true, at_archive: true, at_export: true, at_import: true,
+    at_viewDetail: true, at_viewContacts: true, at_viewInterests: true,
+    mt_create: true, mt_edit: true, mt_cancel: true, mt_export: true, mt_import: true,
+    mt_approvePending: true, mt_manageInvitations: true,
+    ir_view: true, ir_edit: true,
+    dl_view: true, dl_edit: true, dl_manageStatus: true, dl_sendReminders: true,
+    dl_viewFulfillmentQueue: true,
+    st_viewTemplates: true, st_editTemplates: true, st_generateAgreements: true,
+    sd_view: true, sd_sendAccess: true, sd_manageContacts: true,
+    rp_view: true, rp_export: true, rp_generate: true, rp_download: true,
+    rp_viewContactData: true,
+    ec_viewTemplates: true, ec_editTemplates: true, ec_sendTestEmail: true, ec_viewLogs: true,
+    mm_viewDiscovery: true, mm_manageSettings: true, mm_viewInvitations: true,
+    mm_manageInvitations: true, mm_sendInvitations: true, mm_viewAnalytics: true,
+    data_viewAttendeeEmails: true, data_viewSponsorContacts: true,
+    account_canSignIn: true,
+  },
+  "Sales": {
+    mod_dashboard: true, mod_sponsors: true, mod_attendees: true, mod_meetings: true,
+    mod_infoRequests: true, mod_reports: true, mod_sponsorDashboards: true,
+    sp_create: true, sp_edit: true, sp_export: true, sp_manageContacts: true,
+    at_viewDetail: true, at_viewContacts: true, at_viewInterests: true,
+    mt_create: true, mt_edit: true, mt_export: true,
+    ir_view: true, ir_edit: true,
+    sd_view: true, sd_sendAccess: true,
+    rp_view: true, rp_export: true, rp_download: true,
+    mm_viewDiscovery: true, mm_viewInvitations: true, mm_viewAnalytics: true,
+    data_viewAttendeeEmails: true, data_viewSponsorContacts: true,
+    account_canSignIn: true,
+  },
+  "Operations": {
+    mod_dashboard: true, mod_events: true, mod_sponsors: true, mod_attendees: true,
+    mod_meetings: true, mod_infoRequests: true, mod_deliverables: true, mod_dataExchange: true,
+    mod_emailCenter: true,
+    ev_edit: true, ev_editMeetingBlocks: true,
+    sp_edit: true, sp_export: true, sp_import: true,
+    at_edit: true, at_export: true, at_import: true, at_viewDetail: true, at_viewContacts: true,
+    mt_create: true, mt_edit: true, mt_cancel: true, mt_export: true, mt_import: true,
+    mt_approvePending: true, mt_manageInvitations: true,
+    ir_view: true, ir_edit: true,
+    dl_view: true, dl_edit: true, dl_manageStatus: true, dl_sendReminders: true,
+    dl_viewFulfillmentQueue: true,
+    ec_viewTemplates: true, ec_viewLogs: true,
+    de_exportSponsors: true, de_exportAttendees: true, de_exportMeetings: true,
+    de_importSponsors: true, de_importAttendees: true, de_importMeetings: true,
+    de_nunify: true, de_viewHistory: true,
+    mm_viewInvitations: true, mm_manageInvitations: true,
+    data_viewAttendeeEmails: true, data_viewSponsorContacts: true,
+    account_canSignIn: true,
+  },
+  "Read Only": {
+    mod_dashboard: true, mod_events: true, mod_sponsors: true, mod_attendees: true,
+    mod_meetings: true, mod_infoRequests: true, mod_reports: true, mod_deliverables: true,
+    mod_sponsorDashboards: true,
+    at_viewDetail: true,
+    ir_view: true,
+    dl_view: true,
+    sd_view: true,
+    rp_view: true,
+    ec_viewLogs: true,
+    mm_viewDiscovery: true, mm_viewInvitations: true, mm_viewAnalytics: true,
+    account_canSignIn: true,
+  },
+};
 
 export const userPermissions = pgTable("user_permissions", {
   userId: varchar("user_id").primaryKey(),

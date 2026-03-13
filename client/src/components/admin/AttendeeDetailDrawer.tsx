@@ -109,6 +109,21 @@ export function AttendeeDetailDrawer({ attendeeId, open, onClose }: AttendeeDeta
                     <p className="text-xs text-muted-foreground">Source</p>
                     <p className="text-sm font-medium capitalize">{attendee.externalSource || "Manual"}</p>
                   </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Category</p>
+                    <p className="text-sm font-medium" data-testid="text-attendee-category">
+                      {attendee.attendeeCategory === "PRACTITIONER" ? "Practitioner" :
+                       attendee.attendeeCategory === "GOVERNMENT_NONPROFIT" ? "Gov / Non-Profit" :
+                       attendee.attendeeCategory === "SOLUTION_PROVIDER" ? "Solution Provider" :
+                       attendee.attendeeCategory || "—"}
+                    </p>
+                  </div>
+                  {attendee.ticketType && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Ticket Type</p>
+                      <p className="text-sm font-medium text-muted-foreground" data-testid="text-attendee-ticket-type">{attendee.ticketType}</p>
+                    </div>
+                  )}
                 </div>
               </section>
 

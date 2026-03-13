@@ -1,0 +1,482 @@
+Attendee Admin Screen Improvements + User Permission Updates
+
+We need to improve the Admin → Attendees screen so the team can immediately understand how attendees are categorized, and we also need to update the user permission model to reflect all the new Concierge functionality that has been added.
+
+There are three required changes:
+
+show attendee categorization clearly on the Attendee admin screen
+
+add an attendee category pie chart for the selected event
+
+remove the Bulk Import button because attendee imports are handled through Data Exchange
+
+In addition, we need a broader user permission update so the admin/security model matches the expanded platform.
+
+Primary Goal
+
+Update the Attendees admin page so that it is more useful operationally, and update the permissions model so all major Concierge modules and actions are properly controlled.
+
+1. Add Attendee Category to the Admin Attendee Screen
+
+We now need to clearly show how each attendee is categorized.
+
+The important normalized attendee categories are:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+Required behavior
+
+Add a new column to the Attendees table:
+
+Category
+
+This should display the normalized attendee category, not just the raw ticket type.
+
+Examples:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+If needed, store/display the normalized field from the attendee record, such as:
+
+attendee_category
+
+This should make it immediately obvious how each attendee is classified.
+
+2. Keep Original Ticket Type Available (Optional but Recommended)
+
+If the source data still includes the original Eventzilla ticket type, keep it available in the attendee detail/edit view.
+
+Example:
+
+Ticket Type: Practitioner - Team Registration (3 or More People)
+
+Category: Practitioner
+
+This is useful for admin verification and troubleshooting, but the main grid should prioritize the normalized Category field.
+
+3. Add Attendee Category Pie Chart to the Attendees Page
+
+We want a quick visual summary of attendee composition by event.
+
+Required behavior
+
+Add a pie chart near the top of the Attendees page for the currently selected event tab.
+
+Chart title
+Attendee Category Breakdown
+The chart should show
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+It should also show counts and/or percentages
+
+Example:
+
+Practitioner — 62%
+
+Government / Non-Profit — 14%
+
+Solution Provider — 24%
+
+This should update dynamically based on the selected event tab.
+
+4. Event-Specific Behavior for the Pie Chart
+
+When the admin is viewing:
+
+FRC2026
+
+TLS2026
+
+USBT2026
+
+CUGI2027
+
+the pie chart should reflect only that selected event.
+
+When viewing:
+
+All Events
+
+the chart can either:
+
+aggregate across all events
+or
+
+show a combined total for all visible attendee records
+
+That is acceptable, as long as it is clearly labeled.
+
+5. Placement of the Pie Chart
+
+Place the pie chart above the attendee table, ideally near the top summary area.
+
+Recommended layout:
+
+event tabs
+
+search/filter row
+
+attendee category pie chart
+
+attendee table
+
+If needed, the pie chart can sit in a summary card or panel so it feels integrated with the page design.
+
+6. Remove the Bulk Import Button
+
+The Bulk Import button should be removed from the Attendees page.
+
+Reason
+
+Attendee import is handled through Data Exchange, so keeping a Bulk Import button here is redundant and potentially confusing.
+
+Required behavior
+
+Remove the Bulk Import button entirely from the Attendees page header.
+
+Keep:
+
+Add Attendee
+
+Remove:
+
+Bulk Import
+
+Do not remove actual import capability from Data Exchange.
+
+7. Optional Improvement — Add Small Summary Counts
+
+If practical, add small summary metrics above the chart or near the chart:
+
+Practitioners
+
+Government / Non-Profit
+
+Solution Providers
+
+Total Attendees
+
+These counts should match the selected event filter.
+
+This is optional, but useful.
+
+8. Update User Permissions for New Concierge Functionality
+
+The permissions model needs to be updated to reflect all of the new areas and actions that have been added to the platform.
+
+Right now the app has grown significantly, and permissions need to become more granular and complete.
+
+9. Add / Update Permission Groups
+
+Review and update permissions for the following functional areas:
+
+Core Admin Areas
+
+Dashboard
+
+Events
+
+Sponsors
+
+Attendees
+
+Meetings
+
+Info Requests
+
+Sponsor Management
+
+Deliverables
+
+Sponsor Dashboards
+
+Sponsorship Templates
+
+Sponsor Fulfillment Queue
+
+Outstanding Sponsor Items
+
+Reporting
+
+Email Center
+
+Reports
+
+Data Exchange
+
+Data Backup
+
+Configuration
+
+Branding
+
+Settings
+
+Users
+
+Access Control
+
+10. Add Permission Actions by Module
+
+Permissions should distinguish between:
+
+View
+
+Edit
+
+Create
+
+Delete
+
+Send / Trigger / Run
+
+Export / Download
+
+Admin / Manage
+
+You do not necessarily need every action for every module, but the model should support meaningful control.
+
+11. Recommended Permission Set Examples
+
+Add or normalize permission names such as:
+
+Events
+
+View Events
+
+Edit Events
+
+Create Events
+
+Delete Events
+
+Sponsors
+
+View Sponsors
+
+Edit Sponsors
+
+Create Sponsors
+
+Delete Sponsors
+
+Manage Sponsor Contacts
+
+Attendees
+
+View Attendees
+
+Edit Attendees
+
+Create Attendees
+
+Delete Attendees
+
+Export Attendees
+
+Meetings
+
+View Meetings
+
+Edit Meetings
+
+Create Meetings
+
+Delete Meetings
+
+Manage Meeting Invitations
+
+Info Requests
+
+View Info Requests
+
+Edit Info Requests
+
+Delete Info Requests
+
+Deliverables
+
+View Deliverables
+
+Edit Deliverables
+
+Manage Deliverable Status
+
+Send Deliverable Reminders
+
+View Sponsorship Templates
+
+Edit Sponsorship Templates
+
+Generate Sponsor Agreements
+
+Sponsor Dashboards
+
+View Sponsor Dashboards
+
+Send Dashboard Access
+
+Manage Sponsor Dashboard Contacts
+
+Email Center
+
+View Email Templates
+
+Edit Email Templates
+
+Send Test Email
+
+View Email Logs
+
+Reports
+
+View Reports
+
+Generate Reports
+
+Download Reports
+
+Data Exchange
+
+View Data Exchange
+
+Run Imports
+
+Run Exports
+
+Data Backup
+
+View Backup Status
+
+Run Backups
+
+Download Backups
+
+Validate Backups
+
+Access Restore Tools
+
+Users / Access Control
+
+View Users
+
+Edit Users
+
+Manage Roles
+
+Manage Permissions
+
+12. Add Permissions for New Matchmaking / Invitation Features
+
+Because we are adding sponsor-attendee matchmaking and sponsor meeting invitations, include permissions for:
+
+View Attendee Discovery
+
+Manage Matchmaking Settings
+
+View Meeting Invitations
+
+Manage Meeting Invitations
+
+Send Sponsor Invitations
+
+View Invitation Analytics
+
+These may initially be admin permissions, but they should exist in the model now.
+
+13. Add Permissions for Demo Environment Tools (If Relevant)
+
+If demo tools exist in the same codebase, add internal/admin permissions for:
+
+View Demo Tools
+
+Reset Demo Environment
+
+Run Demo Seed / Update Demo
+
+These should not be available broadly.
+
+14. Review Default Roles
+
+Review how default roles map to the new permissions.
+
+Examples:
+
+Super Admin
+
+Admin
+
+Event Producer
+
+Sales
+
+Operations
+
+Read Only
+
+Make sure each role has an intentional permission set.
+
+For example:
+
+Sales may need Sponsor Dashboards and Reports, but not Data Backup
+
+Operations may need Deliverables and Meetings, but not User Management
+
+Read Only should not be able to edit or send
+
+15. Update the Access Control UI
+
+The Access Control / Users area should show the new permissions cleanly.
+
+If the current UI is too limited, update it so admins can manage the expanded permission set without confusion.
+
+At minimum:
+
+new permissions must be visible
+
+they must be assignable
+
+they must persist correctly
+
+16. Acceptance Criteria
+
+This work is complete when:
+
+the Attendees admin table includes a clear Category column
+
+the Attendees page includes an Attendee Category Breakdown pie chart
+
+the chart updates by selected event tab
+
+the Bulk Import button is removed from Attendees
+
+the permissions system is updated to reflect all major new Concierge modules and actions
+
+new matchmaking, sponsor dashboard, deliverables, reporting, and backup features are covered by permissions
+
+17. Success Standard
+
+After this update:
+
+admins can immediately see attendee category composition by event
+
+attendee classification is operationally useful for matchmaking and event planning
+
+the Attendees page is cleaner
+
+the permissions model matches the real scope of the platform
+
+That is the standard this update should meet.

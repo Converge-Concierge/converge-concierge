@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Plus, Search, Upload } from "lucide-react";
+import { Plus, Search, Users as UsersIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { AttendeeFormModal } from "@/components/admin/AttendeeFormModal";
 import { AttendeeDetailDrawer } from "@/components/admin/AttendeeDetailDrawer";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +24,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+const CATEGORY_COLORS: Record<string, string> = {
+  PRACTITIONER: "#10b981",
+  GOVERNMENT_NONPROFIT: "#3b82f6",
+  SOLUTION_PROVIDER: "#f59e0b",
+  UNCATEGORIZED: "#94a3b8",
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  PRACTITIONER: "Practitioner",
+  GOVERNMENT_NONPROFIT: "Gov / Non-Profit",
+  SOLUTION_PROVIDER: "Solution Provider",
+  UNCATEGORIZED: "Uncategorized",
+};
 
 export default function AttendeesPage() {
   const { isAdmin } = useAuth();
@@ -121,14 +136,42 @@ export default function AttendeesPage() {
     a.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
     a.email.toLowerCase().includes(searchQuery.toLowerCase());
 
-  const activeAttendees = attendees.filter((a) => {
+  const eventFilteredActive = attendees.filter((a) => {
     if ((a.archiveState ?? "active") !== "active") return false;
-    if (!match(a)) return false;
     if (selectedEventId !== "all" && a.assignedEvent !== selectedEventId) return false;
     return true;
   });
+
+  const activeAttendees = eventFilteredActive.filter(match);
   const archivedAttendees = attendees.filter((a) => a.archiveState === "archived" && match(a));
   const displayedAttendees = tab === "active" ? activeAttendees : archivedAttendees;
+
+  const categoryData = useMemo(() => {
+    const counts: Record<string, number> = {
+      PRACTITIONER: 0,
+      GOVERNMENT_NONPROFIT: 0,
+      SOLUTION_PROVIDER: 0,
+      UNCATEGORIZED: 0,
+    };
+    eventFilteredActive.forEach((a) => {
+      const cat = a.attendeeCategory;
+      if (cat && counts[cat] !== undefined) {
+        counts[cat]++;
+      } else {
+        counts.UNCATEGORIZED++;
+      }
+    });
+    return Object.entries(counts)
+      .filter(([_, count]) => count > 0)
+      .map(([key, count]) => ({
+        name: CATEGORY_LABELS[key] || key,
+        value: count,
+        color: CATEGORY_COLORS[key] || "#94a3b8",
+        key,
+      }));
+  }, [eventFilteredActive]);
+
+  const totalForChart = categoryData.reduce((sum, d) => sum + d.value, 0);
 
   return (
     <motion.div
@@ -144,14 +187,6 @@ export default function AttendeesPage() {
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
           <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => toast({ title: "Coming soon", description: "Bulk CSV import will be available in a future update." })}
-            data-testid="button-bulk-import"
-          >
-            <Upload className="h-4 w-4" /> Bulk Import
-          </Button>
-          <Button
             className="shadow-md shadow-accent/20 bg-accent text-accent-foreground hover:bg-accent/90"
             onClick={() => { setEditingAttendee(undefined); setIsModalOpen(true); }}
             data-testid="button-add-attendee"
@@ -161,7 +196,6 @@ export default function AttendeesPage() {
         </div>
       </div>
 
-      {/* Event tabs */}
       {sortedEventsForSelector.length > 0 && (
         <div className="overflow-x-auto pb-1">
           <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
@@ -211,7 +245,7 @@ export default function AttendeesPage() {
         <Tabs value={tab} onValueChange={(v) => setTab(v as "active" | "archived")} className="w-full sm:w-auto">
           <TabsList className="w-full sm:w-auto">
             <TabsTrigger value="active" className="flex-1 sm:flex-none" data-testid="tab-attendees-active">
-              Active <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{attendees.filter((a) => (a.archiveState ?? "active") === "active").length}</span>
+              Active <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{eventFilteredActive.length}</span>
             </TabsTrigger>
             <TabsTrigger value="archived" className="flex-1 sm:flex-none" data-testid="tab-attendees-archived">
               Archived <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{attendees.filter((a) => a.archiveState === "archived").length}</span>
@@ -219,6 +253,57 @@ export default function AttendeesPage() {
           </TabsList>
         </Tabs>
       </div>
+
+      {tab === "active" && totalForChart > 0 && (
+        <div className="bg-card rounded-xl border border-border/50 shadow-sm p-5" data-testid="attendee-category-chart">
+          <div className="flex items-center gap-2 mb-4">
+            <UsersIcon className="h-4 w-4 text-accent" />
+            <h2 className="text-sm font-semibold text-foreground">Attendee Category Breakdown</h2>
+            <span className="text-xs text-muted-foreground ml-auto">
+              {selectedEventId === "all" ? "All Events" : events.find(e => e.id === selectedEventId)?.slug ?? ""}
+              {" · "}{totalForChart} total
+            </span>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1 w-full">
+              {categoryData.map((d) => (
+                <div key={d.key} className="flex flex-col items-center p-3 rounded-lg bg-muted/30 border border-border/40" data-testid={`stat-category-${d.key}`}>
+                  <div className="w-2.5 h-2.5 rounded-full mb-1.5" style={{ backgroundColor: d.color }} />
+                  <span className="text-lg font-bold text-foreground">{d.value}</span>
+                  <span className="text-[10px] text-muted-foreground text-center leading-tight">{d.name}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {totalForChart > 0 ? Math.round((d.value / totalForChart) * 100) : 0}%
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="w-48 h-48 shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={70}
+                    paddingAngle={2}
+                    dataKey="value"
+                    nameKey="name"
+                  >
+                    {categoryData.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.color} stroke="transparent" />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number, name: string) => [`${value} (${totalForChart > 0 ? Math.round((value / totalForChart) * 100) : 0}%)`, name]}
+                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="h-64 flex items-center justify-center">

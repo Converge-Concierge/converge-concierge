@@ -1,0 +1,320 @@
+Fix Attendee Category Derivation From Zapier and Add Category Editing in Attendee Edit Form
+
+We have two related problems in the attendee workflow:
+
+Attendee category is not being derived correctly from the Zapier import
+
+There is no way to edit/update attendee category in the Edit Attendee form
+
+The Zapier step is currently sending the Eventzilla ticket type into the field:
+
+attendee_category
+
+But the value being sent is the raw ticket type text, for example:
+
+Solution Provider - Individual or Group Registration
+
+That raw value is not being normalized into the operational categories we need.
+
+At the same time, the attendee edit UI does not expose any field for admins to correct the category manually.
+
+We need to fix both the import logic and the edit UI.
+
+Primary Goal
+
+Ensure that:
+
+attendee category is reliably derived from Eventzilla ticket type during Zapier import
+
+attendee records store both the raw ticket type and the normalized attendee category
+
+admins can manually edit/correct attendee category in the Edit Attendee form
+
+the Attendees table and detail view display the correct normalized category
+
+1. Stop Treating Raw Ticket Type as the Final Category
+Current problem
+
+Zapier is sending the raw Eventzilla ticket type string into:
+
+attendee_category
+
+Example raw values:
+
+Practitioner - Individual Registration
+
+Practitioner - Team Registration (3 or More People)
+
+Solution Provider - Individual or Group Registration
+
+Government - Individual Registration
+
+Those are source values, not the final normalized categories we want to use operationally.
+
+Required behavior
+
+Do not store the raw Eventzilla ticket type directly as the final attendee_category.
+
+Instead:
+
+store the raw value as:
+
+ticket_type
+
+derive the normalized category into:
+
+attendee_category
+2. Update Zapier Import Mapping
+
+The Zapier flow should continue sending the Eventzilla ticket type, but the app must process it correctly.
+
+Required behavior
+
+When the Zapier payload arrives:
+
+Save raw ticket type to:
+ticket_type
+Then derive normalized attendee category:
+attendee_category
+Mapping rules
+
+If ticket_type contains:
+
+Practitioner → PRACTITIONER
+
+Government → GOVERNMENT_NONPROFIT
+
+Non-Profit → GOVERNMENT_NONPROFIT
+
+Solution Provider → SOLUTION_PROVIDER
+
+Use case-insensitive matching and contains/keyword logic, not exact full-string equality.
+
+This must handle variations such as:
+
+early registration
+
+regular registration
+
+team registration
+
+group registration
+
+3. Preserve Both Fields on the Attendee Record
+
+The attendee record should store both:
+
+ticket_type
+attendee_category
+
+Example:
+
+ticket_type:
+Solution Provider - Individual or Group Registration
+
+attendee_category:
+SOLUTION_PROVIDER
+
+This is important because:
+
+ticket_type preserves source data from Eventzilla
+
+attendee_category is used for matchmaking, filtering, and reporting
+
+4. Add Category Field to the Edit Attendee Form
+Current problem
+
+The Edit Attendee modal does not provide a way to see or change attendee category.
+
+Required behavior
+
+Add a visible editable field in the Edit Attendee form for:
+
+Category
+
+Use a dropdown/select field with these options:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+This field should be editable by admins.
+
+5. Add Ticket Type Field to the Edit Attendee Form
+
+Also add a field for:
+
+Ticket Type
+
+This can be:
+
+editable text input
+or
+
+read-only field if preferred initially
+
+Preferred approach:
+
+editable text input, since admins may need to correct bad source data
+
+This lets admins fix imported Eventzilla values if needed.
+
+6. Auto-Recalculate Category When Ticket Type Changes
+
+If the admin edits the Ticket Type field, the system should automatically re-run the normalization logic and update the Category field.
+
+Example
+
+If admin enters:
+
+Practitioner - Team Registration (3 or More People)
+
+the app should automatically set:
+
+Category = Practitioner
+
+If the category has been manually overridden by the admin, preserve that override unless the admin chooses to re-derive it.
+
+7. Allow Manual Category Override
+
+Sometimes the ticket type may not map cleanly.
+
+Required behavior
+
+Allow admins to manually set the attendee category even if the ticket type is ambiguous.
+
+This means:
+
+Ticket Type remains stored
+
+Category can be manually changed
+
+Manual value takes precedence over derived value if explicitly edited
+
+Optional support field if useful:
+
+category_override = true/false
+
+This is optional, but helpful for future debugging.
+
+8. Update the Attendee Detail View
+
+In the attendee side panel / detail view, add:
+
+Ticket Type
+
+Category
+
+So Basic Profile becomes something like:
+
+Email
+
+Phone
+
+Event
+
+Source
+
+Ticket Type
+
+Category
+
+This makes imported classification much easier to verify.
+
+9. Update the Attendees Table
+
+Ensure the Category column in the Attendees table uses the normalized category field.
+
+Display friendly labels:
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+Do not show raw enum values.
+
+If category is still missing, show:
+
+Unmapped
+
+instead of a dash.
+
+10. Backfill Existing Attendees
+
+After fixing the import logic, run a backfill process for existing attendee records.
+
+Required behavior
+
+For attendees where:
+
+ticket_type exists
+
+attendee_category is blank, null, or unmapped
+
+re-run the normalization logic and populate category.
+
+This should fix existing imported records automatically where possible.
+
+11. Improve Logging for Zapier Imports
+
+When attendees are imported from Zapier:
+
+Log:
+
+raw ticket type received
+
+normalized category derived
+
+whether mapping succeeded
+
+whether fallback/manual review is needed
+
+If mapping fails, log:
+
+Unmapped attendee ticket type: "<raw value>"
+
+Do not fail silently.
+
+12. Update the Zapier Endpoint Contract
+
+If helpful, document that Zapier should send the raw ticket type as:
+
+ticket_type
+
+instead of treating it as final normalized category.
+
+If changing Zapier field naming is too disruptive right now, the app can still accept the incoming mapped field but should internally treat that value as raw ticket type and normalize it before saving.
+
+The important thing is that the database ends up with:
+
+raw ticket type
+
+normalized category
+
+13. Acceptance Criteria
+
+This is complete when:
+
+Eventzilla/Zapier ticket type is stored correctly as raw ticket_type
+
+attendee category is derived correctly from raw ticket type
+
+the Edit Attendee form includes both Ticket Type and Category
+
+admins can manually correct Category
+
+the Attendees table shows the correct normalized category
+
+the attendee detail view shows Ticket Type and Category
+
+existing attendee records can be backfilled where possible
+
+14. Success Standard
+
+After this fix, attendee import and attendee editing should support reliable categorization for matchmaking, admin visibility, and reporting.
+
+That is the standard this fix should meet.

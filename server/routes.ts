@@ -1826,17 +1826,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.status(401).json({ ok: false, error: "Invalid authentication" });
     }
 
-    const { eventCode, registrationId, firstName, lastName, email, company, title, status, phone, ticketType } = req.body ?? {};
+    const { eventCode, registrationId, firstName, lastName, email, company, title, status, phone,
+      ticketType: rawTicketType, attendee_category: rawCategoryField } = req.body ?? {};
 
-    console.log(`[eventzilla] webhook received — eventCode=${eventCode} email=${email} registrationId=${registrationId}`);
+    const rawTicket = rawTicketType ? String(rawTicketType) : (rawCategoryField ? String(rawCategoryField) : null);
 
-    // Validate required fields
+    console.log(`[eventzilla] webhook received — eventCode=${eventCode} email=${email} registrationId=${registrationId} rawTicketType=${rawTicket}`);
+
     if (!eventCode || !registrationId || !firstName || !lastName || !email) {
       console.log("[eventzilla] 400 — missing required fields");
       return res.status(400).json({ ok: false, error: "Missing required fields: eventCode, registrationId, firstName, lastName, email" });
     }
 
-    // Look up event by slug (eventCode = slug)
     const allEvents = await storage.getEvents();
     const event = allEvents.find((e) => e.slug?.toLowerCase() === String(eventCode).toLowerCase());
     if (!event) {
@@ -1845,11 +1846,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
 
     const fullName = [firstName, lastName].filter(Boolean).join(" ");
-
-    // Upsert: check active attendee first, then archived
     const existing = await storage.getAttendeeByEmailAndEvent(String(email).toLowerCase(), event.id);
 
-    const normalizedCategory = normalizeAttendeeCategory(ticketType ? String(ticketType) : null);
+    const normalizedCategory = normalizeAttendeeCategory(rawTicket);
+    if (rawTicket && normalizedCategory) {
+      console.log(`[eventzilla] ticket type "${rawTicket}" → category ${normalizedCategory}`);
+    } else if (rawTicket && !normalizedCategory) {
+      console.log(`[eventzilla] ⚠ Unmapped attendee ticket type: "${rawTicket}" — category will be null`);
+    }
+
+    const ticketAndCategory = {
+      ...(rawTicket ? { ticketType: rawTicket } : {}),
+      ...(normalizedCategory ? { attendeeCategory: normalizedCategory } : {}),
+    };
 
     if (existing) {
       await storage.updateAttendee(existing.id, {
@@ -1861,8 +1870,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         phone:                  phone   ? String(phone)   : existing.phone ?? undefined,
         externalSource:         "eventzilla",
         externalRegistrationId: String(registrationId),
-        ...(ticketType ? { ticketType: String(ticketType) } : {}),
-        ...(normalizedCategory ? { attendeeCategory: normalizedCategory } : {}),
+        ...ticketAndCategory,
       });
       console.log(`[eventzilla] updated attendee ${existing.id} for ${email} / ${eventCode}`);
       return res.json({ ok: true, action: "updated", attendeeId: existing.id, eventCode });
@@ -1881,8 +1889,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         archiveSource:          null,
         externalSource:         "eventzilla",
         externalRegistrationId: String(registrationId),
-        ...(ticketType ? { ticketType: String(ticketType) } : {}),
-        ...(normalizedCategory ? { attendeeCategory: normalizedCategory } : {}),
+        ...ticketAndCategory,
       });
       console.log(`[eventzilla] reactivated + updated archived attendee ${archived.id} for ${email} / ${eventCode}`);
       return res.json({ ok: true, action: "updated", attendeeId: archived.id, eventCode });
@@ -1901,11 +1908,47 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       archiveSource:          null,
       externalSource:         "eventzilla",
       externalRegistrationId: String(registrationId),
-      ticketType:             ticketType ? String(ticketType) : undefined,
+      ticketType:             rawTicket ?? undefined,
       attendeeCategory:       normalizedCategory ?? undefined,
     });
     console.log(`[eventzilla] created attendee ${created.id} for ${email} / ${eventCode}`);
     return res.status(201).json({ ok: true, action: "created", attendeeId: created.id, eventCode });
+  });
+
+  app.post("/api/admin/attendees/backfill-categories", requireAdmin, async (req, res) => {
+    const adminUser = (req as any).user?.name ?? "admin";
+    console.log(`[backfill] Category backfill triggered by ${adminUser}`);
+    const allAttendees = await storage.getAttendees();
+    const validCategories = new Set(["PRACTITIONER", "GOVERNMENT_NONPROFIT", "SOLUTION_PROVIDER"]);
+    let updated = 0;
+    let skipped = 0;
+    const unmapped: string[] = [];
+
+    for (const att of allAttendees) {
+      const hasValidCategory = att.attendeeCategory && validCategories.has(att.attendeeCategory);
+      if (hasValidCategory) {
+        skipped++;
+        continue;
+      }
+
+      const rawTicket = att.ticketType;
+      if (!rawTicket) {
+        skipped++;
+        continue;
+      }
+
+      const derived = normalizeAttendeeCategory(rawTicket);
+      if (derived) {
+        await storage.updateAttendee(att.id, { attendeeCategory: derived });
+        updated++;
+        console.log(`[backfill] ${att.id} ticket="${rawTicket}" → ${derived}`);
+      } else {
+        unmapped.push(rawTicket);
+        console.log(`[backfill] ⚠ Unmapped ticket type: "${rawTicket}" for attendee ${att.id}`);
+      }
+    }
+
+    res.json({ ok: true, updated, skipped, unmapped: [...new Set(unmapped)] });
   });
 
   // ── Data Exchange ─────────────────────────────────────────────────────────
@@ -1958,6 +2001,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       // Check for existing active attendee
       const existing = await storage.getAttendeeByEmailAndEvent(email, event.id);
+      const csvTicketType = row.ticketType || row.ticket_type || null;
+      const csvCategory = row.attendeeCategory || row.attendee_category || row.category || null;
+      const csvCategoryFields: Record<string, string> = {};
+      if (csvTicketType) csvCategoryFields.ticketType = String(csvTicketType);
+      if (csvCategory) {
+        const upper = String(csvCategory).toUpperCase().replace(/[\s/]+/g, "_").replace(/-/g, "_");
+        if (["PRACTITIONER", "GOVERNMENT_NONPROFIT", "SOLUTION_PROVIDER"].includes(upper)) {
+          csvCategoryFields.attendeeCategory = upper;
+        } else {
+          const normalized = normalizeAttendeeCategory(String(csvCategory));
+          if (normalized) csvCategoryFields.attendeeCategory = normalized;
+        }
+      }
+      if (!csvCategoryFields.attendeeCategory && csvTicketType) {
+        const derived = normalizeAttendeeCategory(String(csvTicketType));
+        if (derived) csvCategoryFields.attendeeCategory = derived;
+      }
+
       if (existing) {
         await storage.updateAttendee(existing.id, {
           firstName: row.firstName ?? existing.firstName,
@@ -1967,12 +2028,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           phone: row.phone ?? existing.phone,
           externalSource: row.source ? String(row.source) : (existing.externalSource ?? "csv"),
           externalRegistrationId: row.externalRegistrationId ? String(row.externalRegistrationId) : existing.externalRegistrationId,
+          ...csvCategoryFields,
         });
         updatedCount++;
         continue;
       }
 
-      // Check archived
       const archived = await storage.getArchivedAttendeeByEmailAndEvent(email, event.id);
       if (archived) {
         await storage.updateAttendee(archived.id, {
@@ -1984,12 +2045,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           archiveState: "active",
           archiveSource: null,
           externalSource: row.source ? String(row.source) : (archived.externalSource ?? "csv"),
+          ...csvCategoryFields,
         });
         updatedCount++;
         continue;
       }
 
-      // Create new
       await storage.createAttendee({
         firstName: String(row.firstName),
         lastName: String(row.lastName),
@@ -2003,6 +2064,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         archiveSource: null,
         externalSource: row.source ? String(row.source) : "csv",
         externalRegistrationId: row.externalRegistrationId ? String(row.externalRegistrationId) : undefined,
+        ...csvCategoryFields,
       });
       importedCount++;
     }

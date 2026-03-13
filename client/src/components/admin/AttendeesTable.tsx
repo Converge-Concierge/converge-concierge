@@ -105,7 +105,7 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
                     {categoryLabel(attendee.attendeeCategory)}
                   </Badge>
                 ) : (
-                  <span className="text-muted-foreground text-xs italic">—</span>
+                  <span className="text-muted-foreground text-xs italic">Unmapped</span>
                 )}
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">{attendee.email}</TableCell>

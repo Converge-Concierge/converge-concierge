@@ -115,7 +115,7 @@ export function AttendeeDetailDrawer({ attendeeId, open, onClose }: AttendeeDeta
                       {attendee.attendeeCategory === "PRACTITIONER" ? "Practitioner" :
                        attendee.attendeeCategory === "GOVERNMENT_NONPROFIT" ? "Gov / Non-Profit" :
                        attendee.attendeeCategory === "SOLUTION_PROVIDER" ? "Solution Provider" :
-                       attendee.attendeeCategory || "—"}
+                       attendee.attendeeCategory || "Unmapped"}
                     </p>
                   </div>
                   {attendee.ticketType && (

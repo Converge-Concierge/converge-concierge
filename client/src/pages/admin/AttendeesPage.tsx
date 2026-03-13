@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Plus, Search, Users as UsersIcon } from "lucide-react";
+import { Plus, Search, Users as UsersIcon, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   PRACTITIONER: "Practitioner",
   GOVERNMENT_NONPROFIT: "Gov / Non-Profit",
   SOLUTION_PROVIDER: "Solution Provider",
-  UNCATEGORIZED: "Uncategorized",
+  UNCATEGORIZED: "Unmapped",
 };
 
 export default function AttendeesPage() {
@@ -113,6 +113,21 @@ export default function AttendeesPage() {
     },
   });
 
+  const backfillMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/attendees/backfill-categories");
+      return res.json();
+    },
+    onSuccess: (data: { updated: number; skipped: number; unmapped: string[] }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/attendees"] });
+      const msg = data.updated > 0
+        ? `Updated ${data.updated} attendee(s). ${data.unmapped.length > 0 ? `${data.unmapped.length} unmapped ticket type(s).` : ""}`
+        : "No attendees needed backfilling.";
+      toast({ title: "Category Backfill Complete", description: msg });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to backfill categories", variant: "destructive" }),
+  });
+
   const handleSubmit = (data: InsertAttendee) => {
     if (editingAttendee) {
       updateMutation.mutate({ id: editingAttendee.id, data });
@@ -186,6 +201,16 @@ export default function AttendeesPage() {
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">View and manage all registered event attendees.</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => backfillMutation.mutate()}
+            disabled={backfillMutation.isPending}
+            data-testid="button-backfill-categories"
+          >
+            <RefreshCw className={cn("mr-2 h-4 w-4", backfillMutation.isPending && "animate-spin")} />
+            {backfillMutation.isPending ? "Backfilling..." : "Backfill Categories"}
+          </Button>
           <Button
             className="shadow-md shadow-accent/20 bg-accent text-accent-foreground hover:bg-accent/90"
             onClick={() => { setEditingAttendee(undefined); setIsModalOpen(true); }}

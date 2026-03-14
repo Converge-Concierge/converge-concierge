@@ -1,0 +1,764 @@
+Sponsor Dashboard, Attendee Outreach, Email Scheduling, Info Requests, Sponsor Health, Reporting, and Admin Navigation
+
+We need to implement the next major set of Concierge improvements. These changes should make the platform more operationally useful for Converge Events, more valuable to sponsors, and stronger as a sponsorship sales tool.
+
+This phase includes updates across:
+
+Sponsor Dashboard
+
+Attendees
+
+Email Center
+
+Info Requests
+
+Sponsor Management
+
+Reporting / Sponsor Health
+
+Automatic Sponsor Reports
+
+Configuration / Admin Navigation
+
+The work should be implemented in a structured way so the UI, workflows, permissions, and automation remain consistent.
+
+Primary Goal
+
+Improve Concierge so it better supports:
+
+sponsor deliverable execution
+
+sponsor engagement monitoring
+
+attendee outreach
+
+email scheduling and email control
+
+sponsor performance analysis
+
+internal sponsorship sales intelligence
+
+1. Sponsor Dashboard — Better File Management / Media Library
+
+Sponsors should be able to manage files more cleanly.
+
+Required behavior
+
+Create a cleaner sponsor-facing media/file management experience for assets such as:
+
+company logos
+
+documents
+
+promo assets
+
+supporting files
+
+Preferred implementation
+
+Add a sponsor-facing Media Library or Files & Assets area within the Sponsor Dashboard.
+
+This can be:
+
+a dedicated tab
+or
+
+a clearly structured section within Deliverables
+
+Recommended name:
+
+Files & Assets
+
+or
+
+Media Library
+It should support:
+
+upload file
+
+replace file
+
+view file
+
+download file
+
+show file type
+
+show upload date
+
+show which deliverable the file relates to
+
+Do not make sponsors guess where files belong.
+
+2. Sponsor Dashboard — Deliverable Completion Progress
+
+Sponsors should see a stronger sense of progress.
+
+Required behavior
+
+Add a visible Deliverables Progress indicator near the top of the Sponsor Dashboard.
+
+Example:
+
+Deliverables Progress
+████████░░ 80% complete
+Also show:
+
+percent complete
+
+counts:
+
+total
+
+completed
+
+in progress
+
+awaiting sponsor
+
+awaiting Converge
+
+This should feel motivating and operationally useful.
+
+3. Deliverables Tab — General Structural Improvements
+Required behavior
+
+All deliverable rows/sections should be expanded by default.
+
+Remove the need for:
+
+“View Details” buttons
+
+unnecessary click-to-expand behavior
+
+The deliverables experience should feel transparent and easy to scan.
+
+Key rule
+
+Each deliverable section should be visible inline by default.
+
+4. Deliverables — Sponsor Representatives Registration Check
+
+When a Sponsor Representative is added, the system should check whether that person is already registered for the event.
+
+Required behavior
+
+For each Sponsor Representative:
+
+show first name
+
+last name
+
+email
+
+title
+
+concierge role
+
+registration status
+
+Registration status examples
+
+Registered
+
+Not Registered
+
+Pending
+
+No Match Found
+
+Use email as the primary matching key.
+
+Important
+
+Every sponsor should start with at least one sponsor representative from the sponsor setup/main contact flow.
+
+That person should automatically appear in the Sponsor Representatives list unless intentionally removed.
+
+5. Deliverables — VIP Registrations / Registration Checks
+
+For:
+
+VIP Registrations
+
+Registration
+
+the system should automatically check if company representatives are already registered.
+
+Required behavior
+
+Show:
+
+registration allotment
+
+number used
+
+number remaining
+
+list of sponsor reps and whether they are registered
+
+Example:
+
+Registrations Included: 4
+Registered Representatives: 2
+Registrations Remaining: 2
+
+If a rep is already registered, reflect that immediately.
+
+6. Deliverables — Speaking Engagement Always Visible
+
+The Speaking Engagement deliverable should be visible inline.
+
+Required behavior
+
+Do not hide it behind a button.
+
+Show inline:
+
+session type
+
+session title
+
+session date if available
+
+sponsor speaker
+
+status
+
+owner
+
+notes
+
+This is a Converge-managed deliverable and should remain visible.
+
+7. Deliverables — Marketing & Branding Restructure
+
+The Marketing & Branding section should be broken into four separate deliverables:
+
+Company Logo on Website
+
+Company Logo on Event Signage
+
+Customized Social Media Graphics
+
+Social Media Announcements
+
+Required behavior
+
+These should appear as four separate sections/rows, not merged together.
+
+Additional behavior
+
+For Social Media Graphics:
+
+preview uploaded creative if available
+
+indicate quantity
+
+show status
+
+For Social Media Announcements:
+
+allow Converge to paste LinkedIn post URLs
+
+display those URLs to sponsors
+
+ideally allow sponsors to click through and share
+
+8. Deliverables — Full / Partial Attendee List Scheduling
+
+The attendee list deliverable should support list scheduling and list type selection.
+
+Required behavior
+
+In Converge Deliverable Management, allow admins to configure:
+
+List Type
+
+Full Attendee List
+
+Partial Attendee List
+
+Definitions
+
+Full list:
+
+Name
+
+Title
+
+Company
+
+Phone
+
+Email
+
+Partial list:
+
+Name
+
+Title
+
+Company
+
+Delivery Settings
+
+scheduled send date/time
+
+recipient(s)
+
+email template used
+
+delivery status
+
+This should support automatic delivery at the correct post-event timing.
+
+9. Deliverables — Compliance Restructure
+
+Add file support so Julie can upload COI instruction PDFs to this section.
+
+Required file support
+
+upload instruction file
+
+replace instruction file
+
+view/download file
+
+This file upload is Converge-managed and should be visible to the sponsor where appropriate.
+
+10. Attendees — Individual Meeting Scheduling Email
+
+We need the ability to email attendees individually and route them to a meeting scheduling experience.
+
+Required behavior
+
+From the Attendees area, add an action to send an attendee a personalized scheduling email.
+
+Recommended action name:
+
+Send Scheduling Email
+
+This should:
+
+use attendee email
+
+generate secure personalized link
+
+route attendee to a meeting scheduling page
+
+optionally reference sponsor/event context if applicable
+
+This should work without requiring a traditional attendee login.
+
+11. Email Center — Add Email Scheduling Tab
+
+The Email Center should include a scheduling function.
+
+Required behavior
+
+Add a new tab in Email Center:
+
+Scheduled Emails
+This tab should show:
+
+all currently scheduled emails
+
+email type
+
+recipient
+
+event
+
+sponsor if applicable
+
+scheduled send date/time
+
+status
+
+template used
+
+created by
+
+actions
+
+Status examples
+
+Scheduled
+
+Sent
+
+Cancelled
+
+Failed
+
+Draft
+
+Also support
+
+schedule a new email
+
+reschedule
+
+cancel
+
+duplicate
+
+12. Email Center — Include Outstanding Sponsorship Deliverables Emails
+
+The scheduling tab should include emails related to outstanding sponsorship deliverables.
+
+Examples:
+
+reminder to upload logo
+
+reminder to provide speaker details
+
+reminder to complete company profile
+
+reminder for COI
+
+post-event attendee list delivery
+
+sponsor performance report send
+
+This becomes the control center for sponsor communications.
+
+13. Info Requests — Admin Edit / Delete Capability
+
+Converge Admin needs the ability to edit or delete Info Requests.
+
+Required behavior
+
+In Info Requests:
+
+allow edit
+
+allow delete
+
+preserve audit history if possible
+
+Editable fields may include:
+
+attendee
+
+sponsor
+
+message
+
+status
+
+assigned event
+
+internal notes
+
+Delete should be permission-controlled and confirm before execution.
+
+14. Sponsor Management — Add New Section: Sponsor Health
+
+Create a new section under Sponsor Management:
+
+Sponsor Health
+
+This section should be used to monitor sponsor success and operational risk across events.
+
+15. Sponsor Health — Core KPIs
+
+The Sponsor Health section should surface sponsors that need attention.
+
+Required KPI examples
+
+sponsors with outstanding deliverables
+
+sponsors missing required deliverables
+
+sponsors with zero meetings
+
+sponsors with zero info requests
+
+sponsors with low dashboard activity
+
+sponsors without registered reps
+
+sponsors missing speaker/session data
+
+sponsors missing compliance items
+
+sponsors missing logo/profile info
+
+sponsors with low activation score
+
+16. Sponsor Health — Suggested Additional KPIs
+
+Add useful KPIs for future sales and marketing analysis.
+
+Suggested metrics
+
+sponsor dashboard login count
+
+days since last sponsor activity
+
+profile views
+
+meeting CTA clicks
+
+information requests received
+
+meetings scheduled
+
+meetings completed
+
+unique companies engaged
+
+reps registered vs allotted
+
+deliverable completion percentage
+
+sponsor engagement score
+
+pre-event readiness score
+
+post-event performance score
+
+These should support both operational follow-up and future sponsorship sales.
+
+17. Sponsorship Performance Benchmarks
+
+Add internal benchmark metrics that help sales justify sponsorship value.
+
+Required behavior
+
+Show benchmark-style metrics such as:
+
+Average Sponsor Results
+Meetings Generated: 6
+Info Requests: 5
+Companies Engaged: 8
+
+These can be:
+
+by event
+
+by sponsorship level
+
+by year
+
+by sponsor segment
+
+This supports sales language like:
+
+Sponsors typically generate 5–8 meetings.
+
+18. Past Sponsor Performance Library
+
+Create internal analytics/history so Converge can reference past sponsor performance.
+
+Required behavior
+
+Create a section or report area that shows:
+
+Event Results
+
+Example:
+
+FRC2025
+Sponsors: 14
+Total Meetings: 112
+Avg Meetings per Sponsor: 8
+Total Info Requests: 47
+Avg Companies Engaged: 6
+
+This should be stored historically and usable internally for future sponsorship sales.
+
+19. Generate Sponsor Reports Automatically
+
+We already generate sponsor reports, but this needs to be improved and automated.
+
+Required behavior
+
+Support automatic sponsor report generation:
+
+PDF
+
+per sponsor
+
+post-event
+
+using current report template/system
+
+This should be able to run:
+
+manually
+
+automatically based on schedule
+
+20. Automated Sponsor Reports Emailing
+
+At the end of the event, the system should support:
+
+Send Sponsor Report
+
+Automatically email:
+
+Your Sponsorship Performance Report
+
+to the appropriate sponsor contact(s).
+
+Required controls
+
+scheduled send date/time
+
+template selection
+
+recipients
+
+preview before send
+
+delivery status
+
+resend capability
+
+21. Email Governance — Control All Sponsor Emails
+
+We need one place to control all sponsor emails, both manual and automated.
+
+Required behavior
+
+The Email Center / Scheduled Emails system should become the control point for:
+
+deliverable reminders
+
+dashboard access emails
+
+scheduling emails
+
+attendee list delivery
+
+sponsor performance report delivery
+
+custom sponsor communications
+
+This should support both:
+
+manually triggered emails
+
+system-generated scheduled emails
+
+We must be able to see all sponsor-related outgoing communications in one place.
+
+22. Configuration Updates
+
+Under Configuration:
+
+Merge Branding & Settings
+
+Merge these into a cleaner combined admin area if practical.
+
+Recommended structure:
+
+Configuration
+- General Settings
+- Branding
+- Email / Communications
+- Platform Rules
+
+Or merge them into a tabbed Settings area.
+
+Add Access Control Under Users as Another Tab
+
+Instead of a separate main nav item, move Access Control under Users as a tab.
+
+Example:
+
+Users
+- Users
+- Roles
+- Permissions / Access Control
+
+This is cleaner and more intuitive.
+
+Rename Sponsorship Templates to Sponsorship Packages
+
+Update the UI label:
+
+Sponsorship Templates
+
+to:
+
+Sponsorship Packages
+
+This is more natural and sponsor-friendly.
+
+23. Permissions
+
+Update permissions to cover all new areas:
+
+Sponsor Health
+
+Scheduled Emails
+
+Send Scheduling Email
+
+Edit Info Requests
+
+Delete Info Requests
+
+Generate Sponsor Reports
+
+Send Sponsor Reports
+
+Manage Sponsorship Packages
+
+Manage Deliverable Scheduling
+
+Manage Compliance Files
+
+View Sponsor Benchmarks
+
+View Performance Library
+
+Ensure manual and automated sponsor email actions are permission-controlled.
+
+24. Acceptance Criteria
+
+This phase is complete when:
+
+sponsor dashboard has a cleaner file/media management experience
+
+deliverable progress is visible
+
+deliverables are expanded by default
+
+sponsor reps show registration status
+
+VIP/Registration deliverables check existing registrations
+
+marketing and compliance deliverables are split correctly
+
+attendee list delivery can be scheduled
+
+COI instruction files can be uploaded
+
+attendees can receive individual scheduling emails
+
+Email Center has a Scheduled Emails tab
+
+admins can edit/delete Info Requests
+
+Sponsor Health exists and shows actionable KPIs
+
+benchmark metrics and past performance library exist
+
+sponsor reports can be auto-generated and emailed
+
+sponsor emails are centrally managed
+
+Configuration navigation is cleaned up
+
+Sponsorship Templates is renamed to Sponsorship Packages
+
+25. Success Standard
+
+After this phase, Concierge should feel like a much more mature sponsor operations and sponsor performance platform, giving Converge Events stronger internal controls, better sponsor visibility, better reporting, and better sales intelligence.
+
+That is the standard this phase should meet.

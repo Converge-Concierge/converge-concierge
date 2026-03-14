@@ -13,7 +13,6 @@ import ReportsPage from "./ReportsPage";
 import UsersPage from "./UsersPage";
 import SettingsPage from "./SettingsPage";
 import BrandingPage from "./BrandingPage";
-import DataExchangePage from "./DataExchangePage";
 import AccessControlPage from "./AccessControlPage";
 import InformationRequestsPage from "./InformationRequestsPage";
 import EmailCenterPage from "./EmailCenterPage";
@@ -22,7 +21,7 @@ import PackageTemplateEditorPage from "./PackageTemplateEditorPage";
 import SponsorAgreementDetailPage from "./SponsorAgreementDetailPage";
 import SponsorDashboardsAdminPage from "./SponsorDashboardsAdminPage";
 import SponsorshipTemplatesPage from "./SponsorshipTemplatesPage";
-import DataBackupPage from "./DataBackupPage";
+import DataManagementPage from "./DataManagementPage";
 import CategoryRulesPage from "./CategoryRulesPage";
 import SponsorHealthPage from "./SponsorHealthPage";
 import DemoBanner from "@/components/DemoBanner";
@@ -116,7 +115,8 @@ export default function AdminLayout() {
               <Route path="/admin/settings" component={SettingsPage} />
               <Route path="/admin/information-requests" component={InformationRequestsPage} />
               <Route path="/admin/email-center" component={EmailCenterPage} />
-              <Route path="/admin/data-exchange" component={DataExchangePage} />
+              <Route path="/admin/data-management" component={DataManagementPage} />
+              <Route path="/admin/data-exchange">{() => { window.location.href = "/admin/data-management"; return null; }}</Route>
               <Route path="/admin/access-control" component={() => isAdmin ? <AccessControlPage /> : <AccessDenied />} />
               <Route path="/admin/sponsor-dashboards" component={SponsorDashboardsAdminPage} />
               <Route path="/admin/sponsorship-templates" component={SponsorshipTemplatesPage} />
@@ -125,7 +125,7 @@ export default function AdminLayout() {
               <Route path="/admin/agreement" component={AgreementDeliverablesPage} />
               <Route path="/admin/agreement/:rest*" component={AgreementDeliverablesPage} />
               <Route path="/admin/sponsor-health" component={SponsorHealthPage} />
-              <Route path="/admin/data-backup" component={() => isAdmin ? <DataBackupPage /> : <AccessDenied />} />
+              <Route path="/admin/data-backup">{() => { window.location.href = "/admin/data-management"; return null; }}</Route>
             </Switch>
           </main>
         </div>

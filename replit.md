@@ -35,8 +35,9 @@ The platform employs a modern web stack, separating frontend and backend concern
 - **Attendee Management**: Features interest tracking, notes, category classification, and a DB-driven category rules engine for dynamic attendee categorization and matchmaking weights.
 - **Sponsor Management**: Includes sponsor profile pages, a dashboard with notifications, meeting status updates, lead contact management, and multi-user access.
 - **Reporting**: Provides detailed meeting statistics and filterable tables with CSV export.
-- **Data Exchange**: Centralized module for CSV import/export of Sponsors, Attendees, and Meetings, including Nunify Meeting Sync.
-- **Backup & Restore**: Architecture for R2 backups with timestamped folders and manifest files. Restore validation and dry-run services are available, with production restore disabled.
+- **Data Management**: Unified admin page at `/admin/data-management` with two tabs:
+  - **Data Exchange**: CSV import/export of Sponsors, Attendees, and Meetings, including Nunify Meeting Sync.
+  - **Data Backup**: Full System Backup only (event/sponsor-level backups deprecated). Includes automatic scheduling (daily at configurable UTC time), R2 storage, history table with legacy record labeling, restore validation, and dry-run simulation. Scheduling config stored in `app_config` table as `backup_schedule` key.
 - **Access Control**: Granular, per-user permission system with over 100 boolean flags across 19 categories, including role presets and an audit log.
 - **Email Integration**: Transactional emails via Brevo for confirmations, info requests, and automated meeting reminders. An Admin Email Center offers an audit log, resend functionality, DB-backed template management, and a **Scheduled Emails** tab for managing future email deliveries (CRUD with status tracking: Draft/Scheduled/Sent/Cancelled/Failed).
 - **Sponsor Health Analytics**: Admin page at `/admin/sponsor-health` providing at-a-glance sponsor engagement metrics, risk level classification (healthy/attention/at_risk), and issue identification across meetings, info requests, profile completeness, and event assignments.

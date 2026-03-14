@@ -18,7 +18,6 @@ import {
   ClipboardList,
   LayoutGrid,
   Package,
-  Shield,
   Tags,
   HeartPulse,
 } from "lucide-react";
@@ -55,7 +54,7 @@ const sponsorMgmtItems = [
 const reportingItems = [
   { title: "Email Center", url: "/admin/email-center", icon: Inbox },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
-  { title: "Data Exchange", url: "/admin/data-exchange", icon: ArrowLeftRight },
+  { title: "Data Management", url: "/admin/data-management", icon: ArrowLeftRight },
 ];
 
 const configItems = [
@@ -192,21 +191,6 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
                     <Link href="/admin/access-control">
                       <ShieldCheck className="h-4 w-4" />
                       <span>Access Control</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
-              {isAdmin && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive("/admin/data-backup")}
-                    className="transition-all duration-200"
-                  >
-                    <Link href="/admin/data-backup">
-                      <Shield className="h-4 w-4" />
-                      <span>Data Backup</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

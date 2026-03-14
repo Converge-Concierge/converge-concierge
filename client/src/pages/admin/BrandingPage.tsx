@@ -395,12 +395,12 @@ export default function BrandingPage() {
         )}
       </div>
 
-      {/* ── Internal Notification Email ─────────────────────────────────────────── */}
+      {/* ── Sponsor Activity Notification Email ─────────────────────────────────── */}
       <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6 space-y-5">
         <SectionHeader
           icon={Mail}
-          title="Internal Notification Email"
-          desc="Email address that receives internal notifications when sponsors submit deliverables."
+          title="Sponsor Activity Notification Email"
+          desc="Receives alerts when sponsors submit deliverable data such as registrants, speakers, or file uploads."
         />
 
         {editing ? (
@@ -415,14 +415,14 @@ export default function BrandingPage() {
               data-testid="input-notification-email"
             />
             <p className="text-xs text-muted-foreground">
-              When a sponsor submits registrants, speakers, or other deliverable data, a notification will be sent to this address.
+              When a sponsor submits registrants, speakers, uploads files, or updates deliverable status, a notification email will be sent to this address. Leave blank to disable these notifications.
             </p>
           </div>
         ) : (
           <div className="flex items-center justify-between py-2.5">
-            <span className="text-sm text-muted-foreground">Notification Email</span>
+            <span className="text-sm text-muted-foreground">Sponsor Activity Email</span>
             <span className="text-sm font-semibold text-foreground">
-              {b.internalNotificationEmail || <span className="italic text-muted-foreground font-normal">Not set</span>}
+              {b.internalNotificationEmail || <span className="italic text-muted-foreground font-normal">Not set — notifications disabled</span>}
             </span>
           </div>
         )}

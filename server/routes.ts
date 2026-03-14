@@ -5297,18 +5297,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
-  app.post("/api/admin/backups/event/:eventId", requireAdmin, async (req, res) => {
-    try {
-      const job = await runEventBackup(req.params.eventId, "manual");
-      res.json(job);
-    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  app.post("/api/admin/backups/event/:eventId", requireAdmin, async (_req, res) => {
+    res.status(410).json({ message: "Event-level backups are no longer supported. Use Full System Backup instead." });
   });
 
-  app.post("/api/admin/backups/sponsor/:sponsorId/:eventId", requireAdmin, async (req, res) => {
-    try {
-      const job = await runSponsorEventBackup(req.params.sponsorId, req.params.eventId, "manual");
-      res.json(job);
-    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  app.post("/api/admin/backups/sponsor/:sponsorId/:eventId", requireAdmin, async (_req, res) => {
+    res.status(410).json({ message: "Sponsor-level backups are no longer supported. Use Full System Backup instead." });
   });
 
   app.get("/api/admin/backups/:id/download", requireAdmin, async (req, res) => {
@@ -5350,6 +5344,36 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const result = await dryRunRestore(job);
       console.log(`[RESTORE] Dry-run result for ${job.id}: valid=${result.valid}, conflicts=${result.conflicts.length}`);
       res.json(result);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/admin/backup-schedule", requireAdmin, async (_req, res) => {
+    try {
+      const schedule = await storage.getBackupSchedule();
+      res.json(schedule);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/admin/backup-schedule", requireAdmin, async (req, res) => {
+    try {
+      const { enabled, timeUtc, timezone } = req.body;
+      const updates: any = {};
+      if (typeof enabled === "boolean") updates.enabled = enabled;
+      if (typeof timeUtc === "string") updates.timeUtc = timeUtc;
+      if (typeof timezone === "string") updates.timezone = timezone;
+      const newTime = updates.timeUtc ?? (await storage.getBackupSchedule()).timeUtc ?? "03:00";
+      const [h, m] = newTime.split(":").map(Number);
+      const isEnabled = updates.enabled ?? (await storage.getBackupSchedule()).enabled;
+      if (isEnabled) {
+        const now = new Date();
+        const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m || 0, 0));
+        if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+        updates.nextRunAt = next.toISOString();
+      } else {
+        updates.nextRunAt = null;
+      }
+      const schedule = await storage.updateBackupSchedule(updates);
+      res.json(schedule);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 

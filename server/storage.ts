@@ -294,6 +294,10 @@ export interface IStorage {
   getInternalNotificationEmail(): Promise<string>;
   setInternalNotificationEmail(email: string): Promise<void>;
 
+  // ── Backup Schedule ───────────────────────────────────────────────────────
+  getBackupSchedule(): Promise<import("@shared/schema").BackupScheduleConfig>;
+  updateBackupSchedule(updates: Partial<import("@shared/schema").BackupScheduleConfig>): Promise<import("@shared/schema").BackupScheduleConfig>;
+
   // ── Meeting Invitations ────────────────────────────────────────────────────
   createMeetingInvitation(data: InsertMeetingInvitation): Promise<MeetingInvitation>;
   getMeetingInvitation(id: string): Promise<MeetingInvitation | undefined>;
@@ -987,6 +991,8 @@ export class MemStorage implements IStorage {
   async generateAttendeeContactListCsv(_deliverableId: string, _type?: "full" | "partial"): Promise<string> { return ""; }
   async getInternalNotificationEmail(): Promise<string> { return ""; }
   async setInternalNotificationEmail(_email: string): Promise<void> {}
+  async getBackupSchedule(): Promise<import("@shared/schema").BackupScheduleConfig> { return { ...require("@shared/schema").DEFAULT_BACKUP_SCHEDULE }; }
+  async updateBackupSchedule(updates: Partial<import("@shared/schema").BackupScheduleConfig>): Promise<import("@shared/schema").BackupScheduleConfig> { return { ...require("@shared/schema").DEFAULT_BACKUP_SCHEDULE, ...updates }; }
 
   async createMeetingInvitation(data: InsertMeetingInvitation): Promise<MeetingInvitation> { return { id: randomUUID(), ...data, sponsorUserId: data.sponsorUserId ?? null, message: data.message ?? null, categorySnapshot: data.categorySnapshot ?? null, matchScore: data.matchScore ?? null, secureToken: data.secureToken ?? null, respondedAt: null, acceptedAt: null, declinedAt: null, expiresAt: data.expiresAt ?? null, createdAt: new Date(), updatedAt: new Date() } as MeetingInvitation; }
   async getMeetingInvitation(_id: string): Promise<MeetingInvitation | undefined> { return undefined; }

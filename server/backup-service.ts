@@ -604,44 +604,63 @@ export async function getBackupObjectKey(jobId: string): Promise<string> {
 }
 
 const NIGHTLY_CHECK_INTERVAL_MS = 60 * 60 * 1000;
-const BACKUP_HOUR_UTC = 3;
 
 let lastNightlyRunDate: string | null = null;
 
-async function runNightlyBackup(): Promise<void> {
+async function runScheduledBackup(): Promise<void> {
+  const { storage } = await import("./storage");
+  const schedule = await storage.getBackupSchedule();
+
+  if (!schedule.enabled) return;
+
   const now = new Date();
-  const hour = now.getUTCHours();
   const dateKey = now.toISOString().slice(0, 10);
 
-  if (hour !== BACKUP_HOUR_UTC) return;
   if (lastNightlyRunDate === dateKey) return;
 
+  const [schedHour, schedMin] = (schedule.timeUtc || "03:00").split(":").map(Number);
+  const currentHour = now.getUTCHours();
+  if (currentHour !== schedHour) return;
+
   lastNightlyRunDate = dateKey;
-  console.log(`[BACKUP] Starting scheduled nightly backups for ${dateKey}`);
+  console.log(`[BACKUP] Starting scheduled full system backup for ${dateKey}`);
 
   try {
     await runFullBackup("scheduled");
-    console.log("[BACKUP] Nightly full backup completed");
+    console.log("[BACKUP] Scheduled full system backup completed");
+    await storage.updateBackupSchedule({
+      lastRunAt: now.toISOString(),
+      lastRunStatus: "success",
+      nextRunAt: computeNextRun(schedHour, schedMin),
+    });
   } catch (err: any) {
-    console.error("[BACKUP] Nightly full backup failed:", err?.message ?? err);
-  }
-
-  try {
-    const allEvents = await db.select().from(events);
-    for (const event of allEvents) {
-      try {
-        await runEventBackup(event.id, "scheduled");
-        console.log(`[BACKUP] Nightly event backup completed: ${event.slug}`);
-      } catch (err: any) {
-        console.error(`[BACKUP] Nightly event backup failed for ${event.slug}:`, err?.message ?? err);
-      }
-    }
-  } catch (err: any) {
-    console.error("[BACKUP] Nightly event backups failed:", err?.message ?? err);
+    console.error("[BACKUP] Scheduled full system backup failed:", err?.message ?? err);
+    await storage.updateBackupSchedule({
+      lastRunAt: now.toISOString(),
+      lastRunStatus: "failed",
+      nextRunAt: computeNextRun(schedHour, schedMin),
+    });
   }
 }
 
+function computeNextRun(hour: number, minute: number): string {
+  const now = new Date();
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, minute, 0));
+  if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+  return next.toISOString();
+}
+
 export function startBackupScheduler(): void {
-  console.log("[BACKUP] Starting nightly backup scheduler (checks hourly, fires at 3am UTC)");
-  setInterval(runNightlyBackup, NIGHTLY_CHECK_INTERVAL_MS);
+  console.log("[BACKUP] Starting backup scheduler (checks hourly, runs Full System Backup at configured time)");
+  setInterval(runScheduledBackup, NIGHTLY_CHECK_INTERVAL_MS);
+
+  import("./storage").then(async ({ storage }) => {
+    try {
+      const schedule = await storage.getBackupSchedule();
+      if (schedule.enabled) {
+        const [h, m] = (schedule.timeUtc || "03:00").split(":").map(Number);
+        await storage.updateBackupSchedule({ nextRunAt: computeNextRun(h, m) });
+      }
+    } catch {}
+  });
 }

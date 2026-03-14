@@ -402,6 +402,26 @@ export const DEFAULT_BRANDING: AppBranding = {
   appBaseUrl: "",
 };
 
+// ── Backup Schedule Config ────────────────────────────────────────────────────
+
+export interface BackupScheduleConfig {
+  enabled: boolean;
+  timeUtc: string;
+  timezone: string;
+  lastRunAt: string | null;
+  lastRunStatus: "success" | "failed" | null;
+  nextRunAt: string | null;
+}
+
+export const DEFAULT_BACKUP_SCHEDULE: BackupScheduleConfig = {
+  enabled: true,
+  timeUtc: "03:00",
+  timezone: "UTC",
+  lastRunAt: null,
+  lastRunStatus: null,
+  nextRunAt: null,
+};
+
 // ── DB tables for singleton config (settings + branding stored by key) ────────
 
 export const appConfig = pgTable("app_config", {
@@ -477,6 +497,7 @@ export interface UserPermissions {
   mod_sponsorshipTemplates: boolean;
   mod_emailCenter: boolean;
   mod_dataBackup: boolean;
+  mod_dataManagement: boolean;
   // Events actions
   ev_create: boolean;
   ev_edit: boolean;
@@ -596,7 +617,7 @@ export const DEFAULT_USER_PERMISSIONS: UserPermissions = {
   mod_meetings: false, mod_infoRequests: false, mod_reports: false, mod_dataExchange: false,
   mod_branding: false, mod_settings: false, mod_users: false, mod_accessControl: false,
   mod_deliverables: false, mod_sponsorDashboards: false, mod_sponsorshipTemplates: false,
-  mod_emailCenter: false, mod_dataBackup: false,
+  mod_emailCenter: false, mod_dataBackup: false, mod_dataManagement: false,
   ev_create: false, ev_edit: false, ev_archive: false, ev_delete: false, ev_copy: false,
   ev_editBranding: false, ev_editMeetingBlocks: false, ev_toggleScheduling: false,
   sp_create: false, sp_edit: false, sp_archive: false, sp_delete: false, sp_copy: false,
@@ -676,7 +697,7 @@ export const ROLE_PRESETS: Record<string, Partial<UserPermissions>> = {
   "Operations": {
     mod_dashboard: true, mod_events: true, mod_sponsors: true, mod_attendees: true,
     mod_meetings: true, mod_infoRequests: true, mod_deliverables: true, mod_dataExchange: true,
-    mod_emailCenter: true,
+    mod_emailCenter: true, mod_dataManagement: true,
     ev_edit: true, ev_editMeetingBlocks: true,
     sp_edit: true, sp_export: true, sp_import: true,
     at_edit: true, at_export: true, at_import: true, at_viewDetail: true, at_viewContacts: true,

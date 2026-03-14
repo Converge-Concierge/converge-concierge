@@ -37,7 +37,8 @@ import {
   attendeeCategories, categoryMatchingRules,
   scheduledEmails,
   type ScheduledEmail, type InsertScheduledEmail,
-  DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
+  DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS, DEFAULT_BACKUP_SCHEDULE,
+  type BackupScheduleConfig,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
 
@@ -1572,6 +1573,22 @@ export class DatabaseStorage implements IStorage {
 
   async setInternalNotificationEmail(email: string): Promise<void> {
     await this.updateBranding({ internalNotificationEmail: email });
+  }
+
+  async getBackupSchedule(): Promise<BackupScheduleConfig> {
+    const [row] = await db.select().from(appConfig).where(eq(appConfig.key, "backup_schedule")).limit(1);
+    if (!row) return { ...DEFAULT_BACKUP_SCHEDULE };
+    return { ...DEFAULT_BACKUP_SCHEDULE, ...(row.value as Partial<BackupScheduleConfig>) };
+  }
+
+  async updateBackupSchedule(updates: Partial<BackupScheduleConfig>): Promise<BackupScheduleConfig> {
+    const current = await this.getBackupSchedule();
+    const merged = { ...current, ...updates };
+    await db
+      .insert(appConfig)
+      .values({ key: "backup_schedule", value: merged })
+      .onConflictDoUpdate({ target: appConfig.key, set: { value: merged } });
+    return merged;
   }
 
   // ── Meeting Invitations ────────────────────────────────────────────────────

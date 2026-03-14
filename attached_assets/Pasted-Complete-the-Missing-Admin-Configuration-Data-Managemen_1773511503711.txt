@@ -1,0 +1,261 @@
+Complete the Missing Admin Configuration + Data Management / Data Backup Work
+
+The following items were not implemented last time and still need to be completed. Please treat this as a focused follow-up and finish these items exactly.
+
+1. Admin → Configuration → Settings / Branding
+Audit and Resolve “Internal Notification Email”
+
+There is currently an Internal Notification Email field under:
+
+Admin → Configuration → Settings / Branding
+
+This still needs to be reviewed properly.
+
+Required action
+
+Audit where Internal Notification Email is actually used in the application.
+
+Determine:
+
+whether it is actively used by any workflow
+
+whether internal notifications already use another configuration source
+
+whether the field is redundant
+
+whether the field is misleading in the current UI
+
+Required outcome
+
+If it is not needed or duplicated elsewhere:
+
+remove it from the UI
+
+If it is needed:
+
+keep it
+
+relabel it clearly
+
+add a short description explaining exactly what notifications it controls
+
+Do not leave it ambiguous.
+
+2. Admin → Reporting
+Merge Data Exchange + Data Backup Into “Data Management”
+
+This was not implemented and still needs to be done.
+
+We want to consolidate:
+
+Data Exchange
+
+Data Backup
+
+under a single new Reporting section called:
+
+Data Management
+Required behavior
+
+Create a new admin nav item under Reporting:
+
+Data Management
+
+Within that page, use tabs for:
+
+Data Exchange
+
+Data Backup
+
+This should replace having Data Exchange and Data Backup as separate standalone reporting items.
+
+3. Data Management Page Structure
+
+The new page should have:
+
+Page title
+Data Management
+Tabs
+
+Data Exchange
+
+Data Backup
+
+This should make it clear that both areas relate to data operations.
+
+4. Data Backup
+Add Automatic Backup Scheduling
+
+Automatic backup scheduling still needs to be added.
+
+Required behavior
+
+Inside the Data Backup tab, add backup scheduling controls for Full System Backup only.
+
+The UI should support:
+
+automatic backups enabled / disabled
+
+schedule frequency
+
+time of day
+
+timezone if relevant
+
+last scheduled run
+
+next scheduled run
+
+Preferred model
+
+Only support:
+
+Automatic Full System Backup
+
+Example:
+
+Daily at 3:00 AM
+
+This is the standard model going forward.
+
+5. Data Backup
+Simplify the UI to Reflect Full System Backup Only
+
+Because only Full System Backup will remain, simplify the Data Backup page.
+
+Recommended UI
+Summary cards
+
+Last Successful Full Backup
+
+Next Scheduled Full Backup
+
+Backup Status
+
+Storage Location / R2 Target
+
+Actions
+
+Run Full System Backup
+
+Configure Backup Schedule
+
+History table
+
+Include:
+
+backup date/time
+
+status
+
+size
+
+records count if applicable
+
+R2 object key
+
+download action if appropriate
+
+No Event Backup or Sponsor + Event Backup actions should remain.
+
+6. Data Backup
+Update History / Labels
+
+The backup history table still needs to reflect the simplified model.
+
+Required behavior
+
+All new backups should show type:
+
+Full System
+
+If old historical records for other types still exist, that is acceptable, but:
+
+no new Event Backup records should be created
+
+no new Sponsor + Event Backup records should be created
+
+If practical, mark old non-full-backup records as:
+
+Legacy
+
+Historical only
+
+But do not continue using them operationally.
+
+7. Data Backup
+Review Automation Job Logic
+
+The backup scheduler/job must be aligned to the new model.
+
+Required behavior
+
+Ensure automatic backup logic:
+
+only runs Full System Backup
+
+writes to the correct R2 backup path
+
+updates UI status correctly
+
+resets failure state after a successful run
+
+does not create obsolete backup warning conditions
+
+8. Navigation Cleanup
+
+Once Data Exchange and Data Backup are merged under Data Management:
+
+Required behavior
+
+remove the old standalone nav items for Data Exchange and Data Backup
+
+add Data Management under Reporting
+
+This should simplify Reporting navigation.
+
+9. Permissions
+
+Update permissions so access works properly with the new structure.
+
+Required permissions to support
+
+View Data Management
+
+Run Full System Backup
+
+Configure Backup Schedule
+
+View Data Exchange
+
+Run Imports / Exports
+
+Download Backups
+
+Remove any dependency on old backup-type-specific permissions if they are no longer relevant.
+
+10. Acceptance Criteria
+
+This work is complete when:
+
+Internal Notification Email is either removed or clearly validated and labeled
+
+Data Exchange and Data Backup are merged under Data Management
+
+Data Management uses tabs for Data Exchange and Data Backup
+
+automatic backup scheduling is added
+
+Full System Backup is the only active backup type going forward
+
+Data Backup UI is simplified to match the new model
+
+old standalone nav items are removed
+
+navigation and history reflect the simplified model
+
+permissions are updated accordingly
+
+11. Success Standard
+
+After this update, the admin data operations experience should be much cleaner and aligned with how Converge actually wants to manage data exchange and system backups.

@@ -41,3 +41,8 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_object_storage:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+BASE_APP_URL = "https://concierge.convergeevents.com"

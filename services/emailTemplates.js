@@ -28,9 +28,9 @@ export function fmtEventDateRange(startDate, endDate) {
   return `${s.toLocaleDateString("en-US", { ...opts, year: "numeric" })} – ${e.toLocaleDateString("en-US", { ...opts, year: "numeric" })}`;
 }
 
-const BASE_URL = process.env.REPLIT_DEV_DOMAIN
-  ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-  : "https://concierge.convergeevents.com";
+const BASE_URL = process.env.BASE_APP_URL?.trim()?.replace(/\/$/, "")
+  || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+  || "https://concierge.convergeevents.com";
 
 function header() {
   return `

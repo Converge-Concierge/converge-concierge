@@ -207,6 +207,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   seedUsers().catch(console.error);
 
   async function getAppBaseUrl(): Promise<string> {
+    if (process.env.BASE_APP_URL?.trim()) return process.env.BASE_APP_URL.trim().replace(/\/$/, "");
     const branding = await storage.getBranding();
     if (branding.appBaseUrl?.trim()) return branding.appBaseUrl.trim().replace(/\/$/, "");
     if (process.env.REPLIT_DEPLOYMENT === "1" && process.env.REPLIT_DOMAINS) {
@@ -5182,8 +5183,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         status: "pending",
       });
 
-      const branding = await storage.getBranding();
-      const baseUrl = branding.appBaseUrl || `https://${req.get("host")}`;
+      const baseUrl = await getAppBaseUrl();
       const inviteUrl = `${baseUrl}/meeting-invitation/${secureToken}`;
 
       try {
@@ -5394,8 +5394,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const event = await storage.getEvent(invitation.eventId);
       if (!attendee || !sponsor || !event) return res.status(404).json({ message: "Related records not found" });
 
-      const branding = await storage.getBranding();
-      const baseUrl = branding.appBaseUrl || `https://${req.get("host")}`;
+      const baseUrl = await getAppBaseUrl();
       const inviteUrl = `${baseUrl}/meeting-invitation/${invitation.secureToken}`;
 
       await sendEmail({

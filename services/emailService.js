@@ -281,13 +281,15 @@ export async function sendSponsorMagicLoginEmail(storage, sponsorUser, sponsor, 
 // ── Deliverable Reminder Email ──────────────────────────────────────────────
 
 export async function sendDeliverableReminderEmail(storage, { sponsor, event, deliverables, recipientName, recipientEmail, sponsorToken }) {
-  let BASE_URL;
-  try {
-    const branding = await storage.getBranding();
-    if (branding.appBaseUrl?.trim()) {
-      BASE_URL = branding.appBaseUrl.trim().replace(/\/$/, "");
-    }
-  } catch (_) {}
+  let BASE_URL = process.env.BASE_APP_URL?.trim()?.replace(/\/$/, "") || null;
+  if (!BASE_URL) {
+    try {
+      const branding = await storage.getBranding();
+      if (branding.appBaseUrl?.trim()) {
+        BASE_URL = branding.appBaseUrl.trim().replace(/\/$/, "");
+      }
+    } catch (_) {}
+  }
   if (!BASE_URL) {
     if (process.env.REPLIT_DEPLOYMENT === "1" && process.env.REPLIT_DOMAINS) {
       BASE_URL = `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`;

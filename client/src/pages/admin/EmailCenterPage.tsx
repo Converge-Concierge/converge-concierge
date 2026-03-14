@@ -1,12 +1,14 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import type { EmailLog, Event, Sponsor, EmailTemplate } from "@shared/schema";
+import type { EmailLog, Event, Sponsor, EmailTemplate, ScheduledEmail } from "@shared/schema";
+import { SCHEDULED_EMAIL_STATUSES } from "@shared/schema";
 import {
   Mail, MailCheck, MailX, RefreshCw, Send, Search, Eye,
   FlaskConical, Building2, User, AlertCircle, CheckCircle2,
   Clock, CalendarDays, X, RotateCcw, ChevronRight, Code,
-  Settings2, Edit2, FileText, Layout,
+  Settings2, Edit2, FileText, Layout, Plus, Pencil, Trash2, Ban,
+  Timer,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -531,6 +533,337 @@ function EmailTemplatesTab() {
   );
 }
 
+// ── Scheduled Emails Tab ─────────────────────────────────────────────────────
+
+const SCHED_STATUS_CONFIG: Record<string, { className: string }> = {
+  Draft: { className: "bg-gray-100 text-gray-700 border-gray-200" },
+  Scheduled: { className: "bg-blue-100 text-blue-700 border-blue-200" },
+  Sent: { className: "bg-teal-100 text-teal-700 border-teal-200" },
+  Cancelled: { className: "bg-amber-100 text-amber-700 border-amber-200" },
+  Failed: { className: "bg-red-100 text-red-700 border-red-200" },
+};
+
+function ScheduledEmailsTab({ events, sponsors }: { events: Event[]; sponsors: Sponsor[] }) {
+  const { toast } = useToast();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<ScheduledEmail | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ScheduledEmail | null>(null);
+  const [form, setForm] = useState({
+    emailType: "sponsor_report",
+    recipientEmail: "",
+    recipientName: "",
+    subject: "",
+    templateId: "",
+    eventId: "",
+    sponsorId: "",
+    scheduledAt: "",
+    status: "Scheduled" as string,
+  });
+
+  const { data: scheduled = [], isLoading } = useQuery<ScheduledEmail[]>({
+    queryKey: ["/api/admin/scheduled-emails"],
+  });
+
+  const { data: templates = [] } = useQuery<EmailTemplate[]>({
+    queryKey: ["/api/admin/email-templates"],
+  });
+
+  const resetForm = () => setForm({
+    emailType: "sponsor_report", recipientEmail: "", recipientName: "",
+    subject: "", templateId: "", eventId: "", sponsorId: "",
+    scheduledAt: "", status: "Scheduled",
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/scheduled-emails", {
+        ...form,
+        scheduledAt: new Date(form.scheduledAt),
+        templateId: form.templateId || null,
+        eventId: form.eventId || null,
+        sponsorId: form.sponsorId || null,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/scheduled-emails"] });
+      toast({ title: "Email scheduled successfully" });
+      setCreateOpen(false);
+      resetForm();
+    },
+    onError: () => toast({ title: "Failed to schedule email", variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/admin/scheduled-emails/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/scheduled-emails"] });
+      toast({ title: "Scheduled email updated" });
+      setEditTarget(null);
+    },
+    onError: () => toast({ title: "Failed to update", variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/scheduled-emails/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/scheduled-emails"] });
+      toast({ title: "Scheduled email deleted" });
+      setDeleteTarget(null);
+    },
+    onError: () => toast({ title: "Failed to delete", variant: "destructive" }),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("PATCH", `/api/admin/scheduled-emails/${id}`, { status: "Cancelled" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/scheduled-emails"] });
+      toast({ title: "Email cancelled" });
+    },
+    onError: () => toast({ title: "Failed to cancel", variant: "destructive" }),
+  });
+
+  const openEdit = (se: ScheduledEmail) => {
+    setForm({
+      emailType: se.emailType,
+      recipientEmail: se.recipientEmail,
+      recipientName: se.recipientName ?? "",
+      subject: se.subject,
+      templateId: se.templateId ?? "",
+      eventId: se.eventId ?? "",
+      sponsorId: se.sponsorId ?? "",
+      scheduledAt: se.scheduledAt ? new Date(se.scheduledAt).toISOString().slice(0, 16) : "",
+      status: se.status,
+    });
+    setEditTarget(se);
+  };
+
+  const saveEdit = () => {
+    if (!editTarget) return;
+    updateMutation.mutate({
+      id: editTarget.id,
+      data: {
+        ...form,
+        scheduledAt: new Date(form.scheduledAt),
+        templateId: form.templateId || null,
+        eventId: form.eventId || null,
+        sponsorId: form.sponsorId || null,
+      },
+    });
+  };
+
+  const getEventName = (id: string | null) => id ? (events.find(e => e.id === id)?.slug ?? events.find(e => e.id === id)?.name ?? "—") : "—";
+  const getSponsorName = (id: string | null) => id ? (sponsors.find(s => s.id === id)?.name ?? "—") : "—";
+
+  const formFields = (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Recipient Email *</label>
+          <Input value={form.recipientEmail} onChange={e => setForm(f => ({ ...f, recipientEmail: e.target.value }))} data-testid="input-sched-email" />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Recipient Name</label>
+          <Input value={form.recipientName} onChange={e => setForm(f => ({ ...f, recipientName: e.target.value }))} data-testid="input-sched-name" />
+        </div>
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Subject *</label>
+        <Input value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} data-testid="input-sched-subject" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Email Type</label>
+          <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={form.emailType} onChange={e => setForm(f => ({ ...f, emailType: e.target.value }))} data-testid="select-sched-type">
+            {EMAIL_TYPES.map(t => <option key={t} value={t}>{EMAIL_TYPE_LABELS[t] ?? t}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Template</label>
+          <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={form.templateId} onChange={e => setForm(f => ({ ...f, templateId: e.target.value }))} data-testid="select-sched-template">
+            <option value="">None</option>
+            {templates.map(t => <option key={t.id} value={t.id}>{t.displayName}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Event</label>
+          <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={form.eventId} onChange={e => setForm(f => ({ ...f, eventId: e.target.value }))} data-testid="select-sched-event">
+            <option value="">None</option>
+            {events.map(e => <option key={e.id} value={e.id}>{e.slug ?? e.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Sponsor</label>
+          <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={form.sponsorId} onChange={e => setForm(f => ({ ...f, sponsorId: e.target.value }))} data-testid="select-sched-sponsor">
+            <option value="">None</option>
+            {sponsors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Scheduled Date & Time *</label>
+        <Input type="datetime-local" value={form.scheduledAt} onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))} data-testid="input-sched-datetime" />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2">
+            <Timer className="h-5 w-5 text-accent" />
+            Scheduled Emails
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">Manage upcoming email deliveries</p>
+        </div>
+        <Button size="sm" onClick={() => { resetForm(); setCreateOpen(true); }} className="gap-2" data-testid="button-schedule-email">
+          <Plus className="h-3.5 w-3.5" /> Schedule Email
+        </Button>
+      </div>
+
+      <div className="bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mr-3" />
+            Loading scheduled emails...
+          </div>
+        ) : scheduled.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+              <Timer className="h-7 w-7 text-muted-foreground/50" />
+            </div>
+            <div>
+              <p className="font-medium text-foreground">No scheduled emails</p>
+              <p className="text-sm text-muted-foreground">Schedule emails to be sent at specific times.</p>
+            </div>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/50 bg-muted/30">
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Recipient</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Subject</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Type</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Event</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Scheduled</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Status</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scheduled.map(se => {
+                const scfg = SCHED_STATUS_CONFIG[se.status] ?? SCHED_STATUS_CONFIG.Draft;
+                return (
+                  <tr key={se.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors" data-testid={`row-sched-${se.id}`}>
+                    <td className="px-4 py-3">
+                      <div>
+                        <p className="font-medium">{se.recipientName || se.recipientEmail}</p>
+                        {se.recipientName && <p className="text-xs text-muted-foreground">{se.recipientEmail}</p>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground truncate max-w-[180px]">{se.subject}</td>
+                    <td className="px-4 py-3"><TypeBadge type={se.emailType} /></td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{getEventName(se.eventId)}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{fmtSentAt(se.scheduledAt)}</td>
+                    <td className="px-4 py-3">
+                      <span className={cn("inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border", scfg.className)}>
+                        {se.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        {(se.status === "Draft" || se.status === "Scheduled") && (
+                          <>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(se)} title="Edit" data-testid={`button-edit-sched-${se.id}`}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-amber-600" onClick={() => cancelMutation.mutate(se.id)} title="Cancel" data-testid={`button-cancel-sched-${se.id}`}>
+                              <Ban className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => setDeleteTarget(se)} title="Delete" data-testid={`button-delete-sched-${se.id}`}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Schedule Email</DialogTitle>
+          </DialogHeader>
+          {formFields}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => createMutation.mutate()}
+              disabled={!form.recipientEmail || !form.subject || !form.scheduledAt || createMutation.isPending}
+              data-testid="button-confirm-schedule"
+            >
+              {createMutation.isPending ? "Scheduling..." : "Schedule"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Scheduled Email</DialogTitle>
+          </DialogHeader>
+          {formFields}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={updateMutation.isPending} data-testid="button-save-sched-edit">
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Scheduled Email</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this scheduled email to {deleteTarget?.recipientEmail}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-sched"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function EmailCenterPage() {
@@ -625,6 +958,9 @@ export default function EmailCenterPage() {
             </TabsTrigger>
             <TabsTrigger value="templates" className="gap-2">
               <Layout className="h-3.5 w-3.5" /> Templates
+            </TabsTrigger>
+            <TabsTrigger value="scheduled" className="gap-2" data-testid="tab-scheduled-emails">
+              <Timer className="h-3.5 w-3.5" /> Scheduled
             </TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2">
@@ -772,6 +1108,10 @@ export default function EmailCenterPage() {
 
         <TabsContent value="templates" className="mt-0">
           <EmailTemplatesTab />
+        </TabsContent>
+
+        <TabsContent value="scheduled" className="mt-0">
+          <ScheduledEmailsTab events={events} sponsors={sponsors} />
         </TabsContent>
       </Tabs>
 

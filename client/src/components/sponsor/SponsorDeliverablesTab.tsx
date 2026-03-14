@@ -1271,7 +1271,7 @@ function renderStructuredContent(d: SponsorDeliverable, token: string, canEdit: 
 function DeliverableRow({
   deliverable, token, canEdit,
 }: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const st = detectStructuredType(deliverable);
   const isCOI = st === "coi";
   const hasStructured = st !== null;
@@ -1377,7 +1377,7 @@ function DeliverableRow({
 function ActionCard({
   deliverable, token, canEdit,
 }: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const st = detectStructuredType(deliverable);
   const inputType = getInputType(deliverable);
   const dueLabel = dueLabelStr(deliverable);

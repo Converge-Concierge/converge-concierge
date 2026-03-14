@@ -1197,6 +1197,42 @@ export const insertMeetingInvitationSchema = createInsertSchema(meetingInvitatio
 export type InsertMeetingInvitation = z.infer<typeof insertMeetingInvitationSchema>;
 export type MeetingInvitation = typeof meetingInvitations.$inferSelect;
 
+// ── Scheduled Emails ──────────────────────────────────────────────────────────
+
+export const SCHEDULED_EMAIL_STATUSES = ["Draft", "Scheduled", "Sent", "Cancelled", "Failed"] as const;
+export type ScheduledEmailStatus = typeof SCHEDULED_EMAIL_STATUSES[number];
+
+export const scheduledEmails = pgTable("scheduled_emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  emailType: text("email_type").notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  recipientName: text("recipient_name"),
+  subject: text("subject").notNull(),
+  templateId: text("template_id"),
+  eventId: varchar("event_id"),
+  sponsorId: varchar("sponsor_id"),
+  attendeeId: varchar("attendee_id"),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  sentAt: timestamp("sent_at"),
+  status: text("status", { enum: SCHEDULED_EMAIL_STATUSES }).notNull().default("Scheduled"),
+  errorMessage: text("error_message"),
+  metadata: jsonb("metadata"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertScheduledEmailSchema = createInsertSchema(scheduledEmails).omit({
+  id: true, createdAt: true, updatedAt: true, sentAt: true,
+}).extend({
+  status: z.enum(SCHEDULED_EMAIL_STATUSES).default("Scheduled"),
+  scheduledAt: z.coerce.date(),
+  metadata: z.any().nullable().optional(),
+});
+
+export type InsertScheduledEmail = z.infer<typeof insertScheduledEmailSchema>;
+export type ScheduledEmail = typeof scheduledEmails.$inferSelect;
+
 // ── Backup Jobs ───────────────────────────────────────────────────────────────
 
 export const BACKUP_TYPES = ["full", "event", "sponsor_event"] as const;

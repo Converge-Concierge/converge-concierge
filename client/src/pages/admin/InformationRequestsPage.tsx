@@ -2,22 +2,34 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { InformationRequest, InformationRequestStatus, INFORMATION_REQUEST_STATUSES, Event, Sponsor } from "@shared/schema";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Inbox, Eye, Check, X, MailCheck, MessageSquare, Filter } from "lucide-react";
+import { Inbox, Eye, X, MailCheck, MessageSquare, Filter, Pencil, Trash2, Save } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
-const STATUS_COLORS: Record<InformationRequestStatus, string> = {
+const STATUS_COLORS: Record<string, string> = {
   New: "bg-blue-100 text-blue-800 border-blue-200",
   Contacted: "bg-amber-100 text-amber-800 border-amber-200",
+  Open: "bg-green-100 text-green-800 border-green-200",
+  "Email Sent": "bg-violet-100 text-violet-800 border-violet-200",
+  "Meeting Scheduled": "bg-indigo-100 text-indigo-800 border-indigo-200",
   Closed: "bg-gray-100 text-gray-600 border-gray-200",
+  "Not Qualified": "bg-red-100 text-red-700 border-red-200",
 };
 
 export default function InformationRequestsPage() {
@@ -26,6 +38,9 @@ export default function InformationRequestsPage() {
   const [sponsorFilter, setSponsorFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState<InformationRequest | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<Partial<InformationRequest>>({});
+  const [deleteTarget, setDeleteTarget] = useState<InformationRequest | null>(null);
   const hasAutoSelected = useRef(false);
 
   const { data: requests = [], isLoading } = useQuery<InformationRequest[]>({
@@ -62,11 +77,32 @@ export default function InformationRequestsPage() {
       apiRequest("PATCH", `/api/admin/information-requests/${id}/status`, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/information-requests"] });
-      if (selectedRequest) {
-        setSelectedRequest(null);
-      }
+      if (selectedRequest) setSelectedRequest(null);
     },
     onError: () => toast({ title: "Failed to update status", variant: "destructive" }),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<InformationRequest> }) =>
+      apiRequest("PATCH", `/api/admin/information-requests/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/information-requests"] });
+      toast({ title: "Request updated successfully" });
+      setIsEditing(false);
+      setSelectedRequest(null);
+    },
+    onError: () => toast({ title: "Failed to update request", variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/information-requests/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/information-requests"] });
+      toast({ title: "Request deleted" });
+      setDeleteTarget(null);
+      setSelectedRequest(null);
+    },
+    onError: () => toast({ title: "Failed to delete request", variant: "destructive" }),
   });
 
   const filtered = requests.filter((r) => {
@@ -84,6 +120,23 @@ export default function InformationRequestsPage() {
     if (req) setSelectedRequest({ ...req, status });
   }
 
+  function startEditing(req: InformationRequest) {
+    setEditData({
+      attendeeFirstName: req.attendeeFirstName,
+      attendeeLastName: req.attendeeLastName,
+      attendeeEmail: req.attendeeEmail,
+      attendeeCompany: req.attendeeCompany,
+      attendeeTitle: req.attendeeTitle,
+      message: req.message,
+    });
+    setIsEditing(true);
+  }
+
+  function saveEdit() {
+    if (!selectedRequest) return;
+    editMutation.mutate({ id: selectedRequest.id, data: editData });
+  }
+
   const counts = {
     total: requests.length,
     new: requests.filter((r) => r.status === "New").length,
@@ -98,7 +151,6 @@ export default function InformationRequestsPage() {
         <p className="text-muted-foreground mt-1">Attendee inquiries submitted to sponsors</p>
       </div>
 
-      {/* Metric cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Total", count: counts.total, color: "text-foreground" },
@@ -115,7 +167,6 @@ export default function InformationRequestsPage() {
         ))}
       </div>
 
-      {/* Event tabs */}
       {sortedEventsForSelector.length > 0 && (
         <div className="overflow-x-auto pb-1">
           <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
@@ -151,7 +202,6 @@ export default function InformationRequestsPage() {
         </div>
       )}
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
         <Filter className="h-4 w-4 text-muted-foreground" />
         <Select value={sponsorFilter} onValueChange={setSponsorFilter}>
@@ -180,7 +230,6 @@ export default function InformationRequestsPage() {
         <span className="text-xs text-muted-foreground ml-auto">{filtered.length} request{filtered.length !== 1 ? "s" : ""}</span>
       </div>
 
-      {/* Table */}
       <Card className="border-border/60">
         <CardContent className="p-0">
           {isLoading ? (
@@ -224,7 +273,7 @@ export default function InformationRequestsPage() {
                     <TableCell className="text-sm font-medium">{getSponsorName(req.sponsorId)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{getEventName(req.eventId)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={cn("text-xs border", STATUS_COLORS[req.status as InformationRequestStatus])}>
+                      <Badge variant="outline" className={cn("text-xs border", STATUS_COLORS[req.status] ?? "bg-muted text-muted-foreground border-border")}>
                         {req.status}
                       </Badge>
                     </TableCell>
@@ -237,10 +286,19 @@ export default function InformationRequestsPage() {
                           variant="ghost"
                           size="sm"
                           className="h-7 px-2 text-xs gap-1"
-                          onClick={() => setSelectedRequest(req)}
+                          onClick={() => { setSelectedRequest(req); setIsEditing(false); }}
                           data-testid={`button-view-inforeq-${req.id}`}
                         >
                           <Eye className="h-3.5 w-3.5" /> View
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => { setSelectedRequest(req); startEditing(req); }}
+                          data-testid={`button-edit-inforeq-${req.id}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
                         </Button>
                         {req.status === "New" && (
                           <Button
@@ -254,18 +312,15 @@ export default function InformationRequestsPage() {
                             <MailCheck className="h-3.5 w-3.5" /> Contacted
                           </Button>
                         )}
-                        {req.status !== "Closed" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs gap-1 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                            onClick={() => updateStatus(req.id, "Closed")}
-                            disabled={statusMutation.isPending}
-                            data-testid={`button-close-inforeq-${req.id}`}
-                          >
-                            <X className="h-3.5 w-3.5" /> Close
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs gap-1 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => setDeleteTarget(req)}
+                          data-testid={`button-delete-inforeq-${req.id}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -276,97 +331,198 @@ export default function InformationRequestsPage() {
         </CardContent>
       </Card>
 
-      {/* Detail sheet */}
-      <Sheet open={!!selectedRequest} onOpenChange={(o) => !o && setSelectedRequest(null)}>
+      <Sheet open={!!selectedRequest} onOpenChange={(o) => { if (!o) { setSelectedRequest(null); setIsEditing(false); } }}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           {selectedRequest && (
             <>
               <SheetHeader className="mb-4">
-                <SheetTitle className="font-display">Request Details</SheetTitle>
+                <SheetTitle className="font-display">{isEditing ? "Edit Request" : "Request Details"}</SheetTitle>
                 <SheetDescription>
                   Submitted {format(new Date(selectedRequest.createdAt), "MMMM d, yyyy 'at' h:mm a")}
                 </SheetDescription>
               </SheetHeader>
 
-              <div className="space-y-5">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Status:</span>
-                  <Badge variant="outline" className={cn("text-xs border", STATUS_COLORS[selectedRequest.status as InformationRequestStatus])}>
-                    {selectedRequest.status}
-                  </Badge>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Attendee</h3>
-                  <div className="grid grid-cols-2 gap-y-2 text-sm">
-                    <span className="text-muted-foreground">Name</span>
-                    <span className="font-medium">{selectedRequest.attendeeFirstName} {selectedRequest.attendeeLastName}</span>
-                    <span className="text-muted-foreground">Email</span>
-                    <span>{selectedRequest.attendeeEmail}</span>
-                    <span className="text-muted-foreground">Company</span>
-                    <span>{selectedRequest.attendeeCompany}</span>
-                    <span className="text-muted-foreground">Title</span>
-                    <span>{selectedRequest.attendeeTitle}</span>
-                    <span className="text-muted-foreground">Consent</span>
-                    <span className={selectedRequest.consentToShareContact ? "text-green-600 font-medium" : "text-destructive"}>
-                      {selectedRequest.consentToShareContact ? "Given" : "Not given"}
-                    </span>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Request</h3>
-                  <div className="grid grid-cols-2 gap-y-2 text-sm">
-                    <span className="text-muted-foreground">Sponsor</span>
-                    <span className="font-medium">{getSponsorName(selectedRequest.sponsorId)}</span>
-                    <span className="text-muted-foreground">Event</span>
-                    <span>{getEventName(selectedRequest.eventId)}</span>
-                    <span className="text-muted-foreground">Source</span>
-                    <span>{selectedRequest.source}</span>
-                    <span className="text-muted-foreground">Updated</span>
-                    <span>{format(new Date(selectedRequest.updatedAt), "MMM d, yyyy")}</span>
-                  </div>
-                  {selectedRequest.message && (
+              {isEditing ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
-                        <MessageSquare className="h-3 w-3" /> Message
-                      </p>
-                      <div className="rounded-lg bg-muted/50 border border-border/60 p-3 text-sm text-foreground whitespace-pre-wrap">
-                        {selectedRequest.message}
-                      </div>
+                      <Label className="text-xs">First Name</Label>
+                      <Input
+                        value={editData.attendeeFirstName ?? ""}
+                        onChange={(e) => setEditData(d => ({ ...d, attendeeFirstName: e.target.value }))}
+                        data-testid="input-edit-firstname"
+                      />
                     </div>
-                  )}
-                </div>
+                    <div>
+                      <Label className="text-xs">Last Name</Label>
+                      <Input
+                        value={editData.attendeeLastName ?? ""}
+                        onChange={(e) => setEditData(d => ({ ...d, attendeeLastName: e.target.value }))}
+                        data-testid="input-edit-lastname"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Email</Label>
+                    <Input
+                      value={editData.attendeeEmail ?? ""}
+                      onChange={(e) => setEditData(d => ({ ...d, attendeeEmail: e.target.value }))}
+                      data-testid="input-edit-email"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Company</Label>
+                    <Input
+                      value={editData.attendeeCompany ?? ""}
+                      onChange={(e) => setEditData(d => ({ ...d, attendeeCompany: e.target.value }))}
+                      data-testid="input-edit-company"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Title</Label>
+                    <Input
+                      value={editData.attendeeTitle ?? ""}
+                      onChange={(e) => setEditData(d => ({ ...d, attendeeTitle: e.target.value }))}
+                      data-testid="input-edit-title"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Message</Label>
+                    <Textarea
+                      value={editData.message ?? ""}
+                      onChange={(e) => setEditData(d => ({ ...d, message: e.target.value }))}
+                      rows={4}
+                      data-testid="input-edit-message"
+                    />
+                  </div>
 
-                <Separator />
-
-                <div className="space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Update Status</h3>
-                  <div className="flex gap-2 flex-wrap">
-                    {INFORMATION_REQUEST_STATUSES.map((s) => (
-                      <Button
-                        key={s}
-                        size="sm"
-                        variant={selectedRequest.status === s ? "default" : "outline"}
-                        className="text-xs"
-                        disabled={selectedRequest.status === s || statusMutation.isPending}
-                        onClick={() => updateStatus(selectedRequest.id, s, selectedRequest)}
-                        data-testid={`button-status-${s.toLowerCase()}`}
-                      >
-                        {s}
-                      </Button>
-                    ))}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={saveEdit}
+                      disabled={editMutation.isPending}
+                      className="gap-1"
+                      data-testid="button-save-edit"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      {editMutation.isPending ? "Saving..." : "Save Changes"}
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsEditing(false)} data-testid="button-cancel-edit">
+                      Cancel
+                    </Button>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Status:</span>
+                      <Badge variant="outline" className={cn("text-xs border", STATUS_COLORS[selectedRequest.status] ?? "bg-muted text-muted-foreground border-border")}>
+                        {selectedRequest.status}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => startEditing(selectedRequest)} data-testid="button-edit-detail">
+                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteTarget(selectedRequest)} data-testid="button-delete-detail">
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Attendee</h3>
+                    <div className="grid grid-cols-2 gap-y-2 text-sm">
+                      <span className="text-muted-foreground">Name</span>
+                      <span className="font-medium">{selectedRequest.attendeeFirstName} {selectedRequest.attendeeLastName}</span>
+                      <span className="text-muted-foreground">Email</span>
+                      <span>{selectedRequest.attendeeEmail}</span>
+                      <span className="text-muted-foreground">Company</span>
+                      <span>{selectedRequest.attendeeCompany}</span>
+                      <span className="text-muted-foreground">Title</span>
+                      <span>{selectedRequest.attendeeTitle}</span>
+                      <span className="text-muted-foreground">Consent</span>
+                      <span className={selectedRequest.consentToShareContact ? "text-green-600 font-medium" : "text-destructive"}>
+                        {selectedRequest.consentToShareContact ? "Given" : "Not given"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Request</h3>
+                    <div className="grid grid-cols-2 gap-y-2 text-sm">
+                      <span className="text-muted-foreground">Sponsor</span>
+                      <span className="font-medium">{getSponsorName(selectedRequest.sponsorId)}</span>
+                      <span className="text-muted-foreground">Event</span>
+                      <span>{getEventName(selectedRequest.eventId)}</span>
+                      <span className="text-muted-foreground">Source</span>
+                      <span>{selectedRequest.source}</span>
+                      <span className="text-muted-foreground">Updated</span>
+                      <span>{format(new Date(selectedRequest.updatedAt), "MMM d, yyyy")}</span>
+                    </div>
+                    {selectedRequest.message && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+                          <MessageSquare className="h-3 w-3" /> Message
+                        </p>
+                        <div className="rounded-lg bg-muted/50 border border-border/60 p-3 text-sm text-foreground whitespace-pre-wrap">
+                          {selectedRequest.message}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Update Status</h3>
+                    <div className="flex gap-2 flex-wrap">
+                      {INFORMATION_REQUEST_STATUSES.map((s) => (
+                        <Button
+                          key={s}
+                          size="sm"
+                          variant={selectedRequest.status === s ? "default" : "outline"}
+                          className="text-xs"
+                          disabled={selectedRequest.status === s || statusMutation.isPending}
+                          onClick={() => updateStatus(selectedRequest.id, s, selectedRequest)}
+                          data-testid={`button-status-${s.toLowerCase()}`}
+                        >
+                          {s}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Information Request</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this request from {deleteTarget?.attendeeFirstName} {deleteTarget?.attendeeLastName}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -20,6 +20,7 @@ import {
   Package,
   Shield,
   Tags,
+  HeartPulse,
 } from "lucide-react";
 import {
   Sidebar,
@@ -48,13 +49,13 @@ const managementItems = [
 const sponsorMgmtItems = [
   { title: "Deliverables", url: "/admin/agreement", icon: ClipboardList },
   { title: "Sponsor Dashboards", url: "/admin/sponsor-dashboards", icon: LayoutGrid },
+  { title: "Sponsor Health", url: "/admin/sponsor-health", icon: HeartPulse },
 ];
 
 const reportingItems = [
   { title: "Email Center", url: "/admin/email-center", icon: Inbox },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
   { title: "Data Exchange", url: "/admin/data-exchange", icon: ArrowLeftRight },
-  { title: "Data Backup", url: "/admin/data-backup", icon: Shield },
 ];
 
 const configItems = [
@@ -196,6 +197,21 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
                 </SidebarMenuItem>
               )}
 
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/admin/data-backup")}
+                    className="transition-all duration-200"
+                  >
+                    <Link href="/admin/data-backup">
+                      <Shield className="h-4 w-4" />
+                      <span>Data Backup</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -204,7 +220,7 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
                 >
                   <Link href="/admin/sponsorship-templates">
                     <Package className="h-4 w-4" />
-                    <span>Sponsorship Templates</span>
+                    <span>Sponsorship Packages</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

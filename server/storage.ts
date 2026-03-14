@@ -188,6 +188,15 @@ export interface IStorage {
   getInformationRequest(id: string): Promise<InformationRequest | undefined>;
   listInformationRequests(filters?: { eventId?: string; sponsorId?: string; status?: InformationRequestStatus }): Promise<InformationRequest[]>;
   updateInformationRequestStatus(id: string, status: InformationRequestStatus): Promise<InformationRequest | undefined>;
+  updateInformationRequest(id: string, data: Partial<{ attendeeFirstName: string; attendeeLastName: string; attendeeEmail: string; attendeeCompany: string; attendeeTitle: string; message: string | null; status: InformationRequestStatus; notes: string | null }>): Promise<InformationRequest | undefined>;
+  deleteInformationRequest(id: string): Promise<boolean>;
+
+  // Scheduled Emails
+  createScheduledEmail(data: import("@shared/schema").InsertScheduledEmail): Promise<import("@shared/schema").ScheduledEmail>;
+  listScheduledEmails(filters?: { eventId?: string; sponsorId?: string; status?: string }): Promise<import("@shared/schema").ScheduledEmail[]>;
+  getScheduledEmail(id: string): Promise<import("@shared/schema").ScheduledEmail | undefined>;
+  updateScheduledEmail(id: string, data: Partial<{ status: string; scheduledAt: Date; subject: string; recipientEmail: string; recipientName: string; errorMessage: string | null; sentAt: Date | null }>): Promise<import("@shared/schema").ScheduledEmail | undefined>;
+  deleteScheduledEmail(id: string): Promise<boolean>;
 
   // Sponsor analytics
   createAnalyticsEvent(data: { sponsorId: string; eventId: string; eventType: string }): Promise<void>;
@@ -872,6 +881,24 @@ export class MemStorage implements IStorage {
     this.informationRequests.set(id, updated);
     return updated;
   }
+
+  async updateInformationRequest(id: string, data: Partial<any>): Promise<InformationRequest | undefined> {
+    const existing = this.informationRequests.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...data, updatedAt: new Date() };
+    this.informationRequests.set(id, updated);
+    return updated;
+  }
+
+  async deleteInformationRequest(id: string): Promise<boolean> {
+    return this.informationRequests.delete(id);
+  }
+
+  async createScheduledEmail(data: any): Promise<any> { return { id: "mem-stub", ...data, createdAt: new Date(), updatedAt: new Date() }; }
+  async listScheduledEmails(_filters?: any): Promise<any[]> { return []; }
+  async getScheduledEmail(_id: string): Promise<any> { return undefined; }
+  async updateScheduledEmail(_id: string, _data: any): Promise<any> { return undefined; }
+  async deleteScheduledEmail(_id: string): Promise<boolean> { return false; }
 
   async createAnalyticsEvent(_data: { sponsorId: string; eventId: string; eventType: string }): Promise<void> {}
 

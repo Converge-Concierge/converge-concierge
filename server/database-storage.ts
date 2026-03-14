@@ -35,6 +35,8 @@ import {
   type AttendeeCategoryDef, type InsertAttendeeCategoryDef,
   type CategoryMatchingRule, type InsertCategoryMatchingRule,
   attendeeCategories, categoryMatchingRules,
+  scheduledEmails,
+  type ScheduledEmail, type InsertScheduledEmail,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
@@ -804,6 +806,56 @@ export class DatabaseStorage implements IStorage {
       .where(eq(informationRequests.id, id))
       .returning();
     return updated ?? undefined;
+  }
+
+  async updateInformationRequest(id: string, data: Partial<any>): Promise<InformationRequest | undefined> {
+    const [updated] = await db
+      .update(informationRequests)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(informationRequests.id, id))
+      .returning();
+    return updated ?? undefined;
+  }
+
+  async deleteInformationRequest(id: string): Promise<boolean> {
+    const result = await db.delete(informationRequests).where(eq(informationRequests.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async createScheduledEmail(data: InsertScheduledEmail): Promise<ScheduledEmail> {
+    const [created] = await db.insert(scheduledEmails).values(data).returning();
+    return created;
+  }
+
+  async listScheduledEmails(filters?: { eventId?: string; sponsorId?: string; status?: string }): Promise<ScheduledEmail[]> {
+    const conditions: any[] = [];
+    if (filters?.eventId) conditions.push(eq(scheduledEmails.eventId, filters.eventId));
+    if (filters?.sponsorId) conditions.push(eq(scheduledEmails.sponsorId, filters.sponsorId));
+    if (filters?.status) conditions.push(eq(scheduledEmails.status, filters.status));
+    const query = db.select().from(scheduledEmails);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions)).orderBy(desc(scheduledEmails.scheduledAt));
+    }
+    return query.orderBy(desc(scheduledEmails.scheduledAt));
+  }
+
+  async getScheduledEmail(id: string): Promise<ScheduledEmail | undefined> {
+    const [record] = await db.select().from(scheduledEmails).where(eq(scheduledEmails.id, id));
+    return record ?? undefined;
+  }
+
+  async updateScheduledEmail(id: string, data: Partial<any>): Promise<ScheduledEmail | undefined> {
+    const [updated] = await db
+      .update(scheduledEmails)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(scheduledEmails.id, id))
+      .returning();
+    return updated ?? undefined;
+  }
+
+  async deleteScheduledEmail(id: string): Promise<boolean> {
+    const result = await db.delete(scheduledEmails).where(eq(scheduledEmails.id, id)).returning();
+    return result.length > 0;
   }
 
   async createAnalyticsEvent(data: { sponsorId: string; eventId: string; eventType: string }): Promise<void> {

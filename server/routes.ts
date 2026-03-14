@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, insertAttendeeCategorySchema, insertCategoryMatchingRuleSchema, DEFAULT_ATTENDEE_CATEGORIES, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS, INVITATION_QUOTAS, MAX_INVITATIONS_PER_ATTENDEE } from "@shared/schema";
+import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, insertAttendeeCategorySchema, insertCategoryMatchingRuleSchema, insertScheduledEmailSchema, DEFAULT_ATTENDEE_CATEGORIES, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS, INVITATION_QUOTAS, MAX_INVITATIONS_PER_ATTENDEE } from "@shared/schema";
 import { normalizeAttendeeCategory, rankAttendees, categoryLabel, setCategoryWeights, setCategoryLabels } from "./services/matchmakingService";
 import { evaluateRules, testRulesAgainstValue } from "./services/categoryRuleEngine";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
@@ -2684,6 +2684,136 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const updated = await storage.updateInformationRequestStatus(req.params.id, status as InformationRequestStatus);
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(updated);
+  });
+
+  // Admin: edit information request (full update)
+  app.patch("/api/admin/information-requests/:id", requireAdmin, async (req, res) => {
+    try {
+      const allowedFields = ["attendeeFirstName", "attendeeLastName", "attendeeEmail", "attendeeCompany", "attendeeTitle", "message", "status", "notes"];
+      const updates: Record<string, any> = {};
+      for (const key of allowedFields) {
+        if (key in req.body) updates[key] = req.body[key];
+      }
+      if (updates.status && !(INFORMATION_REQUEST_STATUSES as readonly string[]).includes(updates.status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      const updated = await storage.updateInformationRequest(req.params.id, updates);
+      if (!updated) return res.status(404).json({ error: "Not found" });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: delete information request
+  app.delete("/api/admin/information-requests/:id", requireAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteInformationRequest(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Not found" });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Scheduled Emails ──────────────────────────────────────────────────────
+  app.get("/api/admin/scheduled-emails", requireAuth, async (_req, res) => {
+    try {
+      const emails = await storage.listScheduledEmails();
+      res.json(emails);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/scheduled-emails", requireAdmin, async (req, res) => {
+    try {
+      const parsed = insertScheduledEmailSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.flatten().fieldErrors });
+      }
+      const email = await storage.createScheduledEmail(parsed.data);
+      res.status(201).json(email);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/api/admin/scheduled-emails/:id", requireAdmin, async (req, res) => {
+    try {
+      const updated = await storage.updateScheduledEmail(req.params.id, req.body);
+      if (!updated) return res.status(404).json({ error: "Not found" });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/scheduled-emails/:id", requireAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteScheduledEmail(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Not found" });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Sponsor Health ──────────────────────────────────────────────────────────
+  app.get("/api/admin/sponsor-health", requireAuth, async (_req, res) => {
+    try {
+      const allSponsors = await storage.getSponsors();
+      const allEvents = await storage.getEvents();
+      const allMeetings = await storage.getMeetings();
+      const allInfoRequests = await storage.listInformationRequests();
+
+      const healthData = allSponsors
+        .filter(s => (s.archiveState ?? "active") === "active")
+        .map(sponsor => {
+          const sponsorEvents = (sponsor.assignedEvents ?? []).filter((ae: any) => (ae.archiveState ?? "active") === "active").map((ae: any) => ae.eventId);
+          const sponsorMeetings = allMeetings.filter(m => m.sponsorId === sponsor.id);
+          const sponsorInfoReqs = allInfoRequests.filter(ir => ir.sponsorId === sponsor.id);
+          const completedMeetings = sponsorMeetings.filter(m => m.status === "Completed");
+          const totalMeetings = sponsorMeetings.length;
+          const totalInfoRequests = sponsorInfoReqs.length;
+          const hasLogo = !!sponsor.logoUrl;
+          const hasDescription = !!sponsor.shortDescription;
+          const hasProfile = hasLogo && hasDescription;
+
+          let riskLevel: "healthy" | "attention" | "at_risk" = "healthy";
+          const issues: string[] = [];
+          if (totalMeetings === 0) { issues.push("No meetings scheduled"); riskLevel = "attention"; }
+          if (totalInfoRequests === 0) { issues.push("No info requests"); }
+          if (!hasProfile) { issues.push("Missing profile info"); riskLevel = "attention"; }
+          if (sponsorEvents.length === 0) { issues.push("No events assigned"); riskLevel = "at_risk"; }
+          if (issues.length >= 3) riskLevel = "at_risk";
+
+          return {
+            sponsorId: sponsor.id,
+            sponsorName: sponsor.name,
+            level: sponsor.level,
+            assignedEvents: sponsorEvents.length,
+            totalMeetings,
+            completedMeetings: completedMeetings.length,
+            totalInfoRequests,
+            hasLogo,
+            hasDescription,
+            riskLevel,
+            issues,
+          };
+        });
+
+      const summary = {
+        total: healthData.length,
+        healthy: healthData.filter(h => h.riskLevel === "healthy").length,
+        attention: healthData.filter(h => h.riskLevel === "attention").length,
+        atRisk: healthData.filter(h => h.riskLevel === "at_risk").length,
+      };
+
+      res.json({ sponsors: healthData, summary });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // Sponsor dashboard: get current user context (access level / export permissions)

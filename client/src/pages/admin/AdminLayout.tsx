@@ -12,8 +12,6 @@ import MeetingsPage from "./MeetingsPage";
 import ReportsPage from "./ReportsPage";
 import UsersPage from "./UsersPage";
 import SettingsPage from "./SettingsPage";
-import BrandingPage from "./BrandingPage";
-import AccessControlPage from "./AccessControlPage";
 import InformationRequestsPage from "./InformationRequestsPage";
 import EmailCenterPage from "./EmailCenterPage";
 import AgreementDeliverablesPage from "./AgreementDeliverablesPage";
@@ -110,14 +108,14 @@ export default function AdminLayout() {
               <Route path="/admin/meetings" component={MeetingsPage} />
               <Route path="/admin/reports" component={ReportsPage} />
               <Route path="/admin/users" component={() => isAdmin ? <UsersPage /> : <AccessDenied />} />
-              <Route path="/admin/branding" component={BrandingPage} />
+              <Route path="/admin/branding"><Redirect to="/admin/settings" /></Route>
               <Route path="/admin/category-rules" component={CategoryRulesPage} />
               <Route path="/admin/settings" component={SettingsPage} />
               <Route path="/admin/information-requests" component={InformationRequestsPage} />
               <Route path="/admin/email-center" component={EmailCenterPage} />
               <Route path="/admin/data-management" component={DataManagementPage} />
-              <Route path="/admin/data-exchange">{() => { window.location.href = "/admin/data-management"; return null; }}</Route>
-              <Route path="/admin/access-control" component={() => isAdmin ? <AccessControlPage /> : <AccessDenied />} />
+              <Route path="/admin/data-exchange"><Redirect to="/admin/data-management" /></Route>
+              <Route path="/admin/access-control"><Redirect to="/admin/users?tab=access-control" /></Route>
               <Route path="/admin/sponsor-dashboards" component={SponsorDashboardsAdminPage} />
               <Route path="/admin/sponsorship-templates" component={SponsorshipTemplatesPage} />
               <Route path="/admin/agreement/package-templates/:id" component={PackageTemplateEditorPage} />

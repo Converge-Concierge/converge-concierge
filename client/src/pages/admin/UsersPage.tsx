@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Plus, Search, Edit, Trash2, UserCog, ShieldCheck, User as UserIcon, ChevronDown, ChevronUp, ShieldAlert, Key } from "lucide-react";
+import { Plus, Search, Edit, Trash2, UserCog, ShieldCheck, User as UserIcon, ChevronDown, ChevronUp, ShieldAlert, Key, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import AccessControlPage from "./AccessControlPage";
 
 interface InternalUser {
   id: string;
@@ -33,6 +34,13 @@ interface UserFormState {
 const BLANK_FORM: UserFormState = { name: "", email: "", password: "", role: "manager", isActive: true };
 
 const selectClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+type UsersTab = "users" | "access-control";
+
+const TABS: { id: UsersTab; label: string; icon: React.ElementType }[] = [
+  { id: "users", label: "Users", icon: UserCog },
+  { id: "access-control", label: "Access Control", icon: Shield },
+];
 
 const ROLE_DEFS = [
   {
@@ -117,7 +125,7 @@ function RoleDefinitionsPanel() {
   );
 }
 
-export default function UsersPage() {
+function UsersListTab() {
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -207,21 +215,11 @@ export default function UsersPage() {
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-6 max-w-5xl mx-auto"
-    >
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-2">
-            <UserCog className="h-7 w-7 text-accent" /> Users
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage internal platform users and their roles.</p>
-        </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div />
         <Button
-          className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90 shadow-md shadow-accent/20"
+          className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-md shadow-accent/20"
           onClick={openCreate}
           data-testid="button-add-user"
         >
@@ -229,7 +227,6 @@ export default function UsersPage() {
         </Button>
       </div>
 
-      {/* Role Definitions Panel */}
       <RoleDefinitionsPanel />
 
       <div className="flex items-center gap-4 bg-card p-4 rounded-xl shadow-sm border border-border/50">
@@ -334,7 +331,6 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Create / Edit modal */}
       <Dialog open={modalOpen} onOpenChange={(o) => !o && setModalOpen(false)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -382,7 +378,6 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
       <AlertDialog open={!!deletingUser} onOpenChange={(o) => !o && setDeletingUser(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -403,6 +398,53 @@ export default function UsersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+export default function UsersPage() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialTab = (urlParams.get("tab") === "access-control" ? "access-control" : "users") as UsersTab;
+  const [activeTab, setActiveTab] = useState<UsersTab>(initialTab);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6 max-w-5xl mx-auto"
+    >
+      <div>
+        <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-2">
+          <UserCog className="h-7 w-7 text-accent" /> Users
+        </h1>
+        <p className="text-muted-foreground mt-1 text-sm">Manage internal platform users, roles, and permissions.</p>
+      </div>
+
+      <div className="border-b border-border/50">
+        <div className="flex gap-0 overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex items-center gap-2 px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors -mb-px",
+                activeTab === tab.id
+                  ? "border-accent text-accent"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+              )}
+              data-testid={`tab-users-${tab.id}`}
+            >
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === "users" && <UsersListTab />}
+      {activeTab === "access-control" && <AccessControlPage embedded />}
     </motion.div>
   );
 }

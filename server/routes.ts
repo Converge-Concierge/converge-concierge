@@ -705,6 +705,89 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(detail);
   });
 
+  app.post("/api/admin/attendees/:id/send-scheduling-email", requireAuth, async (req, res) => {
+    try {
+      const attendee = await storage.getAttendee(req.params.id);
+      if (!attendee) return res.status(404).json({ message: "Attendee not found" });
+      if (!attendee.email) return res.status(400).json({ message: "Attendee has no email address" });
+      if (!attendee.assignedEvent) return res.status(400).json({ message: "Attendee has no assigned event" });
+
+      const event = await storage.getEvent(attendee.assignedEvent);
+      if (!event) return res.status(404).json({ message: "Assigned event not found" });
+
+      if (!event.schedulingEnabled) {
+        return res.status(400).json({ message: `Scheduling is not enabled for ${event.name}` });
+      }
+
+      const baseUrl = await getAppBaseUrl();
+      const schedulingUrl = `${baseUrl}/event/${event.slug}`;
+      const firstName = attendee.firstName || attendee.name?.split(" ")[0] || attendee.name || "Attendee";
+
+      const template = await storage.getEmailTemplateByKey("scheduling_invitation");
+      let subject = `You're invited to schedule meetings at ${event.name}`;
+      let html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Hello ${firstName},</h2>
+          <p>You've been invited to schedule meetings with our sponsors at <strong>${event.name}</strong>.</p>
+          <p>Use the link below to browse available sponsors and book your meetings:</p>
+          <p style="text-align: center; margin: 24px 0;">
+            <a href="${schedulingUrl}" style="background-color: #0D9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">
+              Schedule Your Meetings
+            </a>
+          </p>
+          <p style="font-size: 13px; color: #6b7280;">
+            Or copy this link: <a href="${schedulingUrl}">${schedulingUrl}</a>
+          </p>
+          ${event.startDate ? `<p style="font-size: 13px; color: #6b7280;">Event dates: ${new Date(event.startDate).toLocaleDateString()} – ${event.endDate ? new Date(event.endDate).toLocaleDateString() : "TBD"}</p>` : ""}
+        </div>
+      `;
+
+      if (template?.htmlTemplate && template.htmlTemplate.trim()) {
+        const vars: Record<string, string> = {
+          attendee_first_name: firstName,
+          attendee_full_name: attendee.name || `${attendee.firstName || ""} ${attendee.lastName || ""}`.trim(),
+          event_name: event.name,
+          event_code: event.slug,
+          scheduling_url: schedulingUrl,
+        };
+        subject = (template.subjectTemplate || subject).replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
+        html = template.htmlTemplate.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
+      }
+
+      let status: "sent" | "failed" = "sent";
+      let errorMessage: string | null = null;
+      let providerMessageId: string | null = null;
+      try {
+        const result = await sendEmail(attendee.email, subject, html);
+        providerMessageId = result?.messageId ?? null;
+      } catch (err: any) {
+        status = "failed";
+        errorMessage = err?.message ?? String(err);
+      }
+
+      await storage.createEmailLog({
+        emailType: "scheduling_invitation",
+        recipientEmail: attendee.email,
+        subject,
+        htmlContent: html,
+        eventId: event.id,
+        attendeeId: attendee.id,
+        status,
+        errorMessage,
+        providerMessageId,
+      });
+
+      if (status === "failed") {
+        return res.status(500).json({ message: `Failed to send email: ${errorMessage}` });
+      }
+
+      res.json({ message: "Scheduling email sent", recipientEmail: attendee.email });
+    } catch (err: any) {
+      console.error("[SEND SCHEDULING EMAIL] Error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to send scheduling email" });
+    }
+  });
+
   app.post("/api/attendees/prefill-lookup", async (req, res) => {
     const { eventId, email } = req.body ?? {};
     if (!eventId || !email || typeof email !== "string") {
@@ -1393,6 +1476,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // ── Sponsor User CRUD ─────────────────────────────────────────────────────
+
+  app.get("/api/admin/sponsors/:sponsorId/allowed-report-recipients", requireAuth, async (req, res) => {
+    const sponsor = await storage.getSponsor(req.params.sponsorId);
+    if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+    const users = await storage.getSponsorUsersBySponsor(req.params.sponsorId);
+    const recipients: { email: string; name: string; source: string }[] = [];
+    const seen = new Set<string>();
+    for (const u of users) {
+      if (u.email && u.isActive && !seen.has(u.email.toLowerCase())) {
+        seen.add(u.email.toLowerCase());
+        recipients.push({ email: u.email, name: u.name || u.email, source: u.isPrimary ? "Primary Contact" : u.accessLevel === "owner" ? "Owner" : "Team Member" });
+      }
+    }
+    if (sponsor.contactEmail && !seen.has(sponsor.contactEmail.toLowerCase())) {
+      seen.add(sponsor.contactEmail.toLowerCase());
+      recipients.push({ email: sponsor.contactEmail, name: sponsor.contactName || sponsor.contactEmail, source: "Sponsor Contact" });
+    }
+    res.json({ recipients, sponsorName: sponsor.name });
+  });
 
   app.get("/api/admin/sponsors/:sponsorId/users", requireAuth, async (req, res) => {
     const sponsor = await storage.getSponsor(req.params.sponsorId);
@@ -2732,6 +2834,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!parsed.success) {
         return res.status(400).json({ error: "Invalid data", details: parsed.error.flatten().fieldErrors });
       }
+
+      if (parsed.data.emailType === "sponsor_report" && parsed.data.sponsorId) {
+        const sponsor = await storage.getSponsor(parsed.data.sponsorId);
+        if (sponsor) {
+          const users = await storage.getSponsorUsersBySponsor(parsed.data.sponsorId);
+          const allowedEmails = new Set<string>();
+          users.filter(u => u.isActive && u.email).forEach(u => allowedEmails.add(u.email.toLowerCase()));
+          if (sponsor.contactEmail) allowedEmails.add(sponsor.contactEmail.toLowerCase());
+          if (!allowedEmails.has(parsed.data.recipientEmail.toLowerCase())) {
+            return res.status(400).json({ error: "Recipient is not a registered team member for this sponsor. Only sponsor contacts, owners, and team members can receive reports." });
+          }
+        }
+      }
+
       const email = await storage.createScheduledEmail(parsed.data);
       res.status(201).json(email);
     } catch (err: any) {
@@ -2741,6 +2857,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.patch("/api/admin/scheduled-emails/:id", requireAdmin, async (req, res) => {
     try {
+      const existing = await storage.getScheduledEmail(req.params.id);
+      if (!existing) return res.status(404).json({ error: "Not found" });
+
+      const mergedType = req.body.emailType ?? existing.emailType;
+      const mergedSponsorId = req.body.sponsorId !== undefined ? req.body.sponsorId : existing.sponsorId;
+      const mergedRecipient = req.body.recipientEmail ?? existing.recipientEmail;
+
+      if (mergedType === "sponsor_report" && mergedSponsorId) {
+        const sponsor = await storage.getSponsor(mergedSponsorId);
+        if (sponsor) {
+          const users = await storage.getSponsorUsersBySponsor(mergedSponsorId);
+          const allowedEmails = new Set<string>();
+          users.filter(u => u.isActive && u.email).forEach(u => allowedEmails.add(u.email.toLowerCase()));
+          if (sponsor.contactEmail) allowedEmails.add(sponsor.contactEmail.toLowerCase());
+          if (!allowedEmails.has(mergedRecipient.toLowerCase())) {
+            return res.status(400).json({ error: "Recipient is not a registered team member for this sponsor. Only sponsor contacts, owners, and team members can receive reports." });
+          }
+        }
+      }
+
       const updated = await storage.updateScheduledEmail(req.params.id, req.body);
       if (!updated) return res.status(404).json({ error: "Not found" });
       res.json(updated);

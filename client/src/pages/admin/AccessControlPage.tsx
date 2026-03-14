@@ -290,7 +290,7 @@ const PERMISSION_GROUPS: PermGroup[] = [
   },
 ];
 
-export default function AccessControlPage() {
+export default function AccessControlPage({ embedded }: { embedded?: boolean } = {}) {
   const { toast } = useToast();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -444,18 +444,16 @@ export default function AccessControlPage() {
     );
   };
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6 max-w-7xl mx-auto"
-    >
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-2">
-          <Shield className="h-7 w-7 text-accent" /> Access Control
-        </h1>
-        <p className="text-muted-foreground text-sm">Manage granular permissions and access levels for platform users.</p>
-      </div>
+  const content = (
+    <div className={cn("space-y-6", !embedded && "max-w-7xl mx-auto")}>
+      {!embedded && (
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-2">
+            <Shield className="h-7 w-7 text-accent" /> Access Control
+          </h1>
+          <p className="text-muted-foreground text-sm">Manage granular permissions and access levels for platform users.</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4 space-y-4">
@@ -635,6 +633,17 @@ export default function AccessControlPage() {
           </Table>
         </div>
       </div>
+    </div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      {content}
     </motion.div>
   );
 }

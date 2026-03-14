@@ -6,13 +6,11 @@ import {
   Users,
   Handshake,
   BarChart3,
-  Palette,
   Settings,
   Hexagon,
   LogOut,
   UserCog,
   ArrowLeftRight,
-  ShieldCheck,
   Mail,
   Inbox,
   ClipboardList,
@@ -59,7 +57,6 @@ const reportingItems = [
 
 const configItems = [
   { title: "Category Rules", url: "/admin/category-rules", icon: Tags },
-  { title: "Branding", url: "/admin/branding", icon: Palette },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
 
@@ -170,27 +167,12 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={location === "/admin/users"}
+                    isActive={location === "/admin/users" || location === "/admin/access-control"}
                     className="transition-all duration-200"
                   >
                     <Link href="/admin/users">
                       <UserCog className="h-4 w-4" />
                       <span>Users</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
-              {isAdmin && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === "/admin/access-control"}
-                    className="transition-all duration-200"
-                  >
-                    <Link href="/admin/access-control">
-                      <ShieldCheck className="h-4 w-4" />
-                      <span>Access Control</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

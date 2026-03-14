@@ -1,0 +1,350 @@
+Admin Navigation Cleanup, Settings Consolidation, Sponsor Activity Email Fix, Email Safeguards, Attendee Scheduling Email Action, and Users/Access Control Merge
+
+We need to complete the following admin/UI improvements. These items are still not aligned with the intended Concierge structure and behavior.
+
+This work includes:
+
+combine Branding and Settings into one Settings menu item with tabs
+
+move and fix Sponsor Activity Notification Email inside Settings
+
+allow multiple email addresses for Sponsor Activity notifications
+
+add safeguards so Sponsor Reports can only be emailed to registered sponsor team members
+
+add an attendee action to send a scheduling email/link from the Attendees table
+
+merge Users and Access Control into one Users menu item with tabs
+
+Please implement these as a coordinated admin cleanup.
+
+Primary Goal
+
+Clean up the admin navigation and ensure key communication controls are placed in the right module and behave safely.
+
+1. Combine Branding and Settings Into One Menu Item: Settings
+
+Right now Branding and Settings are still separate in the left navigation.
+
+Required behavior
+
+Replace the two separate menu items with a single menu item:
+
+Settings
+
+This should live under Configuration.
+
+2. Settings Module Should Use Tabs
+
+Inside the new Settings module, add tabs such as:
+
+General
+
+Branding
+
+Notifications
+
+Email / Communications
+
+Platform Rules
+
+At minimum, Branding must become a tab inside Settings.
+
+Do not keep Branding as its own left-nav item.
+
+3. Move Sponsor Activity Notification Email Into Settings
+
+The current Sponsor Activity Notification Email control should be moved into the new Settings module.
+
+Preferred tab placement
+
+Put it under:
+
+Settings → Notifications
+
+or
+
+Settings → Email / Communications
+
+Either is fine, as long as it is clearly grouped with notification settings.
+
+4. Fix Sponsor Activity Notification Email So It Actually Saves
+
+The current Sponsor Activity Notification Email control does not work when entering an email address.
+
+Required action
+
+Audit and fix the save/update path so this setting persists correctly.
+
+Required behavior
+
+Admins should be able to:
+
+enter email address(es)
+
+save successfully
+
+reload the page and still see the saved value
+
+use the saved value(s) for relevant sponsor activity notifications
+
+Do not leave it in a broken or non-functional state.
+
+5. Support Multiple Sponsor Activity Notification Emails
+
+This setting should support more than one recipient.
+
+Required behavior
+
+Allow admins to enter multiple email addresses for Sponsor Activity notifications.
+
+Recommended formats supported:
+
+comma-separated emails
+
+semicolon-separated emails
+
+tokenized multi-email input if already used elsewhere
+
+Example:
+
+julie@convergeevents.com, dan@treasolution.com
+Validation
+
+validate each email address
+
+reject malformed entries with a clear message
+
+trim whitespace
+
+prevent duplicates if possible
+
+6. Clarify What Sponsor Activity Notification Email Controls
+
+Add a short helper description so admins understand what this setting is used for.
+
+Suggested description:
+
+Receives internal notifications when sponsors submit deliverable data such as logos, speaker details, representative updates, or file uploads.
+
+This avoids ambiguity.
+
+7. Email Center — Restrict Sponsor Report Recipients
+
+We need controls in place so Sponsor Reports are not emailed to arbitrary addresses.
+
+Required behavior
+
+When sending Sponsor Performance Reports manually or automatically, the system must only allow delivery to:
+
+registered sponsor team members
+
+approved sponsor dashboard contacts
+
+sponsor users associated with that sponsor/event
+
+Do not allow sponsor report sends to random manually entered email addresses unless explicitly permitted by admin override logic later.
+
+8. Define Allowed Sponsor Report Recipient Logic
+
+For sponsor reports, allowed recipients should come from sponsor-linked records such as:
+
+sponsor main contact
+
+sponsor representatives
+
+sponsor dashboard users/contacts
+
+registered sponsor team members for the event
+
+Required behavior
+
+The email workflow should:
+
+resolve allowed recipients from the sponsor record
+
+show those allowed recipients in the send UI
+
+prevent sending to recipients outside that approved set
+
+If there are no valid sponsor team recipients, show a clear warning and block send until resolved.
+
+9. Apply Recipient Safeguards to Both Manual and Automated Sponsor Report Sends
+
+This control must apply to:
+
+manual “Send Sponsor Report”
+
+scheduled sponsor report emails
+
+automated end-of-event sponsor report delivery
+
+Do not implement the safeguard only in one place.
+
+10. Attendees — Add Action to Send Scheduling Email
+
+In the Attendees section, add a new action near the existing row actions.
+
+Currently the table includes actions like:
+
+view
+
+edit
+
+possibly delete/archive depending on role
+
+Required behavior
+
+Add a new action button/icon:
+
+Send Scheduling Email
+
+This should email the attendee a secure personalized link to the event scheduling page.
+
+11. Attendee Scheduling Email Behavior
+
+When the admin clicks the new attendee action:
+
+generate secure attendee-specific scheduling link
+
+send attendee an email
+
+route them to the event scheduling page
+
+preserve event context
+
+This should work without requiring a traditional attendee login.
+
+Recommended placement
+
+Add this action in the row actions area near View / Edit.
+
+Use a clear icon/tool tip such as:
+
+Send Scheduling Email
+
+Email Scheduling Link
+
+12. Add Email Logging for Attendee Scheduling Emails
+
+These sends should appear in the Email Center / Email Logs so Converge can see:
+
+who sent it
+
+when it was sent
+
+to whom
+
+event
+
+status
+
+This is important for tracking attendee outreach.
+
+13. Merge Users and Access Control Into One Menu Item: Users
+
+Right now Users and Access Control still appear as separate menu items.
+
+Required behavior
+
+Replace them with a single left-nav item:
+
+Users
+
+This should live under Configuration.
+
+14. Users Module Should Use Tabs
+
+Inside the new Users module, move the access control functionality into tabs.
+
+Recommended tabs:
+
+Users
+
+Roles
+
+Permissions / Access Control
+
+At minimum, Access Control must be moved into a dedicated tab inside the Users module.
+
+Do not keep Access Control as a standalone left-nav item.
+
+15. Navigation Cleanup
+
+After this change, under Configuration, the nav should be cleaner.
+
+Example desired structure:
+
+Configuration
+- Category Rules
+- Settings
+- Users
+- Sponsorship Packages
+
+This means:
+
+Branding removed as standalone nav
+
+Access Control removed as standalone nav
+
+Settings and Users become the consolidated modules
+
+16. Permissions
+
+Update permissions if needed so these new merged modules still work correctly.
+
+Examples:
+
+View Settings
+
+Edit Settings
+
+Manage Branding
+
+Manage Notifications
+
+View Users
+
+Edit Users
+
+Manage Roles
+
+Manage Permissions
+
+Send Attendee Scheduling Email
+
+Send Sponsor Reports
+
+Schedule Sponsor Reports
+
+Do not break existing role assignments when merging modules.
+
+17. Acceptance Criteria
+
+This work is complete when:
+
+Branding and Settings are merged into a single Settings menu item
+
+Settings contains a Branding tab
+
+Sponsor Activity Notification Email is moved into Settings
+
+Sponsor Activity Notification Email saves correctly
+
+multiple notification email addresses are supported
+
+Sponsor Reports can only be sent to registered sponsor team members / approved sponsor contacts
+
+Attendees table has a working Send Scheduling Email action
+
+Users and Access Control are merged into a single Users menu item
+
+Access Control functionality is accessible through a Users tab
+
+left navigation is visibly cleaner and aligned with the intended admin structure
+
+18. Success Standard
+
+After this update, the admin experience should feel more organized, communications should be safer, and Converge should have better control over sponsor and attendee email workflows.
+
+That is the standard this update should meet.

@@ -38,8 +38,8 @@ The platform employs a modern web stack, separating frontend and backend concern
 - **Data Management**: Unified admin page at `/admin/data-management` with two tabs:
   - **Data Exchange**: CSV import/export of Sponsors, Attendees, and Meetings, including Nunify Meeting Sync.
   - **Data Backup**: Full System Backup only (event/sponsor-level backups deprecated). Includes automatic scheduling (daily at configurable UTC time), R2 storage, history table with legacy record labeling, restore validation, and dry-run simulation. Scheduling config stored in `app_config` table as `backup_schedule` key.
-- **Access Control**: Granular, per-user permission system with over 100 boolean flags across 19 categories, including role presets and an audit log.
-- **Email Integration**: Transactional emails via Brevo for confirmations, info requests, and automated meeting reminders. An Admin Email Center offers an audit log, resend functionality, DB-backed template management, and a **Scheduled Emails** tab for managing future email deliveries (CRUD with status tracking: Draft/Scheduled/Sent/Cancelled/Failed).
+- **Access Control**: Granular, per-user permission system with over 100 boolean flags across 19 categories, including role presets and an audit log. Embedded as a tab within the Users page (previously standalone).
+- **Email Integration**: Transactional emails via Brevo for confirmations, info requests, scheduling invitations, and automated meeting reminders. An Admin Email Center offers an audit log, resend functionality, DB-backed template management, and a **Scheduled Emails** tab for managing future email deliveries (CRUD with status tracking: Draft/Scheduled/Sent/Cancelled/Failed). Sponsor report emails are restricted to registered sponsor team members only.
 - **Sponsor Health Analytics**: Admin page at `/admin/sponsor-health` providing at-a-glance sponsor engagement metrics, risk level classification (healthy/attention/at_risk), and issue identification across meetings, info requests, profile completeness, and event assignments.
 - **Information Request Management**: Admin edit and delete capabilities for attendee information requests, with inline form editing and confirmation dialogs.
 - **Sponsor Magic Login**: Email-based magic link authentication for sponsors, with comprehensive error handling and branded messages.
@@ -50,6 +50,10 @@ The platform employs a modern web stack, separating frontend and backend concern
 - **Sponsor Dashboard**: Redesigned with a 6-tab layout (Overview, Meetings, Info Requests, Leads, Deliverables, Reports) and structured UIs for various deliverable types.
 - **Public Scheduling Flow**: Distinct "Onsite" and "Online request" flows available at `/event/:slug`.
 - **Calendar Integration**: ICS file generation, Google Calendar URL, and Outlook URL for meetings.
+- **Settings**: Unified admin settings page with tabs for General, Branding, and Notifications. Branding and notification email configuration consolidated from previously separate pages.
+- **Admin Navigation**: Sidebar consolidation — Branding merged into Settings, Access Control merged into Users page as a tab. Legacy routes (`/admin/branding`, `/admin/access-control`) redirect to their new locations.
+- **Sponsor Form Modal**: Redesigned as a wide (1100px) tabbed workspace with 4 tabs: Basic Info, Sponsor Profile, Contacts, Event Assignments.
+- **Attendee Scheduling Email**: Row action on AttendeesTable to send scheduling invitation emails with event-specific scheduling links. Template: `scheduling_invitation`.
 - **Branding**: Public endpoint for `appLogoUrl` and `appName`.
 - **Legal**: Dedicated pages for Terms of Use and Privacy Policy.
 - **Eventzilla Webhook**: Integration for attendee registration events.

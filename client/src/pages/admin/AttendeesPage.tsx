@@ -123,6 +123,25 @@ export default function AttendeesPage() {
     },
   });
 
+  const [sendingEmailForId, setSendingEmailForId] = useState<string | null>(null);
+  const schedulingEmailMutation = useMutation({
+    mutationFn: async (attendeeId: string) => {
+      setSendingEmailForId(attendeeId);
+      const res = await apiRequest("POST", `/api/admin/attendees/${attendeeId}/send-scheduling-email`);
+      return res.json();
+    },
+    onSuccess: (data: { message: string; recipientEmail: string }) => {
+      setSendingEmailForId(null);
+      toast({ title: "Scheduling email sent", description: `Email sent to ${data.recipientEmail}` });
+    },
+    onError: (err: any) => {
+      setSendingEmailForId(null);
+      let msg = "Failed to send scheduling email";
+      try { const parsed = JSON.parse(err?.message?.substring(err.message.indexOf("{")) || "{}"); msg = parsed.message || msg; } catch {}
+      toast({ title: "Email Failed", description: msg, variant: "destructive" });
+    },
+  });
+
   const backfillMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/admin/attendees/backfill-categories");
@@ -346,6 +365,8 @@ export default function AttendeesPage() {
           onArchive={handleArchive}
           onReactivate={handleReactivate}
           onDelete={setDeletingAttendee}
+          onSendSchedulingEmail={(a) => schedulingEmailMutation.mutate(a.id)}
+          sendingEmailForId={sendingEmailForId}
         />
       )}
 

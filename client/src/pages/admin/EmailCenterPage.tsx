@@ -34,6 +34,7 @@ const EMAIL_TYPE_LABELS: Record<string, string> = {
   meeting_reminder_2: "Reminder (2h)",
   info_request_notification_sponsor: "Info Request Alert",
   info_request_confirmation_attendee: "Info Request Confirmation",
+  scheduling_invitation: "Scheduling Invitation",
   sponsor_report: "Sponsor Report",
   admin_alert: "Admin Alert",
   test_email: "Test Email",
@@ -543,6 +544,8 @@ const SCHED_STATUS_CONFIG: Record<string, { className: string }> = {
   Failed: { className: "bg-red-100 text-red-700 border-red-200" },
 };
 
+type AllowedRecipient = { email: string; name: string; source: string };
+
 function ScheduledEmailsTab({ events, sponsors }: { events: Event[]; sponsors: Sponsor[] }) {
   const { toast } = useToast();
   const [createOpen, setCreateOpen] = useState(false);
@@ -558,6 +561,17 @@ function ScheduledEmailsTab({ events, sponsors }: { events: Event[]; sponsors: S
     sponsorId: "",
     scheduledAt: "",
     status: "Scheduled" as string,
+  });
+
+  const isSponsorReport = form.emailType === "sponsor_report";
+  const { data: allowedRecipients } = useQuery<{ recipients: AllowedRecipient[]; sponsorName: string }>({
+    queryKey: ["/api/admin/sponsors", form.sponsorId, "allowed-report-recipients"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/sponsors/${form.sponsorId}/allowed-report-recipients`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch recipients");
+      return res.json();
+    },
+    enabled: isSponsorReport && !!form.sponsorId,
   });
 
   const { data: scheduled = [], isLoading } = useQuery<ScheduledEmail[]>({
@@ -591,7 +605,11 @@ function ScheduledEmailsTab({ events, sponsors }: { events: Event[]; sponsors: S
       setCreateOpen(false);
       resetForm();
     },
-    onError: () => toast({ title: "Failed to schedule email", variant: "destructive" }),
+    onError: (err: any) => {
+      let msg = "Failed to schedule email";
+      try { const parsed = JSON.parse(err?.message?.substring(err.message.indexOf("{")) || "{}"); msg = parsed.error || parsed.message || msg; } catch {}
+      toast({ title: "Scheduling Failed", description: msg, variant: "destructive" });
+    },
   });
 
   const updateMutation = useMutation({
@@ -604,7 +622,11 @@ function ScheduledEmailsTab({ events, sponsors }: { events: Event[]; sponsors: S
       toast({ title: "Scheduled email updated" });
       setEditTarget(null);
     },
-    onError: () => toast({ title: "Failed to update", variant: "destructive" }),
+    onError: (err: any) => {
+      let msg = "Failed to update scheduled email";
+      try { const parsed = JSON.parse(err?.message?.substring(err.message.indexOf("{")) || "{}"); msg = parsed.error || parsed.message || msg; } catch {}
+      toast({ title: "Update Failed", description: msg, variant: "destructive" });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -663,12 +685,39 @@ function ScheduledEmailsTab({ events, sponsors }: { events: Event[]; sponsors: S
   const getEventName = (id: string | null) => id ? (events.find(e => e.id === id)?.slug ?? events.find(e => e.id === id)?.name ?? "—") : "—";
   const getSponsorName = (id: string | null) => id ? (sponsors.find(s => s.id === id)?.name ?? "—") : "—";
 
+  const recipientsList = isSponsorReport && form.sponsorId ? (allowedRecipients?.recipients ?? []) : [];
+  const noRecipientsWarning = isSponsorReport && form.sponsorId && allowedRecipients && recipientsList.length === 0;
+
   const formFields = (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-medium text-muted-foreground">Recipient Email *</label>
-          <Input value={form.recipientEmail} onChange={e => setForm(f => ({ ...f, recipientEmail: e.target.value }))} data-testid="input-sched-email" />
+          {isSponsorReport && form.sponsorId ? (
+            <div className="space-y-1">
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.recipientEmail}
+                onChange={e => {
+                  const r = recipientsList.find(r => r.email === e.target.value);
+                  setForm(f => ({ ...f, recipientEmail: e.target.value, recipientName: r?.name ?? f.recipientName }));
+                }}
+                data-testid="select-sched-recipient"
+              >
+                <option value="">Select recipient...</option>
+                {recipientsList.map(r => (
+                  <option key={r.email} value={r.email}>{r.name} ({r.email}) — {r.source}</option>
+                ))}
+              </select>
+              {noRecipientsWarning && (
+                <p className="text-xs text-amber-600 flex items-center gap-1" data-testid="warning-no-recipients">
+                  <AlertCircle className="h-3 w-3" /> No registered team members found for this sponsor. Add contacts in the Sponsors page first.
+                </p>
+              )}
+            </div>
+          ) : (
+            <Input value={form.recipientEmail} onChange={e => setForm(f => ({ ...f, recipientEmail: e.target.value }))} data-testid="input-sched-email" />
+          )}
         </div>
         <div>
           <label className="text-xs font-medium text-muted-foreground">Recipient Name</label>

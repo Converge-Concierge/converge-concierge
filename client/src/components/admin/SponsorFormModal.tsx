@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sponsor, InsertSponsor, Event, EventSponsorLink, SPONSORSHIP_LEVELS, SponsorshipLevel } from "@shared/schema";
-import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem, CalendarDays, ChevronDown, ChevronUp, Send, Clock } from "lucide-react";
+import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem, CalendarDays, ChevronDown, ChevronUp, Send, Clock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -38,11 +38,21 @@ const levelColors: Record<string, string> = {
 const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
+type TabId = "basic" | "profile" | "contacts" | "events";
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: "basic", label: "Basic Info" },
+  { id: "profile", label: "Sponsor Profile" },
+  { id: "contacts", label: "Contacts" },
+  { id: "events", label: "Event Assignments" },
+];
+
 export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, isPending, readOnly }: SponsorFormModalProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState<Partial<InsertSponsor>>({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false });
   const [dragOver, setDragOver] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>("basic");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: sponsorUserData, refetch: refetchSponsorUser } = useQuery<{ user: { lastLoginAt: string | null } | null }>({
@@ -72,6 +82,7 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
   useEffect(() => {
     if (isOpen) {
       setLogoError(false);
+      setActiveTab("basic");
       if (sponsor) {
         setFormData({
           ...sponsor,
@@ -182,474 +193,508 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg flex flex-col p-0 gap-0" style={{ maxHeight: "92vh" }}>
-        <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-border/30">
+      <DialogContent className="max-w-[1100px] w-[95vw] flex flex-col p-0 gap-0" style={{ maxHeight: "92vh" }}>
+        <DialogHeader className="px-6 pt-5 pb-0 shrink-0">
           <DialogTitle className="text-lg font-display font-semibold">
             {readOnly ? "View Sponsor" : sponsor ? "Edit Sponsor" : "Add Sponsor"}
           </DialogTitle>
         </DialogHeader>
 
         {readOnly && (
-          <div className="mx-6 mt-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-2.5 shrink-0">
+          <div className="mx-6 mt-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-2.5 shrink-0">
             <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Archived – Read Only. This sponsor cannot be edited.</p>
           </div>
         )}
 
+        <div className="px-6 pt-4 shrink-0 border-b border-border/40">
+          <div className="flex gap-0 overflow-x-auto">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "px-5 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors -mb-px",
+                  activeTab === tab.id
+                    ? "border-accent text-accent"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                )}
+                data-testid={`tab-sponsor-${tab.id}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto min-h-0">
-          <form id="sponsor-form" onSubmit={handleSubmit} className="px-6 pt-5 pb-6 space-y-5">
+          <form id="sponsor-form" onSubmit={handleSubmit} className="px-6 pt-6 pb-6">
 
-            {/* Logo */}
-            <div className="space-y-2">
-              <Label>Sponsor Logo</Label>
-              <div className="flex items-center gap-4">
-                <div className={cn("h-16 w-16 rounded-xl border-2 border-dashed flex items-center justify-center shrink-0 overflow-hidden transition-colors", hasLogo ? "border-border bg-white" : "border-border/60 bg-muted/40")}>
-                  {hasLogo && !logoError ? (
-                    <img src={formData.logoUrl ?? undefined} alt="Logo preview" className="h-full w-full object-contain p-1" onError={() => setLogoError(true)} />
-                  ) : (
-                    <Building2 className="h-7 w-7 text-muted-foreground/40" />
-                  )}
-                </div>
-
-                {!readOnly && (
-                  <div
-                    className={cn("flex-1 rounded-xl border-2 border-dashed px-4 py-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-colors", dragOver ? "border-accent bg-accent/5" : "border-border/60 hover:border-accent/50 hover:bg-muted/30")}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={handleDrop}
-                    data-testid="logo-upload-zone"
-                  >
-                    <ImagePlus className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground text-center"><span className="font-medium text-foreground">Click to upload</span> or drag & drop</p>
-                    <p className="text-[11px] text-muted-foreground">PNG, JPG, SVG, WebP</p>
-                  </div>
-                )}
-
-                {!readOnly && hasLogo && (
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={clearLogo} title="Remove logo" data-testid="button-clear-logo">
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} data-testid="input-logo-file" />
-
-              {!readOnly && (
-                <div className="space-y-1 pt-1">
-                  <p className="text-[11px] text-muted-foreground">Or enter a logo URL directly:</p>
-                  <Input
-                    value={hasLogo && formData.logoUrl?.startsWith("data:") ? "" : (formData.logoUrl ?? "")}
-                    onChange={(e) => { setFormData((prev) => ({ ...prev, logoUrl: e.target.value })); setLogoError(false); }}
-                    placeholder="https://example.com/logo.png"
-                    className="h-8 text-xs"
-                    data-testid="input-sponsor-logo-url"
-                  />
-                </div>
-              )}
-            </div>
-
-            <fieldset disabled={readOnly} className="space-y-5 border-none p-0 m-0">
-              {/* Name */}
-              <div className="space-y-2">
-                <Label htmlFor="sp-name">Sponsor Name {!readOnly && <span className="text-destructive">*</span>}</Label>
-                <Input id="sp-name" value={formData.name} onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))} placeholder="Acme Financial" required={!readOnly} data-testid="input-sponsor-name" />
-              </div>
-
-              {/* Status */}
-              <div className="space-y-2">
-                <Label htmlFor="sp-status">Status</Label>
-                <select id="sp-status" className={selectClass} value={formData.archiveState ?? "active"} onChange={(e) => setFormData((prev) => ({ ...prev, archiveState: e.target.value as "active" | "archived" }))} data-testid="select-sponsor-status">
-                  <option value="active">Active</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-
-              {/* Allow Online Meetings toggle */}
-              <div className="space-y-2">
-                <Label>Allow Online Meetings</Label>
-                <div className="flex rounded-lg border border-input overflow-hidden w-fit text-sm">
-                  <button
-                    type="button"
-                    onClick={() => !readOnly && setFormData((prev) => ({ ...prev, allowOnlineMeetings: true }))}
-                    className={cn(
-                      "px-5 py-2 font-medium transition-colors",
-                      formData.allowOnlineMeetings ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted",
-                    )}
-                    data-testid="toggle-online-yes"
-                  >
-                    Yes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => !readOnly && setFormData((prev) => ({ ...prev, allowOnlineMeetings: false }))}
-                    className={cn(
-                      "px-5 py-2 font-medium transition-colors border-l border-input",
-                      !formData.allowOnlineMeetings ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted",
-                    )}
-                    data-testid="toggle-online-no"
-                  >
-                    No
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {formData.allowOnlineMeetings
-                    ? "Attendees may submit an online meeting request for this sponsor."
-                    : "Only onsite meeting scheduling is available for this sponsor."}
-                </p>
-              </div>
-            </fieldset>
-
-            {/* Solution Types — free-form, up to 3 */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Solution Types <span className="text-muted-foreground font-normal text-xs">(up to 3)</span></Label>
-                {(formData.attributes ?? []).filter(Boolean).length > 0 && (
-                  <span className="text-xs text-accent font-medium">{(formData.attributes ?? []).filter(Boolean).length} entered</span>
-                )}
-              </div>
-              <div className="space-y-2">
-                {[0, 1, 2].map((i) => {
-                  const current = formData.attributes ?? [];
-                  const val = current[i] ?? "";
-                  const filledBefore = i === 0 || !!(current[i - 1] ?? "").trim();
-                  if (i > 0 && !filledBefore && !val) return null;
-                  return (
-                    <div key={i} className="flex items-center gap-2">
-                      <Input
-                        value={val}
-                        disabled={readOnly}
-                        placeholder={i === 0 ? "e.g. Compliance" : i === 1 ? "e.g. Payments" : "e.g. AI"}
-                        className="h-8 text-xs flex-1"
-                        data-testid={`input-solution-type-${i}`}
-                        onChange={(e) => {
-                          if (readOnly) return;
-                          const next = [...(formData.attributes ?? [])];
-                          while (next.length <= i) next.push("");
-                          next[i] = e.target.value;
-                          setFormData((p) => ({ ...p, attributes: next }));
-                        }}
-                      />
-                      {!readOnly && val && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = [...(formData.attributes ?? [])];
-                            next.splice(i, 1);
-                            setFormData((p) => ({ ...p, attributes: next }));
-                          }}
-                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                          data-testid={`remove-solution-type-${i}`}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-                {/* Show third input only after second is filled */}
-                {!readOnly && (formData.attributes ?? []).filter(Boolean).length < 3 && (formData.attributes ?? []).filter(Boolean).length > 0 && !(formData.attributes ?? [])[2] && (
-                  <p className="text-[10px] text-muted-foreground">Fill the field above to add another</p>
-                )}
-              </div>
-              <p className="text-[10px] text-muted-foreground">Used to filter sponsors by Solution Type on the event page.</p>
-            </div>
-
-            {/* Sponsor Profile */}
-            <div className="pt-1 border-t border-border/40 space-y-4">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5 pt-1">
-                <Globe className="h-3.5 w-3.5 text-accent" /> Sponsor Profile
-              </p>
-              <div className="space-y-1.5">
-                <Label htmlFor="sp-short-desc" className="text-xs">Short Description</Label>
-                <textarea
-                  id="sp-short-desc"
-                  rows={2}
-                  disabled={readOnly}
-                  value={formData.shortDescription ?? ""}
-                  onChange={(e) => setFormData((p) => ({ ...p, shortDescription: e.target.value }))}
-                  placeholder="One-line summary of what this sponsor does…"
-                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 placeholder:text-muted-foreground"
-                  data-testid="input-sponsor-short-desc"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="sp-website" className="text-xs flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" /> Website URL</Label>
-                <Input
-                  id="sp-website"
-                  disabled={readOnly}
-                  value={formData.websiteUrl ?? ""}
-                  onChange={(e) => setFormData((p) => ({ ...p, websiteUrl: e.target.value }))}
-                  placeholder="https://sponsor.com"
-                  className="h-8 text-xs"
-                  data-testid="input-sponsor-website"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="sp-linkedin" className="text-xs flex items-center gap-1.5"><Linkedin className="h-3.5 w-3.5" /> LinkedIn URL</Label>
-                <Input
-                  id="sp-linkedin"
-                  disabled={readOnly}
-                  value={formData.linkedinUrl ?? ""}
-                  onChange={(e) => setFormData((p) => ({ ...p, linkedinUrl: e.target.value }))}
-                  placeholder="https://linkedin.com/company/…"
-                  className="h-8 text-xs"
-                  data-testid="input-sponsor-linkedin"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="sp-solutions" className="text-xs">Solutions Summary</Label>
-                <textarea
-                  id="sp-solutions"
-                  rows={3}
-                  disabled={readOnly}
-                  value={formData.solutionsSummary ?? ""}
-                  onChange={(e) => setFormData((p) => ({ ...p, solutionsSummary: e.target.value }))}
-                  placeholder="Describe the products, services, or solutions this sponsor offers…"
-                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 placeholder:text-muted-foreground"
-                  data-testid="input-sponsor-solutions"
-                />
-              </div>
-            </div>
-
-            {/* Main Contact */}
-            <div className="pt-1 border-t border-border/40 space-y-3">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5 pt-1">
-                <User className="h-3.5 w-3.5 text-accent" /> Main Contact
-              </p>
-              <div className="space-y-1.5">
-                <Label htmlFor="sp-contact-name" className="text-xs">Contact Name</Label>
-                <Input
-                  id="sp-contact-name"
-                  disabled={readOnly}
-                  value={formData.contactName ?? ""}
-                  onChange={(e) => setFormData((p) => ({ ...p, contactName: e.target.value }))}
-                  placeholder="Jane Smith"
-                  className="h-8 text-xs"
-                  data-testid="input-sponsor-contact-name"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="sp-contact-email" className="text-xs flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Email</Label>
-                  <Input
-                    id="sp-contact-email"
-                    type="email"
-                    disabled={readOnly}
-                    value={formData.contactEmail ?? ""}
-                    onChange={(e) => setFormData((p) => ({ ...p, contactEmail: e.target.value }))}
-                    placeholder="jane@sponsor.com"
-                    className="h-8 text-xs"
-                    data-testid="input-sponsor-contact-email"
-                  />
-                  {sponsorUserData?.user?.lastLoginAt && (
-                    <p className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1" data-testid="text-last-accessed">
-                      <Clock className="h-2.5 w-2.5" />
-                      Last accessed: {format(new Date(sponsorUserData.user.lastLoginAt), "MMM d, yyyy")}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="sp-contact-phone" className="text-xs flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> Phone</Label>
-                  <Input
-                    id="sp-contact-phone"
-                    type="tel"
-                    disabled={readOnly}
-                    value={formData.contactPhone ?? ""}
-                    onChange={(e) => setFormData((p) => ({ ...p, contactPhone: e.target.value }))}
-                    placeholder="+1 555 000 0000"
-                    className="h-8 text-xs"
-                    data-testid="input-sponsor-contact-phone"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Event Sponsorship Assignments */}
-            <div className="space-y-2">
-              <Label>Event Sponsorship Assignments</Label>
-              <p className="text-[11px] text-muted-foreground -mt-1">Select a sponsorship level per event. "None" means not assigned.</p>
-              {(() => {
-                const visibleEvents = events.filter((ev) =>
-                  readOnly
-                    ? (formData.assignedEvents || []).some((ae) => ae.eventId === ev.id && (ae.archiveState ?? "active") === "active")
-                    : (ev.archiveState ?? "active") === "active"
-                );
-                if (visibleEvents.length === 0) {
-                  return <p className="text-sm text-muted-foreground italic py-2">{readOnly ? "No events assigned." : "No active events available."}</p>;
-                }
-                return (
-                  <div className="rounded-xl border border-border/60 divide-y divide-border/40 overflow-hidden">
-                    {visibleEvents.map((ev) => {
-                      const currentLevel = getEventAssignedLevel(ev.id);
-                      return (
-                        <div key={ev.id}>
-                          <div
-                            className={cn("flex items-center gap-3 px-4 py-3", currentLevel ? "bg-accent/5" : "")}
-                            data-testid={`event-assignment-row-${ev.id}`}
-                          >
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <span className="font-mono text-xs font-semibold text-accent bg-accent/10 border border-accent/20 px-1.5 py-0.5 rounded shrink-0">
-                                {ev.slug}
-                              </span>
-                              <span className="text-sm text-foreground truncate">{ev.name}</span>
-                            </div>
-                            {readOnly ? (
-                              currentLevel ? (
-                                <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold shrink-0", levelColors[currentLevel])}>
-                                  {currentLevel === "Platinum" && <Gem className="h-3 w-3" />}
-                                  {currentLevel}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-muted-foreground italic shrink-0">None</span>
-                              )
-                            ) : (
-                              <select
-                                className={cn(selectClass, "w-32 shrink-0")}
-                                value={currentLevel ?? ""}
-                                onChange={(e) => setEventLevel(ev.id, (e.target.value || null) as SponsorshipLevel | null)}
-                                data-testid={`select-event-level-${ev.id}`}
-                              >
-                                <option value="">None</option>
-                                {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-                              </select>
-                            )}
-                          </div>
-                          {currentLevel && (
-                            <div className="px-4 pb-3 pt-0 space-y-3">
-                              <div className="flex gap-4 flex-wrap">
-                                {[
-                                  { label: "Onsite Meetings", flag: "onsiteMeetingEnabled" as const },
-                                  { label: "Online Meetings", flag: "onlineMeetingEnabled" as const },
-                                  { label: "Info Requests", flag: "informationRequestEnabled" as const },
-                                ].map(({ label, flag }) => {
-                                  const ae = (formData.assignedEvents || []).find(ae => ae.eventId === ev.id);
-                                  const isEnabled = ae?.[flag] ?? true;
-                                  return (
-                                    <div key={flag} className="flex flex-col gap-1.5">
-                                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                                        {label}
-                                      </span>
-                                      <div className="flex rounded-md border border-input overflow-hidden w-fit">
-                                        <button
-                                          type="button"
-                                          disabled={readOnly}
-                                          onClick={() => handleActionFlag(ev.id, flag, true)}
-                                          className={cn(
-                                            "text-[10px] px-2 py-0.5 font-medium transition-colors",
-                                            isEnabled ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
-                                          )}
-                                          data-testid={`toggle-${flag}-yes-${ev.id}`}
-                                        >
-                                          Yes
-                                        </button>
-                                        <button
-                                          type="button"
-                                          disabled={readOnly}
-                                          onClick={() => handleActionFlag(ev.id, flag, false)}
-                                          className={cn(
-                                            "text-[10px] px-2 py-0.5 font-medium transition-colors border-l border-input",
-                                            !isEnabled ? "bg-muted text-muted-foreground" : "text-muted-foreground hover:bg-muted"
-                                          )}
-                                          data-testid={`toggle-${flag}-no-${ev.id}`}
-                                        >
-                                          No
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-
-                              {/* Meeting Block Access */}
-                              {(() => {
-                                const ae = (formData.assignedEvents || []).find(a => a.eventId === ev.id);
-                                const useDefault = ae?.useDefaultBlocks !== false;
-                                const sortedBlocks = [...(ev.meetingBlocks ?? [])].sort((a, b) =>
-                                  a.date < b.date ? -1 : a.date > b.date ? 1 : a.startTime.localeCompare(b.startTime)
-                                );
-                                return (
-                                  <div className="border-t border-border/30 pt-2.5">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                                        <CalendarDays className="h-3 w-3" /> Meeting Block Access
-                                      </span>
-                                      <div className="flex rounded-md border border-input overflow-hidden w-fit">
-                                        <button
-                                          type="button"
-                                          disabled={readOnly}
-                                          onClick={() => handleBlockAccess(ev.id, true, [])}
-                                          className={cn(
-                                            "text-[10px] px-2 py-0.5 font-medium transition-colors",
-                                            useDefault ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
-                                          )}
-                                          data-testid={`toggle-blocks-default-${ev.id}`}
-                                        >
-                                          All event blocks
-                                        </button>
-                                        <button
-                                          type="button"
-                                          disabled={readOnly}
-                                          onClick={() => handleBlockAccess(ev.id, false, ae?.selectedBlockIds ?? [])}
-                                          className={cn(
-                                            "text-[10px] px-2 py-0.5 font-medium transition-colors border-l border-input",
-                                            !useDefault ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
-                                          )}
-                                          data-testid={`toggle-blocks-custom-${ev.id}`}
-                                        >
-                                          Custom
-                                        </button>
-                                      </div>
-                                    </div>
-                                    {!useDefault && sortedBlocks.length > 0 && (
-                                      <div className="max-h-44 overflow-y-auto space-y-0.5 border border-border/40 rounded-lg p-2 bg-muted/20">
-                                        {sortedBlocks.map((block) => {
-                                          const checked = (ae?.selectedBlockIds ?? []).includes(block.id);
-                                          return (
-                                            <label key={block.id} className="flex items-center gap-2 text-xs cursor-pointer py-0.5 hover:bg-muted/40 rounded px-1">
-                                              <input
-                                                type="checkbox"
-                                                disabled={readOnly}
-                                                checked={checked}
-                                                onChange={(e) => {
-                                                  const newIds = e.target.checked
-                                                    ? [...(ae?.selectedBlockIds ?? []), block.id]
-                                                    : (ae?.selectedBlockIds ?? []).filter((id) => id !== block.id);
-                                                  handleBlockAccess(ev.id, false, newIds);
-                                                }}
-                                                className="h-3.5 w-3.5 rounded border-input shrink-0"
-                                                data-testid={`checkbox-block-${block.id}`}
-                                              />
-                                              <span className="text-foreground/80">
-                                                {format(new Date(block.date + "T00:00:00"), "EEE, MMM d")}
-                                                {" · "}
-                                                {fmt12(block.startTime)}–{fmt12(block.endTime)}
-                                              </span>
-                                            </label>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                    {!useDefault && sortedBlocks.length === 0 && (
-                                      <p className="text-[10px] text-muted-foreground italic">No meeting blocks defined for this event yet.</p>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </div>
+            {activeTab === "basic" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground mb-4">Sponsor Logo</h3>
+                      <div className="flex items-start gap-4">
+                        <div className={cn("h-20 w-20 rounded-xl border-2 border-dashed flex items-center justify-center shrink-0 overflow-hidden transition-colors", hasLogo ? "border-border bg-white" : "border-border/60 bg-muted/40")}>
+                          {hasLogo && !logoError ? (
+                            <img src={formData.logoUrl ?? undefined} alt="Logo preview" className="h-full w-full object-contain p-1" onError={() => setLogoError(true)} />
+                          ) : (
+                            <Building2 className="h-8 w-8 text-muted-foreground/40" />
                           )}
                         </div>
-                      );
-                    })}
+
+                        {!readOnly && (
+                          <div className="flex-1 space-y-3">
+                            <div
+                              className={cn("rounded-xl border-2 border-dashed px-4 py-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-colors", dragOver ? "border-accent bg-accent/5" : "border-border/60 hover:border-accent/50 hover:bg-muted/30")}
+                              onClick={() => fileInputRef.current?.click()}
+                              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                              onDragLeave={() => setDragOver(false)}
+                              onDrop={handleDrop}
+                              data-testid="logo-upload-zone"
+                            >
+                              <ImagePlus className="h-5 w-5 text-muted-foreground" />
+                              <p className="text-xs text-muted-foreground text-center"><span className="font-medium text-foreground">Click to upload</span> or drag & drop</p>
+                              <p className="text-[11px] text-muted-foreground">PNG, JPG, SVG, WebP</p>
+                            </div>
+                            {hasLogo && (
+                              <Button type="button" variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-destructive" onClick={clearLogo} data-testid="button-clear-logo">
+                                <X className="h-3 w-3 mr-1" /> Remove logo
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} data-testid="input-logo-file" />
+
+                      {!readOnly && (
+                        <div className="space-y-1 pt-3">
+                          <p className="text-[11px] text-muted-foreground">Or enter a logo URL directly:</p>
+                          <Input
+                            value={hasLogo && formData.logoUrl?.startsWith("data:") ? "" : (formData.logoUrl ?? "")}
+                            onChange={(e) => { setFormData((prev) => ({ ...prev, logoUrl: e.target.value })); setLogoError(false); }}
+                            placeholder="https://example.com/logo.png"
+                            className="h-8 text-xs"
+                            data-testid="input-sponsor-logo-url"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <fieldset disabled={readOnly} className="space-y-5 border-none p-0 m-0">
+                      <div className="space-y-2">
+                        <Label htmlFor="sp-name">Sponsor Name {!readOnly && <span className="text-destructive">*</span>}</Label>
+                        <Input id="sp-name" value={formData.name} onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))} placeholder="Acme Financial" required={!readOnly} data-testid="input-sponsor-name" />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="sp-status">Status</Label>
+                        <select id="sp-status" className={selectClass} value={formData.archiveState ?? "active"} onChange={(e) => setFormData((prev) => ({ ...prev, archiveState: e.target.value as "active" | "archived" }))} data-testid="select-sponsor-status">
+                          <option value="active">Active</option>
+                          <option value="archived">Archived</option>
+                        </select>
+                      </div>
+                    </fieldset>
                   </div>
-                );
-              })()}
-              {!readOnly && (
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  When a sponsorship level is selected, Concierge will automatically assign the matching Sponsorship Template and generate deliverables for that event.
-                </p>
-              )}
-            </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground mb-4">Meeting Settings</h3>
+                      <div className="space-y-2">
+                        <Label>Allow Online Meetings</Label>
+                        <div className="flex rounded-lg border border-input overflow-hidden w-fit text-sm">
+                          <button
+                            type="button"
+                            onClick={() => !readOnly && setFormData((prev) => ({ ...prev, allowOnlineMeetings: true }))}
+                            className={cn(
+                              "px-5 py-2 font-medium transition-colors",
+                              formData.allowOnlineMeetings ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted",
+                            )}
+                            data-testid="toggle-online-yes"
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => !readOnly && setFormData((prev) => ({ ...prev, allowOnlineMeetings: false }))}
+                            className={cn(
+                              "px-5 py-2 font-medium transition-colors border-l border-input",
+                              !formData.allowOnlineMeetings ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted",
+                            )}
+                            data-testid="toggle-online-no"
+                          >
+                            No
+                          </button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {formData.allowOnlineMeetings
+                            ? "Attendees may submit an online meeting request for this sponsor."
+                            : "Only onsite meeting scheduling is available for this sponsor."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-foreground">Solution Types <span className="text-muted-foreground font-normal text-xs">(up to 3)</span></h3>
+                        {(formData.attributes ?? []).filter(Boolean).length > 0 && (
+                          <span className="text-xs text-accent font-medium">{(formData.attributes ?? []).filter(Boolean).length} entered</span>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        {[0, 1, 2].map((i) => {
+                          const current = formData.attributes ?? [];
+                          const val = current[i] ?? "";
+                          const filledBefore = i === 0 || !!(current[i - 1] ?? "").trim();
+                          if (i > 0 && !filledBefore && !val) return null;
+                          return (
+                            <div key={i} className="flex items-center gap-2">
+                              <Input
+                                value={val}
+                                disabled={readOnly}
+                                placeholder={i === 0 ? "e.g. Compliance" : i === 1 ? "e.g. Payments" : "e.g. AI"}
+                                className="h-8 text-xs flex-1"
+                                data-testid={`input-solution-type-${i}`}
+                                onChange={(e) => {
+                                  if (readOnly) return;
+                                  const next = [...(formData.attributes ?? [])];
+                                  while (next.length <= i) next.push("");
+                                  next[i] = e.target.value;
+                                  setFormData((p) => ({ ...p, attributes: next }));
+                                }}
+                              />
+                              {!readOnly && val && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = [...(formData.attributes ?? [])];
+                                    next.splice(i, 1);
+                                    setFormData((p) => ({ ...p, attributes: next }));
+                                  }}
+                                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                  data-testid={`remove-solution-type-${i}`}
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">Used to filter sponsors by Solution Type on the event page.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "profile" && (
+              <div className="space-y-6 max-w-2xl">
+                <div className="space-y-2">
+                  <Label htmlFor="sp-short-desc">Short Description</Label>
+                  <textarea
+                    id="sp-short-desc"
+                    rows={2}
+                    disabled={readOnly}
+                    value={formData.shortDescription ?? ""}
+                    onChange={(e) => setFormData((p) => ({ ...p, shortDescription: e.target.value }))}
+                    placeholder="One-line summary of what this sponsor does…"
+                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 placeholder:text-muted-foreground"
+                    data-testid="input-sponsor-short-desc"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="sp-website" className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" /> Website URL</Label>
+                    <Input
+                      id="sp-website"
+                      disabled={readOnly}
+                      value={formData.websiteUrl ?? ""}
+                      onChange={(e) => setFormData((p) => ({ ...p, websiteUrl: e.target.value }))}
+                      placeholder="https://sponsor.com"
+                      data-testid="input-sponsor-website"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sp-linkedin" className="flex items-center gap-1.5"><Linkedin className="h-3.5 w-3.5" /> LinkedIn URL</Label>
+                    <Input
+                      id="sp-linkedin"
+                      disabled={readOnly}
+                      value={formData.linkedinUrl ?? ""}
+                      onChange={(e) => setFormData((p) => ({ ...p, linkedinUrl: e.target.value }))}
+                      placeholder="https://linkedin.com/company/…"
+                      data-testid="input-sponsor-linkedin"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sp-solutions">Solutions Summary</Label>
+                  <textarea
+                    id="sp-solutions"
+                    rows={5}
+                    disabled={readOnly}
+                    value={formData.solutionsSummary ?? ""}
+                    onChange={(e) => setFormData((p) => ({ ...p, solutionsSummary: e.target.value }))}
+                    placeholder="Describe the products, services, or solutions this sponsor offers…"
+                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 placeholder:text-muted-foreground"
+                    data-testid="input-sponsor-solutions"
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeTab === "contacts" && (
+              <div className="space-y-6 max-w-2xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="h-4 w-4 text-accent" />
+                  <h3 className="text-sm font-semibold text-foreground">Main Contact</h3>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sp-contact-name">Contact Name</Label>
+                  <Input
+                    id="sp-contact-name"
+                    disabled={readOnly}
+                    value={formData.contactName ?? ""}
+                    onChange={(e) => setFormData((p) => ({ ...p, contactName: e.target.value }))}
+                    placeholder="Jane Smith"
+                    data-testid="input-sponsor-contact-name"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="sp-contact-email" className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Email</Label>
+                    <Input
+                      id="sp-contact-email"
+                      type="email"
+                      disabled={readOnly}
+                      value={formData.contactEmail ?? ""}
+                      onChange={(e) => setFormData((p) => ({ ...p, contactEmail: e.target.value }))}
+                      placeholder="jane@sponsor.com"
+                      data-testid="input-sponsor-contact-email"
+                    />
+                    {sponsorUserData?.user?.lastLoginAt && (
+                      <p className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1" data-testid="text-last-accessed">
+                        <Clock className="h-2.5 w-2.5" />
+                        Last accessed: {format(new Date(sponsorUserData.user.lastLoginAt), "MMM d, yyyy")}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sp-contact-phone" className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> Phone</Label>
+                    <Input
+                      id="sp-contact-phone"
+                      type="tel"
+                      disabled={readOnly}
+                      value={formData.contactPhone ?? ""}
+                      onChange={(e) => setFormData((p) => ({ ...p, contactPhone: e.target.value }))}
+                      placeholder="+1 555 000 0000"
+                      data-testid="input-sponsor-contact-phone"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 p-4 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
+                  <div className="flex items-start gap-2">
+                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      Additional sponsor representatives can be managed from the Sponsor Dashboard once the sponsor is created.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "events" && (
+              <div className="space-y-4">
+                <div className="flex items-start gap-2 p-3 rounded-lg border border-border/50 bg-muted/30">
+                  <Info className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">
+                    Selecting a sponsorship level will automatically assign the corresponding sponsorship package and generate deliverables for that event.
+                  </p>
+                </div>
+
+                {(() => {
+                  const visibleEvents = events.filter((ev) =>
+                    readOnly
+                      ? (formData.assignedEvents || []).some((ae) => ae.eventId === ev.id && (ae.archiveState ?? "active") === "active")
+                      : (ev.archiveState ?? "active") === "active"
+                  );
+                  if (visibleEvents.length === 0) {
+                    return <p className="text-sm text-muted-foreground italic py-2">{readOnly ? "No events assigned." : "No active events available."}</p>;
+                  }
+                  return (
+                    <div className="rounded-xl border border-border/60 divide-y divide-border/40 overflow-hidden">
+                      {visibleEvents.map((ev) => {
+                        const currentLevel = getEventAssignedLevel(ev.id);
+                        return (
+                          <div key={ev.id}>
+                            <div
+                              className={cn("flex items-center gap-3 px-5 py-4", currentLevel ? "bg-accent/5" : "")}
+                              data-testid={`event-assignment-row-${ev.id}`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <span className="font-mono text-xs font-semibold text-accent bg-accent/10 border border-accent/20 px-2 py-1 rounded shrink-0">
+                                  {ev.slug}
+                                </span>
+                                <span className="text-sm text-foreground truncate">{ev.name}</span>
+                              </div>
+                              {readOnly ? (
+                                currentLevel ? (
+                                  <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold shrink-0", levelColors[currentLevel])}>
+                                    {currentLevel === "Platinum" && <Gem className="h-3 w-3" />}
+                                    {currentLevel}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic shrink-0">None</span>
+                                )
+                              ) : (
+                                <select
+                                  className={cn(selectClass, "w-36 shrink-0")}
+                                  value={currentLevel ?? ""}
+                                  onChange={(e) => setEventLevel(ev.id, (e.target.value || null) as SponsorshipLevel | null)}
+                                  data-testid={`select-event-level-${ev.id}`}
+                                >
+                                  <option value="">None</option>
+                                  {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                                </select>
+                              )}
+                            </div>
+                            {currentLevel && (
+                              <div className="px-5 pb-4 pt-0 space-y-3">
+                                <div className="flex gap-6 flex-wrap">
+                                  {[
+                                    { label: "Onsite Meetings", flag: "onsiteMeetingEnabled" as const },
+                                    { label: "Online Meetings", flag: "onlineMeetingEnabled" as const },
+                                    { label: "Info Requests", flag: "informationRequestEnabled" as const },
+                                  ].map(({ label, flag }) => {
+                                    const ae = (formData.assignedEvents || []).find(ae => ae.eventId === ev.id);
+                                    const isEnabled = ae?.[flag] ?? true;
+                                    return (
+                                      <div key={flag} className="flex flex-col gap-1.5">
+                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                          {label}
+                                        </span>
+                                        <div className="flex rounded-md border border-input overflow-hidden w-fit">
+                                          <button
+                                            type="button"
+                                            disabled={readOnly}
+                                            onClick={() => handleActionFlag(ev.id, flag, true)}
+                                            className={cn(
+                                              "text-[10px] px-2.5 py-1 font-medium transition-colors",
+                                              isEnabled ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                                            )}
+                                            data-testid={`toggle-${flag}-yes-${ev.id}`}
+                                          >
+                                            Yes
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={readOnly}
+                                            onClick={() => handleActionFlag(ev.id, flag, false)}
+                                            className={cn(
+                                              "text-[10px] px-2.5 py-1 font-medium transition-colors border-l border-input",
+                                              !isEnabled ? "bg-muted text-muted-foreground" : "text-muted-foreground hover:bg-muted"
+                                            )}
+                                            data-testid={`toggle-${flag}-no-${ev.id}`}
+                                          >
+                                            No
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+
+                                {(() => {
+                                  const ae = (formData.assignedEvents || []).find(a => a.eventId === ev.id);
+                                  const useDefault = ae?.useDefaultBlocks !== false;
+                                  const sortedBlocks = [...(ev.meetingBlocks ?? [])].sort((a, b) =>
+                                    a.date < b.date ? -1 : a.date > b.date ? 1 : a.startTime.localeCompare(b.startTime)
+                                  );
+                                  return (
+                                    <div className="border-t border-border/30 pt-3">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                                          <CalendarDays className="h-3 w-3" /> Meeting Block Access
+                                        </span>
+                                        <div className="flex rounded-md border border-input overflow-hidden w-fit">
+                                          <button
+                                            type="button"
+                                            disabled={readOnly}
+                                            onClick={() => handleBlockAccess(ev.id, true, [])}
+                                            className={cn(
+                                              "text-[10px] px-2 py-0.5 font-medium transition-colors",
+                                              useDefault ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                                            )}
+                                            data-testid={`toggle-blocks-default-${ev.id}`}
+                                          >
+                                            All event blocks
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={readOnly}
+                                            onClick={() => handleBlockAccess(ev.id, false, ae?.selectedBlockIds ?? [])}
+                                            className={cn(
+                                              "text-[10px] px-2 py-0.5 font-medium transition-colors border-l border-input",
+                                              !useDefault ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                                            )}
+                                            data-testid={`toggle-blocks-custom-${ev.id}`}
+                                          >
+                                            Custom
+                                          </button>
+                                        </div>
+                                      </div>
+                                      {!useDefault && sortedBlocks.length > 0 && (
+                                        <div className="max-h-44 overflow-y-auto space-y-0.5 border border-border/40 rounded-lg p-2 bg-muted/20">
+                                          {sortedBlocks.map((block) => {
+                                            const checked = (ae?.selectedBlockIds ?? []).includes(block.id);
+                                            return (
+                                              <label key={block.id} className="flex items-center gap-2 text-xs cursor-pointer py-0.5 hover:bg-muted/40 rounded px-1">
+                                                <input
+                                                  type="checkbox"
+                                                  disabled={readOnly}
+                                                  checked={checked}
+                                                  onChange={(e) => {
+                                                    const newIds = e.target.checked
+                                                      ? [...(ae?.selectedBlockIds ?? []), block.id]
+                                                      : (ae?.selectedBlockIds ?? []).filter((id) => id !== block.id);
+                                                    handleBlockAccess(ev.id, false, newIds);
+                                                  }}
+                                                  className="h-3.5 w-3.5 rounded border-input shrink-0"
+                                                  data-testid={`checkbox-block-${block.id}`}
+                                                />
+                                                <span className="text-foreground/80">
+                                                  {format(new Date(block.date + "T00:00:00"), "EEE, MMM d")}
+                                                  {" · "}
+                                                  {fmt12(block.startTime)}–{fmt12(block.endTime)}
+                                                </span>
+                                              </label>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                      {!useDefault && sortedBlocks.length === 0 && (
+                                        <p className="text-[10px] text-muted-foreground italic">No meeting blocks defined for this event yet.</p>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </form>
         </div>
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Linkedin, Archive, RotateCcw, Eye } from "lucide-react";
+import { Edit, Trash2, Linkedin, Archive, RotateCcw, Eye, Send } from "lucide-react";
 import { categoryLabel, categoryBadgeClass } from "@/lib/categoryUtils";
 import { Attendee, Event } from "@shared/schema";
 import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
@@ -19,10 +19,12 @@ interface AttendeesTableProps {
   onArchive: (attendee: Attendee) => void;
   onReactivate: (attendee: Attendee) => void;
   onDelete: (attendee: Attendee) => void;
+  onSendSchedulingEmail?: (attendee: Attendee) => void;
+  sendingEmailForId?: string | null;
 }
 
 
-export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete }: AttendeesTableProps) {
+export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete, onSendSchedulingEmail, sendingEmailForId }: AttendeesTableProps) {
   const { sort, toggle } = useSortState("added", "desc");
 
   const getEvent = (id: string) => events.find((e) => e.id === id);
@@ -112,6 +114,19 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
                       <Button variant="ghost" size="icon" title="Edit attendee" onClick={() => onEdit(attendee)} data-testid={`edit-attendee-${attendee.id}`}>
                         <Edit className="h-4 w-4" />
                       </Button>
+                      {onSendSchedulingEmail && attendee.email && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Send scheduling email"
+                          onClick={() => onSendSchedulingEmail(attendee)}
+                          disabled={sendingEmailForId === attendee.id}
+                          className="text-teal-600 hover:text-teal-700"
+                          data-testid={`send-scheduling-email-${attendee.id}`}
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" title="Archive attendee" onClick={() => onArchive(attendee)} data-testid={`archive-attendee-${attendee.id}`}>
                         <Archive className="h-4 w-4" />
                       </Button>

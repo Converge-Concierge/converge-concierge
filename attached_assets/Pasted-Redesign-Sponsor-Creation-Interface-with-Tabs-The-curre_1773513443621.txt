@@ -1,0 +1,179 @@
+Redesign Sponsor Creation Interface with Tabs
+
+The current Add Sponsor modal is too small and crowded. The form requires too much vertical scrolling and mixes multiple functional areas into a single long layout.
+
+We need to redesign this interface to be larger and organized using tabs based on functionality.
+
+This will significantly improve usability and make sponsor setup faster and clearer for administrators.
+
+1. Expand Modal Size
+
+The current modal width is too narrow.
+
+Required change
+
+Increase the modal size to a large modal layout.
+
+Recommended width:
+
+max-width: 1100px – 1200px
+
+The modal should feel more like a workspace panel, not a small form popup.
+
+Vertical height should allow scrolling within the content area but not feel cramped.
+
+2. Convert the Form Into Tab-Based Sections
+
+Replace the long scrolling form with tabs across the top of the modal.
+
+Tabs should divide the sponsor setup by logical function.
+
+3. Recommended Tab Structure
+Tab 1
+Basic Information
+
+Fields:
+
+Sponsor Logo upload
+
+Logo URL option
+
+Sponsor Name
+
+Status
+
+Allow Online Meetings
+
+Solution Types
+
+Purpose: core sponsor configuration.
+
+Tab 2
+Sponsor Profile
+
+Fields:
+
+Short Description
+
+Website URL
+
+LinkedIn URL
+
+Solutions Summary
+
+Purpose: marketing / discovery information visible to attendees.
+
+Tab 3
+Contact Information
+
+Fields:
+
+Main Contact
+
+Contact Name
+
+Email
+
+Phone
+
+Future-proofing:
+
+This tab can later expand to support multiple sponsor representatives.
+
+Tab 4
+Event Sponsorship Assignments
+
+Fields:
+
+Event list with dropdown sponsorship levels:
+
+Example:
+
+TLS2026   [Select Sponsorship Level]
+USBT2026  [Select Sponsorship Level]
+CUGI2027  [Select Sponsorship Level]
+FRC2026   [Select Sponsorship Level]
+
+Include explanatory text:
+
+Selecting a sponsorship level will automatically assign the corresponding sponsorship package and generate deliverables for that event.
+4. Modal Layout Example
+
+Top area:
+
+Add Sponsor
+--------------------------------------------------
+
+[ Basic Info ] [ Sponsor Profile ] [ Contacts ] [ Event Assignments ]
+
+Main body switches content based on tab.
+
+Footer buttons remain consistent:
+
+Cancel      Add Sponsor
+
+These buttons remain visible regardless of tab.
+
+5. Improve Spacing and Visual Hierarchy
+
+Increase spacing between fields.
+
+Use clear section headers within tabs.
+
+Example:
+
+Sponsor Logo
+Sponsor Name
+Meeting Settings
+
+Avoid stacking fields tightly.
+
+6. Preserve All Existing Functionality
+
+The redesign should not remove any fields or behavior.
+
+It should only:
+
+reorganize fields into tabs
+
+enlarge the modal
+
+improve layout and usability
+
+All validation logic must remain unchanged.
+
+7. Ensure Mobile / Smaller Screen Behavior
+
+If screen width is too small:
+
+Tabs should wrap or convert to a scrollable tab bar.
+
+The modal should still function but prioritize desktop usability.
+
+8. Future Expansion Consideration
+
+The tab structure should be flexible enough to allow future tabs such as:
+
+Sponsor Representatives
+Documents / Media
+Deliverables
+Engagement Settings
+
+Do not hard-code assumptions that prevent expansion.
+
+9. UX Goals
+
+After this redesign:
+
+Admins should be able to:
+
+• immediately understand sponsor setup sections
+• avoid excessive scrolling
+• quickly move between sponsor setup areas
+• see a cleaner and more professional interface
+
+The sponsor creation workflow should feel structured and organized rather than cramped.
+
+Result
+
+The Add Sponsor modal becomes a structured configuration workspace instead of a long form, significantly improving usability and scalability of the sponsor management system.

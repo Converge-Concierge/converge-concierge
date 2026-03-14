@@ -105,6 +105,19 @@ const TEMPLATES = [
     ],
   },
   {
+    templateKey: "scheduling_invitation",
+    displayName: "Scheduling Invitation",
+    subjectTemplate: "You're invited to schedule meetings at {{event_name}}",
+    description: "Sent to attendees inviting them to schedule meetings with sponsors at the event. Contains a direct link to the event scheduling page.",
+    variables: [
+      "attendee_first_name",
+      "attendee_full_name",
+      "event_name",
+      "event_code",
+      "scheduling_url",
+    ],
+  },
+  {
     templateKey: "meeting_reminder_2",
     displayName: "Meeting Reminder — 2 Hours",
     subjectTemplate: "Reminder: Your meeting in 2 hours with {{sponsor_name}}",

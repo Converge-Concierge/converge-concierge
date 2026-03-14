@@ -45,8 +45,8 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
   const sorted = sortData(attendees, sort, getValue);
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm">
-      <Table>
+    <div className="rounded-xl border border-border/60 bg-card overflow-x-auto shadow-sm">
+      <Table className="min-w-[1000px]">
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <SortHead sortKey="lastName" sort={sort} onSort={toggle}>Last Name</SortHead>
@@ -57,7 +57,7 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
             <SortHead sortKey="email" sort={sort} onSort={toggle}>Email</SortHead>
             <SortHead sortKey="event" sort={sort} onSort={toggle}>Assigned Event</SortHead>
             <SortHead sortKey="added" sort={sort} onSort={toggle}>Added</SortHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead className="text-right w-[200px] min-w-[200px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -104,8 +104,8 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
               <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                 {format(new Date(attendee.createdAt), "MMM d, yyyy")}
               </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-1">
+              <TableCell className="text-right w-[200px] min-w-[200px]">
+                <div className="flex justify-end gap-1 flex-nowrap">
                   {tab === "active" ? (
                     <>
                       <Button variant="ghost" size="icon" title="View attendee details" onClick={() => onView(attendee)} data-testid={`view-attendee-${attendee.id}`}>
@@ -114,14 +114,16 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
                       <Button variant="ghost" size="icon" title="Edit attendee" onClick={() => onEdit(attendee)} data-testid={`edit-attendee-${attendee.id}`}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      {onSendSchedulingEmail && attendee.email && (
+                      {onSendSchedulingEmail && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          title="Send scheduling email"
-                          onClick={() => onSendSchedulingEmail(attendee)}
-                          disabled={sendingEmailForId === attendee.id}
-                          className="text-teal-600 hover:text-teal-700"
+                          title={attendee.email ? "Send scheduling email" : "Attendee email required"}
+                          onClick={() => attendee.email && onSendSchedulingEmail(attendee)}
+                          disabled={!attendee.email || sendingEmailForId === attendee.id}
+                          className={cn(
+                            attendee.email ? "text-teal-600 hover:text-teal-700" : "text-muted-foreground/40 cursor-not-allowed"
+                          )}
                           data-testid={`send-scheduling-email-${attendee.id}`}
                         >
                           <Send className="h-4 w-4" />

@@ -1,0 +1,225 @@
+Fix Inconsistent Attendee Row Actions Between FRC and Other Events
+
+The Attendees table is rendering inconsistently across events.
+
+Problem
+
+For FRC2026, attendee rows are showing fewer actions than other event tabs.
+
+Example
+
+In FRC2026, the row actions appear to show only:
+
+View
+
+Edit
+
+But in TLS2026, the row actions show:
+
+View
+
+Edit
+
+Send Scheduling Email
+
+Archive/Delete
+
+This inconsistency is incorrect. The attendee table should behave consistently across event tabs unless there is a deliberate business rule causing the difference.
+
+Right now it looks like the FRC attendee rows are using different row action logic or incomplete rendering.
+
+Primary Goal
+
+Ensure the Attendees table row actions are consistent across all events, including:
+
+FRC2026
+
+TLS2026
+
+USBT2026
+
+CUGI2027
+
+All Events
+
+If an attendee qualifies for an action, the same action should appear regardless of event tab.
+
+1. Audit Attendee Row Action Rendering Logic
+
+Inspect how the row actions are generated in the Attendees table.
+
+Required checks
+
+Determine whether row actions are currently being conditionally rendered based on:
+
+event code
+
+attendee source
+
+attendee category
+
+attendee email presence
+
+role/permissions
+
+archived vs active status
+
+feature flag
+
+event-specific capability settings
+
+We need to identify why FRC rows are missing actions that appear in TLS.
+
+2. Standardize the Attendee Actions Set
+
+Unless there is a valid business rule, the row actions should be the same for all attendee records.
+
+Standard desired row actions
+
+At minimum, for active attendees with valid email addresses:
+
+View
+
+Edit
+
+Send Scheduling Email
+
+Archive or Delete
+
+If an attendee has no email, the Send Scheduling Email action may be disabled, but the icon/action position should still be consistent.
+
+3. Confirm FRC Rows Are Not Using Old Table Logic
+
+The FRC table may still be rendering via an older component or stale state.
+
+Required action
+
+Check whether:
+
+FRC tab is using an older row renderer
+
+TLS tab is using updated row actions
+
+data refresh logic differs by event
+
+a conditional branch is causing FRC to fall back to the old table layout
+
+If so, unify them into one shared attendee row/action renderer.
+
+4. Verify Send Scheduling Email Eligibility Logic
+
+The Send Scheduling Email action should appear consistently when an attendee has:
+
+a valid email address
+
+an assigned event
+
+the attendee is active
+
+Required behavior
+
+If FRC attendees meet these criteria, they should show the same Send Scheduling Email action as TLS attendees.
+
+If the action is hidden because of a condition, log the condition and fix it.
+
+5. Check Permission Gating
+
+Verify that the missing FRC row actions are not caused by a permission branch tied to:
+
+event-specific scope
+
+data source
+
+role filtering
+
+action-level permission mismatch
+
+If the logged-in admin can send attendee emails in TLS, they should also be able to do so in FRC, assuming the same permissions.
+
+6. Align Column Width / Action Layout
+
+The screenshots suggest not only missing icons, but potentially a different row layout or action cell width.
+
+Required behavior
+
+Make the Actions column consistent across event tabs:
+
+same width
+
+same icon spacing
+
+same alignment
+
+same hover/tooltips
+
+Do not let action icons collapse differently by event.
+
+7. Test With Real FRC and TLS Records
+
+Use real records from both tabs and verify:
+
+FRC test case
+
+Attendee with email and active status should show:
+
+View
+
+Edit
+
+Send Scheduling Email
+
+Archive/Delete
+
+TLS test case
+
+Should show the same.
+
+If behavior still differs, inspect the payload/state for differences.
+
+8. Verify “All Events” Also Uses the Same Action Renderer
+
+After fixing FRC and TLS, confirm the All Events tab uses the same attendee row logic.
+
+We do not want:
+
+event tabs using one renderer
+
+all events using another
+
+Use one unified table/action component.
+
+9. Add Logging for Missing Action Conditions (Temporary)
+
+If needed, temporarily log for each attendee row:
+
+event code
+
+email present yes/no
+
+active/archive state
+
+permissions resolved
+
+actions rendered
+
+This will quickly expose why FRC rows differ.
+
+These logs can be removed after the fix.
+
+10. Acceptance Criteria
+
+This is fixed when:
+
+FRC2026 attendee rows show the same appropriate actions as TLS2026 and other events
+
+Send Scheduling Email appears consistently for eligible attendees
+
+row action spacing/layout is visually consistent across all event tabs
+
+one shared row/action rendering path is used
+
+11. Success Standard
+
+After this fix, the Attendees section should feel consistent and predictable regardless of which event tab is selected, with the same admin actions available for comparable attendee records.
+
+That is the standard this fix should meet.

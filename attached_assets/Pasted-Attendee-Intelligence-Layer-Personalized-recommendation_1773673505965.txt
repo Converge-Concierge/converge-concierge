@@ -1,0 +1,616 @@
+Attendee Intelligence Layer
+Personalized recommendations, topic-based matchmaking, engagement prompts, and smarter attendee experiences
+
+We are now moving into the next major phase of Concierge:
+
+Attendee Intelligence Layer
+
+Previous attendee phases established:
+
+secure attendee access
+
+onboarding and topic selection
+
+dashboard
+
+agenda browsing
+
+My Agenda
+
+add-to-calendar
+
+sponsor directory
+
+sponsor detail pages
+
+request meeting
+
+request information
+
+meeting invitations
+
+My Meetings
+
+combined planning view
+
+Now we need to make the attendee experience intelligent and proactive.
+
+The goal of this phase is to turn Concierge from a useful event tool into a personalized event guide and matchmaking platform.
+
+1. Phase Goal
+
+Build an intelligence layer that uses the data already in Concierge to provide attendees with:
+
+personalized session recommendations
+
+personalized sponsor recommendations
+
+topic-driven meeting suggestions
+
+engagement prompts that encourage action
+
+smarter ranking of sponsors and sessions based on attendee interests and event context
+
+This phase should improve:
+
+attendee engagement
+
+meeting volume
+
+sponsor value
+
+perceived platform sophistication
+
+2. Core Inputs to Use
+
+The intelligence layer should use the structured data already available in the platform.
+
+Primary inputs
+
+attendee selected interest topics
+
+sponsor selected interest topics
+
+session interest topics
+
+attendee category
+
+sponsor event assignment
+
+sponsorship level if helpful
+
+attendee saved agenda sessions
+
+attendee meeting history / pending requests / invitations
+
+sponsor meeting history with that attendee if any
+
+event context
+
+Important
+
+Do not block this phase on advanced AI infrastructure.
+
+Start with strong structured matching and scoring logic using the data already in the system.
+
+3. Recommendation Types to Build
+
+The intelligence layer should support these recommendation types:
+
+A. Recommended Sessions
+
+Show attendees the sessions most relevant to their interests.
+
+B. Recommended Sponsors
+
+Show attendees the sponsors most relevant to their interests.
+
+C. Suggested Meetings
+
+Prompt attendees to request meetings with relevant sponsors.
+
+D. Suggested Next Actions
+
+Prompt attendees to take useful actions such as:
+
+complete interests
+
+save sessions
+
+request meetings
+
+respond to meeting invitations
+
+4. Recommended Sessions Engine
+
+Create a session recommendation engine based primarily on topic overlap.
+
+Minimum recommendation logic
+
+For each attendee:
+
+compare attendee-selected topics to session-selected topics
+
+rank sessions by number/strength of overlapping topics
+
+Optional score inputs
+
+If practical, also factor in:
+
+session featured status
+
+whether session is already saved
+
+whether session time has passed
+
+whether session is public/published
+
+Output
+
+Generate a ranked list of recommended sessions for the attendee’s event.
+
+5. Recommended Sessions UI
+
+Use the recommendation output in:
+
+attendee dashboard
+
+agenda page
+
+future personalized emails
+
+Dashboard section
+Recommended Sessions
+
+Show top 3–5 sessions.
+
+Each recommendation card should include:
+
+title
+
+date
+
+time
+
+session type
+
+location if available
+
+why it is relevant if possible
+
+Example:
+
+Relevant to your interests: Fraud Detection, Real-Time Payments
+
+Do not show technical scoring.
+
+6. Recommended Sponsors Engine
+
+Create a sponsor recommendation engine based on topic overlap.
+
+Minimum recommendation logic
+
+For each attendee:
+
+compare attendee-selected topics to sponsor-selected topics
+
+rank sponsors by overlap count
+
+Optional score inputs
+
+If practical, also factor in:
+
+sponsor active/visible status
+
+sponsor completeness/profile quality
+
+whether attendee already requested a meeting
+
+whether attendee already requested information
+
+sponsorship tier if you want a tie-breaker only
+
+Do not let sponsorship tier overpower relevance.
+
+Relevance should remain primary.
+
+7. Recommended Sponsors UI
+
+Use the recommendation output in:
+
+attendee dashboard
+
+sponsor directory ranking
+
+future recommendation emails
+
+Dashboard section
+Recommended Sponsors
+
+Show top 3–5 sponsors.
+
+Each sponsor card should include:
+
+logo
+
+company name
+
+short description
+
+overlapping topics
+
+CTA:
+
+View Sponsor
+
+Request Meeting
+
+Request Information
+
+Example relevance text:
+
+Relevant to your interests: AI Risk Management, Vendor Risk
+8. Suggested Meetings Engine
+
+Build a lightweight meeting suggestion layer for attendees.
+
+The system should identify sponsors that are strong meeting candidates for the attendee based on:
+
+topic overlap
+
+no existing confirmed meeting
+
+no declined invitation
+
+no already-pending request if possible
+
+Output
+
+Generate a ranked list of:
+
+Suggested Meetings
+
+This can initially reuse the Recommended Sponsors engine with simple filters.
+
+9. Suggested Meetings UI
+
+Add a small, action-oriented section on the attendee dashboard.
+
+Example:
+
+Suggested Meetings
+These sponsors align with your interests.
+
+Each item should include:
+
+sponsor name
+
+short relevance explanation
+
+Request Meeting button
+
+Keep this concise and action-oriented.
+
+10. Suggested Next Actions
+
+Add intelligence-driven prompts to the attendee dashboard.
+
+Examples:
+
+You have not selected your interests yet
+
+Save sessions to build your agenda
+
+You have 2 meeting invitations waiting
+
+You have not requested any meetings yet
+
+Based on your interests, here are sponsors you may want to meet
+
+These prompts should feel helpful, not pushy.
+
+11. Dashboard Prioritization Logic
+
+The attendee dashboard should not show every recommendation block equally at all times.
+
+Create simple conditional logic to prioritize what the attendee most needs next.
+
+Examples
+If attendee has no interests selected
+
+Show:
+
+Complete your interests to unlock personalized recommendations
+If attendee has interests but no saved sessions
+
+Prioritize:
+
+Recommended Sessions
+If attendee has interests and no meetings
+
+Prioritize:
+
+Suggested Meetings
+Recommended Sponsors
+If attendee has pending invitations
+
+Prioritize:
+
+Meeting Invitations
+
+This will make the dashboard feel smarter.
+
+12. Recommendation Explanation Layer
+
+Whenever possible, explain why something is being recommended.
+
+Examples:
+
+Relevant to your interests: Fraud Detection, AI Risk Management
+
+Matches your selected topics
+
+Similar to sessions you saved
+
+Sponsors aligned with your event priorities
+
+Do not expose technical internals like scores or algorithms.
+
+Use plain language.
+
+13. Basic Scoring Model
+
+Start with a transparent weighted scoring model.
+
+Recommended scoring approach
+Sessions
+
+Base score:
+
+points per overlapping topic
+
+optional bonus if featured
+
+optional penalty if already saved
+
+hide if session is no longer relevant/past if event timing requires
+
+Sponsors
+
+Base score:
+
+points per overlapping topic
+
+penalty if already engaged heavily
+
+exclude if meeting already confirmed or declined as appropriate
+
+optional bonus for profile completeness
+
+Keep the model simple, explainable, and easy to tune.
+
+Do not block this phase on machine learning.
+
+14. Topic Weighting (Optional but Useful)
+
+Not all interests may be equal.
+
+If the attendee selected multiple interests, you may later support ranking order or primary vs secondary interests.
+
+For first implementation, equal weighting is acceptable.
+
+But structure the code so weighting can be added later.
+
+15. Agenda-Aware Recommendations
+
+If the attendee has saved sessions in My Agenda, use that information to improve recommendations.
+
+Examples:
+
+recommend sponsors aligned with saved session topics
+
+recommend sessions related to other sessions already saved
+
+suggest meetings around relevant session themes
+
+This can be lightweight in phase 1 of intelligence, but should be architecturally possible.
+
+16. Meeting-Aware Recommendations
+
+If the attendee already has:
+
+confirmed meetings
+
+pending sponsor requests
+
+declined invitations
+
+the system should account for that.
+
+Examples
+
+do not keep pushing the same sponsor if a meeting is already confirmed
+
+deprioritize sponsors the attendee declined unless there is a good reason
+
+avoid duplicate recommendation clutter
+
+This makes the system feel more intentional.
+
+17. Sponsor Directory Ranking Update
+
+Once the recommendation engine exists, update the sponsor directory ranking for the attendee.
+
+The directory should no longer be mostly static.
+
+Required behavior
+
+Default sort should prioritize:
+
+strongest relevance/topic overlap
+
+active visible sponsors
+
+then secondary ordering such as sponsor tier or name
+
+Still allow attendees to browse all sponsors, but default ranking should be smart.
+
+18. Agenda Ranking Update
+
+Similarly, the agenda experience should highlight recommended sessions.
+
+You do not need to hide the full agenda.
+
+Required behavior
+
+Support:
+
+Recommended Sessions block
+
+optional "Recommended" badge in agenda list
+
+top-ranked sessions surfaced first in personalized views
+
+The full agenda should still remain accessible.
+
+19. Personalized Engagement Prompts
+
+Add lightweight prompts triggered by attendee state.
+
+Examples:
+
+You selected AI Risk Management. These sessions may be relevant.
+
+You have not requested any meetings yet.
+
+Three sponsors align with your interests.
+
+You saved sessions related to Vendor Risk. These sponsors may be relevant.
+
+These prompts should appear:
+
+on the dashboard
+
+later in email if desired
+
+20. Email Readiness for Intelligence Outputs
+
+Do not fully build the email campaigns here unless trivial, but ensure the intelligence layer can support future emails such as:
+
+Recommended Sessions for You
+
+Sponsors You May Want to Meet
+
+You Have Meeting Invitations Waiting
+
+This should integrate cleanly with the Email Center architecture already built.
+
+21. Admin Visibility / Debugging
+
+Converge will need some visibility into why recommendations are appearing.
+
+Add a lightweight admin/debug view or metadata where practical.
+
+At minimum, support the ability to inspect:
+
+attendee selected topics
+
+session tagged topics
+
+sponsor tagged topics
+
+Optionally later show recommendation reasons in admin, but do not expose raw algorithm internals to attendees.
+
+22. Analytics Readiness
+
+Prepare the system so future analytics can track:
+
+recommendation impressions
+
+recommendation clicks
+
+sponsor request conversions
+
+session save conversions from recommendations
+
+meeting requests driven by recommendations
+
+This does not require a full analytics UI now, but the architecture should support it.
+
+23. Empty State Handling
+
+Recommendations will sometimes be weak if data is incomplete.
+
+Handle this gracefully.
+
+If no attendee interests
+
+Show:
+
+Select your interests to unlock recommendations.
+If no session topics tagged yet
+
+Show:
+
+Recommended sessions will appear as the agenda is refined.
+If sponsor topic data is incomplete
+
+Show:
+
+Recommended sponsors will appear as sponsor profiles are completed.
+
+Do not show broken empty widgets.
+
+24. Mobile-Friendly Design
+
+The intelligence layer will mostly appear on the dashboard, so ensure:
+
+recommendation cards stack cleanly
+
+relevance text wraps cleanly
+
+CTAs remain easy to tap
+
+prompts do not overwhelm the screen
+
+Mobile experience is critical.
+
+25. Keep Human Control
+
+This intelligence layer should assist, not over-automate.
+
+Do not auto-book meetings.
+Do not auto-send sponsor requests without attendee action.
+Do not hide the full agenda or full sponsor list completely.
+
+Recommendations should guide the attendee, not control them.
+
+26. Acceptance Criteria
+
+This phase is complete when:
+
+attendees receive session recommendations based on topic overlap
+
+attendees receive sponsor recommendations based on topic overlap
+
+suggested meeting opportunities are surfaced
+
+dashboard prioritizes useful next actions based on attendee state
+
+sponsor directory ranking becomes relevance-driven
+
+agenda can surface recommended sessions
+
+recommendations explain relevance in plain language
+
+recommendation output avoids duplicates and already-confirmed interactions where appropriate
+
+empty states degrade gracefully
+
+the architecture supports future intelligent emails and analytics
+
+27. Success Standard
+
+After this phase, Concierge should feel like an intelligent event guide. An attendee should no longer feel like they are browsing a static event app. Instead, the system should actively help them discover the most relevant sessions, sponsors, and meeting opportunities based on their interests and activity.
+
+That is the standard this phase should meet.

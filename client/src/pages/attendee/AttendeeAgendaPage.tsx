@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, MapPin, Clock, Bookmark, Users, ChevronDown } from "lucide-react";
+import { CalendarDays, MapPin, Clock, Bookmark, Users, ChevronDown, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
@@ -35,10 +35,10 @@ function formatTimeRange(s: string, e: string) {
 
 // ── Session Card ──────────────────────────────────────────────────────────────
 
-function SessionCard({ session, saved, onSave, onUnsave, onView, isSaving }: {
+function SessionCard({ session, saved, onSave, onUnsave, onView, isSaving, isRecommended }: {
   session: AgendaSession; saved: boolean;
   onSave: () => void; onUnsave: () => void; onView: () => void;
-  isSaving: boolean;
+  isSaving: boolean; isRecommended?: boolean;
 }) {
   const location = [session.locationName, session.locationDetails].filter(Boolean).join(" — ");
   const hasSpeakers = (session.speakers ?? []).length > 0;
@@ -47,9 +47,14 @@ function SessionCard({ session, saved, onSave, onUnsave, onView, isSaving }: {
     <div className="bg-card border border-border/60 rounded-xl p-4 hover:border-border transition-colors" data-testid={`card-session-${session.id}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <Badge variant="outline" className="text-xs rounded-full shrink-0">{session.sessionTypeLabel}</Badge>
             {session.isFeatured && <Badge className="text-xs rounded-full bg-amber-500/10 text-amber-700 border-amber-200 dark:text-amber-400">Featured</Badge>}
+            {isRecommended && (
+              <Badge className="text-xs rounded-full bg-primary/10 text-primary border-primary/20 flex items-center gap-1 shrink-0">
+                <Sparkles className="h-2.5 w-2.5" /> Recommended
+              </Badge>
+            )}
           </div>
           <button className="font-medium text-foreground text-sm leading-snug text-left hover:text-primary transition-colors w-full" onClick={onView} data-testid={`button-view-session-${session.id}`}>
             {session.title}
@@ -106,6 +111,14 @@ export default function AttendeeAgendaPage() {
     queryFn: () => fetch("/api/attendee-portal/agenda", { headers }).then((r) => r.json()),
     enabled: !!token,
   });
+
+  const recommendedQuery = useQuery<{ id: string }[]>({
+    queryKey: ["/api/attendee-portal/recommended-sessions"],
+    queryFn: () => fetch("/api/attendee-portal/recommended-sessions", { headers }).then((r) => r.json()),
+    enabled: !!token,
+  });
+
+  const recommendedIds = useMemo(() => new Set((recommendedQuery.data ?? []).map((s) => s.id)), [recommendedQuery.data]);
 
   const savedQuery = useQuery<{ savedId: string; id: string }[]>({
     queryKey: ["/api/attendee-portal/saved-sessions"],
@@ -246,6 +259,7 @@ export default function AttendeeAgendaPage() {
                     onUnsave={() => unsaveSessionMutation.mutate(session.id)}
                     onView={() => setDetailSession(session)}
                     isSaving={isSaving}
+                    isRecommended={recommendedIds.has(session.id)}
                   />
                 ))}
               </div>

@@ -6935,33 +6935,48 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
     const { tokenRecord } = validation;
 
-    const [attendeeTopics, sessions] = await Promise.all([
+    const [attendeeTopics, sessions, allEventTopics, sessionTypes] = await Promise.all([
       storage.getAttendeeTopics(tokenRecord.attendeeId, tokenRecord.eventId),
       storage.getAgendaSessions(tokenRecord.eventId),
+      storage.getEventInterestTopics(tokenRecord.eventId),
+      storage.getSessionTypes(),
     ]);
+    const topicLabelMap = new Map(allEventTopics.map((t) => [t.id, t.topicLabel]));
+    const typeMap = new Map(sessionTypes.map((t) => [t.key, t]));
     const attendeeTopicIds = new Set(attendeeTopics.map((t) => t.topicId));
-    const publishedSessions = sessions.filter((s) => s.status === "Published");
+    const publishedSessions = sessions.filter((s) => s.status === "Published" && s.isPublic);
 
     const scoredSessions = await Promise.all(
       publishedSessions.map(async (session) => {
-        const sessionTopics = await storage.getSessionTopics(session.id);
-        const overlap = sessionTopics.filter((t) => attendeeTopicIds.has(t.topicId)).length;
-        return { session, sessionTopics, overlap };
+        const [sessionTopics, speakers] = await Promise.all([
+          storage.getSessionTopics(session.id),
+          storage.getSessionSpeakers(session.id),
+        ]);
+        const overlapping = sessionTopics.filter((t) => attendeeTopicIds.has(t.topicId));
+        const featuredBonus = session.isFeatured ? 0.5 : 0;
+        const score = overlapping.length + featuredBonus;
+        const type = typeMap.get(session.sessionTypeKey);
+        return { session, overlap: overlapping.length, score, overlapping, speakers, type };
       })
     );
 
     const results = scoredSessions
       .filter((s) => s.overlap > 0 || attendeeTopicIds.size === 0)
-      .sort((a, b) => b.overlap - a.overlap)
-      .slice(0, 10)
-      .map(({ session, sessionTopics, overlap }) => ({
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map(({ session, overlap, overlapping, speakers, type }) => ({
         id: session.id,
         title: session.title,
+        description: session.description,
         sessionDate: session.sessionDate,
         startTime: session.startTime,
         endTime: session.endTime,
+        locationName: session.locationName,
+        isFeatured: session.isFeatured,
+        sessionTypeLabel: type?.label ?? session.sessionTypeKey,
         overlapScore: overlap,
-        topicIds: sessionTopics.map((t) => t.topicId),
+        overlapTopicLabels: overlapping.map((t) => topicLabelMap.get(t.topicId) ?? "").filter(Boolean),
+        speakers: speakers.map((sp) => ({ name: sp.name, title: sp.title })),
       }));
 
     return res.json(results);
@@ -6975,34 +6990,100 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
     const { tokenRecord } = validation;
 
-    const [attendeeTopics, allSponsors] = await Promise.all([
+    const [attendeeTopics, allSponsors, allEventTopics, allMeetings] = await Promise.all([
       storage.getAttendeeTopics(tokenRecord.attendeeId, tokenRecord.eventId),
       storage.getSponsors(),
+      storage.getEventInterestTopics(tokenRecord.eventId),
+      storage.getMeetings(),
     ]);
+    const topicLabelMap = new Map(allEventTopics.map((t) => [t.id, t.topicLabel]));
     const attendeeTopicIds = new Set(attendeeTopics.map((t) => t.topicId));
     const eventSponsors = allSponsors.filter((s) =>
       (s.assignedEvents ?? []).some((link: any) => link.eventId === tokenRecord.eventId && link.archiveState !== "archived")
+    );
+    const myMeetings = allMeetings.filter((m) => m.attendeeId === tokenRecord.attendeeId && m.eventId === tokenRecord.eventId);
+    const engagedSponsorIds = new Set(
+      myMeetings.filter((m) => ["Confirmed", "Declined", "Cancelled", "NoShow"].includes(m.status ?? "")).map((m) => m.sponsorId)
     );
 
     const scoredSponsors = await Promise.all(
       eventSponsors.map(async (sponsor) => {
         const sponsorTopics = await storage.getSponsorTopics(sponsor.id, tokenRecord.eventId);
-        const overlap = sponsorTopics.filter((t) => attendeeTopicIds.has(t.topicId)).length;
-        return { sponsor, sponsorTopics, overlap };
+        const overlapping = sponsorTopics.filter((t) => attendeeTopicIds.has(t.topicId));
+        const completenessBonus = (sponsor.logoUrl ? 0.3 : 0) + (sponsor.shortDescription ? 0.2 : 0);
+        const engagedPenalty = engagedSponsorIds.has(sponsor.id) ? -2 : 0;
+        const score = overlapping.length + completenessBonus + engagedPenalty;
+        return { sponsor, overlap: overlapping.length, score, overlapping };
       })
     );
 
     const results = scoredSponsors
       .filter((s) => s.overlap > 0 || attendeeTopicIds.size === 0)
-      .sort((a, b) => b.overlap - a.overlap)
-      .slice(0, 10)
-      .map(({ sponsor, sponsorTopics, overlap }) => ({
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map(({ sponsor, overlap, overlapping }) => ({
         id: sponsor.id,
         name: sponsor.name,
         category: sponsor.category,
         logoUrl: sponsor.logoUrl,
+        shortDescription: sponsor.shortDescription,
         overlapScore: overlap,
-        topicIds: sponsorTopics.map((t) => t.topicId),
+        overlapTopicLabels: overlapping.map((t) => topicLabelMap.get(t.topicId) ?? "").filter(Boolean),
+      }));
+
+    return res.json(results);
+  });
+
+  // Suggested meetings — highest-overlap sponsors with no existing active meeting
+  app.get("/api/attendee-portal/suggested-meetings", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const [attendeeTopics, allSponsors, allEventTopics, allMeetings, allInfoRequests] = await Promise.all([
+      storage.getAttendeeTopics(tokenRecord.attendeeId, tokenRecord.eventId),
+      storage.getSponsors(),
+      storage.getEventInterestTopics(tokenRecord.eventId),
+      storage.getMeetings(),
+      storage.listInformationRequests({ eventId: tokenRecord.eventId }),
+    ]);
+    const topicLabelMap = new Map(allEventTopics.map((t) => [t.id, t.topicLabel]));
+    const attendeeTopicIds = new Set(attendeeTopics.map((t) => t.topicId));
+    if (attendeeTopicIds.size === 0) return res.json([]);
+
+    const eventSponsors = allSponsors.filter((s) =>
+      (s.assignedEvents ?? []).some((link: any) => link.eventId === tokenRecord.eventId && link.archiveState !== "archived")
+    );
+    const myMeetings = allMeetings.filter((m) => m.attendeeId === tokenRecord.attendeeId && m.eventId === tokenRecord.eventId);
+    const sponsorsWithAnyMeeting = new Set(
+      myMeetings.filter((m) => !["Cancelled", "NoShow"].includes(m.status ?? "")).map((m) => m.sponsorId)
+    );
+    const myInfoRequests = (allInfoRequests ?? []).filter((r: any) => r.attendeeId === tokenRecord.attendeeId);
+    const sponsorsWithInfoRequest = new Set(myInfoRequests.map((r: any) => r.sponsorId));
+
+    const scoredSponsors = await Promise.all(
+      eventSponsors
+        .filter((s) => !sponsorsWithAnyMeeting.has(s.id))
+        .map(async (sponsor) => {
+          const sponsorTopics = await storage.getSponsorTopics(sponsor.id, tokenRecord.eventId);
+          const overlapping = sponsorTopics.filter((t) => attendeeTopicIds.has(t.topicId));
+          return { sponsor, overlap: overlapping.length, overlapping, hasInfoRequest: sponsorsWithInfoRequest.has(sponsor.id) };
+        })
+    );
+
+    const results = scoredSponsors
+      .filter((s) => s.overlap > 0)
+      .sort((a, b) => b.overlap - a.overlap)
+      .slice(0, 3)
+      .map(({ sponsor, overlap, overlapping }) => ({
+        id: sponsor.id,
+        name: sponsor.name,
+        logoUrl: sponsor.logoUrl,
+        shortDescription: sponsor.shortDescription,
+        overlapScore: overlap,
+        overlapTopicLabels: overlapping.map((t) => topicLabelMap.get(t.topicId) ?? "").filter(Boolean),
       }));
 
     return res.json(results);

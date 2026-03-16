@@ -55,7 +55,7 @@ export async function sendEmail(to, subject, htmlContent, attachments) {
 
 // ── Internal: send + log ──────────────────────────────────────────────────────
 
-async function sendAndLog(storage, { emailType, to, subject, html, eventId, sponsorId, attendeeId, resendOfId, attachments }) {
+async function sendAndLog(storage, { emailType, to, subject, html, eventId, sponsorId, attendeeId, resendOfId, attachments, source, templateId }) {
   let status = "sent";
   let errorMessage = null;
   let providerMessageId = null;
@@ -69,7 +69,7 @@ async function sendAndLog(storage, { emailType, to, subject, html, eventId, spon
     console.error(`[EMAIL] Failed to send "${emailType}" to ${to}: ${errorMessage}`);
   }
   try {
-    const id = await storage.createEmailLog({ emailType, recipientEmail: to, subject, htmlContent: html, eventId, sponsorId, attendeeId, status, errorMessage, resendOfId: resendOfId ?? null, providerMessageId });
+    const id = await storage.createEmailLog({ emailType, recipientEmail: to, subject, htmlContent: html, eventId, sponsorId, attendeeId, status, errorMessage, resendOfId: resendOfId ?? null, providerMessageId, source: source ?? null, templateId: templateId ?? null });
     return id;
   } catch (logErr) {
     console.error(`[EMAIL LOG] Failed to write email log: ${logErr?.message || logErr}`);
@@ -123,6 +123,7 @@ export async function sendMeetingConfirmationToAttendee(storage, attendee, spons
     sponsorId: meeting?.sponsorId,
     attendeeId: attendee?.id,
     attachments: icsAttachment ? [icsAttachment] : [],
+    source: "System Action",
   });
 }
 
@@ -175,6 +176,7 @@ export async function sendMeetingNotificationToSponsor(storage, attendee, sponso
     sponsorId: sponsor?.id,
     attendeeId: attendee?.id,
     attachments: icsAttachment ? [icsAttachment] : [],
+    source: "System Action",
   });
 }
 
@@ -206,6 +208,7 @@ export async function sendInformationRequestNotificationToSponsor(storage, atten
     eventId: infoRequest?.eventId,
     sponsorId: sponsor?.id,
     attendeeId: infoRequest?.attendeeId ?? null,
+    source: "System Action",
   });
 }
 
@@ -233,6 +236,7 @@ export async function sendInformationRequestConfirmationToAttendee(storage, info
     eventId: infoRequest?.eventId,
     sponsorId: sponsor?.id,
     attendeeId: infoRequest?.attendeeId ?? null,
+    source: "System Action",
   });
 }
 
@@ -253,6 +257,7 @@ export async function sendPasswordResetEmail(storage, user, rawToken, baseUrl) {
     eventId: null,
     sponsorId: null,
     attendeeId: null,
+    source: "System Action",
   });
 }
 
@@ -275,6 +280,7 @@ export async function sendSponsorMagicLoginEmail(storage, sponsorUser, sponsor, 
     sponsorId: sponsor?.id ?? null,
     eventId: null,
     attendeeId: null,
+    source: "System Action",
   });
 }
 
@@ -329,6 +335,7 @@ export async function sendDeliverableReminderEmail(storage, { sponsor, event, de
     eventId: event?.id ?? null,
     sponsorId: sponsor?.id ?? null,
     attendeeId: null,
+    source: "Automation – Deliverable Reminder",
   });
 }
 
@@ -356,6 +363,7 @@ export async function sendMeetingReminderEmail(storage, attendee, sponsor, meeti
       eventId: meeting?.eventId ?? null,
       sponsorId: meeting?.sponsorId ?? null,
       attendeeId: attendee.id ?? null,
+      source: "Automation – Meeting Reminder",
     });
   }
 
@@ -379,6 +387,7 @@ export async function sendMeetingReminderEmail(storage, attendee, sponsor, meeti
       eventId: meeting?.eventId ?? null,
       sponsorId: meeting?.sponsorId ?? null,
       attendeeId: attendee?.id ?? null,
+      source: "Automation – Meeting Reminder",
     });
   }
 }
@@ -409,5 +418,6 @@ export async function sendInternalDeliverableNotification(storage, { sponsorId, 
     eventId: eventId ?? null,
     sponsorId: sponsorId ?? null,
     attendeeId: null,
+    source: "System Action",
   });
 }

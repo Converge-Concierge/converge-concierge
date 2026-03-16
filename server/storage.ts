@@ -208,8 +208,8 @@ export interface IStorage {
   getAnalyticsSummary(sponsorId: string, eventId: string): Promise<{ profileViews: number; meetingCtaClicks: number }>;
 
   // Email logs
-  createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null }): Promise<string>;
-  listEmailLogs(filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, limit?: number, offset?: number): Promise<EmailLog[]>;
+  createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null; source?: string | null; templateId?: string | null }): Promise<string>;
+  listEmailLogs(filters?: { emailType?: string; status?: string; eventId?: string; sponsorId?: string; source?: string; search?: string; from?: Date; to?: Date }, limit?: number, offset?: number): Promise<EmailLog[]>;
   getEmailLog(id: string): Promise<EmailLog | undefined>;
   getEmailLogByProviderMessageId(providerMessageId: string): Promise<EmailLog | undefined>;
   updateEmailLogDelivery(id: string, updates: { status?: string; deliveredAt?: Date; openedAt?: Date; clickedAt?: Date; bouncedAt?: Date; bounceReason?: string; providerStatus?: string }): Promise<void>;
@@ -949,8 +949,8 @@ export class MemStorage implements IStorage {
     return { profileViews: 0, meetingCtaClicks: 0 };
   }
 
-  async createEmailLog(_data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null }): Promise<string> { return randomUUID(); }
-  async listEmailLogs(_filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, _limit?: number, _offset?: number): Promise<EmailLog[]> { return []; }
+  async createEmailLog(_data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null; source?: string | null; templateId?: string | null }): Promise<string> { return randomUUID(); }
+  async listEmailLogs(_filters?: { emailType?: string; status?: string; eventId?: string; sponsorId?: string; source?: string; search?: string; from?: Date; to?: Date }, _limit?: number, _offset?: number): Promise<EmailLog[]> { return []; }
   async getEmailLog(_id: string): Promise<EmailLog | undefined> { return undefined; }
   async getEmailLogByProviderMessageId(_providerMessageId: string): Promise<EmailLog | undefined> { return undefined; }
   async updateEmailLogDelivery(_id: string, _updates: { status?: string; deliveredAt?: Date; openedAt?: Date; clickedAt?: Date; bouncedAt?: Date; bounceReason?: string; providerStatus?: string }): Promise<void> {}

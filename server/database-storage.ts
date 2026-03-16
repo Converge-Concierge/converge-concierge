@@ -1052,7 +1052,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(sponsorLoginTokens.sponsorUserId, sponsorUserId), sql`used_at IS NULL`));
   }
 
-  async createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null }): Promise<string> {
+  async createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null; source?: string | null; templateId?: string | null }): Promise<string> {
     const id = randomUUID();
     await db.insert(emailLogs).values({
       id,
@@ -1069,6 +1069,8 @@ export class DatabaseStorage implements IStorage {
       sentAt: new Date(),
       createdAt: new Date(),
       providerMessageId: data.providerMessageId ?? null,
+      source: data.source ?? null,
+      templateId: data.templateId ?? null,
     });
     return id;
   }
@@ -1092,17 +1094,25 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listEmailLogs(filters?: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date }, limit = 100, offset = 0): Promise<EmailLog[]> {
+  async listEmailLogs(filters?: { emailType?: string; status?: string; eventId?: string; sponsorId?: string; source?: string; search?: string; from?: Date; to?: Date }, limit = 100, offset = 0): Promise<EmailLog[]> {
     const rows = await db.select().from(emailLogs).orderBy(desc(emailLogs.sentAt));
+    let sponsorNameMap: Map<string, string> | null = null;
+    if (filters?.search) {
+      const allSponsors = await db.select({ id: sponsors.id, name: sponsors.name }).from(sponsors);
+      sponsorNameMap = new Map(allSponsors.map(s => [s.id, s.name]));
+    }
     return rows.filter((r) => {
       if (filters?.emailType && r.emailType !== filters.emailType) return false;
       if (filters?.status && r.status !== filters.status) return false;
       if (filters?.eventId && r.eventId !== filters.eventId) return false;
+      if (filters?.sponsorId && r.sponsorId !== filters.sponsorId) return false;
+      if (filters?.source && r.source !== filters.source) return false;
       if (filters?.from && r.sentAt < filters.from) return false;
       if (filters?.to && r.sentAt > filters.to) return false;
       if (filters?.search) {
         const q = filters.search.toLowerCase();
-        if (!r.recipientEmail.toLowerCase().includes(q) && !r.subject.toLowerCase().includes(q) && !r.emailType.toLowerCase().includes(q)) return false;
+        const sponsorName = r.sponsorId && sponsorNameMap ? (sponsorNameMap.get(r.sponsorId) ?? "") : "";
+        if (!r.recipientEmail.toLowerCase().includes(q) && !r.subject.toLowerCase().includes(q) && !r.emailType.toLowerCase().includes(q) && !sponsorName.toLowerCase().includes(q)) return false;
       }
       return true;
     }).slice(offset, offset + limit);

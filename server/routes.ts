@@ -776,6 +776,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         status,
         errorMessage,
         providerMessageId,
+        source: "Automation – Scheduling Invitation",
       });
 
       if (status === "failed") {
@@ -3748,11 +3749,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // ── Email Center Routes (admin-only) ──────────────────────────────────────
 
   app.get("/api/admin/email-logs", requireAuth, async (req, res) => {
-    const { emailType, status, eventId, search, from, to } = req.query as Record<string, string | undefined>;
-    const filters: { emailType?: string; status?: string; eventId?: string; search?: string; from?: Date; to?: Date } = {};
+    const { emailType, status, eventId, sponsorId, source, search, from, to } = req.query as Record<string, string | undefined>;
+    const filters: { emailType?: string; status?: string; eventId?: string; sponsorId?: string; source?: string; search?: string; from?: Date; to?: Date } = {};
     if (emailType) filters.emailType = emailType;
     if (status) filters.status = status;
     if (eventId) filters.eventId = eventId;
+    if (sponsorId) filters.sponsorId = sponsorId;
+    if (source) filters.source = source;
     if (search) filters.search = search;
     if (from) filters.from = new Date(from);
     if (to) filters.to = new Date(to);
@@ -3793,6 +3796,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       status,
       errorMessage,
       resendOfId: log.id,
+      source: "Manual",
+      templateId: log.templateId,
     });
     const newLog = await storage.getEmailLog(newId);
     res.json({ ok: true, newLogId: newId, status, log: newLog });
@@ -3838,7 +3843,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       sendStatus = "failed";
       errorMessage = err?.message ?? String(err);
     }
-    const logId = await storage.createEmailLog({ emailType: emailType ?? "test_email", recipientEmail: to, subject, htmlContent: html, status: sendStatus, errorMessage });
+    const logId = await storage.createEmailLog({ emailType: emailType ?? "test_email", recipientEmail: to, subject, htmlContent: html, status: sendStatus, errorMessage, source: "Manual" });
     res.json({ ok: sendStatus === "sent", status: sendStatus, errorMessage, logId });
   });
 
@@ -3974,7 +3979,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       sendStatus = "failed";
       errorMessage = err?.message ?? String(err);
     }
-    const logId = await storage.createEmailLog({ emailType: `template_test_${template.templateKey}`, recipientEmail: email.trim(), subject: `[Test] ${subject}`, htmlContent: html, status: sendStatus, errorMessage });
+    const logId = await storage.createEmailLog({ emailType: `template_test_${template.templateKey}`, recipientEmail: email.trim(), subject: `[Test] ${subject}`, htmlContent: html, status: sendStatus, errorMessage, source: "Manual" });
     res.json({ ok: sendStatus === "sent", status: sendStatus, errorMessage, logId });
   });
 

@@ -1,0 +1,439 @@
+Templates Upgrade
+
+We are now moving to Phase 2 of the Email Center rebuild.
+
+This phase focuses only on Templates.
+
+The goal is to turn the current template list into a true template management system that is safer, clearer, and easier for Converge to use.
+
+At the end of this phase, admins should be able to:
+
+understand what each template is for
+
+preview how a template will render
+
+send a test email to themselves
+
+see which variables are available
+
+review version history
+
+restore a previous version if a template is broken
+
+Do not try to build Campaigns, Settings, or the full Automation Dashboard in this phase.
+
+Phase 2 Goal
+
+Upgrade Templates so they function like a professional operational email template system instead of a simple editable template list.
+
+1. Keep the Current Email Center Structure Stable
+
+For this phase, keep the current Email Center tab structure as it exists after Phase 1.
+
+This phase should only upgrade the Templates area.
+
+Do not block this phase on:
+
+Campaigns
+
+Scheduled overhaul
+
+Settings
+
+advanced automation controls
+
+Those come later.
+
+2. Improve the Templates List View
+
+The Templates list should be clearer and more admin-friendly.
+
+Required columns
+
+Add or standardize these columns:
+
+Category
+
+Display Name
+
+Key
+
+Subject
+
+Status
+
+Last Updated
+
+Actions
+
+Notes
+
+Category should be a human-friendly grouping such as System, Operational, Campaign
+
+Display Name should be the main user-facing name
+
+Key can still exist, but should be secondary
+
+Status can be Active / Disabled / Draft if supported
+
+Last Updated should show most recent update timestamp
+
+3. Clean Up Template Naming
+
+Right now the templates likely use keys such as:
+
+info_request_confirmation_attendee
+
+meeting_notification_sponsor
+
+These keys are useful technically, but not ideal as the primary admin-facing label.
+
+Required behavior
+
+Each template should have:
+
+Category
+
+Display Name
+
+Key
+
+Example
+
+Category: System
+
+Display Name: Info Request Confirmation (Attendee)
+
+Key: info_request_confirmation_attendee
+
+This should make the interface much easier for Converge to use.
+
+4. Standardize Template Categories
+
+Add template categorization.
+
+Recommended initial categories
+
+System
+
+Operational
+
+Campaign
+
+Examples
+System
+
+Meeting Confirmation
+
+Meeting Reminder
+
+Info Request Confirmation
+
+Operational
+
+Scheduling Invitation
+
+Sponsor Dashboard Login
+
+Sponsor Report
+
+Campaign
+
+Attendee Reminder
+
+Sponsor Reminder
+
+Event Announcement
+
+If a template does not fit one of these cleanly, use the closest logical category for now.
+
+5. Add Template Preview
+
+Every template should support a Preview action.
+
+Required behavior
+
+Preview should render:
+
+the subject
+
+the body
+
+variables replaced with sample data
+
+This can be:
+
+side panel
+
+modal
+
+preview page
+
+Use the UI pattern that best fits the existing system.
+
+The goal is to let admins see what the email would actually look like before sending.
+
+6. Use Sample Data in Preview
+
+Template Preview should not show raw variables only.
+
+It should render using sample/mock data.
+
+Example variables
+
+{attendee_first_name}
+
+{event_name}
+
+{sponsor_name}
+
+{meeting_time}
+
+{meeting_location}
+
+Preview example
+
+If the template contains:
+
+Hello {attendee_first_name},
+
+the preview might render:
+
+Hello Dan,
+
+This makes the preview much more useful.
+
+7. Add Send Test Email
+
+Each template should support Send Test Email.
+
+Required behavior
+
+An admin should be able to send a test email for that specific template to themselves.
+
+Preferred flow
+
+From the template row or detail/edit view:
+
+click Send Test Email
+
+default recipient = current admin user’s email if available
+
+optional override field if needed
+
+send rendered test message
+
+This should not require leaving the template screen.
+
+8. Add Variables Documentation
+
+Each template should show which variables/tokens are available.
+
+This is critical to prevent broken templates.
+
+Required behavior
+
+In the template edit/detail view, add a section such as:
+
+Available Variables
+
+Example:
+
+{attendee_first_name}
+
+{event_name}
+
+{sponsor_name}
+
+{meeting_time}
+
+{meeting_location}
+
+Group variables by logical source if practical.
+
+For example:
+
+Attendee
+
+Sponsor
+
+Event
+
+Meeting
+
+Deliverable
+
+9. Document Variable Behavior Clearly
+
+Where possible, add a short note explaining what happens if a variable is blank or unavailable.
+
+Example:
+
+If meeting_location is blank, the location line will be omitted.
+
+This is not required for every variable if it becomes too heavy, but at minimum the system should not leave admins guessing.
+
+10. Add Template Detail / Edit Experience Improvements
+
+The template detail or edit view should clearly show:
+
+Display Name
+
+Category
+
+Key
+
+Subject
+
+Body
+
+Available Variables
+
+Preview action
+
+Send Test action
+
+Version History access
+
+The page should feel like a proper template management workspace.
+
+11. Add Version History
+
+Every template should maintain version history.
+
+Required behavior
+
+When a template is edited and saved:
+
+preserve the prior version
+
+create a new version entry
+
+At minimum, version history should show:
+
+version timestamp
+
+updated by
+
+version number or sequence
+
+optional summary if easy to include
+
+12. Add Restore Previous Version
+
+Admins must be able to restore an older version if a template is broken.
+
+Required behavior
+
+From Version History, allow:
+
+View previous version
+
+Restore this version
+
+This is very important because templates are easy to accidentally break.
+
+13. Preserve Auditability
+
+When restoring a previous version:
+
+keep a record that restore occurred
+
+do not destroy the current version history chain
+
+In other words, restoring should create a new active version based on the old content, not erase the history.
+
+14. Support Subject and Body Preview Together
+
+Preview must show both:
+
+rendered subject line
+
+rendered body
+
+This matters because subject lines often contain variables too.
+
+Do not preview only the body.
+
+15. Handle Missing Variables Gracefully in Preview
+
+If some variables do not have sample data available yet:
+
+show reasonable placeholders
+or
+
+show a safe fallback preview state
+
+Do not let preview break or render raw unusable output.
+
+16. Preserve Existing Templates
+
+Do not break existing templates while adding these capabilities.
+
+Existing template records should continue to work.
+
+If metadata such as:
+
+Category
+
+Display Name
+
+version history
+
+needs to be backfilled, do so safely.
+
+17. Add Search / Filtering for Templates
+
+If not already present, add light filtering/search support.
+
+Minimum useful filters
+
+Category
+
+Search by Display Name / Key
+
+This will help once the number of templates grows.
+
+18. Admin-Friendly Language
+
+Use clear admin-facing labels such as:
+
+Preview
+
+Send Test Email
+
+Available Variables
+
+Version History
+
+Restore Version
+
+Do not make the template system feel overly technical.
+
+19. Acceptance Criteria
+
+Phase 2 is complete when:
+
+Templates list has clearer columns and naming
+
+each template has Category, Display Name, and Key
+
+template preview exists
+
+preview renders subject and body with sample data
+
+send test email works for each template
+
+available variables are documented in the template view
+
+version history exists
+
+admins can restore a previous version
+
+existing templates continue to work safely
+
+20. Success Standard
+
+After Phase 2, the Templates section should feel like a reliable operational email authoring system. Converge should be able to confidently review, test, edit, and recover templates without guessing how they behave.
+
+That is the standard this phase should meet.

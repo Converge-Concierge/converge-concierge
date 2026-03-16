@@ -2,6 +2,15 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import type { EmailLog, Event, Sponsor, EmailTemplate, ScheduledEmail } from "@shared/schema";
+
+const EMAIL_SOURCE_OPTIONS = [
+  "System Action",
+  "Manual",
+  "Campaign",
+  "Automation – Deliverable Reminder",
+  "Automation – Meeting Reminder",
+  "Automation – Scheduling Invitation",
+] as const;
 import { SCHEDULED_EMAIL_STATUSES } from "@shared/schema";
 import {
   Mail, MailCheck, MailX, RefreshCw, Send, Search, Eye,
@@ -918,10 +927,11 @@ function ScheduledEmailsTab({ events, sponsors }: { events: Event[]; sponsors: S
 export default function EmailCenterPage() {
   const { toast } = useToast();
 
-  // Filters
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterEventId, setFilterEventId] = useState("");
+  const [filterSponsorId, setFilterSponsorId] = useState("");
+  const [filterSource, setFilterSource] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
   const [search, setSearch] = useState("");
@@ -938,18 +948,20 @@ export default function EmailCenterPage() {
 
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
+  const { data: templates = [] } = useQuery<EmailTemplate[]>({ queryKey: ["/api/admin/email-templates"] });
 
-  // Build query params
   const params = new URLSearchParams();
   if (filterType) params.set("emailType", filterType);
   if (filterStatus) params.set("status", filterStatus);
   if (filterEventId) params.set("eventId", filterEventId);
+  if (filterSponsorId) params.set("sponsorId", filterSponsorId);
+  if (filterSource) params.set("source", filterSource);
   if (filterFrom) params.set("from", filterFrom);
   if (filterTo) params.set("to", filterTo);
   if (search) params.set("search", search);
 
   const { data: logs = [], isLoading, refetch } = useQuery<EmailLog[]>({
-    queryKey: ["/api/admin/email-logs", filterType, filterStatus, filterEventId, filterFrom, filterTo, search],
+    queryKey: ["/api/admin/email-logs", filterType, filterStatus, filterEventId, filterSponsorId, filterSource, filterFrom, filterTo, search],
     queryFn: () => fetch(`/api/admin/email-logs?${params}`).then((r) => r.json()),
   });
 
@@ -963,6 +975,11 @@ export default function EmailCenterPage() {
 
   const getEventSlug = (id: string | null | undefined) => events.find((e) => e.id === id)?.slug ?? null;
   const getSponsorName = (id: string | null | undefined) => sponsors.find((s) => s.id === id)?.name ?? null;
+  const getTemplateName = (id: string | null | undefined) => {
+    if (!id) return null;
+    const t = templates.find((t) => t.id === id);
+    return t?.displayName ?? null;
+  };
 
   // Resend mutation
   const resendMutation = useMutation({
@@ -994,16 +1011,16 @@ export default function EmailCenterPage() {
 
   const selectClass = "h-8 text-sm rounded-lg border border-border/60 bg-background px-3 focus:outline-none focus:ring-1 focus:ring-accent/40";
 
-  const hasFilters = !!(filterType || filterStatus || filterEventId || filterFrom || filterTo || search);
-  const clearFilters = () => { setFilterType(""); setFilterStatus(""); setFilterEventId(""); setFilterFrom(""); setFilterTo(""); setSearch(""); };
+  const hasFilters = !!(filterType || filterStatus || filterEventId || filterSponsorId || filterSource || filterFrom || filterTo || search);
+  const clearFilters = () => { setFilterType(""); setFilterStatus(""); setFilterEventId(""); setFilterSponsorId(""); setFilterSource(""); setFilterFrom(""); setFilterTo(""); setSearch(""); };
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
       <Tabs defaultValue="logs" className="w-full">
         <div className="flex items-center justify-between mb-6">
           <TabsList className="bg-muted/50 p-1">
-            <TabsTrigger value="logs" className="gap-2">
-              <FileText className="h-3.5 w-3.5" /> Email Logs
+            <TabsTrigger value="logs" className="gap-2" data-testid="tab-email-activity">
+              <FileText className="h-3.5 w-3.5" /> Email Activity
             </TabsTrigger>
             <TabsTrigger value="templates" className="gap-2">
               <Layout className="h-3.5 w-3.5" /> Templates
@@ -1028,9 +1045,9 @@ export default function EmailCenterPage() {
             <div>
               <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
                 <Mail className="h-6 w-6 text-accent" />
-                Email Center
+                Email Activity
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">Review sent emails, delivery status, and resend important messages.</p>
+              <p className="text-sm text-muted-foreground mt-1">Review all emails sent by the platform — delivery status, source, template, and full content.</p>
             </div>
           </div>
 
@@ -1064,6 +1081,14 @@ export default function EmailCenterPage() {
               <option value="">All Events</option>
               {events.map((e) => <option key={e.id} value={e.id}>{e.slug}</option>)}
             </select>
+            <select className={selectClass} value={filterSponsorId} onChange={(e) => setFilterSponsorId(e.target.value)} data-testid="filter-sponsor">
+              <option value="">All Sponsors</option>
+              {sponsors.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <select className={selectClass} value={filterSource} onChange={(e) => setFilterSource(e.target.value)} data-testid="filter-source">
+              <option value="">All Sources</option>
+              {EMAIL_SOURCE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
             <div className="flex items-center gap-1">
               <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
               <input type="date" className={selectClass} value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} data-testid="filter-from" />
@@ -1072,7 +1097,7 @@ export default function EmailCenterPage() {
             </div>
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input placeholder="Search recipient, subject…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-sm" data-testid="email-search" />
+              <Input placeholder="Search recipient, subject, sponsor…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-sm" data-testid="email-search" />
             </div>
             {hasFilters && (
               <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors" data-testid="button-clear-filters">
@@ -1087,17 +1112,17 @@ export default function EmailCenterPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border/50 bg-muted/30">
-                    {["Sent At", "Type", "Recipient", "Subject", "Event", "Sponsor", "Status", "Actions"].map((h) => (
+                    {["Sent At", "Type", "Recipient", "Subject", "Event", "Sponsor", "Source", "Template", "Status", "Actions"].map((h) => (
                       <th key={h} className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={8} className="text-center py-12 text-muted-foreground text-sm">Loading email logs…</td></tr>
+                    <tr><td colSpan={10} className="text-center py-12 text-muted-foreground text-sm">Loading…</td></tr>
                   ) : logs.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center py-16">
+                      <td colSpan={10} className="text-center py-16">
                         <div className="flex flex-col items-center gap-3">
                           <div className="h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
                             <Mail className="h-6 w-6 text-muted-foreground/50" />
@@ -1111,16 +1136,19 @@ export default function EmailCenterPage() {
                     logs.map((log, i) => {
                       const eventSlug = getEventSlug(log.eventId);
                       const sponsorName = getSponsorName(log.sponsorId);
+                      const templateName = getTemplateName(log.templateId);
                       return (
                         <tr key={log.id} className={cn("border-b border-border/30 hover:bg-muted/20 transition-colors", i % 2 === 1 && "bg-muted/10")} data-testid={`email-row-${log.id}`}>
                           <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{fmtSentAt(log.sentAt)}</td>
                           <td className="px-4 py-3"><TypeBadge type={log.emailType} /></td>
                           <td className="px-4 py-3 text-xs font-mono text-foreground max-w-[180px] truncate">{log.recipientEmail}</td>
-                          <td className="px-4 py-3 text-sm text-foreground max-w-[220px] truncate" title={log.subject}>{log.subject}</td>
+                          <td className="px-4 py-3 text-sm text-foreground max-w-[200px] truncate" title={log.subject}>{log.subject}</td>
                           <td className="px-4 py-3">
                             {eventSlug ? <span className="text-xs font-mono font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded">{eventSlug}</span> : <span className="text-xs text-muted-foreground">—</span>}
                           </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{sponsorName ?? "—"}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{log.source ?? "—"}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap max-w-[140px] truncate" title={templateName ?? ""}>{templateName ?? (log.templateId ? log.templateId : "—")}</td>
                           <td className="px-4 py-3"><StatusBadge status={log.status} /></td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
@@ -1204,6 +1232,14 @@ export default function EmailCenterPage() {
                 <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
                   <p className="text-xs text-muted-foreground mb-1">Sponsor</p>
                   <p className="text-sm">{getSponsorName(selectedLog.sponsorId) ?? "—"}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Source</p>
+                  <p className="text-sm">{selectedLog.source ?? "Unknown"}</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Template</p>
+                  <p className="text-sm">{getTemplateName(selectedLog.templateId) ?? (selectedLog.templateId ? selectedLog.templateId : "—")}</p>
                 </div>
                 {selectedLog.resendOfId && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">

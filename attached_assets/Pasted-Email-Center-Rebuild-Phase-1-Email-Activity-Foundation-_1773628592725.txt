@@ -1,0 +1,412 @@
+Email Center Rebuild — Phase 1
+Email Activity Foundation
+
+We are starting the Email Center rebuild in phases.
+
+This instruction covers Phase 1 only.
+
+The goal of this phase is to upgrade the current Email Logs experience into a more complete and useful Email Activity view.
+
+This phase should improve visibility, filtering, and debugging without yet attempting to build the full campaigns/automation/settings system.
+
+Phase 1 Goal
+
+Turn Email Logs into a true Email Activity center that allows Converge to:
+
+review all emails sent by the platform
+
+understand what type of email was sent
+
+see event and sponsor context
+
+filter emails meaningfully
+
+inspect an individual email in detail
+
+understand what triggered the email
+
+This phase should create a strong foundation for later phases.
+
+1. Rename the Tab and Section
+
+Rename:
+
+Email Logs → Email Activity
+
+This should apply consistently to:
+
+the tab label
+
+page header copy where relevant
+
+internal display labels in the UI
+
+Do not change backend database names unless necessary. This is primarily a UI/product naming change.
+
+2. Upgrade the Email Activity Table
+
+The Email Activity table should become more useful and operationally informative.
+
+Required columns
+
+Add or standardize these columns in the main table:
+
+Sent At
+
+Type
+
+Recipient
+
+Subject
+
+Event
+
+Sponsor
+
+Status
+
+Source
+
+Template
+
+Actions
+
+Notes
+
+Event should show the event code or name if tied to an event
+
+Sponsor should show sponsor name where relevant
+
+Source should identify where the email came from
+
+Template should identify which template was used if known
+
+If some historical records do not have all metadata, show blank or dash cleanly.
+
+3. Add Source Attribution
+
+We need to know what triggered each email.
+
+Required behavior
+
+Add a Source field/column.
+
+Possible source values include:
+
+System Action
+
+Manual
+
+Campaign
+
+Automation – Deliverable Reminder
+
+Automation – Meeting Reminder
+
+Automation – Scheduling Invitation
+
+For this phase, support source attribution where data already exists or can be derived cleanly.
+
+If not all historical records can be backfilled, that is acceptable, but all new records should capture source going forward.
+
+4. Improve Filtering
+
+Add stronger filters to Email Activity.
+
+Required filters
+
+Email Type
+
+Event
+
+Sponsor
+
+Status
+
+Source
+
+Date Range
+
+Search
+
+Add a search field that supports:
+
+recipient email
+
+subject text
+
+sponsor name if applicable
+
+This should make it much easier to find specific communications.
+
+5. Improve Status Handling
+
+Standardize status display as much as possible using the data currently available.
+
+Typical statuses may include:
+
+Sent
+
+Failed
+
+Queued
+
+Cancelled
+
+Processing
+
+For this phase, use the current provider/system data you already have.
+
+Do not invent fake delivery statuses if the backend does not yet support them.
+
+6. Add Email Detail View
+
+Clicking View on an email row should open an Email Details experience.
+
+This can be:
+
+side panel
+
+modal
+
+detail page
+
+Use the pattern that best fits the existing UI.
+
+Required fields in Email Details
+
+Show:
+
+subject
+
+recipient
+
+sender if available
+
+sent timestamp
+
+status
+
+event
+
+sponsor if applicable
+
+source
+
+template used
+
+full rendered email body
+
+This detail view is critical for debugging and internal operations.
+
+7. Show Full Rendered Email Content
+
+In the Email Details view, show the actual rendered email content that was sent.
+
+This should include:
+
+rendered subject
+
+rendered HTML or readable email body
+
+links as rendered in the email
+
+The goal is to let Converge inspect what actually went out.
+
+If the platform stores only partial content for older records, show whatever is available cleanly.
+
+8. Associate Emails With Templates Where Possible
+
+Add a Template field/column in Email Activity and the detail view.
+
+Required behavior
+
+Where the email was generated from a known template, display:
+
+display name if available
+
+key if needed secondarily
+
+Example:
+
+Scheduling Invitation
+
+Sponsor Dashboard Welcome
+
+Meeting Reminder – 24 Hours
+
+If the email was not template-based, show a clean fallback such as:
+
+Custom
+
+Manual
+
+Unknown
+
+9. Associate Emails With Event and Sponsor Context
+
+Emails should display related business context where possible.
+
+Event
+
+Show event code or event name where the email relates to a specific event.
+
+Sponsor
+
+Show sponsor name where the email relates to a sponsor.
+
+This should work in both:
+
+the main Email Activity table
+
+the Email Details view
+
+This context is important for operational troubleshooting.
+
+10. Add Summary Cards at the Top
+
+Keep the summary area at the top, but align it more closely to Email Activity.
+
+For Phase 1, summary cards should focus on what is already reliable to compute.
+
+Recommended cards
+
+Total Emails
+
+Sent
+
+Failed
+
+If you can also safely support additional counts now, that is fine, but do not block Phase 1 on advanced tracking.
+
+11. Prepare Architecture for Future Metrics
+
+We know later phases will add:
+
+delivered
+
+opened
+
+clicked
+
+bounced
+
+For this phase, the UI and backend should be designed so those metrics can be added cleanly later.
+
+Important
+
+Do not overbuild this now if provider integration is not ready.
+
+But do structure the code so Email Activity can expand later without redesign.
+
+12. Support Legacy Records Gracefully
+
+Historical email records may not have:
+
+source
+
+sponsor
+
+template
+
+rendered body
+
+event linkage
+
+Required behavior
+
+Do not let missing fields break the UI.
+
+For missing data:
+
+show dash
+
+show blank cleanly
+
+show “Unknown” where appropriate
+
+The page should still remain useful.
+
+13. Keep Resend Where Appropriate
+
+If a resend action already exists and is valid for certain email types, keep it.
+
+But do not assume all emails are safe to resend blindly.
+
+If certain email types should not be resent in the future, that can be addressed in later phases. For now, preserve current working resend behavior unless there is a known risk.
+
+14. Use Admin-Friendly Language
+
+This page should be understandable to event operators.
+
+Use labels like:
+
+Email Activity
+
+Template
+
+Event
+
+Sponsor
+
+Source
+
+View Details
+
+Avoid over-technical internal wording in the UI.
+
+15. Keep Current Tabs Stable
+
+For this phase, do not redesign the entire Email Center.
+
+Keep the main tab structure intact for now:
+
+Email Activity
+
+Templates
+
+Scheduled
+
+Campaigns and Settings will come in later phases.
+
+Do not block this phase on those future sections.
+
+16. Acceptance Criteria
+
+Phase 1 is complete when:
+
+Email Logs has been renamed to Email Activity
+
+the Email Activity table includes stronger business context
+
+filters exist for Email Type, Event, Sponsor, Status, Source, and Date Range
+
+search works for recipient and subject
+
+each email can be opened in a detail view
+
+the detail view shows the rendered email and key metadata
+
+source attribution is visible where available
+
+template, event, and sponsor association are shown where available
+
+legacy records degrade gracefully without breaking the page
+
+17. Success Standard
+
+After Phase 1, Email Center should already feel much more useful operationally. Converge should be able to quickly answer:
+
+what email was sent
+
+to whom
+
+for which event/sponsor
+
+from which template
+
+what triggered it
+
+what the recipient actually received
+
+That is the standard this phase should meet.

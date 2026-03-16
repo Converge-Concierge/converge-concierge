@@ -844,7 +844,8 @@ export const emailLogs = pgTable("email_logs", {
   resendOfId: varchar("resend_of_id"),
   sentAt: timestamp("sent_at").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  // Delivery tracking (populated via Brevo webhooks)
+  source: text("source"),
+  templateId: varchar("template_id"),
   providerMessageId: varchar("provider_message_id"),
   deliveredAt: timestamp("delivered_at"),
   openedAt: timestamp("opened_at"),

@@ -10,7 +10,7 @@ import {
   agreementDeliverableRegistrants, agreementDeliverableSpeakers, agreementDeliverableReminders,
   fileAssets, deliverableLinks, deliverableSocialEntries, meetingInvitations,
   sessionTypes, agendaSessions, agendaSessionSpeakers, attendeeSavedSessions, agendaImportJobs,
-  emailTemplateVersions, automationRules, automationLogs, campaigns,
+  emailTemplateVersions, automationRules, automationLogs, campaigns, messageJobs,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -1198,7 +1198,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(sponsorLoginTokens.sponsorUserId, sponsorUserId), sql`used_at IS NULL`));
   }
 
-  async createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null; source?: string | null; templateId?: string | null }): Promise<string> {
+  async createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null; source?: string | null; templateId?: string | null; messageJobId?: string | null }): Promise<string> {
     const id = randomUUID();
     await db.insert(emailLogs).values({
       id,
@@ -1217,6 +1217,7 @@ export class DatabaseStorage implements IStorage {
       providerMessageId: data.providerMessageId ?? null,
       source: data.source ?? null,
       templateId: data.templateId ?? null,
+      messageJobId: data.messageJobId ?? null,
     });
     return id;
   }
@@ -1267,6 +1268,78 @@ export class DatabaseStorage implements IStorage {
   async getEmailLog(id: string): Promise<EmailLog | undefined> {
     const rows = await db.select().from(emailLogs).where(eq(emailLogs.id, id));
     return rows[0];
+  }
+
+  // ── Message Jobs ────────────────────────────────────────────────────────────
+
+  async createMessageJob(data: { jobName: string; messageType: string; sourceType: string; sourceId?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; templateId?: string | null; templateKeySnapshot?: string | null; triggerType: string; triggerName?: string | null; status?: string; scheduledAt?: Date | null; startedAt?: Date | null; recipientCount?: number; createdByUserId?: string | null; notes?: string | null }): Promise<string> {
+    const id = randomUUID();
+    await db.insert(messageJobs).values({
+      id,
+      jobName: data.jobName,
+      messageType: data.messageType,
+      sourceType: data.sourceType,
+      sourceId: data.sourceId ?? null,
+      eventId: data.eventId ?? null,
+      sponsorId: data.sponsorId ?? null,
+      attendeeId: data.attendeeId ?? null,
+      templateId: data.templateId ?? null,
+      templateKeySnapshot: data.templateKeySnapshot ?? null,
+      triggerType: data.triggerType,
+      triggerName: data.triggerName ?? null,
+      status: data.status ?? "RUNNING",
+      scheduledAt: data.scheduledAt ?? null,
+      startedAt: data.startedAt ?? new Date(),
+      recipientCount: data.recipientCount ?? 0,
+      createdByUserId: data.createdByUserId ?? null,
+      notes: data.notes ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    return id;
+  }
+
+  async updateMessageJob(id: string, updates: Partial<{ status: string; completedAt: Date; recipientCount: number; sentCount: number; failedCount: number; notes: string }>): Promise<void> {
+    const set: Record<string, any> = { updatedAt: new Date() };
+    if (updates.status !== undefined) set.status = updates.status;
+    if (updates.completedAt !== undefined) set.completedAt = updates.completedAt;
+    if (updates.recipientCount !== undefined) set.recipientCount = updates.recipientCount;
+    if (updates.sentCount !== undefined) set.sentCount = updates.sentCount;
+    if (updates.failedCount !== undefined) set.failedCount = updates.failedCount;
+    if (updates.notes !== undefined) set.notes = updates.notes;
+    await db.update(messageJobs).set(set).where(eq(messageJobs.id, id));
+  }
+
+  async getMessageJob(id: string): Promise<import("@shared/schema").MessageJob | undefined> {
+    const rows = await db.select().from(messageJobs).where(eq(messageJobs.id, id)).limit(1);
+    return rows[0];
+  }
+
+  async listMessageJobs(filters?: { messageType?: string; status?: string; eventId?: string; sponsorId?: string; sourceType?: string; search?: string; from?: Date; to?: Date }, limit = 50, offset = 0): Promise<import("@shared/schema").MessageJob[]> {
+    const rows = await db.select().from(messageJobs).orderBy(desc(messageJobs.createdAt));
+    let filtered = rows;
+    if (filters) {
+      if (filters.messageType) filtered = filtered.filter(r => r.messageType === filters.messageType);
+      if (filters.status) filtered = filtered.filter(r => r.status === filters.status);
+      if (filters.eventId) filtered = filtered.filter(r => r.eventId === filters.eventId);
+      if (filters.sponsorId) filtered = filtered.filter(r => r.sponsorId === filters.sponsorId);
+      if (filters.sourceType) filtered = filtered.filter(r => r.sourceType === filters.sourceType);
+      if (filters.from) { const f = filters.from; filtered = filtered.filter(r => r.createdAt >= f); }
+      if (filters.to) { const t = filters.to; filtered = filtered.filter(r => r.createdAt <= t); }
+      if (filters.search) {
+        const s = filters.search.toLowerCase();
+        filtered = filtered.filter(r =>
+          r.jobName.toLowerCase().includes(s) ||
+          (r.triggerName && r.triggerName.toLowerCase().includes(s)) ||
+          (r.templateKeySnapshot && r.templateKeySnapshot.toLowerCase().includes(s))
+        );
+      }
+    }
+    return filtered.slice(offset, offset + limit);
+  }
+
+  async getMessageJobEmailLogs(jobId: string): Promise<import("@shared/schema").EmailLog[]> {
+    return db.select().from(emailLogs).where(eq(emailLogs.messageJobId, jobId)).orderBy(desc(emailLogs.sentAt));
   }
 
   // ── Agreement Package Templates ────────────────────────────────────────────

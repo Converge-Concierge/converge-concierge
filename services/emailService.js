@@ -105,12 +105,12 @@ export async function recordAutomationSend(storage, emailType, sent, failures, e
 
 // ── Internal: send + log ──────────────────────────────────────────────────────
 
-async function sendAndLog(storage, { emailType, to, subject, html, eventId, sponsorId, attendeeId, resendOfId, attachments, source, templateId }) {
+async function sendAndLog(storage, { emailType, to, subject, html, eventId, sponsorId, attendeeId, resendOfId, attachments, source, templateId, messageJobId }) {
   const paused = await isGlobalEmailPaused(storage);
   if (paused) {
     console.log(`[EMAIL] Global email pause active — skipping "${emailType}" to ${to}`);
     try {
-      await storage.createEmailLog({ emailType, recipientEmail: to, subject, htmlContent: html, eventId, sponsorId, attendeeId, status: "failed", errorMessage: "Global email pause active", resendOfId: resendOfId ?? null, providerMessageId: null, source: source ?? null, templateId: templateId ?? null });
+      await storage.createEmailLog({ emailType, recipientEmail: to, subject, htmlContent: html, eventId, sponsorId, attendeeId, status: "failed", errorMessage: "Global email pause active", resendOfId: resendOfId ?? null, providerMessageId: null, source: source ?? null, templateId: templateId ?? null, messageJobId: messageJobId ?? null });
     } catch (_) {}
     return null;
   }
@@ -131,12 +131,38 @@ async function sendAndLog(storage, { emailType, to, subject, html, eventId, spon
     console.error(`[EMAIL] Failed to send "${emailType}" to ${to}: ${errorMessage}`);
   }
   try {
-    const id = await storage.createEmailLog({ emailType, recipientEmail: to, subject, htmlContent: html, eventId, sponsorId, attendeeId, status, errorMessage, resendOfId: resendOfId ?? null, providerMessageId, source: source ?? null, templateId: templateId ?? null });
+    const id = await storage.createEmailLog({ emailType, recipientEmail: to, subject, htmlContent: html, eventId, sponsorId, attendeeId, status, errorMessage, resendOfId: resendOfId ?? null, providerMessageId, source: source ?? null, templateId: templateId ?? null, messageJobId: messageJobId ?? null });
     await recordAutomationSend(storage, emailType, status === "sent" ? 1 : 0, status === "failed" ? 1 : 0, errorMessage);
     return id;
   } catch (logErr) {
     console.error(`[EMAIL LOG] Failed to write email log: ${logErr?.message || logErr}`);
     return null;
+  }
+}
+
+export async function createMessageJobForSend(storage, { jobName, messageType, sourceType, sourceId, eventId, sponsorId, attendeeId, templateId, templateKeySnapshot, triggerType, triggerName, recipientCount, createdByUserId, notes }) {
+  try {
+    const id = await storage.createMessageJob({
+      jobName, messageType, sourceType, sourceId: sourceId ?? null, eventId: eventId ?? null,
+      sponsorId: sponsorId ?? null, attendeeId: attendeeId ?? null, templateId: templateId ?? null,
+      templateKeySnapshot: templateKeySnapshot ?? null, triggerType, triggerName: triggerName ?? null,
+      status: "RUNNING", startedAt: new Date(), recipientCount: recipientCount ?? 0,
+      createdByUserId: createdByUserId ?? null, notes: notes ?? null,
+    });
+    return id;
+  } catch (err) {
+    console.error(`[MESSAGE JOB] Failed to create job "${jobName}": ${err?.message || err}`);
+    return null;
+  }
+}
+
+export async function completeMessageJob(storage, jobId, sentCount, failedCount) {
+  if (!jobId) return;
+  try {
+    const status = failedCount > 0 && sentCount === 0 ? "FAILED" : "COMPLETED";
+    await storage.updateMessageJob(jobId, { status, completedAt: new Date(), sentCount, failedCount });
+  } catch (err) {
+    console.error(`[MESSAGE JOB] Failed to complete job ${jobId}: ${err?.message || err}`);
   }
 }
 

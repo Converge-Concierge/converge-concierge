@@ -210,11 +210,18 @@ export interface IStorage {
   getAnalyticsSummary(sponsorId: string, eventId: string): Promise<{ profileViews: number; meetingCtaClicks: number }>;
 
   // Email logs
-  createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null; source?: string | null; templateId?: string | null }): Promise<string>;
+  createEmailLog(data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null; source?: string | null; templateId?: string | null; messageJobId?: string | null }): Promise<string>;
   listEmailLogs(filters?: { emailType?: string; status?: string; eventId?: string; sponsorId?: string; source?: string; search?: string; from?: Date; to?: Date }, limit?: number, offset?: number): Promise<EmailLog[]>;
   getEmailLog(id: string): Promise<EmailLog | undefined>;
   getEmailLogByProviderMessageId(providerMessageId: string): Promise<EmailLog | undefined>;
   updateEmailLogDelivery(id: string, updates: { status?: string; deliveredAt?: Date; openedAt?: Date; clickedAt?: Date; bouncedAt?: Date; bounceReason?: string; providerStatus?: string }): Promise<void>;
+
+  // Message Jobs
+  createMessageJob(data: { jobName: string; messageType: string; sourceType: string; sourceId?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; templateId?: string | null; templateKeySnapshot?: string | null; triggerType: string; triggerName?: string | null; status?: string; scheduledAt?: Date | null; startedAt?: Date | null; recipientCount?: number; createdByUserId?: string | null; notes?: string | null }): Promise<string>;
+  updateMessageJob(id: string, updates: Partial<{ status: string; completedAt: Date; recipientCount: number; sentCount: number; failedCount: number; notes: string }>): Promise<void>;
+  getMessageJob(id: string): Promise<import("@shared/schema").MessageJob | undefined>;
+  listMessageJobs(filters?: { messageType?: string; status?: string; eventId?: string; sponsorId?: string; sourceType?: string; search?: string; from?: Date; to?: Date }, limit?: number, offset?: number): Promise<import("@shared/schema").MessageJob[]>;
+  getMessageJobEmailLogs(jobId: string): Promise<EmailLog[]>;
 
   // Sponsor Users & Magic Login
   upsertSponsorUser(data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser>;
@@ -971,11 +978,17 @@ export class MemStorage implements IStorage {
     return { profileViews: 0, meetingCtaClicks: 0 };
   }
 
-  async createEmailLog(_data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null; source?: string | null; templateId?: string | null }): Promise<string> { return randomUUID(); }
+  async createEmailLog(_data: { emailType: string; recipientEmail: string; subject: string; htmlContent?: string | null; eventId?: string | null; sponsorId?: string | null; attendeeId?: string | null; status: "sent" | "failed"; errorMessage?: string | null; resendOfId?: string | null; providerMessageId?: string | null; source?: string | null; templateId?: string | null; messageJobId?: string | null }): Promise<string> { return randomUUID(); }
   async listEmailLogs(_filters?: { emailType?: string; status?: string; eventId?: string; sponsorId?: string; source?: string; search?: string; from?: Date; to?: Date }, _limit?: number, _offset?: number): Promise<EmailLog[]> { return []; }
   async getEmailLog(_id: string): Promise<EmailLog | undefined> { return undefined; }
   async getEmailLogByProviderMessageId(_providerMessageId: string): Promise<EmailLog | undefined> { return undefined; }
   async updateEmailLogDelivery(_id: string, _updates: { status?: string; deliveredAt?: Date; openedAt?: Date; clickedAt?: Date; bouncedAt?: Date; bounceReason?: string; providerStatus?: string }): Promise<void> {}
+
+  async createMessageJob(_data: any): Promise<string> { return randomUUID(); }
+  async updateMessageJob(_id: string, _updates: any): Promise<void> {}
+  async getMessageJob(_id: string): Promise<any> { return undefined; }
+  async listMessageJobs(_filters?: any, _limit?: number, _offset?: number): Promise<any[]> { return []; }
+  async getMessageJobEmailLogs(_jobId: string): Promise<EmailLog[]> { return []; }
 
   async upsertSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser> { return { id: randomUUID(), sponsorId: _data.sponsorId, name: _data.name, email: _data.email, accessLevel: _data.accessLevel ?? "owner", isPrimary: _data.isPrimary ?? false, isActive: true, lastLoginAt: null, loginCount: 0, createdAt: new Date(), updatedAt: new Date() }; }
   async getSponsorUserByEmail(_email: string): Promise<SponsorUser | undefined> { return undefined; }

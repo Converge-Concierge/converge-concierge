@@ -880,6 +880,7 @@ export const emailLogs = pgTable("email_logs", {
   bouncedAt: timestamp("bounced_at"),
   bounceReason: text("bounce_reason"),
   providerStatus: text("provider_status"),
+  messageJobId: varchar("message_job_id"),
 });
 
 export type EmailLog = typeof emailLogs.$inferSelect;
@@ -1531,3 +1532,50 @@ export const campaigns = pgTable("campaigns", {
 export const insertCampaignSchema = createInsertSchema(campaigns).omit({ id: true, createdAt: true, updatedAt: true, sentAt: true, emailsSent: true, failures: true });
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
 export type Campaign = typeof campaigns.$inferSelect;
+
+// ── Message Jobs ─────────────────────────────────────────────────────────────
+
+export const MESSAGE_JOB_TYPES = ["SYSTEM", "AUTOMATION", "CAMPAIGN", "MANUAL"] as const;
+export type MessageJobType = typeof MESSAGE_JOB_TYPES[number];
+
+export const MESSAGE_JOB_SOURCE_TYPES = ["automation", "campaign", "manual_send", "scheduled_send", "event_action"] as const;
+export type MessageJobSourceType = typeof MESSAGE_JOB_SOURCE_TYPES[number];
+
+export const MESSAGE_JOB_TRIGGER_TYPES = ["EVENT_ACTION", "AUTOMATION_RULE", "MANUAL_SEND", "SCHEDULED_SEND", "CAMPAIGN_SEND"] as const;
+export type MessageJobTriggerType = typeof MESSAGE_JOB_TRIGGER_TYPES[number];
+
+export const MESSAGE_JOB_STATUSES = ["DRAFT", "SCHEDULED", "RUNNING", "COMPLETED", "FAILED", "CANCELLED"] as const;
+export type MessageJobStatus = typeof MESSAGE_JOB_STATUSES[number];
+
+export const messageJobs = pgTable("message_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobName: text("job_name").notNull(),
+  messageType: text("message_type").notNull(),
+  sourceType: text("source_type").notNull(),
+  sourceId: varchar("source_id"),
+  eventId: varchar("event_id"),
+  sponsorId: varchar("sponsor_id"),
+  attendeeId: varchar("attendee_id"),
+  templateId: varchar("template_id"),
+  templateKeySnapshot: text("template_key_snapshot"),
+  triggerType: text("trigger_type").notNull(),
+  triggerName: text("trigger_name"),
+  status: text("status").notNull().default("RUNNING"),
+  scheduledAt: timestamp("scheduled_at"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  recipientCount: integer("recipient_count").notNull().default(0),
+  sentCount: integer("sent_count").notNull().default(0),
+  failedCount: integer("failed_count").notNull().default(0),
+  deliveredCount: integer("delivered_count"),
+  openedCount: integer("opened_count"),
+  clickedCount: integer("clicked_count"),
+  createdByUserId: varchar("created_by_user_id"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertMessageJobSchema = createInsertSchema(messageJobs).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertMessageJob = z.infer<typeof insertMessageJobSchema>;
+export type MessageJob = typeof messageJobs.$inferSelect;

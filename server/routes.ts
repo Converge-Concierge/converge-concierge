@@ -6,7 +6,7 @@ import { normalizeAttendeeCategory, rankAttendees, categoryLabel, setCategoryWei
 import { evaluateRules, testRulesAgainstValue } from "./services/categoryRuleEngine";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
-import { sendEmail, sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee, sendInternalDeliverableNotification as sendInternalNotification, isAutomationEnabled, recordAutomationSend } from "../services/emailService";
+import { sendEmail, sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee, sendInternalDeliverableNotification as sendInternalNotification, isAutomationEnabled, recordAutomationSend, createMessageJobForSend, completeMessageJob } from "../services/emailService";
 import multer from "multer";
 import path from "path";
 import { randomBytes, createHash } from "crypto";
@@ -758,6 +758,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         html = template.htmlTemplate.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
       }
 
+      const messageJobId = await createMessageJobForSend(storage, {
+        jobName: `Scheduling Invitation – ${attendee.name || attendee.email} – ${event.slug || event.name}`,
+        messageType: "MANUAL",
+        sourceType: "manual_send",
+        eventId: event.id,
+        attendeeId: attendee.id,
+        templateId: template?.id || null,
+        templateKeySnapshot: "scheduling_invitation",
+        triggerType: "MANUAL_SEND",
+        triggerName: "Send scheduling email",
+        recipientCount: 1,
+        createdByUserId: req.session?.userId || null,
+      });
+
       let status: "sent" | "failed" = "sent";
       let errorMessage: string | null = null;
       let providerMessageId: string | null = null;
@@ -780,8 +794,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         errorMessage,
         providerMessageId,
         source: "Automation – Scheduling Invitation",
+        messageJobId,
       });
 
+      await completeMessageJob(storage, messageJobId, status === "sent" ? 1 : 0, status === "failed" ? 1 : 0);
       await recordAutomationSend(storage, "scheduling_invitation", status === "sent" ? 1 : 0, status === "failed" ? 1 : 0, errorMessage);
 
       if (status === "failed") {
@@ -1033,13 +1049,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           storage.getSponsor(meeting.sponsorId),
           storage.getEvent(meeting.eventId),
         ]);
-        // Look up a sponsor token for dashboard link
+        const jobId = await createMessageJobForSend(storage, {
+          jobName: `Meeting Booked – ${meetingAttendee?.name || "Attendee"} × ${meetingSponsor?.name || "Sponsor"}`,
+          messageType: "SYSTEM", sourceType: "event_action",
+          eventId: meeting.eventId, sponsorId: meeting.sponsorId, attendeeId: meeting.attendeeId,
+          triggerType: "EVENT_ACTION", triggerName: "Meeting booked",
+          recipientCount: 2,
+        });
         const sponsorTokens = await storage.getSponsorTokensBySponsor(meeting.sponsorId).catch(() => []);
         const activeToken = sponsorTokens.find((t: any) => t.isActive && t.eventId === meeting.eventId);
-        await Promise.all([
-          sendMeetingConfirmationToAttendee(storage, meetingAttendee, meetingSponsor, meeting, meetingEvent),
-          sendMeetingNotificationToSponsor(storage, meetingAttendee, meetingSponsor, meeting, meetingEvent, activeToken?.token ?? null),
-        ]);
+        let sentCount = 0; let failedCount = 0;
+        try {
+          await sendMeetingConfirmationToAttendee(storage, meetingAttendee, meetingSponsor, meeting, meetingEvent);
+          sentCount++;
+        } catch { failedCount++; }
+        try {
+          await sendMeetingNotificationToSponsor(storage, meetingAttendee, meetingSponsor, meeting, meetingEvent, activeToken?.token ?? null);
+          sentCount++;
+        } catch { failedCount++; }
+        await completeMessageJob(storage, jobId, sentCount, failedCount);
       } catch (err: any) {
         console.error(`[EMAIL] Error sending meeting emails for meeting ${meeting.id}:`, err?.message ?? err);
       }
@@ -3108,12 +3136,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     ;(async () => {
       try {
         const irEvent = parsed.data.eventId ? await storage.getEvent(parsed.data.eventId) : null;
+        const jobId = await createMessageJobForSend(storage, {
+          jobName: `Info Request – ${sponsor.name}`,
+          messageType: "SYSTEM", sourceType: "event_action",
+          eventId: parsed.data.eventId || null, sponsorId: sponsor.id,
+          triggerType: "EVENT_ACTION", triggerName: "Information request submitted",
+          recipientCount: 2,
+        });
         const sponsorTokens = await storage.getSponsorTokensBySponsor(sponsor.id).catch(() => []);
         const activeToken = sponsorTokens.find((t: any) => t.isActive && t.eventId === parsed.data.eventId);
-        await Promise.all([
-          sendInformationRequestNotificationToSponsor(storage, null, sponsor, record, irEvent, activeToken?.token ?? null),
-          sendInformationRequestConfirmationToAttendee(storage, record, sponsor, irEvent),
-        ]);
+        let sentCount = 0; let failedCount = 0;
+        try {
+          await sendInformationRequestNotificationToSponsor(storage, null, sponsor, record, irEvent, activeToken?.token ?? null);
+          sentCount++;
+        } catch { failedCount++; }
+        try {
+          await sendInformationRequestConfirmationToAttendee(storage, record, sponsor, irEvent);
+          sentCount++;
+        } catch { failedCount++; }
+        await completeMessageJob(storage, jobId, sentCount, failedCount);
       } catch (err: any) {
         console.error(`[EMAIL] Error sending info request emails for request ${record.id}:`, err?.message ?? err);
       }
@@ -4271,6 +4312,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       let failures = 0;
       const campaignSource = `Campaign – ${campaign.name}`;
 
+      const messageJobId = await createMessageJobForSend(storage, {
+        jobName: `Campaign Send – ${campaign.name}${event ? ` – ${event?.slug || event?.name}` : ""}`,
+        messageType: "CAMPAIGN",
+        sourceType: "campaign",
+        sourceId: campaign.id,
+        eventId: eventId || null,
+        templateId: template.id,
+        templateKeySnapshot: template.displayName || template.key,
+        triggerType: "CAMPAIGN_SEND",
+        triggerName: campaign.name,
+        recipientCount: recipients.length,
+        createdByUserId: req.session?.userId || null,
+      });
+
       for (const r of recipients) {
         try {
           const vars: Record<string, string> = {
@@ -4309,6 +4364,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             providerMessageId,
             source: campaignSource,
             templateId: template.id,
+            messageJobId,
           });
 
           if (status === "sent") emailsSent++;
@@ -4318,6 +4374,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           failures++;
         }
       }
+
+      await completeMessageJob(storage, messageJobId, emailsSent, failures);
 
       await storage.updateCampaign(campaign.id, {
         status: "Sent",
@@ -4460,6 +4518,85 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message ?? "Failed to get email stats" });
+    }
+  });
+
+  // ── Message Jobs Routes ────────────────────────────────────────────────────
+
+  app.get("/api/admin/message-jobs", requireAdmin, async (req, res) => {
+    try {
+      const filters: Record<string, any> = {};
+      if (req.query.messageType) filters.messageType = req.query.messageType;
+      if (req.query.status) filters.status = req.query.status;
+      if (req.query.eventId) filters.eventId = req.query.eventId;
+      if (req.query.sponsorId) filters.sponsorId = req.query.sponsorId;
+      if (req.query.sourceType) filters.sourceType = req.query.sourceType;
+      if (req.query.search) filters.search = req.query.search;
+      if (req.query.from) filters.from = new Date(req.query.from as string);
+      if (req.query.to) filters.to = new Date(req.query.to as string);
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const jobs = await storage.listMessageJobs(filters, limit, offset);
+
+      const events = await storage.getEvents();
+      const sponsors = await storage.getSponsors();
+      const eventMap = new Map(events.map((e: any) => [e.id, e]));
+      const sponsorMap = new Map(sponsors.map((s: any) => [s.id, s]));
+
+      const enriched = jobs.map((j: any) => ({
+        ...j,
+        eventName: j.eventId ? eventMap.get(j.eventId)?.name ?? null : null,
+        eventSlug: j.eventId ? eventMap.get(j.eventId)?.slug ?? null : null,
+        sponsorName: j.sponsorId ? sponsorMap.get(j.sponsorId)?.name ?? null : null,
+      }));
+
+      res.json(enriched);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message ?? "Failed to list message jobs" });
+    }
+  });
+
+  app.get("/api/admin/message-jobs/:id", requireAdmin, async (req, res) => {
+    try {
+      const job = await storage.getMessageJob(req.params.id);
+      if (!job) return res.status(404).json({ message: "Message job not found" });
+
+      const childEmails = await storage.getMessageJobEmailLogs(req.params.id);
+
+      let eventName: string | null = null;
+      let eventSlug: string | null = null;
+      let sponsorName: string | null = null;
+      let attendeeName: string | null = null;
+      let createdByName: string | null = null;
+
+      if (job.eventId) {
+        const ev = await storage.getEvent(job.eventId);
+        if (ev) { eventName = ev.name; eventSlug = ev.slug; }
+      }
+      if (job.sponsorId) {
+        const sp = await storage.getSponsor(job.sponsorId);
+        if (sp) sponsorName = sp.name;
+      }
+      if (job.attendeeId) {
+        const att = await storage.getAttendee(job.attendeeId);
+        if (att) attendeeName = att.name || `${att.firstName || ""} ${att.lastName || ""}`.trim();
+      }
+      if (job.createdByUserId) {
+        const user = await storage.getUser(job.createdByUserId);
+        if (user) createdByName = user.name;
+      }
+
+      res.json({
+        ...job,
+        eventName,
+        eventSlug,
+        sponsorName,
+        attendeeName,
+        createdByName,
+        childEmails,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message ?? "Failed to get message job" });
     }
   });
 

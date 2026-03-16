@@ -34,6 +34,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -1647,6 +1649,372 @@ const STATUS_COLORS: Record<string, string> = {
   "Delivery Issues Detected": "bg-orange-100 text-orange-700 border-orange-300",
 };
 
+interface MessageJob {
+  id: string;
+  jobName: string;
+  messageType: string;
+  sourceType: string;
+  sourceId: string | null;
+  eventId: string | null;
+  sponsorId: string | null;
+  attendeeId: string | null;
+  templateId: string | null;
+  templateKeySnapshot: string | null;
+  triggerType: string;
+  triggerName: string | null;
+  status: string;
+  scheduledAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  recipientCount: number;
+  sentCount: number;
+  failedCount: number;
+  createdByUserId: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  eventName?: string | null;
+  eventSlug?: string | null;
+  sponsorName?: string | null;
+  attendeeName?: string | null;
+  createdByName?: string | null;
+  childEmails?: EmailLog[];
+}
+
+const MESSAGE_TYPE_COLORS: Record<string, string> = {
+  SYSTEM: "bg-blue-100 text-blue-700",
+  AUTOMATION: "bg-purple-100 text-purple-700",
+  CAMPAIGN: "bg-teal-100 text-teal-700",
+  MANUAL: "bg-gray-100 text-gray-700",
+};
+
+const JOB_STATUS_COLORS: Record<string, string> = {
+  DRAFT: "bg-gray-100 text-gray-600",
+  SCHEDULED: "bg-blue-100 text-blue-600",
+  RUNNING: "bg-amber-100 text-amber-700",
+  COMPLETED: "bg-green-100 text-green-700",
+  FAILED: "bg-red-100 text-red-700",
+  CANCELLED: "bg-gray-200 text-gray-500",
+};
+
+function MessageRunsTab({ events, sponsors }: { events: Event[]; sponsors: Sponsor[] }) {
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [eventFilter, setEventFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
+  const [sponsorFilter, setSponsorFilter] = useState("");
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+
+  const activeType = typeFilter && typeFilter !== "all" ? typeFilter : "";
+  const activeStatus = statusFilter && statusFilter !== "all" ? statusFilter : "";
+  const activeEvent = eventFilter && eventFilter !== "all" ? eventFilter : "";
+  const activeSource = sourceFilter && sourceFilter !== "all" ? sourceFilter : "";
+  const activeSponsor = sponsorFilter && sponsorFilter !== "all" ? sponsorFilter : "";
+
+  const { data: jobs = [], isLoading } = useQuery<MessageJob[]>({
+    queryKey: ["/api/admin/message-jobs", { messageType: activeType || undefined, status: activeStatus || undefined, eventId: activeEvent || undefined, sourceType: activeSource || undefined, sponsorId: activeSponsor || undefined, search: search || undefined }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (activeType) params.set("messageType", activeType);
+      if (activeStatus) params.set("status", activeStatus);
+      if (activeEvent) params.set("eventId", activeEvent);
+      if (activeSource) params.set("sourceType", activeSource);
+      if (activeSponsor) params.set("sponsorId", activeSponsor);
+      if (search) params.set("search", search);
+      const res = await fetch(`/api/admin/message-jobs?${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch message jobs");
+      return res.json();
+    },
+  });
+
+  const { data: jobDetail, isLoading: detailLoading } = useQuery<MessageJob>({
+    queryKey: ["/api/admin/message-jobs", selectedJobId],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/message-jobs/${selectedJobId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch job detail");
+      return res.json();
+    },
+    enabled: !!selectedJobId,
+  });
+
+  const formatDate = (d: string | null) => {
+    if (!d) return "—";
+    return new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search job name, template..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" data-testid="input-search-jobs" />
+        </div>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[140px] h-9" data-testid="filter-job-type">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="SYSTEM">System</SelectItem>
+            <SelectItem value="AUTOMATION">Automation</SelectItem>
+            <SelectItem value="CAMPAIGN">Campaign</SelectItem>
+            <SelectItem value="MANUAL">Manual</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px] h-9" data-testid="filter-job-status">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="COMPLETED">Completed</SelectItem>
+            <SelectItem value="RUNNING">Running</SelectItem>
+            <SelectItem value="FAILED">Failed</SelectItem>
+            <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={eventFilter} onValueChange={setEventFilter}>
+          <SelectTrigger className="w-[160px] h-9" data-testid="filter-job-event">
+            <SelectValue placeholder="All Events" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Events</SelectItem>
+            {events.map(e => <SelectItem key={e.id} value={e.id}>{e.slug || e.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={sourceFilter} onValueChange={setSourceFilter}>
+          <SelectTrigger className="w-[150px] h-9" data-testid="filter-job-source">
+            <SelectValue placeholder="All Sources" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sources</SelectItem>
+            <SelectItem value="automation">Automation</SelectItem>
+            <SelectItem value="campaign">Campaign</SelectItem>
+            <SelectItem value="manual_send">Manual Send</SelectItem>
+            <SelectItem value="event_action">Event Action</SelectItem>
+            <SelectItem value="scheduled_send">Scheduled Send</SelectItem>
+          </SelectContent>
+        </Select>
+        {sponsors.length > 0 && (
+          <Select value={sponsorFilter} onValueChange={setSponsorFilter}>
+            <SelectTrigger className="w-[150px] h-9" data-testid="filter-job-sponsor">
+              <SelectValue placeholder="All Sponsors" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sponsors</SelectItem>
+              {sponsors.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12 text-muted-foreground">
+          <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading message runs...
+        </div>
+      ) : jobs.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Activity className="h-10 w-10 mx-auto mb-3 opacity-40" />
+          <p className="font-medium">No message runs found</p>
+          <p className="text-sm mt-1">Message runs will appear here as emails are sent through campaigns, automations, and manual actions.</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border/60 overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30">
+                <TableHead className="font-semibold">Job Name</TableHead>
+                <TableHead className="font-semibold">Type</TableHead>
+                <TableHead className="font-semibold">Event</TableHead>
+                <TableHead className="font-semibold">Sponsor</TableHead>
+                <TableHead className="font-semibold">Template</TableHead>
+                <TableHead className="font-semibold">Status</TableHead>
+                <TableHead className="font-semibold text-center">Audience</TableHead>
+                <TableHead className="font-semibold text-center">Sent</TableHead>
+                <TableHead className="font-semibold text-center">Failed</TableHead>
+                <TableHead className="font-semibold">Started</TableHead>
+                <TableHead className="font-semibold">Completed</TableHead>
+                <TableHead className="font-semibold">Source</TableHead>
+                <TableHead className="font-semibold w-[60px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {jobs.map(job => (
+                <TableRow key={job.id} className="hover:bg-muted/20 cursor-pointer" onClick={() => setSelectedJobId(job.id)} data-testid={`row-job-${job.id}`}>
+                  <TableCell className="font-medium max-w-[250px] truncate" title={job.jobName}>{job.jobName}</TableCell>
+                  <TableCell>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${MESSAGE_TYPE_COLORS[job.messageType] || "bg-gray-100 text-gray-600"}`}>
+                      {job.messageType}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{job.eventSlug || job.eventName || "—"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{job.sponsorName || (job.sponsorId ? sponsors.find(s => s.id === job.sponsorId)?.name : null) || "—"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-[120px] truncate" title={job.templateKeySnapshot || ""}>{job.templateKeySnapshot || "—"}</TableCell>
+                  <TableCell>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${JOB_STATUS_COLORS[job.status] || "bg-gray-100"}`}>
+                      {job.status}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="text-sm font-medium">{job.recipientCount}</span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="text-sm text-green-600 font-medium">{job.sentCount}</span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className={`text-sm font-medium ${job.failedCount > 0 ? "text-red-600" : "text-muted-foreground"}`}>{job.failedCount}</span>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{formatDate(job.startedAt)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{formatDate(job.completedAt)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground capitalize">{job.sourceType?.replace(/_/g, " ") || "—"}</TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" data-testid={`button-view-job-${job.id}`}>
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <Sheet open={!!selectedJobId} onOpenChange={(o) => { if (!o) setSelectedJobId(null); }}>
+        <SheetContent side="right" className="w-[700px] sm:max-w-[700px] flex flex-col overflow-y-auto" data-testid="drawer-job-detail">
+          <SheetHeader className="pb-4 border-b border-border/40">
+            <SheetTitle className="flex items-center gap-2 text-base font-display">
+              <Activity className="h-4 w-4 text-accent" />
+              Message Run Detail
+            </SheetTitle>
+          </SheetHeader>
+
+          {detailLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading...
+            </div>
+          ) : jobDetail ? (
+            <div className="space-y-6 py-4">
+              <div>
+                <h3 className="text-lg font-semibold" data-testid="text-job-name">{jobDetail.jobName}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${MESSAGE_TYPE_COLORS[jobDetail.messageType] || ""}`}>{jobDetail.messageType}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${JOB_STATUS_COLORS[jobDetail.status] || ""}`}>{jobDetail.status}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Source Type</span>
+                  <p className="font-medium capitalize">{jobDetail.sourceType?.replace(/_/g, " ")}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Trigger</span>
+                  <p className="font-medium">{jobDetail.triggerName || jobDetail.triggerType}</p>
+                </div>
+                {jobDetail.eventName && (
+                  <div>
+                    <span className="text-muted-foreground">Event</span>
+                    <p className="font-medium">{jobDetail.eventName}</p>
+                  </div>
+                )}
+                {jobDetail.sponsorName && (
+                  <div>
+                    <span className="text-muted-foreground">Sponsor</span>
+                    <p className="font-medium">{jobDetail.sponsorName}</p>
+                  </div>
+                )}
+                {jobDetail.attendeeName && (
+                  <div>
+                    <span className="text-muted-foreground">Attendee</span>
+                    <p className="font-medium">{jobDetail.attendeeName}</p>
+                  </div>
+                )}
+                {jobDetail.templateKeySnapshot && (
+                  <div>
+                    <span className="text-muted-foreground">Template</span>
+                    <p className="font-medium">{jobDetail.templateKeySnapshot}</p>
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Started</span>
+                  <p className="font-medium">{formatDate(jobDetail.startedAt)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Completed</span>
+                  <p className="font-medium">{formatDate(jobDetail.completedAt)}</p>
+                </div>
+                {jobDetail.createdByName && (
+                  <div>
+                    <span className="text-muted-foreground">Created By</span>
+                    <p className="font-medium">{jobDetail.createdByName}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-muted/40 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold">{jobDetail.recipientCount}</div>
+                  <div className="text-xs text-muted-foreground">Recipients</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-green-600">{jobDetail.sentCount}</div>
+                  <div className="text-xs text-muted-foreground">Sent</div>
+                </div>
+                <div className={`rounded-lg p-3 text-center ${jobDetail.failedCount > 0 ? "bg-red-50" : "bg-muted/40"}`}>
+                  <div className={`text-2xl font-bold ${jobDetail.failedCount > 0 ? "text-red-600" : ""}`}>{jobDetail.failedCount}</div>
+                  <div className="text-xs text-muted-foreground">Failed</div>
+                </div>
+              </div>
+
+              {jobDetail.notes && (
+                <div className="bg-muted/30 rounded-lg p-3 text-sm">
+                  <span className="text-muted-foreground font-medium">Notes:</span> {jobDetail.notes}
+                </div>
+              )}
+
+              {jobDetail.childEmails && jobDetail.childEmails.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <Mail className="h-4 w-4" /> Email Activity ({jobDetail.childEmails.length})
+                  </h4>
+                  <div className="rounded-lg border border-border/60 overflow-hidden max-h-[300px] overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/20">
+                          <TableHead className="text-xs">Recipient</TableHead>
+                          <TableHead className="text-xs">Subject</TableHead>
+                          <TableHead className="text-xs">Status</TableHead>
+                          <TableHead className="text-xs">Sent At</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {jobDetail.childEmails.map((email: EmailLog) => (
+                          <TableRow key={email.id} className="text-xs">
+                            <TableCell className="max-w-[160px] truncate">{email.recipientEmail}</TableCell>
+                            <TableCell className="max-w-[180px] truncate">{email.subject}</TableCell>
+                            <TableCell>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${email.status === "sent" ? "bg-green-100 text-green-700" : email.status === "failed" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}>
+                                {email.status}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{email.sentAt ? new Date(email.sentAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
 function EmailSettingsTab() {
   const { toast } = useToast();
 
@@ -2446,6 +2814,9 @@ export default function EmailCenterPage() {
             <TabsTrigger value="logs" className="gap-2" data-testid="tab-email-activity">
               <FileText className="h-3.5 w-3.5" /> Email Activity
             </TabsTrigger>
+            <TabsTrigger value="message-runs" className="gap-2" data-testid="tab-message-runs">
+              <Activity className="h-3.5 w-3.5" /> Message Runs
+            </TabsTrigger>
             <TabsTrigger value="templates" className="gap-2">
               <Layout className="h-3.5 w-3.5" /> Templates
             </TabsTrigger>
@@ -2614,6 +2985,10 @@ export default function EmailCenterPage() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="message-runs" className="mt-0">
+          <MessageRunsTab events={events} sponsors={sponsors} />
         </TabsContent>
 
         <TabsContent value="templates" className="mt-0">

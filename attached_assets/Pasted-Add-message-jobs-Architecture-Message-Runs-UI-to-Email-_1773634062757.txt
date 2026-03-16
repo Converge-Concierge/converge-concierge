@@ -1,0 +1,687 @@
+Add message_jobs Architecture + Message Runs UI to Email Center
+
+We need to add a structural communication layer to Concierge so Email Center can track not just individual emails, but the job/run/workflow that caused those emails to be sent.
+
+Right now the system can show individual email sends, but as Concierge grows, Converge needs to understand:
+
+why a group of emails was sent
+
+what workflow triggered them
+
+which event they belonged to
+
+whether the run succeeded overall
+
+how many recipients were targeted
+
+how many succeeded or failed
+
+The solution is to add a parent-layer record:
+
+message_jobs
+
+This should sit above individual email activity records.
+
+1. Primary Goal
+
+Create a new messaging architecture that:
+
+groups related email sends into one parent communication job
+
+allows Email Center to show job-level visibility
+
+improves debugging, auditing, and reporting
+
+supports automations, campaigns, manual sends, and scheduled sends
+
+strengthens Email Center as an event communications control system
+
+2. Core Concept
+
+A single communication action should create:
+
+1 message job
+
+many child email activity records if multiple recipients are involved
+
+Example
+
+A campaign sent to 54 attendees should create:
+
+1 message_job
+
+54 email activity records
+
+A manual sponsor report send to 1 sponsor contact should create:
+
+1 message_job
+
+1 email activity record
+
+A deliverable reminder automation run for 8 sponsor reps should create:
+
+1 message_job
+
+8 email activity records
+
+3. Create New Table: message_jobs
+
+Add a new database table/model:
+
+message_jobs
+Recommended fields
+
+id
+
+job_name
+
+message_type
+
+source_type
+
+source_id nullable
+
+event_id nullable
+
+sponsor_id nullable
+
+attendee_id nullable
+
+template_id nullable
+
+template_key_snapshot nullable
+
+trigger_type
+
+trigger_name nullable
+
+status
+
+scheduled_at nullable
+
+started_at nullable
+
+completed_at nullable
+
+recipient_count default 0
+
+sent_count default 0
+
+failed_count default 0
+
+delivered_count nullable
+
+opened_count nullable
+
+clicked_count nullable
+
+created_by_user_id nullable
+
+notes nullable
+
+created_at
+
+updated_at
+
+4. Field Definitions
+job_name
+
+Human-readable label.
+
+Examples:
+
+Deliverable Reminder Run – FRC2026
+
+Attendee Scheduling Campaign – TLS2026
+
+Sponsor Report Send – Alloy
+
+Meeting Reminder 24h Run – USBT2026
+
+message_type
+
+Recommended values:
+
+SYSTEM
+
+AUTOMATION
+
+CAMPAIGN
+
+MANUAL
+
+source_type
+
+Where the job originated.
+
+Examples:
+
+automation
+
+campaign
+
+manual_send
+
+scheduled_send
+
+event_action
+
+source_id
+
+Optional reference to the originating record.
+
+Examples:
+
+automation rule id
+
+campaign id
+
+scheduled send id
+
+event_id
+
+Tie the message job to an event where applicable.
+
+sponsor_id
+
+Optional sponsor association.
+
+Important for:
+
+sponsor report sends
+
+deliverable reminders
+
+sponsor welcome emails
+
+attendee_id
+
+Optional single-attendee association.
+
+Useful for:
+
+one-off attendee scheduling email
+
+meeting follow-up to one attendee
+
+template_id
+
+Template reference if a specific template was used.
+
+template_key_snapshot
+
+Store a snapshot of the template key/name used at the time of send in case the template later changes.
+
+trigger_type
+
+Recommended values:
+
+EVENT_ACTION
+
+AUTOMATION_RULE
+
+MANUAL_SEND
+
+SCHEDULED_SEND
+
+CAMPAIGN_SEND
+
+trigger_name
+
+Human-readable trigger label.
+
+Examples:
+
+Deliverable overdue
+
+24 hours before meeting
+
+Manual sponsor report send
+
+Campaign audience send
+
+status
+
+Recommended values:
+
+DRAFT
+
+SCHEDULED
+
+RUNNING
+
+COMPLETED
+
+FAILED
+
+CANCELLED
+
+5. Link Email Activity Records to message_jobs
+
+Add a nullable foreign key to the individual sent email records:
+
+message_job_id
+
+This creates the parent-child relationship.
+
+Required behavior
+
+Every new email sent by the system should attempt to link to a message_job.
+
+If a legacy email record exists without a message job, that is acceptable.
+
+New sends going forward should use the new structure.
+
+6. Do Not Replace Existing Email Activity Records
+
+Important:
+Do not replace the existing per-email activity table/log.
+
+Instead:
+
+message_jobs = parent communication run
+
+email activity = individual email sends
+
+This preserves current behavior while adding the missing operational layer.
+
+7. Create New UI View: Message Runs
+
+Add a new UI view inside Email Center.
+
+Recommended options:
+
+Option A
+
+A new top-level tab:
+
+Email Center
+   Email Activity
+   Message Runs
+   Templates
+   Automations
+   Campaigns
+   Settings
+Option B
+
+A toggle/sub-tab inside Email Activity:
+
+Email Activity
+
+Message Runs
+
+Either option is acceptable, but the UI must make Message Runs clearly visible.
+
+Preferred: top-level tab if space allows.
+
+8. Message Runs Table
+
+The Message Runs view should show one row per message_job.
+
+Required columns
+
+Job Name
+
+Type
+
+Event
+
+Sponsor
+
+Audience / Recipient Count
+
+Template
+
+Status
+
+Started At
+
+Completed At
+
+Sent
+
+Failed
+
+Source
+
+Actions
+
+Example rows
+
+Deliverable Reminder Run – FRC2026
+
+Attendee Scheduling Campaign – TLS2026
+
+Sponsor Report Send – Alloy
+
+Meeting Reminder 24h Run – USBT2026
+
+9. Add Filters to Message Runs
+
+Add filters for:
+
+Type
+
+Event
+
+Sponsor
+
+Status
+
+Source Type
+
+Date Range
+
+Add search by:
+
+job name
+
+sponsor name
+
+template key/display name
+
+This makes Message Runs operationally useful.
+
+10. Add Message Run Detail View
+
+Clicking View on a message run should open a detail view.
+
+Required fields in detail view
+
+Job Name
+
+Message Type
+
+Source Type
+
+Source ID if helpful
+
+Event
+
+Sponsor
+
+Attendee if single-recipient
+
+Template Used
+
+Trigger Type
+
+Trigger Name
+
+Status
+
+Scheduled At
+
+Started At
+
+Completed At
+
+Recipient Count
+
+Sent Count
+
+Failed Count
+
+Created By
+
+Notes if present
+
+Also include a child email activity section showing the actual sent emails tied to that message job.
+
+11. Show Child Email Records in Message Run Detail
+
+Inside the Message Run detail view, show the emails associated with that job.
+
+Columns:
+
+Recipient
+
+Subject
+
+Status
+
+Sent At
+
+Delivered if available
+
+Opened if available
+
+Clicked if available
+
+View Email
+
+This is one of the main reasons for building this architecture.
+
+12. Integrate With Existing Email Center Workflows
+
+Use message_jobs for the following email sources as they are sent going forward:
+
+Automations
+
+Examples:
+
+deliverable reminder run
+
+meeting reminder run
+
+info request notification run
+
+Campaigns
+
+Each campaign send should create a message job.
+
+Manual Sends
+
+Examples:
+
+Send Scheduling Email to attendee
+
+Send Sponsor Report
+
+Send dashboard invitation
+
+Scheduled Sends
+
+One scheduled batch should create one message job.
+
+13. Job Creation Rules
+For single-recipient sends
+
+Create one message job and one email activity record.
+
+For batch sends
+
+Create one message job and multiple child email records.
+
+The job status should update based on the child sends.
+
+Example logic
+
+if all succeed → COMPLETED
+
+if some fail → COMPLETED with failures or FAILED depending on your status model
+
+if total failure → FAILED
+
+Keep it simple and transparent.
+
+14. Metrics Rollups on message_jobs
+
+Where possible, roll up the child email metrics into the parent job.
+
+For each job, maintain:
+
+recipient_count
+
+sent_count
+
+failed_count
+
+If provider tracking later supports it, also roll up:
+
+delivered_count
+
+opened_count
+
+clicked_count
+
+Do not block initial implementation on advanced provider metrics if they are not ready yet.
+
+15. Use message_jobs in Campaigns and Automations First
+
+If phased rollout is needed, prioritize creating message jobs for:
+
+Campaign sends
+
+Automation runs
+
+Manual sponsor/attendee sends
+
+System-generated one-off emails
+
+This gives immediate operational value.
+
+16. Preserve Legacy Compatibility
+
+Historical email records may not belong to a message job.
+
+That is acceptable.
+
+Required behavior
+
+old email activity still works
+
+new sends create message jobs
+
+Message Runs only shows records where message_jobs exist
+
+Email Activity continues to show all records
+
+Do not try to perfectly backfill everything unless easy and safe.
+
+17. Add Source Visibility in Email Activity
+
+Once message_jobs exists, Email Activity should use it where possible.
+
+For email activity records linked to a job:
+
+show job name
+
+show source derived from message job
+
+Example:
+
+Source: Campaign – FRC2026 Meeting Invitation
+
+Source: Automation – Deliverable Reminder Run
+
+This improves both views.
+
+18. Suggested Enums / Controlled Values
+message_type
+
+SYSTEM
+
+AUTOMATION
+
+CAMPAIGN
+
+MANUAL
+
+trigger_type
+
+EVENT_ACTION
+
+AUTOMATION_RULE
+
+MANUAL_SEND
+
+SCHEDULED_SEND
+
+CAMPAIGN_SEND
+
+status
+
+DRAFT
+
+SCHEDULED
+
+RUNNING
+
+COMPLETED
+
+FAILED
+
+CANCELLED
+
+Use these or similar normalized values.
+
+19. UI Language
+
+Use admin-friendly language.
+
+Examples:
+
+Message Runs
+
+Communication Job
+
+Sent
+
+Failed
+
+Trigger
+
+Audience
+
+Source
+
+Do not make the page feel overly technical.
+
+The purpose is operational clarity.
+
+20. Acceptance Criteria
+
+This work is complete when:
+
+a new message_jobs table/model exists
+
+new email activity records can link to message_job_id
+
+Message Runs UI exists
+
+Message Runs shows one row per communication job
+
+campaigns create message jobs
+
+automations create message jobs
+
+manual sends can create message jobs
+
+each Message Run has a detail view
+
+child sent emails are visible within the Message Run detail
+
+Email Activity can reference the related message job/source where available
+
+legacy email records continue to work without breaking
+
+21. Success Standard
+
+After this implementation, Email Center should be able to answer not only:
+
+what email was sent
+
+but also:
+
+what communication workflow ran
+
+why it ran
+
+which event it belonged to
+
+how many recipients it targeted
+
+whether the run succeeded overall
+
+That is the standard this change should meet.

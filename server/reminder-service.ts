@@ -1,5 +1,5 @@
 import { storage } from "./storage";
-import { sendMeetingReminderEmail, sendDeliverableReminderEmail, isAutomationEnabled } from "../services/emailService.js";
+import { sendMeetingReminderEmail, sendDeliverableReminderEmail, isAutomationEnabled, createMessageJobForSend, completeMessageJob } from "../services/emailService.js";
 
 const INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const WEEKLY_INTERVAL_MS = 60 * 60 * 1000; // 1 hour check for weekly job
@@ -33,6 +33,36 @@ async function runReminderCheck(): Promise<void> {
     const plus2_5h = new Date(now.getTime() + 2.5 * 60 * 60 * 1000);
 
     let sent24 = 0, sent2 = 0, failures24 = 0, failures2 = 0;
+    let jobId24: string | null = null;
+    let jobId2: string | null = null;
+
+    const needs24Count = is24hEnabled ? dueMeetings.filter(m => {
+      const dt = new Date(`${m.date}T${m.time}`);
+      return !m.reminder24SentAt && dt >= plus23_5h && dt <= plus24_5h;
+    }).length : 0;
+    const needs2Count = is2hEnabled ? dueMeetings.filter(m => {
+      const dt = new Date(`${m.date}T${m.time}`);
+      return !m.reminder2SentAt && dt >= plus1_5h && dt <= plus2_5h;
+    }).length : 0;
+
+    if (needs24Count > 0) {
+      jobId24 = await createMessageJobForSend(storage, {
+        jobName: `Meeting Reminder 24h Run`,
+        messageType: "AUTOMATION", sourceType: "automation",
+        triggerType: "AUTOMATION_RULE", triggerName: "24 hours before meeting",
+        templateKeySnapshot: "meeting_reminder_24h",
+        recipientCount: needs24Count,
+      });
+    }
+    if (needs2Count > 0) {
+      jobId2 = await createMessageJobForSend(storage, {
+        jobName: `Meeting Reminder 2h Run`,
+        messageType: "AUTOMATION", sourceType: "automation",
+        triggerType: "AUTOMATION_RULE", triggerName: "2 hours before meeting",
+        templateKeySnapshot: "meeting_reminder_2h",
+        recipientCount: needs2Count,
+      });
+    }
 
     for (const meeting of dueMeetings) {
       try {
@@ -74,6 +104,8 @@ async function runReminderCheck(): Promise<void> {
     if (sent2 > 0 || failures2 > 0) {
       await storage.recordAutomationExecution("meeting_reminder_2h", sent2, failures2);
     }
+    await completeMessageJob(storage, jobId24, sent24, failures24);
+    await completeMessageJob(storage, jobId2, sent2, failures2);
   } catch (err: any) {
     console.error("[REMINDERS] Reminder check failed:", err?.message ?? err);
   }
@@ -123,6 +155,14 @@ async function runWeeklyDeliverableReminders(): Promise<void> {
     const SIX_DAYS_MS = 6 * 24 * 60 * 60 * 1000;
     let sent = 0;
     let skipped = 0;
+
+    const delivJobId = await createMessageJobForSend(storage, {
+      jobName: `Deliverable Reminder Run`,
+      messageType: "AUTOMATION", sourceType: "automation",
+      triggerType: "AUTOMATION_RULE", triggerName: "Deliverable overdue",
+      templateKeySnapshot: "deliverable_reminder",
+      recipientCount: groups.size,
+    });
 
     for (const [key, items] of groups) {
       const [sponsorId, eventId] = key.split("|");
@@ -197,6 +237,7 @@ async function runWeeklyDeliverableReminders(): Promise<void> {
     if (sent > 0 || skipped > 0) {
       await storage.recordAutomationExecution("deliverable_reminder", sent, 0);
     }
+    await completeMessageJob(storage, delivJobId, sent, 0);
   } catch (err: any) {
     console.error("[WEEKLY-REMINDERS] Job failed:", err?.message ?? err);
   }

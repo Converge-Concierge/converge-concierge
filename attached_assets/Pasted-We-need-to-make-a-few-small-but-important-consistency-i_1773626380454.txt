@@ -1,0 +1,177 @@
+We need to make a few small but important consistency improvements so the Agenda area matches the rest of Concierge more closely.
+
+These are UI/UX polish items, but they matter because the admin experience should feel uniform across modules.
+
+1. Agenda Event Tabs Should Match Sponsors Tab Styling
+
+The Agenda event tabs should use the same visual treatment as the Sponsors page.
+
+Current issue
+
+The Agenda event tabs do not visually match the Sponsors tab bar.
+
+Required behavior
+
+Update the Agenda event tab component so it matches the Sponsors page tab design, including:
+
+same tab shape
+
+same spacing
+
+same selected-state treatment
+
+same accent color behavior
+
+same font sizing / weight
+
+same hover/active styling
+
+The selected event tab should use the event accent color in the same way Sponsors does.
+
+2. Event Tab Order Should Be Soonest to Latest
+
+The event tabs on the Agenda page should be ordered chronologically by the event date, not by hard-coded event code order.
+
+Required behavior
+
+Sort event tabs by soonest upcoming event to latest event.
+
+Then place:
+
+All Events
+
+at the end.
+
+Example desired order
+
+If event dates are:
+
+FRC2026
+
+TLS2026
+
+USBT2026
+
+CUGI2027
+
+then the tab order should reflect the actual event dates from earliest to latest, followed by:
+
+All Events
+
+Do not hard-code the current order if it does not match event chronology.
+
+3. Agenda Page Width Should Match the Rest of the Admin Pages
+
+The Agenda page currently appears wider than the other admin sections.
+
+Required behavior
+
+Make the Agenda page content container match the same max-width, padding, and content alignment used on the other major admin pages such as:
+
+Sponsors
+
+Attendees
+
+Deliverables
+
+Reports
+
+The goal is visual consistency across the platform.
+
+Specifically align:
+
+page container width
+
+left/right padding
+
+header alignment
+
+table container width
+
+summary card row width
+
+tab/search row alignment
+
+The Agenda module should not feel like it belongs to a different layout system.
+
+4. Add Import Function to Data Management → Data Exchange for Agenda
+
+For consistency, the Agenda import function should also be available through:
+
+Data Management → Data Exchange
+Required behavior
+
+Add Agenda as another import/export category/tab inside Data Exchange.
+
+This should sit alongside existing Data Exchange categories such as:
+
+Sponsors
+
+Attendees
+
+Meetings
+
+Info Requests
+
+etc.
+
+New category/tab
+Agenda
+5. Data Exchange → Agenda Should Support the Same Agenda Import Workflow
+
+Inside:
+
+Data Management → Data Exchange → Agenda
+
+support:
+
+Download Agenda Template
+
+Export Agenda
+
+Import Agenda CSV
+
+This should use the same agenda CSV structure already defined for the Agenda module.
+
+The import behavior should be consistent whether the admin starts from:
+
+Agenda page
+or
+
+Data Management → Data Exchange → Agenda
+
+6. Keep Agenda Page Import Shortcut
+
+Even after adding Agenda to Data Exchange, keep the import shortcut on the Agenda page itself.
+
+Reason
+
+Agenda managers may prefer working directly in the Agenda module, while Data Exchange remains the centralized bulk-data operations area.
+
+So both can exist:
+
+Agenda page quick import
+
+Data Exchange centralized import
+
+7. Acceptance Criteria
+
+This is complete when:
+
+Agenda event tabs visually match Sponsors tabs
+
+Agenda tabs are ordered by soonest event date to latest
+
+All Events appears last
+
+Agenda page width matches the rest of the admin pages
+
+Data Management → Data Exchange includes an Agenda category/tab
+
+Agenda template download, export, and import are available there
+
+Agenda page can still import directly as well
+
+8. Success Standard
+
+After this change, the Agenda module should feel visually and operationally consistent with the rest of Concierge, and Agenda import should exist both where admins expect it operationally and where they expect it in centralized data management.

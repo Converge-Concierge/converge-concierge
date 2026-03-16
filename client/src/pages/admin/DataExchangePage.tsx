@@ -24,7 +24,8 @@ import {
   Network,
   Filter,
   AlertTriangle,
-  MessageSquare
+  MessageSquare,
+  BookOpen
 } from "lucide-react";
 import { 
   Card, 
@@ -1335,6 +1336,163 @@ function InfoRequestsExportSection({ events, sponsors }: { events: Event[]; spon
   );
 }
 
+function AgendaExchangeSection({ events }: { events: Event[] }) {
+  const { toast } = useToast();
+  const [selectedEventId, setSelectedEventId] = useState<string>("all");
+  const [file, setFile] = useState<File | null>(null);
+  const [csvText, setCsvText] = useState("");
+  const [importResult, setImportResult] = useState<any>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const activeEvents = events.filter(e => (e.archiveState ?? "active") === "active");
+
+  const handleDownloadTemplate = () => {
+    window.open("/api/admin/agenda-csv-template", "_blank");
+  };
+
+  const handleExport = () => {
+    const params = selectedEventId !== "all" ? `?eventId=${selectedEventId}` : "";
+    window.open(`/api/admin/agenda-sessions/export-csv${params}`, "_blank");
+    toast({ title: "Export Complete", description: "Agenda sessions exported successfully." });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    setImportResult(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => setCsvText(ev.target?.result as string || "");
+    reader.readAsText(f);
+  };
+
+  const handleImport = async () => {
+    if (!csvText || selectedEventId === "all") {
+      toast({ title: "Select a specific event", description: "Please select a specific event before importing.", variant: "destructive" });
+      return;
+    }
+    setIsImporting(true);
+    try {
+      const res = await apiRequest("POST", "/api/admin/agenda-sessions/import-csv", { csvData: csvText, eventId: selectedEventId });
+      const result = await res.json();
+      setImportResult(result);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/agenda-sessions"] });
+      toast({ title: "Import Complete", description: `Created ${result.created}, Updated ${result.updated}, Failed ${result.failed}` });
+    } catch (err: any) {
+      toast({ title: "Import failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
+            Download Template
+          </CardTitle>
+          <CardDescription>Download the agenda CSV template with all required columns.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-1.5">
+            {["EventCode", "SessionCode", "SessionTitle", "SessionType", "SessionDate", "StartTime", "EndTime", "Speaker1Name"].map(h => (
+              <span key={h} className="px-2 py-0.5 rounded-md bg-accent/10 text-accent text-xs font-mono border border-accent/20">{h}</span>
+            ))}
+            <span className="text-xs text-muted-foreground">+20 more</span>
+          </div>
+          <Button className="w-full gap-2" variant="outline" onClick={handleDownloadTemplate} data-testid="button-download-agenda-template">
+            <Download className="h-4 w-4" /> Download Template
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Download className="h-5 w-5 text-muted-foreground" />
+            Export Agenda
+          </CardTitle>
+          <CardDescription>Export agenda sessions to CSV.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Filter by Event</Label>
+            <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Events" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Events</SelectItem>
+                {activeEvents.map(e => (
+                  <SelectItem key={e.id} value={e.id}>{e.slug} — {e.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button className="w-full gap-2" onClick={handleExport} data-testid="button-export-agenda">
+            <Download className="h-4 w-4" /> Export as CSV
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Upload className="h-5 w-5 text-muted-foreground" />
+            Import Agenda
+          </CardTitle>
+          <CardDescription>Import agenda sessions from a CSV file.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Target Event</Label>
+            <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select event" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Select event...</SelectItem>
+                {activeEvents.map(e => (
+                  <SelectItem key={e.id} value={e.id}>{e.slug} — {e.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Input type="file" accept=".csv" onChange={handleFileChange} data-testid="input-agenda-csv-file" />
+          {file && <p className="text-xs text-muted-foreground">{file.name} ({csvText.split("\n").length - 1} data rows)</p>}
+          {importResult && (
+            <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+              <div className="flex gap-3 text-xs">
+                <span className="text-green-600 font-medium">Created: {importResult.created}</span>
+                <span className="text-blue-600 font-medium">Updated: {importResult.updated}</span>
+                <span className="text-red-600 font-medium">Failed: {importResult.failed}</span>
+              </div>
+              {importResult.errors?.length > 0 && (
+                <div className="max-h-20 overflow-y-auto">
+                  {importResult.errors.map((e: string, i: number) => (
+                    <p key={i} className="text-xs text-red-600">{e}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <Button
+            className="w-full gap-2"
+            onClick={handleImport}
+            disabled={!csvText || selectedEventId === "all" || isImporting}
+            data-testid="button-import-agenda"
+          >
+            <Upload className="h-4 w-4" />
+            {isImporting ? "Importing…" : "Start Import"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function DataExchangePage() {
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
@@ -1370,6 +1528,9 @@ export default function DataExchangePage() {
           </TabsTrigger>
           <TabsTrigger value="nunify" className="gap-2" data-testid="tab-exchange-nunify">
             <Zap className="h-4 w-4" /> Nunify Meetings
+          </TabsTrigger>
+          <TabsTrigger value="agenda" className="gap-2" data-testid="tab-exchange-agenda">
+            <BookOpen className="h-4 w-4" /> Agenda
           </TabsTrigger>
         </TabsList>
 
@@ -1414,6 +1575,9 @@ export default function DataExchangePage() {
             meetings={meetings}
             logs={logs}
           />
+        </TabsContent>
+        <TabsContent value="agenda">
+          <AgendaExchangeSection events={events} />
         </TabsContent>
       </Tabs>
 

@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   Plus, Upload, Download, Edit, Trash2, Search, CalendarDays,
   Clock, MapPin, Users, Mic2, FileText, AlertCircle,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Event, AgendaSession, AgendaSessionSpeaker, SessionType, Sponsor } from "@shared/schema";
 import { SessionFormModal } from "@/components/admin/SessionFormModal";
 
@@ -67,6 +67,17 @@ export default function AgendaPage() {
     },
   });
 
+  const sortedEvents = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const active = events.filter(e => (e.archiveState ?? "active") === "active");
+    const upcoming = active.filter(e => e.endDate && new Date(e.endDate) >= today)
+      .sort((a, b) => new Date(a.startDate ?? 0).getTime() - new Date(b.startDate ?? 0).getTime());
+    const completed = active.filter(e => !e.endDate || new Date(e.endDate) < today)
+      .sort((a, b) => new Date(b.endDate ?? 0).getTime() - new Date(a.endDate ?? 0).getTime());
+    return [...upcoming, ...completed];
+  }, [events]);
+
   const filtered = useMemo(() => {
     if (!search) return sessions;
     const q = search.toLowerCase();
@@ -103,7 +114,7 @@ export default function AgendaPage() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-7xl mx-auto p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-agenda-title">Agenda</h1>
@@ -128,14 +139,40 @@ export default function AgendaPage() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Tabs value={selectedEventId} onValueChange={setSelectedEventId}>
-          <TabsList>
-            <TabsTrigger value="all" data-testid="tab-all-events">All Events</TabsTrigger>
-            {events.filter(e => e.archiveState === "active").map(e => (
-              <TabsTrigger key={e.id} value={e.id} data-testid={`tab-event-${e.slug}`}>{e.slug}</TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        {sortedEvents.length > 0 && (
+          <div className="overflow-x-auto pb-1">
+            <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
+              {sortedEvents.map((event) => {
+                const isActive = selectedEventId === event.id;
+                return (
+                  <button
+                    key={event.id}
+                    data-testid={`tab-event-${event.slug}`}
+                    onClick={() => setSelectedEventId(event.id)}
+                    className={cn(
+                      "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                      isActive ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                    )}
+                    style={isActive ? { backgroundColor: event.accentColor ?? "#0D9488", color: "#ffffff" } : undefined}
+                  >
+                    {event.slug ?? event.name}
+                  </button>
+                );
+              })}
+              <button
+                data-testid="tab-all-events"
+                onClick={() => setSelectedEventId("all")}
+                className={cn(
+                  "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                  selectedEventId === "all" ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                )}
+                style={selectedEventId === "all" ? { backgroundColor: "#0D9488", color: "#ffffff" } : undefined}
+              >
+                All Events
+              </button>
+            </div>
+          </div>
+        )}
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input

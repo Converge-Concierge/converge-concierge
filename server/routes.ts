@@ -2269,6 +2269,50 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.send(headers.join(",") + "\n");
   });
 
+  app.get("/api/admin/agenda-sessions/export-csv", requireAuth, async (req, res) => {
+    const eventId = req.query.eventId as string | undefined;
+    const sessions = await storage.getAgendaSessions(eventId);
+    const allEvents = await storage.getEvents();
+
+    const headers = [
+      "EventCode", "SessionCode", "SessionTitle", "SessionDescription", "SessionType",
+      "SessionDate", "StartTime", "EndTime", "Timezone", "LocationName", "LocationDetails",
+      "Sponsor", "Speaker1Name", "Speaker1Title", "Speaker1Company",
+      "Speaker2Name", "Speaker2Title", "Speaker2Company",
+      "Speaker3Name", "Speaker3Title", "Speaker3Company",
+      "Speaker4Name", "Speaker4Title", "Speaker4Company",
+      "Speaker5Name", "Speaker5Title", "Speaker5Company",
+      "Status", "Featured", "IsPublic",
+    ];
+
+    const escape = (v: string | null | undefined) => {
+      if (!v) return "";
+      if (v.includes(",") || v.includes('"') || v.includes("\n")) return `"${v.replace(/"/g, '""')}"`;
+      return v;
+    };
+
+    const rows = await Promise.all(sessions.map(async (s) => {
+      const speakers = await storage.getSessionSpeakers(s.id);
+      const event = allEvents.find(e => e.id === s.eventId);
+      const cols: string[] = [
+        event?.slug || "", s.sessionCode || "", escape(s.title), escape(s.description), s.sessionTypeKey,
+        s.sessionDate, s.startTime, s.endTime, s.timezone, escape(s.locationName), escape(s.locationDetails),
+        escape(s.sponsorNameSnapshot),
+      ];
+      for (let i = 0; i < 5; i++) {
+        const sp = speakers.find(sp => sp.speakerOrder === i + 1);
+        cols.push(escape(sp?.name), escape(sp?.title), escape(sp?.company));
+      }
+      cols.push(s.status, s.isFeatured ? "true" : "false", s.isPublic ? "true" : "false");
+      return cols.join(",");
+    }));
+
+    const csv = headers.join(",") + "\n" + rows.join("\n");
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename=agenda_export${eventId ? "_" + (allEvents.find(e => e.id === eventId)?.slug || eventId) : ""}.csv`);
+    res.send(csv);
+  });
+
   app.post("/api/admin/agenda-sessions/import-csv", requireAuth, async (req, res) => {
     const { csvData, eventId } = req.body;
     if (!csvData || !eventId) return res.status(400).json({ error: "csvData and eventId are required" });

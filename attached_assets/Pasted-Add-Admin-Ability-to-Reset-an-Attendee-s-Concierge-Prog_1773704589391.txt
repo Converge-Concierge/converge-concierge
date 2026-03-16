@@ -1,0 +1,279 @@
+Add Admin Ability to Reset an Attendee’s Concierge Progress / Token State
+Allow testing users to restart the attendee welcome flow from Card 1
+
+I tested the attendee experience with another email address, and now that token always brings me back to the completion page (Card 5).
+
+For testing and QA purposes, I need a way to reset an attendee’s Concierge progress so they can start over from the welcome flow at Card 1.
+
+This should be an admin-controlled function.
+
+1. Primary Goal
+
+Add an admin function that allows Converge to reset an attendee’s Concierge onboarding state so that:
+
+their Concierge link remains usable
+
+they can re-enter the attendee flow from the beginning
+
+Card 1 is shown again
+
+prior onboarding completion does not force them back to Card 5 or the dashboard
+
+This is primarily needed for:
+
+testing
+
+QA
+
+demo resets
+
+support
+
+2. Clarify What Needs to Be Reset
+
+Resetting should not necessarily mean deleting the attendee record.
+
+We only need to reset the Concierge progress/state associated with that attendee and event.
+
+Likely items to reset
+
+onboarding completed flag / timestamp
+
+current onboarding step
+
+pending concierge profile completion state if applicable
+
+saved wizard progress
+
+temporary session/sponsor recommendation progress state if stored
+
+Optional reset depending on testing mode
+
+If practical, allow whether to also clear:
+
+selected interest topics
+
+saved sessions / My Agenda
+
+sponsor meeting actions / info requests
+
+But do not force deletion of all engagement data unless explicitly requested.
+
+3. Recommended Admin Action
+
+In the admin Attendees area, add a new action such as:
+
+Reset Concierge Progress
+
+This should be available from:
+
+attendee row actions
+or
+
+attendee detail side panel
+
+If space is limited, place it in the attendee detail panel.
+
+4. Reset Scope
+
+This reset should be event-specific, not global across all Converge events.
+
+If the same attendee email exists for multiple events, resetting one event’s Concierge state should not reset their progress for all events.
+
+The reset must be tied to:
+
+attendee
+
+event
+
+5. Reset Behavior Options
+
+Implement one of these approaches.
+
+Preferred approach
+
+A simple reset action that:
+
+clears onboarding completion
+
+clears current wizard step
+
+preserves the same token
+
+next time the attendee opens their Concierge link, they begin again at Card 1
+
+This is the best solution for testing because it avoids regenerating and redistributing links.
+
+Optional advanced approach
+
+Allow two admin actions:
+
+A. Reset Concierge Progress
+
+keep token
+
+restart flow from Card 1
+
+B. Regenerate Concierge Token
+
+invalidate old token
+
+create new token
+
+use new link going forward
+
+This second option is useful if token invalidation/security needs ever arise, but it is not strictly required for this request.
+
+6. Preserve or Clear Data — Recommended Rules
+
+For the basic reset requested here, I recommend:
+
+Reset these
+
+onboarding completed state
+
+current onboarding step
+
+welcome flow completion marker
+
+pending concierge flow step state
+
+Preserve these unless admin explicitly chooses otherwise
+
+attendee record
+
+token
+
+email
+
+company/title/profile
+
+existing meeting records
+
+existing info requests
+
+Optional toggle
+
+If practical, add an advanced checkbox:
+
+Also clear selected interests and saved agenda
+
+This is useful for true re-testing of the experience.
+
+7. Confirmation Modal
+
+Because reset affects attendee experience, require a confirmation modal.
+
+Example:
+
+Reset Concierge Progress?
+
+This will restart the attendee’s Concierge experience from Card 1 for this event.
+
+[Cancel] [Reset Progress]
+
+Optional advanced checkbox:
+
+Clear selected interests and saved agenda
+
+If you do include this, clearly explain it.
+
+8. Behavior After Reset
+
+After reset, when the attendee opens their existing Concierge link:
+
+Required behavior
+
+They should return to:
+
+Card 1 — Select Topics
+
+They should not be taken to:
+
+Card 5
+
+completed state
+
+dashboard
+
+unless they finish the flow again.
+
+This is the core requirement.
+
+9. If Using Token-Based Routing
+
+The current token should still resolve correctly after reset.
+
+The route might still be something like:
+
+/attendee-access/:token
+
+then redirect to /attendee
+
+That is fine.
+
+The important thing is that the flow logic now sees:
+
+onboarding incomplete
+
+current step reset
+
+and starts from Card 1.
+
+10. Recommended Internal Fields to Audit
+
+Please identify which fields currently drive the “completed” behavior and reset those properly.
+
+Examples may include:
+
+onboardingCompletedAt
+
+is_completed
+
+current_step
+
+wizard_step
+
+matched_attendee_id progression state
+
+pending concierge profile completion flags
+
+Do not guess. Reset the real fields used by the live routing logic.
+
+11. Optional Admin Visibility
+
+In the attendee admin detail, it would also be helpful to display a small Concierge status summary such as:
+
+Concierge Status
+Completed
+Current Step: Done
+Token Active: Yes
+
+After reset, this would become:
+
+Concierge Status
+Not Completed
+Current Step: Interests
+Token Active: Yes
+
+This is optional but helpful for support/testing.
+
+12. Acceptance Criteria
+
+This is complete when:
+
+an admin can reset an attendee’s Concierge progress for a specific event
+
+the attendee’s existing Concierge token remains usable
+
+after reset, the attendee starts again at Card 1
+
+the attendee is no longer routed directly to Card 5 or the dashboard
+
+reset is event-specific
+
+a confirmation modal prevents accidental reset
+
+13. Success Standard
+
+After this change, Converge should be able to re-test an attendee’s full Concierge onboarding flow at any time without creating a new attendee record or getting stuck on the completed state.

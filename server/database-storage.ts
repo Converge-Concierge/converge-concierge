@@ -331,11 +331,25 @@ export class DatabaseStorage implements IStorage {
       })
     );
 
+    const tokens = await this.getAttendeeTokensByAttendee(id);
+    const eventToken = tokens
+      .filter((t) => t.eventId === attendee.assignedEvent)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] ?? null;
+
     return {
       ...attendee,
       eventName: event?.name ?? "",
       eventSlug: event?.slug ?? "",
       meetingsList,
+      conciergeToken: eventToken
+        ? {
+            token: eventToken.token,
+            isActive: eventToken.isActive,
+            onboardingCompletedAt: eventToken.onboardingCompletedAt,
+            onboardingSkippedAt: eventToken.onboardingSkippedAt,
+            createdAt: eventToken.createdAt,
+          }
+        : null,
     };
   }
 

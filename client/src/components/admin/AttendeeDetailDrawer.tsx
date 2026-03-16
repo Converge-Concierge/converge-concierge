@@ -1,8 +1,19 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,7 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { categoryLabel } from "@/lib/categoryUtils";
 import { AttendeeDetail } from "server/storage";
 import { format } from "date-fns";
-import { User, Calendar, Tag, FileText, Info, Pencil, Check, X } from "lucide-react";
+import { User, Calendar, Tag, FileText, Info, Pencil, Check, X, RotateCcw, ShieldCheck } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,6 +35,8 @@ export function AttendeeDetailDrawer({ attendeeId, open, onClose }: AttendeeDeta
   const { toast } = useToast();
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState("");
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [clearEngagementData, setClearEngagementData] = useState(false);
 
   const { data: attendee, isLoading } = useQuery<AttendeeDetail>({
     queryKey: ["/api/attendees", attendeeId, "detail"],
@@ -49,6 +62,25 @@ export function AttendeeDetailDrawer({ attendeeId, open, onClose }: AttendeeDeta
     },
   });
 
+  const resetConciergeMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/admin/attendees/${attendeeId}/reset-concierge`, { clearEngagementData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/attendees", attendeeId, "detail"] });
+      setResetDialogOpen(false);
+      setClearEngagementData(false);
+      toast({
+        title: "Concierge progress reset",
+        description: clearEngagementData
+          ? "Onboarding status, topic selections, and saved sessions have been cleared."
+          : "Onboarding status has been cleared. The attendee can now go through the wizard again.",
+      });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to reset concierge progress.", variant: "destructive" });
+    },
+  });
+
   const meetingStats = attendee?.meetingsList.reduce(
     (acc, m) => {
       acc.total++;
@@ -63,235 +95,359 @@ export function AttendeeDetailDrawer({ attendeeId, open, onClose }: AttendeeDeta
     setEditingNotes(true);
   }
 
+  function getConciergeStatus(token: AttendeeDetail["conciergeToken"]) {
+    if (!token) return { label: "No token issued", color: "muted", isDone: false };
+    if (token.onboardingCompletedAt)
+      return { label: "Completed", color: "green", isDone: true, at: token.onboardingCompletedAt };
+    if (token.onboardingSkippedAt)
+      return { label: "Skipped", color: "amber", isDone: true, at: token.onboardingSkippedAt };
+    return { label: "Not started", color: "muted", isDone: false };
+  }
+
+  const conciergeStatus = attendee ? getConciergeStatus(attendee.conciergeToken) : null;
+
   return (
-    <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-[520px] p-0 flex flex-col h-full" data-testid="drawer-attendee-detail">
-        <SheetHeader className="p-6 border-b">
-          <SheetTitle className="text-2xl font-display flex items-center gap-2">
-            <User className="h-5 w-5 text-accent" />
-            {attendee ? attendee.name : "Attendee Details"}
-          </SheetTitle>
-          <SheetDescription>
-            {attendee ? `${attendee.title} at ${attendee.company}` : "Loading attendee details..."}
-          </SheetDescription>
-        </SheetHeader>
+    <>
+      <Sheet open={open} onOpenChange={onClose}>
+        <SheetContent className="sm:max-w-[520px] p-0 flex flex-col h-full" data-testid="drawer-attendee-detail">
+          <SheetHeader className="p-6 border-b">
+            <SheetTitle className="text-2xl font-display flex items-center gap-2">
+              <User className="h-5 w-5 text-accent" />
+              {attendee ? attendee.name : "Attendee Details"}
+            </SheetTitle>
+            <SheetDescription>
+              {attendee ? `${attendee.title} at ${attendee.company}` : "Loading attendee details..."}
+            </SheetDescription>
+          </SheetHeader>
 
-        <ScrollArea className="flex-1">
-          {isLoading ? (
-            <div className="p-12 flex flex-col items-center justify-center space-y-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
-              <p className="text-sm text-muted-foreground">Loading attendee data...</p>
-            </div>
-          ) : attendee ? (
-            <div className="p-6 space-y-8 pb-12">
-              {/* Basic Profile Section */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  <Info className="h-4 w-4" />
-                  Basic Profile
-                </div>
-                <div className="grid grid-cols-2 gap-y-4 gap-x-8 bg-muted/30 p-4 rounded-lg border border-border/50">
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="text-sm font-medium break-all" data-testid="text-attendee-email">{attendee.email}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Phone</p>
-                    <p className="text-sm font-medium">{attendee.phone || "—"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Event</p>
-                    <p className="text-sm font-medium">
-                      <Badge variant="outline" className="font-mono text-[10px]">{attendee.eventSlug}</Badge>
-                      <span className="ml-2">{attendee.eventName}</span>
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Source</p>
-                    <p className="text-sm font-medium capitalize">{attendee.externalSource || "Manual"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Category</p>
-                    <p className="text-sm font-medium" data-testid="text-attendee-category">
-                      {categoryLabel(attendee.attendeeCategory)}
-                    </p>
-                  </div>
-                  {attendee.ticketType && (
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Ticket Type</p>
-                      <p className="text-sm font-medium text-muted-foreground" data-testid="text-attendee-ticket-type">{attendee.ticketType}</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* Timestamps Section */}
-              <section className="space-y-3">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>Added: {format(new Date(attendee.createdAt), "MMM d, yyyy h:mm a")}</span>
-                  <span className="mx-1">•</span>
-                  <span>Updated: {format(new Date(attendee.updatedAt), "MMM d, yyyy h:mm a")}</span>
-                </div>
-              </section>
-
-              <Separator />
-
-              {/* Interests / Topics Section */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  <Tag className="h-4 w-4" />
-                  Interests & Topics
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {attendee.interests && attendee.interests.length > 0 ? (
-                    attendee.interests.map((interest, i) => (
-                      <Badge key={i} variant="secondary" className="px-2 py-0.5 rounded-full text-xs font-medium" data-testid={`badge-interest-${i}`}>
-                        {interest}
-                      </Badge>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic" data-testid="text-no-interests">No interests recorded yet.</p>
-                  )}
-                </div>
-              </section>
-
-              {/* Notes Section */}
-              <section className="space-y-3">
-                <div className="flex items-center justify-between">
+          <ScrollArea className="flex-1">
+            {isLoading ? (
+              <div className="p-12 flex flex-col items-center justify-center space-y-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+                <p className="text-sm text-muted-foreground">Loading attendee data...</p>
+              </div>
+            ) : attendee ? (
+              <div className="p-6 space-y-8 pb-12">
+                {/* Basic Profile Section */}
+                <section className="space-y-4">
                   <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                    <FileText className="h-4 w-4" />
-                    Internal Notes
+                    <Info className="h-4 w-4" />
+                    Basic Profile
                   </div>
-                  {!editingNotes && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs gap-1"
-                      onClick={startEditNotes}
-                      data-testid="button-edit-notes"
-                    >
-                      <Pencil className="h-3 w-3" />
-                      Edit
-                    </Button>
-                  )}
-                </div>
+                  <div className="grid grid-cols-2 gap-y-4 gap-x-8 bg-muted/30 p-4 rounded-lg border border-border/50">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="text-sm font-medium break-all" data-testid="text-attendee-email">{attendee.email}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Phone</p>
+                      <p className="text-sm font-medium">{attendee.phone || "—"}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Event</p>
+                      <p className="text-sm font-medium">
+                        <Badge variant="outline" className="font-mono text-[10px]">{attendee.eventSlug}</Badge>
+                        <span className="ml-2">{attendee.eventName}</span>
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Source</p>
+                      <p className="text-sm font-medium capitalize">{attendee.externalSource || "Manual"}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Category</p>
+                      <p className="text-sm font-medium" data-testid="text-attendee-category">
+                        {categoryLabel(attendee.attendeeCategory)}
+                      </p>
+                    </div>
+                    {attendee.ticketType && (
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">Ticket Type</p>
+                        <p className="text-sm font-medium text-muted-foreground" data-testid="text-attendee-ticket-type">{attendee.ticketType}</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
 
-                {editingNotes ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      value={notesValue}
-                      onChange={(e) => setNotesValue(e.target.value)}
-                      placeholder="Add internal notes about this attendee..."
-                      className="min-h-[100px] text-sm resize-none"
-                      data-testid="input-notes"
-                    />
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        className="h-7 px-3 text-xs gap-1"
-                        onClick={() => saveNotesMutation.mutate(notesValue)}
-                        disabled={saveNotesMutation.isPending}
-                        data-testid="button-save-notes"
-                      >
-                        <Check className="h-3 w-3" />
-                        {saveNotesMutation.isPending ? "Saving..." : "Save"}
-                      </Button>
+                {/* Timestamps Section */}
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Added: {format(new Date(attendee.createdAt), "MMM d, yyyy h:mm a")}</span>
+                    <span className="mx-1">•</span>
+                    <span>Updated: {format(new Date(attendee.updatedAt), "MMM d, yyyy h:mm a")}</span>
+                  </div>
+                </section>
+
+                <Separator />
+
+                {/* Concierge Status Section */}
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                      <ShieldCheck className="h-4 w-4" />
+                      Concierge Status
+                    </div>
+                    {attendee.conciergeToken && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-3 text-xs gap-1"
-                        onClick={() => setEditingNotes(false)}
-                        disabled={saveNotesMutation.isPending}
-                        data-testid="button-cancel-notes"
+                        className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => { setClearEngagementData(false); setResetDialogOpen(true); }}
+                        data-testid="button-reset-concierge"
                       >
-                        <X className="h-3 w-3" />
-                        Cancel
+                        <RotateCcw className="h-3 w-3" />
+                        Reset Progress
                       </Button>
+                    )}
+                  </div>
+
+                  <div className="bg-muted/30 p-4 rounded-lg border border-border/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Onboarding status</span>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-xs",
+                          conciergeStatus?.color === "green" && "border-green-200 text-green-700 bg-green-50 dark:border-green-800 dark:text-green-400 dark:bg-green-900/20",
+                          conciergeStatus?.color === "amber" && "border-amber-200 text-amber-700 bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:bg-amber-900/20",
+                          conciergeStatus?.color === "muted" && "border-border text-muted-foreground"
+                        )}
+                        data-testid="badge-concierge-status"
+                      >
+                        {conciergeStatus?.label}
+                      </Badge>
+                    </div>
+
+                    {conciergeStatus?.isDone && "at" in conciergeStatus && conciergeStatus.at && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          {attendee.conciergeToken?.onboardingCompletedAt ? "Completed" : "Skipped"} on
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(conciergeStatus.at), "MMM d, yyyy h:mm a")}
+                        </span>
+                      </div>
+                    )}
+
+                    {attendee.conciergeToken && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Token issued</span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(attendee.conciergeToken.createdAt), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                    )}
+
+                    {!attendee.conciergeToken && (
+                      <p className="text-xs text-muted-foreground italic">
+                        No concierge token has been issued yet. Send a scheduling invitation to generate one.
+                      </p>
+                    )}
+                  </div>
+                </section>
+
+                <Separator />
+
+                {/* Interests / Topics Section */}
+                <section className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    <Tag className="h-4 w-4" />
+                    Interests & Topics
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {attendee.interests && attendee.interests.length > 0 ? (
+                      attendee.interests.map((interest, i) => (
+                        <Badge key={i} variant="secondary" className="px-2 py-0.5 rounded-full text-xs font-medium" data-testid={`badge-interest-${i}`}>
+                          {interest}
+                        </Badge>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic" data-testid="text-no-interests">No interests recorded yet.</p>
+                    )}
+                  </div>
+                </section>
+
+                {/* Notes Section */}
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                      <FileText className="h-4 w-4" />
+                      Internal Notes
+                    </div>
+                    {!editingNotes && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs gap-1"
+                        onClick={startEditNotes}
+                        data-testid="button-edit-notes"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+
+                  {editingNotes ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={notesValue}
+                        onChange={(e) => setNotesValue(e.target.value)}
+                        placeholder="Add internal notes about this attendee..."
+                        className="min-h-[100px] text-sm resize-none"
+                        data-testid="input-notes"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 px-3 text-xs gap-1"
+                          onClick={() => saveNotesMutation.mutate(notesValue)}
+                          disabled={saveNotesMutation.isPending}
+                          data-testid="button-save-notes"
+                        >
+                          <Check className="h-3 w-3" />
+                          {saveNotesMutation.isPending ? "Saving..." : "Save"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-3 text-xs gap-1"
+                          onClick={() => setEditingNotes(false)}
+                          disabled={saveNotesMutation.isPending}
+                          data-testid="button-cancel-notes"
+                        >
+                          <X className="h-3 w-3" />
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="text-sm bg-muted/30 p-4 rounded-lg border border-border/50 min-h-[60px] whitespace-pre-wrap cursor-pointer hover:bg-muted/40 transition-colors"
+                      onClick={startEditNotes}
+                      data-testid="display-notes"
+                    >
+                      {attendee.notes || <span className="text-muted-foreground italic">No internal notes yet. Click to add.</span>}
+                    </div>
+                  )}
+                </section>
+
+                <Separator />
+
+                {/* Meeting Activity Section */}
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                      <Calendar className="h-4 w-4" />
+                      Meeting Activity
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400">
+                        {meetingStats?.Scheduled || 0} Scheduled
+                      </Badge>
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400">
+                        {meetingStats?.Completed || 0} Done
+                      </Badge>
                     </div>
                   </div>
-                ) : (
-                  <div
-                    className="text-sm bg-muted/30 p-4 rounded-lg border border-border/50 min-h-[60px] whitespace-pre-wrap cursor-pointer hover:bg-muted/40 transition-colors"
-                    onClick={startEditNotes}
-                    data-testid="display-notes"
-                  >
-                    {attendee.notes || <span className="text-muted-foreground italic">No internal notes yet. Click to add.</span>}
-                  </div>
-                )}
-              </section>
 
-              <Separator />
-
-              {/* Meeting Activity Section */}
-              <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                    <Calendar className="h-4 w-4" />
-                    Meeting Activity
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400">
-                      {meetingStats?.Scheduled || 0} Scheduled
-                    </Badge>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400">
-                      {meetingStats?.Completed || 0} Done
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="rounded-md border border-border/60 overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-muted/50">
-                      <TableRow>
-                        <TableHead className="text-xs h-8">Sponsor / Event</TableHead>
-                        <TableHead className="text-xs h-8">Date/Time</TableHead>
-                        <TableHead className="text-xs h-8">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {attendee.meetingsList && attendee.meetingsList.length > 0 ? (
-                        attendee.meetingsList.map((m) => (
-                          <TableRow key={m.id} className="hover:bg-transparent">
-                            <TableCell className="py-2">
-                              <div className="font-medium text-xs">{m.sponsorName}</div>
-                              <div className="text-[10px] text-muted-foreground font-mono">{m.eventSlug}</div>
-                            </TableCell>
-                            <TableCell className="py-2">
-                              <div className="text-xs">{format(new Date(m.date), "MMM d")}</div>
-                              <div className="text-[10px] text-muted-foreground">{m.time}</div>
-                            </TableCell>
-                            <TableCell className="py-2">
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "text-[10px] px-1.5 py-0 h-5",
-                                  m.status === "Scheduled" && "border-blue-200 text-blue-700 bg-blue-50",
-                                  m.status === "Completed" && "border-green-200 text-green-700 bg-green-50",
-                                  m.status === "Cancelled" && "border-red-200 text-red-700 bg-red-50",
-                                  m.status === "Pending" && "border-amber-200 text-amber-700 bg-amber-50"
-                                )}
-                              >
-                                {m.status}
-                              </Badge>
+                  <div className="rounded-md border border-border/60 overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          <TableHead className="text-xs h-8">Sponsor / Event</TableHead>
+                          <TableHead className="text-xs h-8">Date/Time</TableHead>
+                          <TableHead className="text-xs h-8">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {attendee.meetingsList && attendee.meetingsList.length > 0 ? (
+                          attendee.meetingsList.map((m) => (
+                            <TableRow key={m.id} className="hover:bg-transparent">
+                              <TableCell className="py-2">
+                                <div className="font-medium text-xs">{m.sponsorName}</div>
+                                <div className="text-[10px] text-muted-foreground font-mono">{m.eventSlug}</div>
+                              </TableCell>
+                              <TableCell className="py-2">
+                                <div className="text-xs">{format(new Date(m.date), "MMM d")}</div>
+                                <div className="text-[10px] text-muted-foreground">{m.time}</div>
+                              </TableCell>
+                              <TableCell className="py-2">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "text-[10px] px-1.5 py-0 h-5",
+                                    m.status === "Scheduled" && "border-blue-200 text-blue-700 bg-blue-50",
+                                    m.status === "Completed" && "border-green-200 text-green-700 bg-green-50",
+                                    m.status === "Cancelled" && "border-red-200 text-red-700 bg-red-50",
+                                    m.status === "Pending" && "border-amber-200 text-amber-700 bg-amber-50"
+                                  )}
+                                >
+                                  {m.status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-8 text-muted-foreground italic text-sm">
+                              No meetings found.
                             </TableCell>
                           </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center py-8 text-muted-foreground italic text-sm">
-                            No meetings found.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </section>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </section>
+              </div>
+            ) : null}
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent data-testid="dialog-reset-concierge">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Concierge Progress?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear the attendee's onboarding completion status, allowing them to go through
+              the welcome wizard again the next time they access their concierge link.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex items-start gap-3 rounded-lg bg-muted/40 border border-border/60 p-3 my-1">
+            <Checkbox
+              id="clear-engagement"
+              checked={clearEngagementData}
+              onCheckedChange={(v) => setClearEngagementData(!!v)}
+              data-testid="checkbox-clear-engagement"
+            />
+            <div className="space-y-0.5">
+              <label htmlFor="clear-engagement" className="text-sm font-medium cursor-pointer">
+                Also clear engagement data
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Removes saved interest topic selections and saved agenda sessions for this attendee.
+              </p>
             </div>
-          ) : null}
-        </ScrollArea>
-      </SheetContent>
-    </Sheet>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-reset" disabled={resetConciergeMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); resetConciergeMutation.mutate(); }}
+              disabled={resetConciergeMutation.isPending}
+              data-testid="button-confirm-reset"
+            >
+              {resetConciergeMutation.isPending ? "Resetting..." : "Reset Progress"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

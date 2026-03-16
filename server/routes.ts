@@ -813,6 +813,36 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.post("/api/admin/attendees/:id/reset-concierge", requireAuth, async (req, res) => {
+    try {
+      const attendee = await storage.getAttendee(req.params.id);
+      if (!attendee) return res.status(404).json({ message: "Attendee not found" });
+
+      const tokens = await storage.getAttendeeTokensByAttendee(req.params.id);
+      const eventTokens = attendee.assignedEvent
+        ? tokens.filter((t) => t.eventId === attendee.assignedEvent)
+        : tokens;
+
+      await Promise.all(
+        eventTokens.map((t) =>
+          storage.updateAttendeeToken(t.token, { onboardingCompletedAt: null, onboardingSkippedAt: null })
+        )
+      );
+
+      const { clearEngagementData } = req.body ?? {};
+      if (clearEngagementData && attendee.assignedEvent) {
+        await storage.upsertAttendeeTopics(req.params.id, attendee.assignedEvent, []);
+        const savedSessions = await storage.getAttendeeSavedSessions(req.params.id, attendee.assignedEvent);
+        await Promise.all(savedSessions.map((s) => storage.deleteAttendeeSavedSession(s.id)));
+      }
+
+      res.json({ message: "Concierge progress reset", tokensUpdated: eventTokens.length });
+    } catch (err: any) {
+      console.error("[RESET CONCIERGE] Error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to reset concierge progress" });
+    }
+  });
+
   app.post("/api/attendees/prefill-lookup", async (req, res) => {
     const { eventId, email } = req.body ?? {};
     if (!eventId || !email || typeof email !== "string") {

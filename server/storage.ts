@@ -56,6 +56,13 @@ export interface AttendeeDetail extends Attendee {
   eventName: string;
   eventSlug: string;
   meetingsList: AttendeeDetailMeeting[];
+  conciergeToken: {
+    token: string;
+    isActive: boolean;
+    onboardingCompletedAt: Date | null;
+    onboardingSkippedAt: Date | null;
+    createdAt: Date;
+  } | null;
 }
 
 export interface DataExchangeLogInsert {
@@ -667,7 +674,7 @@ export class MemStorage implements IStorage {
           source: m.source,
         };
       });
-    return { ...attendee, eventName: event?.name ?? "", eventSlug: event?.slug ?? "", meetingsList };
+    return { ...attendee, eventName: event?.name ?? "", eventSlug: event?.slug ?? "", meetingsList, conciergeToken: null };
   }
 
   async mergeAttendeeInterests(id: string, newInterests: string[]): Promise<void> {

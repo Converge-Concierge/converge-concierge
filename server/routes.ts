@@ -6831,6 +6831,195 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // ── Attendee Concierge Portal ─────────────────────────────────────────────
+
+  function getAttendeeToken(req: any): string | undefined {
+    return (req.headers["x-attendee-token"] as string | undefined) ?? (req.query.token as string | undefined);
+  }
+
+  async function validateAttendeeToken(token: string): Promise<
+    { ok: false; status: number; message: string } | { ok: true; tokenRecord: NonNullable<Awaited<ReturnType<typeof storage.getAttendeeToken>>> }
+  > {
+    const tokenRecord = await storage.getAttendeeToken(token);
+    if (!tokenRecord) return { ok: false, status: 401, message: "Invalid access token" };
+    if (!tokenRecord.isActive) return { ok: false, status: 403, message: "Access token has been revoked" };
+    if (new Date(tokenRecord.expiresAt) < new Date()) return { ok: false, status: 403, message: "Access token has expired" };
+    return { ok: true, tokenRecord };
+  }
+
+  // Validate token endpoint (used by the access page to authenticate)
+  app.get("/api/attendee-access/:token", async (req, res) => {
+    const validation = await validateAttendeeToken(req.params.token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+    const attendee = await storage.getAttendee(tokenRecord.attendeeId);
+    const event = await storage.getEvent(tokenRecord.eventId);
+    if (!attendee || !event) return res.status(404).json({ message: "Attendee or event not found" });
+    return res.json({ ok: true, attendeeId: attendee.id, eventId: event.id });
+  });
+
+  // Get attendee + event + onboarding state
+  app.get("/api/attendee-portal/me", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+    const [attendee, event] = await Promise.all([
+      storage.getAttendee(tokenRecord.attendeeId),
+      storage.getEvent(tokenRecord.eventId),
+    ]);
+    if (!attendee || !event) return res.status(404).json({ message: "Attendee or event not found" });
+    return res.json({
+      attendee: { id: attendee.id, firstName: attendee.firstName, lastName: attendee.lastName, name: attendee.name, company: attendee.company, title: attendee.title, email: attendee.email },
+      event: { id: event.id, name: event.name, startDate: event.startDate, endDate: event.endDate, location: event.location },
+      onboarding: {
+        completedAt: tokenRecord.onboardingCompletedAt,
+        skippedAt: tokenRecord.onboardingSkippedAt,
+        isDone: !!(tokenRecord.onboardingCompletedAt || tokenRecord.onboardingSkippedAt),
+      },
+    });
+  });
+
+  // Get active approved topics for the attendee's event
+  app.get("/api/attendee-portal/topics", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+    const topics = await storage.getEventInterestTopics(tokenRecord.eventId, { status: "Approved", isActive: true });
+    return res.json(topics);
+  });
+
+  // Get attendee's current topic selections
+  app.get("/api/attendee-portal/topic-selections", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+    const selections = await storage.getAttendeeTopics(tokenRecord.attendeeId, tokenRecord.eventId);
+    return res.json(selections);
+  });
+
+  // Save topic selections and mark onboarding complete
+  app.post("/api/attendee-portal/topic-selections", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+    const { topicIds } = req.body as { topicIds: string[] };
+    if (!Array.isArray(topicIds)) return res.status(400).json({ message: "topicIds must be an array" });
+    await storage.upsertAttendeeTopics(tokenRecord.attendeeId, tokenRecord.eventId, topicIds);
+    await storage.updateAttendeeToken(token, { onboardingCompletedAt: new Date() });
+    return res.json({ ok: true });
+  });
+
+  // Skip onboarding
+  app.post("/api/attendee-portal/skip-onboarding", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    await storage.updateAttendeeToken(token, { onboardingSkippedAt: new Date() });
+    return res.json({ ok: true });
+  });
+
+  // Recommended sessions — sessions whose topics overlap with attendee's topic selections
+  app.get("/api/attendee-portal/recommended-sessions", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const [attendeeTopics, sessions] = await Promise.all([
+      storage.getAttendeeTopics(tokenRecord.attendeeId, tokenRecord.eventId),
+      storage.getAgendaSessions(tokenRecord.eventId),
+    ]);
+    const attendeeTopicIds = new Set(attendeeTopics.map((t) => t.topicId));
+    const publishedSessions = sessions.filter((s) => s.status === "Published");
+
+    const scoredSessions = await Promise.all(
+      publishedSessions.map(async (session) => {
+        const sessionTopics = await storage.getSessionTopics(session.id);
+        const overlap = sessionTopics.filter((t) => attendeeTopicIds.has(t.topicId)).length;
+        return { session, sessionTopics, overlap };
+      })
+    );
+
+    const results = scoredSessions
+      .filter((s) => s.overlap > 0 || attendeeTopicIds.size === 0)
+      .sort((a, b) => b.overlap - a.overlap)
+      .slice(0, 10)
+      .map(({ session, sessionTopics, overlap }) => ({
+        id: session.id,
+        title: session.title,
+        sessionDate: session.sessionDate,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        overlapScore: overlap,
+        topicIds: sessionTopics.map((t) => t.topicId),
+      }));
+
+    return res.json(results);
+  });
+
+  // Recommended sponsors — sponsors whose topics overlap with attendee's topic selections
+  app.get("/api/attendee-portal/recommended-sponsors", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const [attendeeTopics, allSponsors] = await Promise.all([
+      storage.getAttendeeTopics(tokenRecord.attendeeId, tokenRecord.eventId),
+      storage.getSponsors(),
+    ]);
+    const attendeeTopicIds = new Set(attendeeTopics.map((t) => t.topicId));
+    const eventSponsors = allSponsors.filter((s) =>
+      (s.assignedEvents ?? []).some((link: any) => link.eventId === tokenRecord.eventId && link.archiveState !== "archived")
+    );
+
+    const scoredSponsors = await Promise.all(
+      eventSponsors.map(async (sponsor) => {
+        const sponsorTopics = await storage.getSponsorTopics(sponsor.id, tokenRecord.eventId);
+        const overlap = sponsorTopics.filter((t) => attendeeTopicIds.has(t.topicId)).length;
+        return { sponsor, sponsorTopics, overlap };
+      })
+    );
+
+    const results = scoredSponsors
+      .filter((s) => s.overlap > 0 || attendeeTopicIds.size === 0)
+      .sort((a, b) => b.overlap - a.overlap)
+      .slice(0, 10)
+      .map(({ sponsor, sponsorTopics, overlap }) => ({
+        id: sponsor.id,
+        name: sponsor.name,
+        category: sponsor.category,
+        logoUrl: sponsor.logoUrl,
+        overlapScore: overlap,
+        topicIds: sponsorTopics.map((t) => t.topicId),
+      }));
+
+    return res.json(results);
+  });
+
+  // Admin: generate concierge link for an attendee
+  app.post("/api/admin/attendees/:id/generate-concierge-link", requireAuth, async (req, res) => {
+    const attendee = await storage.getAttendee(req.params.id);
+    if (!attendee) return res.status(404).json({ message: "Attendee not found" });
+    const eventId = attendee.assignedEvent;
+    if (!eventId) return res.status(400).json({ message: "Attendee is not assigned to an event" });
+    const tokenRecord = await storage.createAttendeeToken(attendee.id, eventId);
+    const BASE_APP_URL = process.env.BASE_APP_URL ?? "https://concierge.convergeevents.com";
+    const link = `${BASE_APP_URL}/attendee-access/${tokenRecord.token}`;
+    return res.json({ ok: true, token: tokenRecord.token, link });
+  });
+
   await refreshCategoryConfig();
 
   return httpServer;

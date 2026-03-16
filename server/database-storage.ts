@@ -12,6 +12,7 @@ import {
   sessionTypes, agendaSessions, agendaSessionSpeakers, attendeeSavedSessions, agendaImportJobs,
   emailTemplateVersions, automationRules, automationLogs, campaigns, messageJobs,
   eventInterestTopics, attendeeInterestTopicSelections, sponsorInterestTopicSelections, sessionInterestTopicSelections,
+  attendeeTokens, type AttendeeToken,
   type EventInterestTopic, type InsertEventInterestTopic,
   type User, type InsertUser,
   type Event, type InsertEvent,
@@ -1456,6 +1457,31 @@ export class DatabaseStorage implements IStorage {
       .where(eq(sessionInterestTopicSelections.eventId, eventId))
       .groupBy(sessionInterestTopicSelections.sessionId);
     return rows.map(r => ({ sessionId: r.sessionId, count: r.count ?? 0 }));
+  }
+
+  // ── Attendee Tokens ───────────────────────────────────────────────────────
+
+  async createAttendeeToken(attendeeId: string, eventId: string): Promise<AttendeeToken> {
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    const [created] = await db.insert(attendeeTokens)
+      .values({ token, attendeeId, eventId, isActive: true, expiresAt, createdAt: new Date() })
+      .returning();
+    return created;
+  }
+
+  async getAttendeeToken(token: string): Promise<AttendeeToken | undefined> {
+    const [row] = await db.select().from(attendeeTokens).where(eq(attendeeTokens.token, token)).limit(1);
+    return row ?? undefined;
+  }
+
+  async getAttendeeTokensByAttendee(attendeeId: string): Promise<AttendeeToken[]> {
+    return db.select().from(attendeeTokens).where(eq(attendeeTokens.attendeeId, attendeeId));
+  }
+
+  async updateAttendeeToken(token: string, updates: Partial<Pick<AttendeeToken, "isActive" | "onboardingCompletedAt" | "onboardingSkippedAt">>): Promise<AttendeeToken | undefined> {
+    const [row] = await db.update(attendeeTokens).set(updates).where(eq(attendeeTokens.token, token)).returning();
+    return row ?? undefined;
   }
 
   // ── Agreement Package Templates ────────────────────────────────────────────

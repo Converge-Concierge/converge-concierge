@@ -1642,3 +1642,17 @@ export const sessionInterestTopicSelections = pgTable("session_interest_topic_se
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type SessionInterestTopicSelection = typeof sessionInterestTopicSelections.$inferSelect;
+
+// ── Attendee Tokens (passwordless concierge access) ───────────────────────────
+
+export const attendeeTokens = pgTable("attendee_tokens", {
+  token: text("token").primaryKey(),
+  attendeeId: varchar("attendee_id").notNull(),
+  eventId: varchar("event_id").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at").notNull(),
+  onboardingCompletedAt: timestamp("onboarding_completed_at"),
+  onboardingSkippedAt: timestamp("onboarding_skipped_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type AttendeeToken = typeof attendeeTokens.$inferSelect;

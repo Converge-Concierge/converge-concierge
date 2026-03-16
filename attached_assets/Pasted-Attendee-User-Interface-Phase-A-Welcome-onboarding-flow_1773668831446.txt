@@ -1,0 +1,569 @@
+Attendee User Interface — Phase A
+Welcome / onboarding flow, topic selection, basic dashboard, recommended sessions, and recommended sponsors
+
+We are now beginning the attendee-facing user interface for Concierge.
+
+This should be built in phases.
+This instruction covers Phase A only.
+
+The goal of Phase A is to create the first meaningful attendee experience after registration using a secure attendee link. The attendee experience should feel:
+
+fast
+
+guided
+
+personalized
+
+helpful
+
+mobile-friendly
+
+It should not feel like a complex portal or admin system.
+
+The core purpose of Phase A is to help attendees quickly understand the value of Concierge and provide the minimum information needed to power recommendations.
+
+1. Phase A Goal
+
+Build the first attendee experience that includes:
+
+a guided welcome / onboarding flow
+
+topic-of-interest selection using the new Event Interest Topics system
+
+automatic save of onboarding progress
+
+a basic attendee dashboard after onboarding
+
+a Recommended Sessions block
+
+a Recommended Sponsors block
+
+This phase should establish the foundation for all later attendee functionality.
+
+2. Access Model
+
+We are not building a username/password system for attendees.
+
+Use the planned passwordless attendee access model.
+
+Required behavior
+
+Attendees should access the UI through:
+
+secure attendee-specific event link
+
+tokenized access tied to attendee + event
+
+short-lived session once they enter
+
+This Phase A implementation should use the existing or planned secure attendee access pattern and should not introduce a traditional login system.
+
+3. Entry Point
+
+When an attendee opens their secure event link, they should land in the new attendee experience.
+
+First-time user behavior
+
+If onboarding is incomplete:
+
+show the onboarding flow first
+
+Returning user behavior
+
+If onboarding is already complete:
+
+take them to the attendee dashboard
+
+Partially completed onboarding
+
+If the attendee started onboarding but did not finish:
+
+resume where they left off if practical
+
+otherwise restart gracefully without losing saved selections
+
+4. Phase A Onboarding Structure
+
+Use a guided card-style onboarding flow.
+
+This should feel like a short setup process, not a long form.
+
+Design requirements
+
+one main decision per screen
+
+mobile-friendly layout
+
+progress indicator
+
+save automatically after each step if possible
+
+allow “Skip for now” where appropriate
+
+keep total completion time under about 60 seconds
+
+5. Onboarding Step 1 — Welcome Screen
+
+Create the first onboarding card/screen.
+
+Recommended content
+
+Headline:
+
+Welcome to Converge Concierge
+
+Supporting text:
+
+Concierge helps you discover relevant sessions, sponsors, and meetings for this event.
+
+Optional note:
+
+This takes less than a minute.
+
+Primary button:
+
+Start Setup
+
+Secondary option:
+
+Skip for now
+
+If the user skips, they should still be able to reach the dashboard, but the system should mark onboarding incomplete.
+
+6. Onboarding Step 2 — Topic Selection
+
+This is the most important step in Phase A.
+
+Use the new Event Interest Topics system.
+
+Required behavior
+
+Display only the approved, active interest topics for the attendee’s event.
+
+Prompt example:
+
+Select the topics most relevant to you
+
+Allow selection of:
+
+minimum 1 if not skipped
+
+maximum 5
+
+Use a clean multi-select UI such as:
+
+selectable cards
+
+chips
+
+buttons with selected state
+
+Do not use the old raw free-text category model.
+
+7. Topic Selection UI Requirements
+
+The topic selection UI should:
+
+be visually clean
+
+support multiple selections
+
+show selected state clearly
+
+work well on mobile
+
+not feel crowded
+
+Examples of topics:
+
+AI Risk Management
+
+Fraud Detection
+
+Real-Time Payments
+
+Vendor Risk
+
+Core Modernization
+
+Do not expose internal keys or admin-only metadata.
+
+8. Save Topic Selections
+
+When the attendee continues past topic selection:
+
+save selected topics to attendee_interest_topic_selections
+
+tie them to:
+
+attendee
+
+event
+
+approved event topic ids
+
+If the attendee updates selections later, replace/update their existing selections cleanly.
+
+9. Optional Onboarding Completion Flag
+
+If not already present, add a lightweight attendee onboarding state model.
+
+At minimum, track:
+
+onboarding started
+
+onboarding completed
+
+last completed step if practical
+
+This helps support:
+
+resuming later
+
+reminder emails later
+
+dashboard behavior
+
+If a full separate table is unnecessary, use the simplest reliable model tied to the attendee record.
+
+10. Onboarding Completion Behavior
+
+After topic selection is complete, the attendee should move to the dashboard.
+
+At this stage, onboarding can be considered complete once the attendee:
+
+selects topics and saves
+or
+
+explicitly skips onboarding
+
+If skipped, keep track that onboarding was skipped/incomplete so reminders can be supported later.
+
+11. Build the Basic Attendee Dashboard
+
+After onboarding, the attendee should land on a simple dashboard/home page.
+
+This dashboard is the central attendee home base.
+
+It should answer:
+
+What is relevant to me?
+
+What should I do next?
+
+What can I explore?
+
+Keep the design focused and uncluttered.
+
+12. Dashboard Structure — Minimum for Phase A
+
+Build a dashboard with these main sections:
+
+Welcome / event header
+
+Recommended Sessions
+
+Recommended Sponsors
+
+Optional small supporting section:
+
+selected interests summary
+
+Do not overload the dashboard yet with everything that will eventually exist.
+
+My Meetings, My Agenda, etc. can come later.
+
+13. Dashboard Header
+
+At the top of the dashboard show basic event context.
+
+Recommended content:
+
+event name
+
+event dates if available
+
+short greeting such as:
+
+Welcome back, Dan
+
+Optionally show:
+
+Based on your selected interests
+
+This makes the page feel personalized.
+
+14. Recommended Sessions Block
+
+Add a dashboard section:
+
+Recommended Sessions
+Required behavior
+
+Show sessions for the attendee’s event that are most relevant to their selected topics.
+
+Matching logic for Phase A
+
+Keep it simple.
+
+Recommended sessions can be based on:
+
+overlap between attendee-selected topics and session interest topics
+
+if session topic tagging is incomplete, optionally fall back to title/description keyword matching later, but primary preference is structured topic overlap
+
+Display each recommended session with:
+
+title
+
+date
+
+time
+
+session type
+
+location if available
+
+short description snippet if helpful
+
+Add actions such as:
+
+View Session
+
+Save for later (optional only if already easy; not required in Phase A)
+
+15. Recommended Sessions Count / Rules
+
+If enough sessions exist, show a limited set such as:
+
+top 3 to 5 sessions
+
+If there are not enough topic-tagged sessions yet:
+
+show a graceful fallback such as:
+
+More recommended sessions will appear as the agenda is updated.
+
+Do not break the dashboard if the agenda tagging is incomplete.
+
+16. Recommended Sponsors Block
+
+Add a dashboard section:
+
+Recommended Sponsors
+Required behavior
+
+Show sponsors for the attendee’s event that are most relevant to their selected topics.
+
+Matching logic for Phase A
+
+Use overlap between:
+
+attendee-selected topics
+
+sponsor-selected topics from sponsor_interest_topic_selections
+
+Display each recommended sponsor with:
+
+logo if available
+
+company name
+
+short description
+
+selected topic relevance if useful
+
+CTA such as:
+
+View Sponsor
+
+Learn More
+
+Request Meeting (only if already available and stable; otherwise use View Sponsor for now)
+
+17. Recommended Sponsors Count / Rules
+
+Show a limited set such as:
+
+top 3 to 5 sponsors
+
+If sponsor topic selection is incomplete for an event:
+
+show a graceful fallback message
+
+do not render an empty broken section
+
+Example:
+
+Recommended sponsors will appear as sponsor profiles are completed.
+18. Selected Interests Summary
+
+Optionally add a small summary block:
+
+Your Interests
+AI Risk Management
+Fraud Detection
+Real-Time Payments
+
+Include an action such as:
+
+Edit Interests
+
+This gives attendees a sense that the dashboard is personalized.
+
+19. Edit Interests Flow
+
+Attendees should be able to update their selected topics after onboarding.
+
+For Phase A, this can be simple.
+
+Required behavior
+
+Add an:
+
+Edit Interests
+
+action that reopens the topic selection interface.
+
+This should:
+
+load current selections
+
+allow changes
+
+save updates
+
+refresh recommendations
+
+20. Mobile-Friendly Design
+
+The attendee UI must be optimized for mobile.
+
+Most important requirements:
+
+onboarding cards fit well on small screens
+
+topic selection works with tap interactions
+
+dashboard cards stack cleanly
+
+recommendation sections are easy to scroll
+
+Do not assume desktop-only usage.
+
+21. UI Language
+
+Use plain attendee-friendly language such as:
+
+Welcome to Converge Concierge
+
+Select Your Interests
+
+Recommended Sessions
+
+Recommended Sponsors
+
+Edit Interests
+
+Avoid admin/system language.
+
+Do not show:
+
+internal ids
+
+technical keys
+
+status jargon
+
+22. Recommendation Logic Requirements
+
+For Phase A, the logic does not need to be overly complex.
+
+Minimum requirement
+
+Use topic overlap:
+
+Sessions
+
+Recommend sessions where:
+
+session topics intersect attendee-selected topics
+
+Sponsors
+
+Recommend sponsors where:
+
+sponsor topics intersect attendee-selected topics
+
+A simple overlap count / ranking is enough for Phase A.
+
+Do not block this phase waiting on advanced AI ranking.
+
+23. Graceful Empty States
+
+The dashboard must handle incomplete data gracefully.
+
+Examples:
+
+no topics selected
+
+no tagged sessions yet
+
+no sponsors tagged yet
+
+event not fully configured
+
+Provide clean messages rather than empty broken UI.
+
+Examples:
+
+Select your interests to unlock personalized recommendations.
+Recommended sessions will appear as the agenda is updated.
+Recommended sponsors will appear as sponsor profiles are completed.
+24. Analytics / Tracking Readiness
+
+Prepare the attendee UI so future analytics can track:
+
+onboarding started
+
+onboarding completed
+
+interests selected
+
+recommended session impressions
+
+recommended sponsor impressions
+
+You do not need a full analytics dashboard now, but the architecture should make tracking feasible later.
+
+25. Acceptance Criteria
+
+Phase A is complete when:
+
+attendees access the UI through secure passwordless event links
+
+first-time attendees see a guided onboarding flow
+
+onboarding includes Event Interest Topic selection
+
+selected topics are saved in the new attendee topic selection table
+
+onboarding progress/state is tracked
+
+returning attendees land on a dashboard
+
+the dashboard includes Recommended Sessions
+
+the dashboard includes Recommended Sponsors
+
+recommendations are driven by topic overlap
+
+attendees can edit their interests later
+
+the UI works cleanly on mobile
+
+empty states degrade gracefully
+
+26. Success Standard
+
+After Phase A, the attendee experience should feel like a personalized event guide, not a generic portal. An attendee should be able to arrive from their event link, select interests quickly, and immediately see relevant sessions and sponsors for their event. That is the standard this phase should meet.

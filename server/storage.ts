@@ -239,6 +239,12 @@ export interface IStorage {
   countSessionTopicsForEvent(eventId: string): Promise<{ sessionId: string; count: number }[]>;
   bulkCountTopicUsage(topicIds: string[]): Promise<Map<string, { attendees: number; sponsors: number; sessions: number }>>;
 
+  // Attendee Tokens (passwordless concierge access)
+  createAttendeeToken(attendeeId: string, eventId: string): Promise<import("@shared/schema").AttendeeToken>;
+  getAttendeeToken(token: string): Promise<import("@shared/schema").AttendeeToken | undefined>;
+  getAttendeeTokensByAttendee(attendeeId: string): Promise<import("@shared/schema").AttendeeToken[]>;
+  updateAttendeeToken(token: string, updates: Partial<Pick<import("@shared/schema").AttendeeToken, "isActive" | "onboardingCompletedAt" | "onboardingSkippedAt">>): Promise<import("@shared/schema").AttendeeToken | undefined>;
+
   // Sponsor Users & Magic Login
   upsertSponsorUser(data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser>;
   getSponsorUserByEmail(email: string): Promise<SponsorUser | undefined>;
@@ -1020,6 +1026,15 @@ export class MemStorage implements IStorage {
   async countTopicUsage(_topicId: string): Promise<{ attendees: number; sponsors: number; sessions: number }> { return { attendees: 0, sponsors: 0, sessions: 0 }; }
   async countSessionTopicsForEvent(_eventId: string): Promise<{ sessionId: string; count: number }[]> { return []; }
   async bulkCountTopicUsage(_topicIds: string[]): Promise<Map<string, { attendees: number; sponsors: number; sessions: number }>> { return new Map(); }
+
+  async createAttendeeToken(_attendeeId: string, _eventId: string): Promise<import("@shared/schema").AttendeeToken> {
+    const token = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    return { token, attendeeId: _attendeeId, eventId: _eventId, isActive: true, expiresAt, onboardingCompletedAt: null, onboardingSkippedAt: null, createdAt: new Date() };
+  }
+  async getAttendeeToken(_token: string): Promise<import("@shared/schema").AttendeeToken | undefined> { return undefined; }
+  async getAttendeeTokensByAttendee(_attendeeId: string): Promise<import("@shared/schema").AttendeeToken[]> { return []; }
+  async updateAttendeeToken(_token: string, _updates: any): Promise<import("@shared/schema").AttendeeToken | undefined> { return undefined; }
 
   async upsertSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser> { return { id: randomUUID(), sponsorId: _data.sponsorId, name: _data.name, email: _data.email, accessLevel: _data.accessLevel ?? "owner", isPrimary: _data.isPrimary ?? false, isActive: true, lastLoginAt: null, loginCount: 0, createdAt: new Date(), updatedAt: new Date() }; }
   async getSponsorUserByEmail(_email: string): Promise<SponsorUser | undefined> { return undefined; }

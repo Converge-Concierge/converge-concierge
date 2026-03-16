@@ -422,6 +422,28 @@ export const DEFAULT_BACKUP_SCHEDULE: BackupScheduleConfig = {
   nextRunAt: null,
 };
 
+// ── Email Settings Config ────────────────────────────────────────────────────
+
+export interface EmailSettings {
+  senderName: string;
+  senderEmail: string;
+  replyToEmail: string;
+  dailyLimit: number;
+  globalPaused: boolean;
+  pausedAt: string | null;
+  pausedBy: string | null;
+}
+
+export const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
+  senderName: "Converge Concierge",
+  senderEmail: "noreply@concierge.convergeevents.com",
+  replyToEmail: "events@convergeevents.com",
+  dailyLimit: 100,
+  globalPaused: false,
+  pausedAt: null,
+  pausedBy: null,
+};
+
 // ── DB tables for singleton config (settings + branding stored by key) ────────
 
 export const appConfig = pgTable("app_config", {
@@ -566,6 +588,9 @@ export interface UserPermissions {
   ec_editTemplates: boolean;
   ec_sendTestEmail: boolean;
   ec_viewLogs: boolean;
+  ec_manageAutomations: boolean;
+  ec_sendCampaigns: boolean;
+  ec_manageSettings: boolean;
   // Data Exchange
   de_exportSponsors: boolean;
   de_exportAttendees: boolean;
@@ -641,6 +666,7 @@ export const DEFAULT_USER_PERMISSIONS: UserPermissions = {
   rp_view: false, rp_export: false, rp_generate: false, rp_download: false,
   rp_viewContactData: false,
   ec_viewTemplates: false, ec_editTemplates: false, ec_sendTestEmail: false, ec_viewLogs: false,
+  ec_manageAutomations: false, ec_sendCampaigns: false, ec_manageSettings: false,
   de_exportSponsors: false, de_exportAttendees: false, de_exportMeetings: false,
   de_importSponsors: false, de_importAttendees: false, de_importMeetings: false,
   de_nunify: false, de_viewHistory: false,
@@ -686,6 +712,7 @@ export const ROLE_PRESETS: Record<string, Partial<UserPermissions>> = {
     rp_view: true, rp_export: true, rp_generate: true, rp_download: true,
     rp_viewContactData: true,
     ec_viewTemplates: true, ec_editTemplates: true, ec_sendTestEmail: true, ec_viewLogs: true,
+    ec_manageAutomations: true, ec_sendCampaigns: true, ec_manageSettings: true,
     ag_create: true, ag_edit: true, ag_delete: true, ag_import: true,
     ag_manageSessionTypes: true,
     mm_viewDiscovery: true, mm_manageSettings: true, mm_viewInvitations: true,

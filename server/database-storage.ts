@@ -46,8 +46,8 @@ import {
   attendeeCategories, categoryMatchingRules,
   scheduledEmails,
   type ScheduledEmail, type InsertScheduledEmail,
-  DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS, DEFAULT_BACKUP_SCHEDULE,
-  type BackupScheduleConfig,
+  DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS, DEFAULT_BACKUP_SCHEDULE, DEFAULT_EMAIL_SETTINGS,
+  type BackupScheduleConfig, type EmailSettings,
 } from "@shared/schema";
 import type { IStorage, UpdateUser, AttendeeDetail, DataExchangeLogInsert } from "./storage";
 
@@ -1749,6 +1749,24 @@ export class DatabaseStorage implements IStorage {
     await db
       .insert(appConfig)
       .values({ key: "backup_schedule", value: merged })
+      .onConflictDoUpdate({ target: appConfig.key, set: { value: merged } });
+    return merged;
+  }
+
+  // ── Email Settings ─────────────────────────────────────────────────────────
+
+  async getEmailSettings(): Promise<EmailSettings> {
+    const [row] = await db.select().from(appConfig).where(eq(appConfig.key, "email_settings")).limit(1);
+    if (!row) return { ...DEFAULT_EMAIL_SETTINGS };
+    return { ...DEFAULT_EMAIL_SETTINGS, ...(row.value as Partial<EmailSettings>) };
+  }
+
+  async updateEmailSettings(updates: Partial<EmailSettings>): Promise<EmailSettings> {
+    const current = await this.getEmailSettings();
+    const merged = { ...current, ...updates };
+    await db
+      .insert(appConfig)
+      .values({ key: "email_settings", value: merged })
       .onConflictDoUpdate({ target: appConfig.key, set: { value: merged } });
     return merged;
   }

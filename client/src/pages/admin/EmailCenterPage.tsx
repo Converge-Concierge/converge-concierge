@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import type { EmailLog, Event, Sponsor, EmailTemplate, EmailTemplateVersion, ScheduledEmail, AutomationRule, AutomationLog, Campaign } from "@shared/schema";
+import type { EmailLog, Event, Sponsor, EmailTemplate, EmailTemplateVersion, ScheduledEmail, AutomationRule, AutomationLog, Campaign, EmailSettings } from "@shared/schema";
 import { CAMPAIGN_STATUSES, CAMPAIGN_AUDIENCE_TYPES } from "@shared/schema";
 import { EMAIL_TEMPLATE_CATEGORIES } from "@shared/schema";
 
@@ -21,7 +21,7 @@ import {
   Settings2, Edit2, FileText, Layout, Plus, Pencil, Trash2, Ban,
   Timer, History, Tag, Filter, Undo2, Zap, Power, PauseCircle,
   PlayCircle, ToggleLeft, ToggleRight, Activity, Info, Megaphone,
-  Users, ChevronDown,
+  Users, ChevronDown, Shield, Gauge, BarChart3, Save, Pause, Play,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -1627,6 +1627,314 @@ function CampaignsTab({ events, sponsors }: { events: Event[]; sponsors: Sponsor
   );
 }
 
+// ── Email Settings Tab Component ─────────────────────────────────────────────
+
+interface EmailStats {
+  dailyLimit: number;
+  sentToday: number;
+  failedToday: number;
+  globalPaused: boolean;
+  pausedAt: string | null;
+  systemStatus: string;
+  history: Array<{ date: string; sent: number; failed: number }>;
+  recentFailures: EmailLog[];
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  Operational: "bg-green-100 text-green-700 border-green-300",
+  Paused: "bg-amber-100 text-amber-700 border-amber-300",
+  "Provider Error": "bg-red-100 text-red-700 border-red-300",
+  "Delivery Issues Detected": "bg-orange-100 text-orange-700 border-orange-300",
+};
+
+function EmailSettingsTab() {
+  const { toast } = useToast();
+
+  const { data: settings, isLoading: settingsLoading } = useQuery<EmailSettings>({
+    queryKey: ["/api/admin/email-settings"],
+  });
+
+  const { data: stats, isLoading: statsLoading } = useQuery<EmailStats>({
+    queryKey: ["/api/admin/email-stats"],
+    refetchInterval: 30000,
+  });
+
+  const [senderForm, setSenderForm] = useState({
+    senderName: "", senderEmail: "", replyToEmail: "", dailyLimit: 100,
+  });
+  const [formDirty, setFormDirty] = useState(false);
+
+  useEffect(() => {
+    if (settings) {
+      setSenderForm({
+        senderName: settings.senderName,
+        senderEmail: settings.senderEmail,
+        replyToEmail: settings.replyToEmail,
+        dailyLimit: settings.dailyLimit,
+      });
+    }
+  }, [settings]);
+
+  const updateSenderMutation = useMutation({
+    mutationFn: async (data: typeof senderForm) => {
+      const res = await apiRequest("PATCH", "/api/admin/email-settings", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-settings"] });
+      setFormDirty(false);
+      toast({ title: "Sender configuration saved" });
+    },
+  });
+
+  const pauseMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/email-settings/pause");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-stats"] });
+      toast({ title: "All emails paused", description: "No automated or campaign emails will be sent." });
+    },
+  });
+
+  const resumeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/email-settings/resume");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-stats"] });
+      toast({ title: "Email sending resumed" });
+    },
+  });
+
+  const usagePct = stats ? Math.round((stats.sentToday / stats.dailyLimit) * 100) : 0;
+  const usageColor = usagePct >= 90 ? "bg-red-500" : usagePct >= 75 ? "bg-amber-500" : "bg-accent";
+
+  const fmtDate = (d: string | Date | null | undefined) => {
+    if (!d) return "—";
+    const dt = new Date(d);
+    return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
+      " " + dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  };
+
+  if (settingsLoading || statsLoading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
+        <RefreshCw className="h-4 w-4 animate-spin" /> Loading settings…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
+          <Settings2 className="h-6 w-6 text-accent" />
+          Email Settings
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Configure email sending, monitor usage, and manage system controls.
+        </p>
+      </div>
+
+      {/* System Status + Daily Usage Cards Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* System Status */}
+        <div className="rounded-xl border border-border/60 bg-card p-4" data-testid="card-system-status">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Email System Status</p>
+          <div className="flex items-center gap-2">
+            <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium border", STATUS_COLORS[stats?.systemStatus || "Operational"] || STATUS_COLORS.Operational)}>
+              {stats?.systemStatus || "Operational"}
+            </span>
+          </div>
+          {stats?.globalPaused && stats.pausedAt && (
+            <p className="text-xs text-muted-foreground mt-2">Paused at {fmtDate(stats.pausedAt)}</p>
+          )}
+        </div>
+
+        {/* Daily Email Usage */}
+        <div className="rounded-xl border border-border/60 bg-card p-4 col-span-2" data-testid="card-daily-usage">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Daily Email Usage</p>
+            <span className="text-sm font-semibold text-foreground">{stats?.sentToday ?? 0} / {stats?.dailyLimit ?? 100}</span>
+          </div>
+          <div className="h-3 rounded-full bg-muted/40 overflow-hidden" data-testid="progress-daily-usage">
+            <div className={cn("h-full rounded-full transition-all", usageColor)} style={{ width: `${Math.min(usagePct, 100)}%` }} />
+          </div>
+          <p className="text-xs text-muted-foreground mt-1.5">{usagePct}% of daily limit used</p>
+          {usagePct >= 90 && (
+            <div className="mt-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2" data-testid="warning-90">
+              <p className="text-xs text-red-700 font-medium flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Critical: {stats?.sentToday} of {stats?.dailyLimit} emails sent. Further sends may exceed the daily limit.</p>
+            </div>
+          )}
+          {usagePct >= 75 && usagePct < 90 && (
+            <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2" data-testid="warning-75">
+              <p className="text-xs text-amber-700 font-medium flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Warning: Approaching the daily sending limit ({stats?.sentToday} of {stats?.dailyLimit}).</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Global Pause Control */}
+      <div className="rounded-xl border border-border/60 bg-card p-5" data-testid="section-global-pause">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Power className="h-4 w-4 text-muted-foreground" /> Global Email Pause
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats?.globalPaused
+                ? "All automated emails, campaigns, and scheduled sends are currently paused."
+                : "Email sending is active. Use this control to immediately pause all outgoing emails."}
+            </p>
+          </div>
+          {stats?.globalPaused ? (
+            <Button size="sm" className="gap-2 bg-green-600 hover:bg-green-700" onClick={() => resumeMutation.mutate()} disabled={resumeMutation.isPending} data-testid="button-resume-emails">
+              <Play className="h-3.5 w-3.5" /> Resume Emails
+            </Button>
+          ) : (
+            <Button size="sm" variant="destructive" className="gap-2" onClick={() => pauseMutation.mutate()} disabled={pauseMutation.isPending} data-testid="button-pause-emails">
+              <Pause className="h-3.5 w-3.5" /> Pause All Emails
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Sender Configuration */}
+      <div className="rounded-xl border border-border/60 bg-card p-5" data-testid="section-sender-config">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+          <Mail className="h-4 w-4 text-muted-foreground" /> Sender Configuration
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Default From Name</label>
+            <Input value={senderForm.senderName} onChange={(e) => { setSenderForm({ ...senderForm, senderName: e.target.value }); setFormDirty(true); }} data-testid="input-sender-name" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Default From Email</label>
+            <Input value={senderForm.senderEmail} onChange={(e) => { setSenderForm({ ...senderForm, senderEmail: e.target.value }); setFormDirty(true); }} data-testid="input-sender-email" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Reply-To Email</label>
+            <Input value={senderForm.replyToEmail} onChange={(e) => { setSenderForm({ ...senderForm, replyToEmail: e.target.value }); setFormDirty(true); }} data-testid="input-reply-to-email" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Daily Send Limit</label>
+            <Input type="number" value={senderForm.dailyLimit} onChange={(e) => { setSenderForm({ ...senderForm, dailyLimit: parseInt(e.target.value) || 100 }); setFormDirty(true); }} data-testid="input-daily-limit" />
+          </div>
+        </div>
+        {formDirty && (
+          <div className="flex justify-end mt-4">
+            <Button size="sm" className="gap-2" onClick={() => updateSenderMutation.mutate(senderForm)} disabled={updateSenderMutation.isPending} data-testid="button-save-sender">
+              <Save className="h-3.5 w-3.5" /> {updateSenderMutation.isPending ? "Saving…" : "Save Configuration"}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Email Provider Status */}
+      <div className="rounded-xl border border-border/60 bg-card p-5" data-testid="section-provider-status">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+          <Shield className="h-4 w-4 text-muted-foreground" /> Email Provider Status
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[
+            { label: "Provider", value: "Brevo (Sendinblue)" },
+            { label: "Sending Domain", value: "concierge.convergeevents.com" },
+            { label: "Domain Status", value: "Verified", color: "text-green-600" },
+            { label: "DKIM", value: "Verified", color: "text-green-600" },
+            { label: "SPF", value: "Verified", color: "text-green-600" },
+          ].map((item, i) => (
+            <div key={i} className="rounded-lg border border-border/40 bg-muted/10 p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{item.label}</p>
+              <p className={cn("text-xs font-semibold mt-1", item.color || "text-foreground")}>{item.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Email Usage History */}
+      <div className="rounded-xl border border-border/60 bg-card p-5" data-testid="section-usage-history">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+          <BarChart3 className="h-4 w-4 text-muted-foreground" /> Email Usage History (Last 7 Days)
+        </h3>
+        <div className="overflow-hidden rounded-lg border border-border/40">
+          <table className="w-full text-sm" data-testid="table-usage-history">
+            <thead className="bg-muted/30 border-b border-border/40">
+              <tr>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-2.5">Date</th>
+                <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-2.5">Emails Sent</th>
+                <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-2.5">Failures</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-2.5">Usage</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/30">
+              {(stats?.history || []).map((row, i) => {
+                const pct = Math.round((row.sent / (stats?.dailyLimit || 100)) * 100);
+                return (
+                  <tr key={i} className="hover:bg-muted/10">
+                    <td className="px-4 py-2 text-xs font-medium">{new Date(row.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short" })}</td>
+                    <td className="px-4 py-2 text-xs text-right font-semibold">{row.sent}</td>
+                    <td className="px-4 py-2 text-xs text-right">{row.failed > 0 ? <span className="text-red-500">{row.failed}</span> : <span className="text-muted-foreground">0</span>}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 flex-1 max-w-[80px] rounded-full bg-muted/40 overflow-hidden">
+                          <div className={cn("h-full rounded-full", pct >= 90 ? "bg-red-500" : pct >= 75 ? "bg-amber-500" : "bg-accent")} style={{ width: `${Math.min(pct, 100)}%` }} />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">{pct}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Recent Email Failures */}
+      <div className="rounded-xl border border-border/60 bg-card p-5" data-testid="section-recent-failures">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+          <MailX className="h-4 w-4 text-red-500" /> Recent Email Failures
+        </h3>
+        {(stats?.recentFailures?.length ?? 0) === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
+            <p className="text-xs">No recent email failures. All systems operational.</p>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-border/40">
+            <table className="w-full text-sm" data-testid="table-recent-failures">
+              <thead className="bg-muted/30 border-b border-border/40">
+                <tr>
+                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-2.5">Time</th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-2.5">Recipient</th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-2.5">Type</th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-2.5">Error</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {(stats?.recentFailures || []).map((f, i) => (
+                  <tr key={i} className="hover:bg-muted/10">
+                    <td className="px-4 py-2 text-xs text-muted-foreground">{fmtDate(f.sentAt)}</td>
+                    <td className="px-4 py-2 text-xs font-mono truncate max-w-[180px]">{f.recipientEmail}</td>
+                    <td className="px-4 py-2 text-xs">{f.emailType}</td>
+                    <td className="px-4 py-2 text-xs text-red-500 truncate max-w-[250px]">{f.errorMessage || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Scheduled Emails Tab ─────────────────────────────────────────────────────
 
 const SCHED_STATUS_CONFIG: Record<string, { className: string }> = {
@@ -2033,6 +2341,7 @@ export default function EmailCenterPage() {
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
   const { data: templates = [] } = useQuery<EmailTemplate[]>({ queryKey: ["/api/admin/email-templates"] });
+  const { data: emailStats } = useQuery<EmailStats>({ queryKey: ["/api/admin/email-stats"], refetchInterval: 60000 });
 
   const params = new URLSearchParams();
   if (filterType) params.set("emailType", filterType);
@@ -2098,8 +2407,39 @@ export default function EmailCenterPage() {
   const hasFilters = !!(filterType || filterStatus || filterEventId || filterSponsorId || filterSource || filterFrom || filterTo || search);
   const clearFilters = () => { setFilterType(""); setFilterStatus(""); setFilterEventId(""); setFilterSponsorId(""); setFilterSource(""); setFilterFrom(""); setFilterTo(""); setSearch(""); };
 
+  const topUsagePct = emailStats ? Math.round((emailStats.sentToday / emailStats.dailyLimit) * 100) : 0;
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
+      {/* Top Status Bar */}
+      {emailStats && (
+        <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card px-4 py-2.5" data-testid="bar-email-status">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <div className={cn("h-2 w-2 rounded-full", emailStats.systemStatus === "Operational" ? "bg-green-500" : emailStats.systemStatus === "Paused" ? "bg-amber-500" : "bg-red-500")} />
+              <span className="text-xs font-medium text-foreground">{emailStats.systemStatus}</span>
+            </div>
+            <div className="h-4 w-px bg-border/60" />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Today:</span>
+              <span className="text-xs font-semibold">{emailStats.sentToday} / {emailStats.dailyLimit}</span>
+              <div className="h-1.5 w-16 rounded-full bg-muted/40 overflow-hidden">
+                <div className={cn("h-full rounded-full", topUsagePct >= 90 ? "bg-red-500" : topUsagePct >= 75 ? "bg-amber-500" : "bg-accent")} style={{ width: `${Math.min(topUsagePct, 100)}%` }} />
+              </div>
+            </div>
+            {emailStats.failedToday > 0 && (
+              <>
+                <div className="h-4 w-px bg-border/60" />
+                <span className="text-xs text-red-500 font-medium">{emailStats.failedToday} failed</span>
+              </>
+            )}
+          </div>
+          {emailStats.globalPaused && (
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium border border-amber-200">Emails Paused</span>
+          )}
+        </div>
+      )}
+
       <Tabs defaultValue="logs" className="w-full">
         <div className="flex items-center justify-between mb-6">
           <TabsList className="bg-muted/50 p-1">
@@ -2114,6 +2454,9 @@ export default function EmailCenterPage() {
             </TabsTrigger>
             <TabsTrigger value="campaigns" className="gap-2" data-testid="tab-campaigns">
               <Megaphone className="h-3.5 w-3.5" /> Campaigns
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2" data-testid="tab-email-settings">
+              <Settings2 className="h-3.5 w-3.5" /> Settings
             </TabsTrigger>
             <TabsTrigger value="scheduled" className="gap-2" data-testid="tab-scheduled-emails">
               <Timer className="h-3.5 w-3.5" /> Scheduled
@@ -2283,6 +2626,10 @@ export default function EmailCenterPage() {
 
         <TabsContent value="campaigns" className="mt-0">
           <CampaignsTab events={events} sponsors={sponsors} />
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-0">
+          <EmailSettingsTab />
         </TabsContent>
 
         <TabsContent value="scheduled" className="mt-0">

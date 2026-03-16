@@ -4340,6 +4340,129 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // ── Email Settings Routes ────────────────────────────────────────────────
+
+  app.get("/api/admin/email-settings", requireAdmin, async (_req, res) => {
+    try {
+      const settings = await storage.getEmailSettings();
+      res.json(settings);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message ?? "Failed to get email settings" });
+    }
+  });
+
+  app.patch("/api/admin/email-settings", requireAdmin, async (req, res) => {
+    try {
+      const { senderName, senderEmail, replyToEmail, dailyLimit } = req.body;
+      const updates: Record<string, any> = {};
+      if (senderName !== undefined) {
+        if (typeof senderName !== "string" || senderName.trim().length === 0) {
+          return res.status(400).json({ message: "senderName must be a non-empty string" });
+        }
+        updates.senderName = senderName.trim();
+      }
+      if (senderEmail !== undefined) {
+        if (typeof senderEmail !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
+          return res.status(400).json({ message: "senderEmail must be a valid email address" });
+        }
+        updates.senderEmail = senderEmail.trim();
+      }
+      if (replyToEmail !== undefined) {
+        if (typeof replyToEmail !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyToEmail)) {
+          return res.status(400).json({ message: "replyToEmail must be a valid email address" });
+        }
+        updates.replyToEmail = replyToEmail.trim();
+      }
+      if (dailyLimit !== undefined) {
+        const limit = Number(dailyLimit);
+        if (!Number.isFinite(limit) || limit < 1 || limit > 10000) {
+          return res.status(400).json({ message: "dailyLimit must be a number between 1 and 10000" });
+        }
+        updates.dailyLimit = limit;
+      }
+      const result = await storage.updateEmailSettings(updates);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message ?? "Failed to update email settings" });
+    }
+  });
+
+  app.post("/api/admin/email-settings/pause", requireAdmin, async (req, res) => {
+    try {
+      const result = await storage.updateEmailSettings({
+        globalPaused: true,
+        pausedAt: new Date().toISOString(),
+        pausedBy: req.session?.userId ?? null,
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message ?? "Failed to pause emails" });
+    }
+  });
+
+  app.post("/api/admin/email-settings/resume", requireAdmin, async (req, res) => {
+    try {
+      const result = await storage.updateEmailSettings({
+        globalPaused: false,
+        pausedAt: null,
+        pausedBy: null,
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message ?? "Failed to resume emails" });
+    }
+  });
+
+  app.get("/api/admin/email-stats", requireAdmin, async (_req, res) => {
+    try {
+      const settings = await storage.getEmailSettings();
+
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      const todayLogs = await storage.listEmailLogs({ from: todayStart, to: todayEnd }, 10000, 0);
+      const sentToday = todayLogs.filter((l: any) => l.status === "sent").length;
+      const failedToday = todayLogs.filter((l: any) => l.status === "failed").length;
+
+      const history: Array<{ date: string; sent: number; failed: number }> = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dayStart = new Date(d); dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(d); dayEnd.setHours(23, 59, 59, 999);
+        const dayLogs = await storage.listEmailLogs({ from: dayStart, to: dayEnd }, 10000, 0);
+        history.push({
+          date: d.toISOString().split("T")[0],
+          sent: dayLogs.filter((l: any) => l.status === "sent").length,
+          failed: dayLogs.filter((l: any) => l.status === "failed").length,
+        });
+      }
+
+      const recentFailures = await storage.listEmailLogs({ status: "failed" }, 20, 0);
+
+      let systemStatus = "Operational";
+      if (settings.globalPaused) {
+        systemStatus = "Paused";
+      } else if (failedToday > 5) {
+        systemStatus = "Delivery Issues Detected";
+      }
+
+      res.json({
+        dailyLimit: settings.dailyLimit,
+        sentToday,
+        failedToday,
+        globalPaused: settings.globalPaused,
+        pausedAt: settings.pausedAt,
+        systemStatus,
+        history,
+        recentFailures: recentFailures.slice(0, 10),
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message ?? "Failed to get email stats" });
+    }
+  });
+
   // ── Email Test Routes (admin-only) ────────────────────────────────────────
   // These routes are for development/QA testing of email templates.
   // Protected behind requireAdmin — do not remove auth guard.

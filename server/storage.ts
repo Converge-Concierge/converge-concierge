@@ -322,6 +322,8 @@ export interface IStorage {
   // ── Backup Schedule ───────────────────────────────────────────────────────
   getBackupSchedule(): Promise<import("@shared/schema").BackupScheduleConfig>;
   updateBackupSchedule(updates: Partial<import("@shared/schema").BackupScheduleConfig>): Promise<import("@shared/schema").BackupScheduleConfig>;
+  getEmailSettings(): Promise<import("@shared/schema").EmailSettings>;
+  updateEmailSettings(updates: Partial<import("@shared/schema").EmailSettings>): Promise<import("@shared/schema").EmailSettings>;
 
   // ── Meeting Invitations ────────────────────────────────────────────────────
   createMeetingInvitation(data: InsertMeetingInvitation): Promise<MeetingInvitation>;
@@ -1068,6 +1070,8 @@ export class MemStorage implements IStorage {
   async setInternalNotificationEmail(_email: string): Promise<void> {}
   async getBackupSchedule(): Promise<import("@shared/schema").BackupScheduleConfig> { return { ...require("@shared/schema").DEFAULT_BACKUP_SCHEDULE }; }
   async updateBackupSchedule(updates: Partial<import("@shared/schema").BackupScheduleConfig>): Promise<import("@shared/schema").BackupScheduleConfig> { return { ...require("@shared/schema").DEFAULT_BACKUP_SCHEDULE, ...updates }; }
+  async getEmailSettings(): Promise<import("@shared/schema").EmailSettings> { return { ...require("@shared/schema").DEFAULT_EMAIL_SETTINGS }; }
+  async updateEmailSettings(updates: Partial<import("@shared/schema").EmailSettings>): Promise<import("@shared/schema").EmailSettings> { return { ...require("@shared/schema").DEFAULT_EMAIL_SETTINGS, ...updates }; }
 
   async createMeetingInvitation(data: InsertMeetingInvitation): Promise<MeetingInvitation> { return { id: randomUUID(), ...data, sponsorUserId: data.sponsorUserId ?? null, message: data.message ?? null, categorySnapshot: data.categorySnapshot ?? null, matchScore: data.matchScore ?? null, secureToken: data.secureToken ?? null, respondedAt: null, acceptedAt: null, declinedAt: null, expiresAt: data.expiresAt ?? null, createdAt: new Date(), updatedAt: new Date() } as MeetingInvitation; }
   async getMeetingInvitation(_id: string): Promise<MeetingInvitation | undefined> { return undefined; }

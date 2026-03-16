@@ -23,7 +23,7 @@ const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // ── Core send function ────────────────────────────────────────────────────────
 
-export async function sendEmail(to, subject, htmlContent, attachments) {
+export async function sendEmail(to, subject, htmlContent, attachments, senderConfig) {
   const isDemo = (process.env.APP_ENV || "").toLowerCase() === "demo";
   if (isDemo) {
     const domain = (to.split("@")[1] || "").toLowerCase();
@@ -35,15 +35,22 @@ export async function sendEmail(to, subject, htmlContent, attachments) {
     console.log(`[DEMO] Email allowed to internal domain — to: ${to}`);
   }
 
+  const senderName = senderConfig?.senderName || "Converge Concierge";
+  const senderEmail = senderConfig?.senderEmail || "noreply@concierge.convergeevents.com";
+  const replyTo = senderConfig?.replyToEmail || undefined;
+
   const email = {
     sender: {
-      name: "Converge Concierge",
-      email: "noreply@concierge.convergeevents.com",
+      name: senderName,
+      email: senderEmail,
     },
     to: [{ email: to }],
     subject: subject,
     htmlContent: htmlContent,
   };
+  if (replyTo) {
+    email.replyTo = { email: replyTo };
+  }
   if (attachments && attachments.length > 0) {
     email.attachment = attachments.map(({ name, content }) => ({
       name,
@@ -51,6 +58,15 @@ export async function sendEmail(to, subject, htmlContent, attachments) {
     }));
   }
   return apiInstance.sendTransacEmail(email);
+}
+
+export async function isGlobalEmailPaused(storage) {
+  try {
+    const settings = await storage.getEmailSettings();
+    return settings.globalPaused === true;
+  } catch {
+    return false;
+  }
 }
 
 // ── Automation gate check ─────────────────────────────────────────────────────
@@ -90,11 +106,23 @@ export async function recordAutomationSend(storage, emailType, sent, failures, e
 // ── Internal: send + log ──────────────────────────────────────────────────────
 
 async function sendAndLog(storage, { emailType, to, subject, html, eventId, sponsorId, attendeeId, resendOfId, attachments, source, templateId }) {
+  const paused = await isGlobalEmailPaused(storage);
+  if (paused) {
+    console.log(`[EMAIL] Global email pause active — skipping "${emailType}" to ${to}`);
+    try {
+      await storage.createEmailLog({ emailType, recipientEmail: to, subject, htmlContent: html, eventId, sponsorId, attendeeId, status: "failed", errorMessage: "Global email pause active", resendOfId: resendOfId ?? null, providerMessageId: null, source: source ?? null, templateId: templateId ?? null });
+    } catch (_) {}
+    return null;
+  }
+  let senderConfig;
+  try {
+    senderConfig = await storage.getEmailSettings();
+  } catch (_) {}
   let status = "sent";
   let errorMessage = null;
   let providerMessageId = null;
   try {
-    const response = await sendEmail(to, subject, html, attachments);
+    const response = await sendEmail(to, subject, html, attachments, senderConfig);
     providerMessageId = response?.messageId ?? null;
     console.log(`[EMAIL] Sent "${emailType}" to ${to} — Subject: ${subject}${providerMessageId ? ` — messageId: ${providerMessageId}` : ""}`);
   } catch (err) {

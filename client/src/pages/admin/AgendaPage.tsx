@@ -21,7 +21,7 @@ type SessionWithSpeakers = AgendaSession & { speakers: AgendaSessionSpeaker[] };
 
 export default function AgendaPage() {
   const { toast } = useToast();
-  const [selectedEventId, setSelectedEventId] = useState<string>("all");
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [editingSession, setEditingSession] = useState<SessionWithSpeakers | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -34,16 +34,6 @@ export default function AgendaPage() {
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
   const { data: sessionTypes = [] } = useQuery<SessionType[]>({ queryKey: ["/api/admin/session-types"] });
-
-  const queryParams = selectedEventId !== "all" ? `?eventId=${selectedEventId}` : "";
-  const { data: sessions = [], isLoading } = useQuery<SessionWithSpeakers[]>({
-    queryKey: ["/api/admin/agenda-sessions", selectedEventId],
-    queryFn: async () => {
-      const r = await fetch(`/api/admin/agenda-sessions${queryParams}`, { credentials: "include" });
-      if (!r.ok) throw new Error(`Failed to fetch sessions: ${r.status}`);
-      return r.json();
-    },
-  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/agenda-sessions/${id}`),
@@ -78,6 +68,18 @@ export default function AgendaPage() {
     return [...upcoming, ...completed];
   }, [events]);
 
+  const effectiveEventId = selectedEventId ?? (sortedEvents.length > 0 ? sortedEvents[0].id : "all");
+
+  const queryParams = effectiveEventId !== "all" ? `?eventId=${effectiveEventId}` : "";
+  const { data: sessions = [], isLoading } = useQuery<SessionWithSpeakers[]>({
+    queryKey: ["/api/admin/agenda-sessions", effectiveEventId],
+    queryFn: async () => {
+      const r = await fetch(`/api/admin/agenda-sessions${queryParams}`, { credentials: "include" });
+      if (!r.ok) throw new Error(`Failed to fetch sessions: ${r.status}`);
+      return r.json();
+    },
+  });
+
   const filtered = useMemo(() => {
     if (!search) return sessions;
     const q = search.toLowerCase();
@@ -106,11 +108,11 @@ export default function AgendaPage() {
   };
 
   const doImport = () => {
-    if (!csvText || selectedEventId === "all") {
+    if (!csvText || effectiveEventId === "all") {
       toast({ title: "Select a specific event before importing", variant: "destructive" });
       return;
     }
-    importMutation.mutate({ csvData: csvText, eventId: selectedEventId });
+    importMutation.mutate({ csvData: csvText, eventId: effectiveEventId });
   };
 
   return (
@@ -143,7 +145,7 @@ export default function AgendaPage() {
           <div className="overflow-x-auto pb-1">
             <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
               {sortedEvents.map((event) => {
-                const isActive = selectedEventId === event.id;
+                const isActive = effectiveEventId === event.id;
                 return (
                   <button
                     key={event.id}
@@ -164,9 +166,9 @@ export default function AgendaPage() {
                 onClick={() => setSelectedEventId("all")}
                 className={cn(
                   "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
-                  selectedEventId === "all" ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                  effectiveEventId === "all" ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
                 )}
-                style={selectedEventId === "all" ? { backgroundColor: "#0D9488", color: "#ffffff" } : undefined}
+                style={effectiveEventId === "all" ? { backgroundColor: "#0D9488", color: "#ffffff" } : undefined}
               >
                 All Events
               </button>
@@ -207,7 +209,7 @@ export default function AgendaPage() {
                 <TableHead>Sponsor</TableHead>
                 <TableHead className="text-center">Speakers</TableHead>
                 <TableHead>Status</TableHead>
-                {selectedEventId === "all" && <TableHead>Event</TableHead>}
+                {effectiveEventId === "all" && <TableHead>Event</TableHead>}
                 <TableHead className="text-right w-[120px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -241,7 +243,7 @@ export default function AgendaPage() {
                       {session.status}
                     </Badge>
                   </TableCell>
-                  {selectedEventId === "all" && (
+                  {effectiveEventId === "all" && (
                     <TableCell>
                       <Badge variant="outline" className="text-xs font-mono">{getEvent(session.eventId)?.slug || "—"}</Badge>
                     </TableCell>
@@ -260,7 +262,7 @@ export default function AgendaPage() {
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={selectedEventId === "all" ? 10 : 9} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={effectiveEventId === "all" ? 10 : 9} className="h-24 text-center text-muted-foreground">
                     No sessions found.
                   </TableCell>
                 </TableRow>
@@ -276,7 +278,7 @@ export default function AgendaPage() {
           events={events}
           sponsors={sponsors}
           sessionTypes={sessionTypes}
-          defaultEventId={selectedEventId !== "all" ? selectedEventId : undefined}
+          defaultEventId={effectiveEventId !== "all" ? effectiveEventId : undefined}
           onClose={() => { setIsCreating(false); setEditingSession(null); }}
           onSaved={() => {
             queryClient.invalidateQueries({ queryKey: ["/api/admin/agenda-sessions"] });
@@ -308,7 +310,7 @@ export default function AgendaPage() {
           <DialogHeader>
             <DialogTitle>Upload Agenda CSV</DialogTitle>
             <DialogDescription>
-              Import sessions from a CSV file. {selectedEventId === "all" ? "Please select a specific event tab first." : `Importing into ${getEvent(selectedEventId)?.slug || "selected event"}.`}
+              Import sessions from a CSV file. {effectiveEventId === "all" ? "Please select a specific event tab first." : `Importing into ${getEvent(effectiveEventId)?.slug || "selected event"}.`}
             </DialogDescription>
           </DialogHeader>
           {!importResult ? (
@@ -322,7 +324,7 @@ export default function AgendaPage() {
               )}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setImportDialogOpen(false)}>Cancel</Button>
-                <Button onClick={doImport} disabled={!csvText || selectedEventId === "all" || importMutation.isPending} data-testid="button-start-import">
+                <Button onClick={doImport} disabled={!csvText || effectiveEventId === "all" || importMutation.isPending} data-testid="button-start-import">
                   {importMutation.isPending ? "Importing..." : "Import"}
                 </Button>
               </DialogFooter>

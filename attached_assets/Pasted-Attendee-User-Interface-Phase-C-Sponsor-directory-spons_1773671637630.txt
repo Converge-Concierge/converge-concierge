@@ -1,0 +1,511 @@
+Attendee User Interface — Phase C
+Sponsor directory, sponsor detail pages, Request Meeting, Request Information, and stronger sponsor discovery
+
+We are now moving to Attendee UI — Phase C.
+
+Phase A established:
+
+secure attendee access
+
+welcome / onboarding flow
+
+attendee interest selection
+
+basic dashboard
+
+recommended sessions
+
+recommended sponsors
+
+Phase B established:
+
+full attendee agenda
+
+session detail view
+
+My Agenda
+
+add-to-calendar
+
+Phase C now expands the attendee experience into a much stronger sponsor discovery and engagement flow.
+
+The goal of this phase is to let attendees:
+
+browse relevant sponsors
+
+open sponsor detail pages
+
+understand why a sponsor is relevant
+
+request a meeting
+
+request information
+
+This phase should make sponsors much more discoverable in a curated, professional way without feeling like a trade show directory.
+
+1. Phase C Goal
+
+Build the attendee-facing sponsor experience so attendees can:
+
+browse sponsors for their event
+
+view sponsor detail pages
+
+understand each sponsor’s relevance based on selected topics
+
+request a meeting with a sponsor
+
+request information from a sponsor
+
+This phase should improve both attendee experience and sponsor value.
+
+2. Navigation Update
+
+Ensure the attendee-facing navigation now clearly includes:
+
+Home
+
+Agenda
+
+My Agenda
+
+Sponsors
+
+Meetings
+
+For Phase C, the Sponsors section becomes fully functional.
+
+The navigation must remain simple and mobile-friendly.
+
+3. Build Attendee Sponsor Directory Page
+
+Create an attendee-facing page:
+
+Sponsors
+
+This page should display sponsors relevant to the attendee’s event.
+
+Required behavior
+
+Show only sponsors associated with the attendee’s selected/current event unless a broader event-scoped rule is intentionally supported.
+
+Do not make this feel like an overwhelming exhibitor directory.
+
+The experience should feel curated and helpful.
+
+4. Sponsor Directory Display Requirements
+
+Each sponsor card/row should show:
+
+Sponsor Logo if available
+
+Sponsor Name
+
+Short Description
+
+Event Interest Topics / Areas Supported
+
+short relevance indicator if possible
+
+actions:
+
+View Sponsor
+
+Request Meeting
+
+Request Information
+
+Important display rules
+
+If logo is missing, show a clean fallback
+
+If short description is missing, use a safe fallback or omit that text block cleanly
+
+If sponsor topics are missing, do not break the card
+
+5. Show Relevance to the Attendee
+
+The sponsor directory should communicate why a sponsor is relevant.
+
+Required behavior
+
+Where possible, show shared interests between:
+
+attendee-selected topics
+
+sponsor-selected topics
+
+Example display:
+
+Relevant to your interests:
+AI Risk Management, Fraud Detection
+
+If there is no overlap data yet:
+
+show the sponsor card cleanly without relevance text
+
+do not force fake recommendations
+
+This helps Concierge feel intelligent and curated.
+
+6. Sponsor Directory Ordering
+
+Sponsors should be ordered in a useful way.
+
+Recommended Phase C ordering
+
+sponsors with the strongest topic overlap
+
+then other event sponsors
+
+optionally within that, sort by sponsorship level or display order
+
+This helps attendees see the most relevant sponsors first.
+
+7. Sponsor Directory Filters
+
+Add lightweight filters to the sponsor directory.
+
+Recommended filters
+
+Area of Interest / Topic
+
+Sponsorship Level if useful
+
+Search by Sponsor Name
+
+Do not overcomplicate this in Phase C.
+
+The minimum valuable filters are:
+
+search
+
+topic filter
+
+8. Build Sponsor Detail Page / View
+
+Each sponsor should support a detail view.
+
+This can be:
+
+full page
+
+modal
+
+slide-over panel
+
+Use the pattern that best fits the attendee UI.
+
+Required content in sponsor detail
+
+Show:
+
+Sponsor Logo
+
+Sponsor Name
+
+Short Description
+
+Website URL if available
+
+LinkedIn URL if available
+
+Solutions Summary / Profile
+
+Event Interest Topics / Areas Supported
+
+Request Meeting action
+
+Request Information action
+
+Optional:
+
+related sessions if the sponsor is associated with sessions
+
+meeting availability if already supported later
+
+9. Sponsor Detail Page — Relevance Language
+
+Where topic overlap exists, reinforce relevance.
+
+Example:
+
+Relevant to your interests:
+Real-Time Payments, Fraud Detection
+
+This is a key part of the attendee experience.
+
+It helps attendees understand why they may want to engage.
+
+10. Request Meeting — Attendee Flow
+
+Add attendee action:
+
+Request Meeting
+
+This should be available from:
+
+sponsor directory card
+
+sponsor detail view
+
+recommended sponsor blocks on the dashboard if practical
+
+Required behavior
+
+When an attendee clicks Request Meeting:
+
+create a meeting request record using the existing meeting/request system
+
+tie it to:
+
+attendee
+
+sponsor
+
+event
+
+set an appropriate initial status such as pending/requested
+
+trigger any existing meeting notification workflows as appropriate
+
+If there is already a meeting request or confirmed meeting with that sponsor, do not create duplicates.
+
+Instead show the current state cleanly:
+
+Requested
+
+Pending
+
+Confirmed
+
+Meeting Scheduled
+
+11. Request Meeting — Attendee UX
+
+The action should feel lightweight.
+
+Use:
+
+button click
+
+optional confirmation modal if needed
+
+Example copy:
+
+Request a meeting with this sponsor?
+
+Optional short note:
+
+The sponsor or event team will follow up if a meeting is confirmed.
+
+Do not make the attendee fill out a long form in Phase C unless absolutely necessary.
+
+12. Request Information — Attendee Flow
+
+Add attendee action:
+
+Request Information
+
+This should be available from:
+
+sponsor directory card
+
+sponsor detail view
+
+Required behavior
+
+When an attendee clicks Request Information:
+
+create an info request record
+
+tie it to:
+
+attendee
+
+sponsor
+
+event
+
+trigger the existing sponsor/admin notification flow as appropriate
+
+prevent duplicate repeated info requests where possible
+
+If the attendee already requested information from that sponsor, show the status instead of allowing uncontrolled duplicates.
+
+Example:
+
+Information Requested
+
+Already Requested
+
+13. Request Information — Optional Message Field
+
+If the existing info request system already supports a short message or note, you may surface it here.
+
+If not, keep it simple for Phase C:
+
+one-click request is acceptable
+
+The priority is lowering friction.
+
+14. Show Current Interaction State
+
+In the sponsor UI, attendees should be able to tell whether they already engaged with a sponsor.
+
+Examples of states:
+
+Request Meeting
+
+Meeting Requested
+
+Meeting Confirmed
+
+Request Information
+
+Information Requested
+
+This avoids confusion and duplicate clicks.
+
+15. Dashboard Integration
+
+Update the attendee dashboard’s Recommended Sponsors block so those sponsors link into the full sponsor experience.
+
+At minimum, recommended sponsors on the dashboard should support:
+
+View Sponsor
+
+Request Meeting
+
+Request Information if practical
+
+This makes the dashboard and sponsor directory feel connected.
+
+16. Empty States / Graceful Degradation
+
+The sponsor experience must handle incomplete sponsor data gracefully.
+
+If no sponsors are assigned to the event yet
+
+Show:
+
+Sponsors will appear here once event sponsors are available.
+If sponsor profiles are incomplete
+
+Show what is available without breaking the UI.
+
+Do not display:
+
+broken cards
+
+blank labels
+
+placeholders like TBD unless intentionally designed
+
+17. Mobile-Friendly Design
+
+This phase must work well on mobile.
+
+Important requirements:
+
+sponsor cards stack cleanly
+
+buttons are easy to tap
+
+detail view works on smaller screens
+
+request actions are prominent but not cluttered
+
+Do not assume desktop-first usage.
+
+18. Data Rules / Visibility Rules
+
+Only show sponsors that should be visible to the attendee for that event.
+
+Required behavior
+
+respect event assignment
+
+respect sponsor active/archive status
+
+do not expose internal or hidden sponsors accidentally
+
+If sponsor visibility controls already exist, honor them here.
+
+19. Recommendation Logic for Sponsor Discovery
+
+For Phase C, keep sponsor relevance logic simple.
+
+Minimum required logic
+
+Use overlap between:
+
+attendee-selected interest topics
+
+sponsor-selected interest topics
+
+Rank sponsors by overlap count.
+
+If no overlap data exists:
+
+fall back to standard event sponsor list order
+
+Do not block this phase waiting for advanced AI scoring.
+
+20. Privacy / Data Protection Rules
+
+Do not expose attendee contact information to sponsors through this interface.
+
+Attendee engagement should only create:
+
+meeting request records
+
+info request records
+
+Sponsor access to attendee identity/contact data should remain governed by existing rules.
+
+This phase is about attendee-initiated discovery, not sponsor access expansion.
+
+21. Analytics / Tracking Readiness
+
+Prepare the system so future analytics can track:
+
+sponsor detail views
+
+meeting request clicks
+
+information request clicks
+
+sponsor recommendation impressions
+
+sponsor engagement by topic
+
+You do not need a full analytics dashboard now, but do not make this impossible later.
+
+22. Acceptance Criteria
+
+Phase C is complete when:
+
+attendees can browse a sponsor directory for their event
+
+sponsor cards show key sponsor profile data
+
+sponsor detail views exist
+
+sponsor relevance is shown where topic overlap exists
+
+attendees can request a meeting from sponsor cards/detail views
+
+attendees can request information from sponsor cards/detail views
+
+current interaction state is reflected in the UI
+
+the dashboard’s recommended sponsors connect into the richer sponsor experience
+
+empty and incomplete sponsor states degrade gracefully
+
+the sponsor experience works cleanly on mobile
+
+23. Success Standard
+
+After Phase C, Concierge should make sponsor discovery feel curated and useful to attendees. An attendee should be able to understand which sponsors are relevant, open a sponsor profile, and engage through meeting or information requests with very little friction. That is the standard this phase should meet.

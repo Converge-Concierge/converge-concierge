@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Star, Tag, ChevronRight, Pencil, CheckCircle2, SkipForward,
-  CalendarDays, Users, Bookmark, ExternalLink, ArrowRight,
+  CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -152,13 +152,22 @@ function TopicSelectionStep({ topics, currentSelections, onSave, onSkip, isSavin
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
-function Dashboard({ me, topics, selections, sessions, sponsors, savedSessionIds, onEditInterests, onSaveSession, onUnsaveSession, isSavingSession }: {
+interface SponsorInteractions {
+  meetings: Record<string, { status: string }>;
+  infoRequests: Record<string, { status: string }>;
+}
+
+function Dashboard({ me, topics, selections, sessions, sponsors, savedSessionIds, onEditInterests, onSaveSession, onUnsaveSession, isSavingSession, sponsorInteractions, onRequestMeeting, onRequestInfo, isActingOnSponsor }: {
   me: AttendeeMe; topics: Topic[]; selections: TopicSelection[];
   sessions: RecommendedSession[]; sponsors: RecommendedSponsor[];
   savedSessionIds: Set<string>;
   onEditInterests: () => void;
   onSaveSession: (id: string) => void; onUnsaveSession: (id: string) => void;
   isSavingSession: boolean;
+  sponsorInteractions: SponsorInteractions;
+  onRequestMeeting: (id: string) => void;
+  onRequestInfo: (id: string) => void;
+  isActingOnSponsor: string | null;
 }) {
   const topicMap = new Map(topics.map((t) => [t.id, t]));
   const selectedTopics = selections.map((s) => topicMap.get(s.topicId)).filter(Boolean) as Topic[];
@@ -261,19 +270,51 @@ function Dashboard({ me, topics, selections, sessions, sponsors, savedSessionIds
               <p className="text-sm text-muted-foreground">No sponsor recommendations yet.</p>
             </div>
           : <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="sponsors-list">
-              {sponsors.slice(0, 4).map((sponsor) => (
-                <div key={sponsor.id} className="bg-card border border-border/60 rounded-xl p-4 flex items-center gap-3" data-testid={`card-sponsor-${sponsor.id}`}>
-                  {sponsor.logoUrl
-                    ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-9 w-9 rounded-lg object-contain shrink-0 border border-border/40" />
-                    : <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><Users className="h-4 w-4 text-muted-foreground" /></div>
-                  }
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-foreground truncate">{sponsor.name}</p>
-                    {sponsor.category && <p className="text-xs text-muted-foreground">{sponsor.category}</p>}
+              {sponsors.slice(0, 4).map((sponsor) => {
+                const hasMeeting = !!sponsorInteractions.meetings[sponsor.id];
+                const hasInfo = !!sponsorInteractions.infoRequests[sponsor.id];
+                const acting = isActingOnSponsor === sponsor.id;
+                return (
+                  <div key={sponsor.id} className="bg-card border border-border/60 rounded-xl p-4 flex flex-col gap-2.5" data-testid={`card-sponsor-${sponsor.id}`}>
+                    <div className="flex items-center gap-3">
+                      {sponsor.logoUrl
+                        ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-9 w-9 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-0.5" />
+                        : <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-4 w-4 text-primary" /></div>
+                      }
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-foreground truncate">{sponsor.name}</p>
+                        {sponsor.category && <p className="text-xs text-muted-foreground">{sponsor.category}</p>}
+                      </div>
+                      {sponsor.overlapScore > 0 && <Badge className="shrink-0 rounded-full text-xs">{sponsor.overlapScore}</Badge>}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Link href="/attendee/sponsors">
+                        <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 px-2" data-testid={`button-view-sponsor-${sponsor.id}`}>
+                          View <ChevronRight className="h-3 w-3" />
+                        </Button>
+                      </Link>
+                      {hasMeeting ? (
+                        <span className="flex items-center gap-1 text-xs text-primary font-medium" data-testid={`status-meeting-${sponsor.id}`}>
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Requested
+                        </span>
+                      ) : (
+                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={acting} onClick={() => onRequestMeeting(sponsor.id)} data-testid={`button-request-meeting-${sponsor.id}`}>
+                          <Calendar className="h-3 w-3" /> Meeting
+                        </Button>
+                      )}
+                      {hasInfo ? (
+                        <span className="flex items-center gap-1 text-xs text-accent font-medium" data-testid={`status-info-${sponsor.id}`}>
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Info Sent
+                        </span>
+                      ) : (
+                        <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" disabled={acting} onClick={() => onRequestInfo(sponsor.id)} data-testid={`button-request-info-${sponsor.id}`}>
+                          <Mail className="h-3 w-3" /> Info
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  {sponsor.overlapScore > 0 && <Badge className="shrink-0 rounded-full text-xs">{sponsor.overlapScore}</Badge>}
-                </div>
-              ))}
+                );
+              })}
             </div>
         }
       </div>
@@ -346,6 +387,34 @@ export default function AttendeePortalPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/attendee-portal/saved-sessions"] }),
   });
 
+  const interactionsQuery = useQuery<SponsorInteractions>({
+    queryKey: ["/api/attendee-portal/sponsor-interactions"],
+    queryFn: () => fetch("/api/attendee-portal/sponsor-interactions", { headers }).then((r) => r.json()),
+    enabled: !!meQuery.data?.onboarding.isDone,
+  });
+
+  const [actingOnSponsor, setActingOnSponsor] = useState<string | null>(null);
+
+  const requestMeetingMutation = useMutation({
+    mutationFn: (sponsorId: string) =>
+      fetch("/api/attendee-portal/request-meeting", {
+        method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify({ sponsorId }),
+      }).then((r) => r.json()),
+    onMutate: (id) => setActingOnSponsor(id),
+    onSettled: () => setActingOnSponsor(null),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] }),
+  });
+
+  const requestInfoMutation = useMutation({
+    mutationFn: (sponsorId: string) =>
+      fetch("/api/attendee-portal/request-info", {
+        method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify({ sponsorId }),
+      }).then((r) => r.json()),
+    onMutate: (id) => setActingOnSponsor(id),
+    onSettled: () => setActingOnSponsor(null),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] }),
+  });
+
   const saveTopicsMutation = useMutation({
     mutationFn: (topicIds: string[]) =>
       fetch("/api/attendee-portal/topic-selections", {
@@ -411,6 +480,10 @@ export default function AttendeePortalPage() {
         onSaveSession={(id) => saveSessionMutation.mutate(id)}
         onUnsaveSession={(id) => unsaveSessionMutation.mutate(id)}
         isSavingSession={saveSessionMutation.isPending || unsaveSessionMutation.isPending}
+        sponsorInteractions={interactionsQuery.data ?? { meetings: {}, infoRequests: {} }}
+        onRequestMeeting={(id) => requestMeetingMutation.mutate(id)}
+        onRequestInfo={(id) => requestInfoMutation.mutate(id)}
+        isActingOnSponsor={actingOnSponsor}
       />
     </AttendeeShell>
   );

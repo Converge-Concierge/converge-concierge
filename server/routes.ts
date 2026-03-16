@@ -7076,6 +7076,217 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     return res.json(result.filter(Boolean));
   });
 
+  // ── Attendee Portal: Sponsors + Interactions (Phase C) ──────────────────
+
+  // Full sponsor directory for the attendee's event with relevance scoring
+  app.get("/api/attendee-portal/sponsors", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const [attendeeTopics, allSponsors, eventTopics] = await Promise.all([
+      storage.getAttendeeTopics(tokenRecord.attendeeId, tokenRecord.eventId),
+      storage.getSponsors(),
+      storage.getEventInterestTopics(tokenRecord.eventId),
+    ]);
+
+    const attendeeTopicIds = new Set(attendeeTopics.map((t) => t.topicId));
+    const topicLabelMap = new Map(eventTopics.map((t: any) => [t.id, t.topicLabel]));
+
+    const eventSponsors = allSponsors.filter(
+      (s) =>
+        s.archiveState !== "archived" &&
+        (s.assignedEvents ?? []).some(
+          (link: any) => link.eventId === tokenRecord.eventId && link.archiveState !== "archived"
+        )
+    );
+
+    const scored = await Promise.all(
+      eventSponsors.map(async (sponsor) => {
+        const sponsorTopics = await storage.getSponsorTopics(sponsor.id, tokenRecord.eventId);
+        const overlapTopics = sponsorTopics.filter((t) => attendeeTopicIds.has(t.topicId));
+        return {
+          id: sponsor.id,
+          name: sponsor.name,
+          logoUrl: sponsor.logoUrl ?? null,
+          level: sponsor.level ?? null,
+          shortDescription: sponsor.shortDescription ?? null,
+          websiteUrl: sponsor.websiteUrl ?? null,
+          linkedinUrl: sponsor.linkedinUrl ?? null,
+          solutionsSummary: sponsor.solutionsSummary ?? null,
+          overlapScore: overlapTopics.length,
+          overlapTopicLabels: overlapTopics.map((t) => topicLabelMap.get(t.topicId) ?? "").filter(Boolean),
+          topicIds: sponsorTopics.map((t) => t.topicId),
+          topicLabels: sponsorTopics.map((t) => ({ id: t.topicId, label: topicLabelMap.get(t.topicId) ?? "" })),
+        };
+      })
+    );
+
+    scored.sort((a, b) => b.overlapScore - a.overlapScore);
+    return res.json(scored);
+  });
+
+  // Attendee's existing sponsor interactions (meetings + info requests) by sponsorId
+  app.get("/api/attendee-portal/sponsor-interactions", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const [allMeetings, allInfoRequests] = await Promise.all([
+      storage.getMeetings(),
+      storage.listInformationRequests({ eventId: tokenRecord.eventId }),
+    ]);
+
+    const meetings: Record<string, { status: string; meetingId: string }> = {};
+    for (const m of allMeetings) {
+      if (
+        m.attendeeId === tokenRecord.attendeeId &&
+        m.eventId === tokenRecord.eventId &&
+        m.archiveState !== "archived"
+      ) {
+        meetings[m.sponsorId] = { status: m.status, meetingId: m.id };
+      }
+    }
+
+    const infoRequests: Record<string, { status: string; requestId: string }> = {};
+    for (const ir of allInfoRequests) {
+      if (ir.attendeeId === tokenRecord.attendeeId) {
+        infoRequests[ir.sponsorId] = { status: ir.status, requestId: ir.id };
+      }
+    }
+
+    return res.json({ meetings, infoRequests });
+  });
+
+  // Request a meeting with a sponsor (attendee-initiated, idempotent)
+  app.post("/api/attendee-portal/request-meeting", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const { sponsorId } = req.body as { sponsorId: string };
+    if (!sponsorId) return res.status(400).json({ message: "sponsorId required" });
+
+    const sponsor = await storage.getSponsor(sponsorId);
+    if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+
+    // Idempotency: check for existing active meeting
+    const allMeetings = await storage.getMeetings();
+    const existing = allMeetings.find(
+      (m) =>
+        m.attendeeId === tokenRecord.attendeeId &&
+        m.sponsorId === sponsorId &&
+        m.eventId === tokenRecord.eventId &&
+        m.archiveState !== "archived" &&
+        !["Cancelled", "Declined"].includes(m.status)
+    );
+    if (existing) return res.json({ ok: true, meeting: existing, alreadyExisted: true });
+
+    // Create online_request meeting (date/time are placeholders — admin follows up)
+    const today = new Date().toISOString().split("T")[0];
+    const meeting = await storage.createMeeting({
+      eventId: tokenRecord.eventId,
+      sponsorId,
+      attendeeId: tokenRecord.attendeeId,
+      meetingType: "online_request",
+      status: "Pending",
+      date: today,
+      time: "09:00",
+      location: "Online",
+      source: "public",
+    });
+
+    return res.status(201).json({ ok: true, meeting, alreadyExisted: false });
+  });
+
+  // Request information from a sponsor (attendee-initiated, idempotent)
+  app.post("/api/attendee-portal/request-info", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const { sponsorId } = req.body as { sponsorId: string };
+    if (!sponsorId) return res.status(400).json({ message: "sponsorId required" });
+
+    const [sponsor, attendee] = await Promise.all([
+      storage.getSponsor(sponsorId),
+      storage.getAttendee(tokenRecord.attendeeId),
+    ]);
+    if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+    if (!attendee) return res.status(404).json({ message: "Attendee not found" });
+
+    // Idempotency: check for existing info request
+    const existing = await storage.listInformationRequests({ eventId: tokenRecord.eventId, sponsorId });
+    const alreadyRequested = existing.find((ir) => ir.attendeeId === tokenRecord.attendeeId);
+    if (alreadyRequested) return res.json({ ok: true, record: alreadyRequested, alreadyExisted: true });
+
+    const record = await storage.createInformationRequest({
+      eventId: tokenRecord.eventId,
+      sponsorId,
+      attendeeId: tokenRecord.attendeeId,
+      attendeeFirstName: attendee.firstName || attendee.name?.split(" ")[0] || "",
+      attendeeLastName: attendee.lastName || attendee.name?.split(" ").slice(1).join(" ") || "",
+      attendeeEmail: attendee.email || "",
+      attendeeCompany: attendee.company || "",
+      attendeeTitle: attendee.title || "",
+      consentToShareContact: true,
+      source: "Attendee Concierge",
+    });
+
+    // Fire-and-forget email notifications
+    ;(async () => {
+      try {
+        const irEvent = await storage.getEvent(tokenRecord.eventId);
+        const sponsorTokens = await storage.getSponsorTokensBySponsor(sponsor.id).catch(() => []);
+        const activeToken = sponsorTokens.find((t: any) => t.isActive && t.eventId === tokenRecord.eventId);
+        await sendInformationRequestNotificationToSponsor(storage, null, sponsor, record, irEvent, activeToken?.token ?? null).catch(() => {});
+        await sendInformationRequestConfirmationToAttendee(storage, record, sponsor, irEvent).catch(() => {});
+      } catch {}
+    })();
+
+    return res.status(201).json({ ok: true, record, alreadyExisted: false });
+  });
+
+  // Attendee's meetings with sponsor name/logo enrichment
+  app.get("/api/attendee-portal/meetings", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const [allMeetings, allSponsors] = await Promise.all([storage.getMeetings(), storage.getSponsors()]);
+    const sponsorMap = new Map(allSponsors.map((s) => [s.id, s]));
+
+    const attendeeMeetings = allMeetings
+      .filter((m) => m.attendeeId === tokenRecord.attendeeId && m.eventId === tokenRecord.eventId && m.archiveState !== "archived")
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((m) => {
+        const sponsor = sponsorMap.get(m.sponsorId);
+        return {
+          id: m.id,
+          sponsorId: m.sponsorId,
+          sponsorName: sponsor?.name ?? "Unknown Sponsor",
+          sponsorLogoUrl: sponsor?.logoUrl ?? null,
+          date: m.date,
+          time: m.time,
+          location: m.location,
+          meetingType: m.meetingType,
+          status: m.status,
+        };
+      });
+
+    return res.json(attendeeMeetings);
+  });
+
   // ── Attendee Portal: Agenda (Phase B) ────────────────────────────────────
 
   // Full event agenda — published + public sessions with speakers + session type

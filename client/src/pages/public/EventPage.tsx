@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -374,6 +374,42 @@ export default function EventPage() {
       setStep(1);
     }
   }, [sponsors]);
+
+  // ── Prefill email from welcome flow (?prefillEmail=) ─────────────────────
+  const hasAppliedPrefill = useRef(false);
+  const prefillTrigger = useCallback(async (eventId: string, email: string) => {
+    setAttendee((a) => ({ ...a, email }));
+    try {
+      const res = await fetch("/api/attendees/prefill-lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId, email }),
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.found && json.attendee) {
+        const { firstName, lastName, company, title } = json.attendee;
+        setAttendee((a) => ({
+          ...a,
+          firstName: a.firstName || firstName || "",
+          lastName:  a.lastName  || lastName  || "",
+          company:   a.company   || company   || "",
+          title:     a.title     || title     || "",
+        }));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (hasAppliedPrefill.current || events.length === 0) return;
+    const ev = events.find((e) => e.slug === slug);
+    if (!ev) return;
+    const params = new URLSearchParams(window.location.search);
+    const prefillEmail = params.get("prefillEmail");
+    if (!prefillEmail || !/\S+@\S+\.\S+/.test(prefillEmail)) return;
+    hasAppliedPrefill.current = true;
+    prefillTrigger(ev.id, prefillEmail);
+  }, [events, slug, prefillTrigger]);
 
   const event = events.find((e) => e.slug === slug);
   const eventSponsors = event

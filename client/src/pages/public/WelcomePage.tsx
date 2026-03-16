@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle, ChevronRight, ChevronLeft, Mail, Calendar, Building2,
-  Bookmark, BookmarkCheck, Info, Users, Laptop, MapPin, Sparkles,
+  Bookmark, BookmarkCheck, Info, Users, Laptop, MapPin, Sparkles, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgendaSession, EventInterestTopic, Sponsor, EventSponsorLink } from "@shared/schema";
@@ -488,26 +488,32 @@ function SessionsCard({
 
 function SponsorsCard({
   eventId,
+  eventSlug,
+  attendeeEmail,
   sponsors,
   allTopics,
   selectedTopicIds,
   meetingRequests,
-  onRequest,
+  onSchedule,
+  onInfoRequest,
   onNext,
   onBack,
   loading,
 }: {
   eventId: string;
+  eventSlug: string;
+  attendeeEmail: string;
   sponsors: SponsorWithTopics[];
   allTopics: EventInterestTopic[];
   selectedTopicIds: string[];
   meetingRequests: { sponsorId: string; requestType: string }[];
-  onRequest: (sponsorId: string, requestType: string) => Promise<void>;
+  onSchedule: (sponsorId: string, mode: "onsite" | "online") => void;
+  onInfoRequest: (sponsorId: string) => Promise<void>;
   onNext: () => void;
   onBack: () => void;
   loading: boolean;
 }) {
-  const [requesting, setRequesting] = useState<Record<string, boolean>>({});
+  const [infoBusy, setInfoBusy] = useState<Record<string, boolean>>({});
 
   // Build topic label map
   const topicMap = new Map<string, string>(allTopics.map((t) => [t.id, t.topicLabel]));
@@ -516,29 +522,34 @@ function SponsorsCard({
   const sorted = [...sponsors].sort((a, b) => {
     const la = LEVEL_ORDER[getSponsorLevel(a, eventId)] ?? 0;
     const lb = LEVEL_ORDER[getSponsorLevel(b, eventId)] ?? 0;
-    // Secondary: sponsors with matching topics first
     const ra = (a.topicIds ?? []).filter((t) => attendeeTopicSet.has(t)).length;
     const rb = (b.topicIds ?? []).filter((t) => attendeeTopicSet.has(t)).length;
     return lb - la || rb - ra;
   });
 
-  function hasRequest(sponsorId: string, type: string) {
-    return meetingRequests.some((r) => r.sponsorId === sponsorId && (r.requestType === type || (type === "onsite" && r.requestType === "meeting")));
+  function scheduledMode(sponsorId: string): "onsite" | "online" | null {
+    const r = meetingRequests.find((r) => r.sponsorId === sponsorId && (r.requestType === "onsite" || r.requestType === "online" || r.requestType === "meeting"));
+    if (!r) return null;
+    return r.requestType === "online" ? "online" : "onsite";
   }
 
-  function hasAnyMeeting(sponsorId: string) {
-    return meetingRequests.some((r) => r.sponsorId === sponsorId && ["onsite", "online", "meeting"].includes(r.requestType));
+  function hasInfoRequest(sponsorId: string) {
+    return meetingRequests.some((r) => r.sponsorId === sponsorId && r.requestType === "info");
   }
 
-  async function handleRequest(sponsorId: string, requestType: string) {
-    const key = `${sponsorId}_${requestType}`;
-    if (requesting[key]) return;
-    setRequesting((p) => ({ ...p, [key]: true }));
+  async function handleInfo(sponsorId: string) {
+    if (infoBusy[sponsorId]) return;
+    setInfoBusy((p) => ({ ...p, [sponsorId]: true }));
     try {
-      await onRequest(sponsorId, requestType);
+      await onInfoRequest(sponsorId);
     } finally {
-      setRequesting((p) => ({ ...p, [key]: false }));
+      setInfoBusy((p) => ({ ...p, [sponsorId]: false }));
     }
+  }
+
+  function buildScheduleUrl(sponsorId: string, mode: "onsite" | "online") {
+    const base = `/event/${eventSlug}?sponsor=${sponsorId}&mode=${mode}`;
+    return attendeeEmail ? `${base}&prefillEmail=${encodeURIComponent(attendeeEmail)}` : base;
   }
 
   return (
@@ -546,7 +557,7 @@ function SponsorsCard({
       <div>
         <h2 className="text-xl font-bold text-gray-900">Sponsors You May Want to Meet</h2>
         <p className="mt-1 text-gray-500 text-sm">
-          These sponsors align with your interests and are available for meetings during the event.
+          Choose a sponsor and schedule a meeting directly.
         </p>
       </div>
 
@@ -565,16 +576,8 @@ function SponsorsCard({
               .filter(Boolean) as string[];
 
             // Meeting states
-            const onsiteDone = hasRequest(s.id, "onsite");
-            const onlineDone = hasRequest(s.id, "online");
-            const infoDone = hasRequest(s.id, "info");
-            const anyMeetingDone = hasAnyMeeting(s.id);
-
-            const onsiteBusy = requesting[`${s.id}_onsite`];
-            const onlineBusy = requesting[`${s.id}_online`];
-            const infoBusy = requesting[`${s.id}_info`];
-
-            // Whether the sponsor supports online meetings
+            const booked = scheduledMode(s.id);
+            const infoDone = hasInfoRequest(s.id);
             const supportsOnline = !!s.allowOnlineMeetings;
 
             return (
@@ -623,56 +626,61 @@ function SponsorsCard({
 
                 {/* Meeting CTAs */}
                 <div className="space-y-2">
-                  {/* Primary: Meeting scheduling */}
-                  <div className={cn("grid gap-2", supportsOnline ? "grid-cols-2" : "grid-cols-1")}>
-                    {/* Onsite Meeting */}
-                    <button
-                      data-testid={`button-sponsor-onsite-${s.id}`}
-                      onClick={() => handleRequest(s.id, "onsite")}
-                      disabled={onsiteDone || anyMeetingDone || !!onsiteBusy}
-                      className={cn(
-                        "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold border transition-all",
-                        onsiteDone || anyMeetingDone
-                          ? "bg-green-50 border-green-200 text-green-700"
-                          : "bg-blue-600 border-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                      )}
-                    >
-                      {onsiteDone || anyMeetingDone
-                        ? <><CheckCircle className="w-3.5 h-3.5" /> Meeting Requested</>
-                        : onsiteBusy
-                          ? "…"
-                          : <><MapPin className="w-3.5 h-3.5" /> Schedule Onsite Meeting</>
-                      }
-                    </button>
-
-                    {/* Online Meeting */}
-                    {supportsOnline && (
-                      <button
-                        data-testid={`button-sponsor-online-${s.id}`}
-                        onClick={() => handleRequest(s.id, "online")}
-                        disabled={onlineDone || anyMeetingDone || !!onlineBusy}
-                        className={cn(
-                          "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold border transition-all",
-                          onlineDone || anyMeetingDone
-                            ? "bg-green-50 border-green-200 text-green-700"
-                            : "bg-white border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
-                        )}
+                  {booked ? (
+                    /* ── Already initiated scheduling ── */
+                    <div className="flex items-center gap-2 py-2.5 px-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-xs font-semibold">
+                      <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>
+                        {booked === "online" ? "Online" : "Onsite"} Meeting Scheduling Opened
+                      </span>
+                      <a
+                        href={buildScheduleUrl(s.id, booked)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-auto flex items-center gap-1 text-green-600 hover:text-green-800 underline underline-offset-2"
+                        data-testid={`link-sponsor-reschedule-${s.id}`}
                       >
-                        {onlineDone || anyMeetingDone
-                          ? <><CheckCircle className="w-3.5 h-3.5" /> Meeting Requested</>
-                          : onlineBusy
-                            ? "…"
-                            : <><Laptop className="w-3.5 h-3.5" /> Schedule Online Meeting</>
-                        }
-                      </button>
-                    )}
-                  </div>
+                        Open again <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  ) : (
+                    /* ── Primary scheduling actions ── */
+                    <div className={cn("grid gap-2", supportsOnline ? "grid-cols-2" : "grid-cols-1")}>
+                      {/* Onsite Meeting */}
+                      <a
+                        href={buildScheduleUrl(s.id, "onsite")}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        data-testid={`button-sponsor-onsite-${s.id}`}
+                        onClick={() => onSchedule(s.id, "onsite")}
+                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold border bg-blue-600 border-blue-600 text-white hover:bg-blue-700 transition-all"
+                      >
+                        <MapPin className="w-3.5 h-3.5" /> Schedule Onsite Meeting
+                        <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
+                      </a>
 
-                  {/* Secondary: Request Info */}
+                      {/* Online Meeting */}
+                      {supportsOnline && (
+                        <a
+                          href={buildScheduleUrl(s.id, "online")}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          data-testid={`button-sponsor-online-${s.id}`}
+                          onClick={() => onSchedule(s.id, "online")}
+                          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold border bg-white border-blue-400 text-blue-700 hover:bg-blue-50 transition-all"
+                        >
+                          <Laptop className="w-3.5 h-3.5" /> Schedule Online Meeting
+                          <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Secondary: Request Information */}
                   <button
                     data-testid={`button-sponsor-info-${s.id}`}
-                    onClick={() => handleRequest(s.id, "info")}
-                    disabled={infoDone || !!infoBusy}
+                    onClick={() => handleInfo(s.id)}
+                    disabled={infoDone || !!infoBusy[s.id]}
                     className={cn(
                       "w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium border transition-all",
                       infoDone
@@ -682,7 +690,7 @@ function SponsorsCard({
                   >
                     {infoDone
                       ? <><CheckCircle className="w-3.5 h-3.5" /> Information Requested</>
-                      : infoBusy ? "…"
+                      : infoBusy[s.id] ? "…"
                         : <><Info className="w-3.5 h-3.5" /> Request Information</>
                     }
                   </button>
@@ -903,10 +911,16 @@ export default function WelcomePage() {
     }
   }
 
-  async function handleMeetingRequest(sponsorId: string, requestType: string) {
+  function handleSchedule(sponsorId: string, mode: "onsite" | "online") {
+    // Mark locally so the card shows "Scheduling Opened" state; no API call needed
+    // (the real meeting is created on the EventPage via /api/meetings)
+    setMeetingRequests((p) => [...p, { sponsorId, requestType: mode }]);
+  }
+
+  async function handleInfoRequest(sponsorId: string) {
     if (!profileId) return;
-    await apiPost(`/api/public/pending/${profileId}/meeting-request`, { sponsorId, requestType });
-    setMeetingRequests((p) => [...p, { sponsorId, requestType }]);
+    await apiPost(`/api/public/pending/${profileId}/meeting-request`, { sponsorId, requestType: "info" });
+    setMeetingRequests((p) => [...p, { sponsorId, requestType: "info" }]);
   }
 
   async function handleSponsorsNext() {
@@ -997,11 +1011,14 @@ export default function WelcomePage() {
           {step === "sponsors" && event && (
             <SponsorsCard
               eventId={event.id}
+              eventSlug={slug ?? ""}
+              attendeeEmail={email}
               sponsors={sponsors}
               allTopics={topics}
               selectedTopicIds={topicIds}
               meetingRequests={meetingRequests}
-              onRequest={handleMeetingRequest}
+              onSchedule={handleSchedule}
+              onInfoRequest={handleInfoRequest}
               onNext={handleSponsorsNext}
               onBack={() => setStep("sessions")}
               loading={actionLoading}

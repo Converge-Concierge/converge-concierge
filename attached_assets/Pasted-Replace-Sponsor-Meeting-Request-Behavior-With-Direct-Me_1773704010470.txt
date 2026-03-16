@@ -1,0 +1,299 @@
+Replace Sponsor “Meeting Request” Behavior With Direct Meeting Scheduling
+Make the sponsor step in the attendee flow use the same real scheduling behavior as the event scheduling page
+
+The sponsor meeting section in the attendee flow needs to be corrected.
+
+Right now the sponsor cards are still behaving like a request flow in parts of the experience. That is not the intended behavior.
+
+For this attendee-facing sponsor step, we do not want generic “meeting requests” as the primary interaction.
+
+We want this section to behave like the event scheduling page, where the attendee is actually scheduling a meeting directly.
+
+1. Primary Goal
+
+Update the sponsor step and sponsor cards so that attendees can directly schedule meetings from this experience, using the same scheduling logic and UX model as the event scheduling page.
+
+This should apply especially to:
+
+the attendee onboarding sponsor step
+
+recommended sponsors sections
+
+attendee sponsor browsing where the same sponsor card pattern is used
+
+2. Product Decision
+Old behavior
+
+Request Meeting
+
+Request Information
+
+possible intermediate request states
+
+New behavior
+
+The primary action is:
+
+Schedule Onsite Meeting
+
+Schedule Online Meeting
+
+The attendee should be taken into the actual scheduling flow, not a generic request workflow.
+
+3. Use the Event Scheduling Page Model
+
+The sponsor meeting section should replicate the behavior of the event scheduling page.
+
+That means:
+
+if onsite meetings are enabled for the sponsor, the attendee can schedule an onsite meeting directly
+
+if online meetings are enabled for the sponsor, the attendee can schedule an online meeting directly
+
+the flow should use the same scheduling logic, availability rules, and meeting creation pattern already used elsewhere in the app
+
+Do not create a separate lightweight pseudo-scheduling flow just for onboarding if the event scheduling page already has the correct logic.
+
+Reuse the real meeting scheduling flow.
+
+4. Remove “Request Meeting” From These Sponsor Cards
+
+On this sponsor card pattern, remove the generic:
+
+Request Meeting
+
+as the primary attendee action.
+
+This is no longer the intended interaction model.
+
+The attendee should either:
+
+schedule onsite
+
+schedule online
+
+or, if neither direct scheduling mode is available, use a clearly named fallback only if absolutely necessary
+
+But the default should be real scheduling.
+
+5. Sponsor Card CTA Rules
+
+For each sponsor, render meeting actions based on the sponsor’s configured meeting options.
+
+If sponsor supports onsite only
+
+Show:
+
+Schedule Onsite Meeting
+If sponsor supports online only
+
+Show:
+
+Schedule Online Meeting
+If sponsor supports both
+
+Show:
+
+Schedule Onsite Meeting
+Schedule Online Meeting
+
+These should behave like the event scheduling page actions.
+
+6. Keep “Request Information” As a Separate Secondary Action
+
+The card may still include:
+
+Request Information
+
+as a separate secondary action.
+
+This is fine.
+
+But do not mix that with a generic meeting request flow.
+
+The attendee should understand the distinction:
+
+scheduling a meeting
+
+requesting information
+
+7. Scheduling Action Behavior
+
+When the attendee clicks:
+
+Schedule Onsite Meeting
+
+Schedule Online Meeting
+
+the system should take them into the real scheduling workflow.
+
+This may be:
+
+opening the same scheduling modal used on the event page
+
+routing to the same scheduling step/page
+
+using the same backend meeting slot selection flow
+
+The key requirement is:
+
+Use the real scheduling logic
+
+Do not just create a meeting request record and call it “scheduled.”
+
+8. Prefill Attendee Data Automatically
+
+Once the attendee has identified themselves through the welcome flow email step or through their Concierge link, the scheduling flow should prefill attendee information using their known record.
+
+Prefill:
+
+first name
+
+last name
+
+email
+
+company
+
+title
+
+attendee category if useful internally
+
+This should reduce friction and make the scheduling experience feel polished.
+
+Do not force the attendee to retype known information if Concierge already has it.
+
+9. If Attendee Is Still in Pending / Pre-Matched State
+
+Because the new welcome flow supports attendees before Zapier reconciliation is complete, make sure scheduling behavior handles this safely.
+
+Required behavior
+
+If the attendee has already entered their registration email and the system has enough identity context to continue:
+
+allow scheduling to proceed
+
+preserve the scheduling action against the pending concierge profile if necessary
+
+reconcile it to the real attendee record once matching completes
+
+Do not lose scheduling actions due to timing delays.
+
+If direct meeting scheduling absolutely requires a fully matched attendee record, then:
+
+check that requirement explicitly
+
+if missing, save the intent and show a clear, graceful message
+
+but do not silently fail
+
+10. Align UI Copy With Real Scheduling
+
+Update button and helper text to match the real behavior.
+
+Use:
+
+Schedule Onsite Meeting
+
+Schedule Online Meeting
+
+Do not use language that implies a loose request if the next step is actual scheduling.
+
+Optional supporting text on the sponsor step:
+
+Choose a sponsor and schedule a meeting directly.
+11. Preserve Existing Meeting State Visibility
+
+If the attendee has already scheduled or confirmed a meeting with the sponsor, the card should reflect that state.
+
+Examples:
+
+Meeting Scheduled
+
+Onsite Meeting Scheduled
+
+Online Meeting Scheduled
+
+If there is already a confirmed meeting, do not continue showing scheduling buttons in the same way.
+
+Instead show the scheduled status and an appropriate view/manage action if available.
+
+12. Remove Confusing Mixed States
+
+Do not let the sponsor cards show a confusing mix of:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Meeting
+
+Meeting Requested
+
+unless these states are truly necessary and clearly distinguished.
+
+The user experience should be simple:
+
+If scheduling is available
+
+Show scheduling actions.
+
+If information can be requested
+
+Show Request Information separately.
+
+If meeting already exists
+
+Show scheduled state.
+
+13. Keep Consistency Across Attendee Surfaces
+
+This scheduling behavior should be consistent across all attendee-facing sponsor card surfaces where this same sponsor interaction appears, including:
+
+onboarding sponsor step
+
+recommended sponsors on dashboard
+
+sponsor directory cards where applicable
+
+Do not let one surface use scheduling and another still use generic request meeting language unless there is a deliberate reason.
+
+14. Match the Event Scheduling Page Interaction Pattern
+
+Visually and behaviorally, these actions should feel like the event scheduling page.
+
+That includes:
+
+button wording
+
+action order
+
+scheduling workflow
+
+meeting-type distinctions
+
+success states
+
+The attendee should not feel like they are using two different systems.
+
+15. Acceptance Criteria
+
+This correction is complete when:
+
+sponsor cards in the attendee flow no longer use generic “Request Meeting” as the primary interaction
+
+meeting actions replicate the real event scheduling page behavior
+
+attendees can directly schedule onsite and/or online meetings where supported
+
+Request Information remains available as a separate secondary action
+
+known attendee data is prefilled in the scheduling flow
+
+scheduled meetings show correct meeting state afterward
+
+the sponsor interaction model feels consistent across attendee surfaces
+
+16. Success Standard
+
+After this update, the sponsor step should no longer feel like a soft lead-request experience. It should feel like a true meeting scheduling experience, consistent with the main event scheduling page, so attendees can immediately book time with relevant sponsors when they are most engaged.

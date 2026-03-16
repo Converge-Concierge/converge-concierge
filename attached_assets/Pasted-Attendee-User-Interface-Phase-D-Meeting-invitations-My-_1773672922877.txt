@@ -1,0 +1,484 @@
+Attendee User Interface — Phase D
+Meeting invitations, My Meetings page, attendee responses, and combined planning view
+
+We are now moving to Attendee UI — Phase D.
+
+Previous phases established:
+
+Phase A
+
+secure attendee access
+
+onboarding
+
+topic selection
+
+dashboard
+
+recommended sessions
+
+recommended sponsors
+
+Phase B
+
+agenda browsing
+
+session detail view
+
+My Agenda
+
+add-to-calendar
+
+Phase C
+
+sponsor directory
+
+sponsor detail pages
+
+request meeting
+
+request information
+
+Phase D introduces the meeting management experience for attendees.
+
+This is one of the most valuable parts of Concierge because it directly supports sponsor ROI and attendee networking.
+
+1. Phase D Goal
+
+Build the attendee-facing meeting management system so attendees can:
+
+view meeting invitations
+
+accept or decline meeting requests
+
+see confirmed meetings
+
+track pending meeting requests
+
+view meetings alongside saved sessions in a unified planning view
+
+This phase turns Concierge into a meeting planning tool, not just a discovery platform.
+
+2. Navigation Update
+
+Ensure attendee navigation now includes:
+
+Home
+
+Agenda
+
+My Agenda
+
+Sponsors
+
+Meetings
+
+The Meetings section becomes fully functional in this phase.
+
+3. Build My Meetings Page
+
+Create a new attendee page:
+
+My Meetings
+
+This page should show all meeting-related activity for the attendee.
+
+Recommended layout:
+
+Sections on the page:
+
+Confirmed Meetings
+
+Meeting Invitations
+
+Pending Requests
+
+Each section should be clearly labeled.
+
+4. Confirmed Meetings Section
+
+This section displays meetings that are already confirmed.
+
+Each meeting card should include:
+
+Sponsor Name
+
+Sponsor Logo if available
+
+Meeting Date
+
+Start Time
+
+End Time
+
+Location if assigned
+
+Meeting Type if relevant
+
+Meeting Status: Confirmed
+
+Actions:
+
+View Details
+
+Add to Calendar
+
+5. Meeting Invitations Section
+
+This section shows meeting requests sent to the attendee that require a response.
+
+Each invitation card should show:
+
+Sponsor Name
+
+Sponsor Logo
+
+Meeting request message if available
+
+Proposed time if included
+
+Status: Awaiting Your Response
+
+Actions:
+
+Accept
+Decline
+View Sponsor
+6. Accept Meeting Flow
+
+When the attendee clicks Accept:
+
+Required behavior:
+
+update meeting status to CONFIRMED
+
+assign the meeting to the attendee’s meeting list
+
+trigger meeting confirmation notification if already implemented
+
+ensure the meeting appears in:
+
+Confirmed Meetings
+
+Planning view
+
+Calendar export
+
+If a meeting time has not yet been assigned, the system should allow admin/sponsor scheduling later.
+
+7. Decline Meeting Flow
+
+When the attendee clicks Decline:
+
+Required behavior:
+
+update meeting status to DECLINED
+
+remove the meeting from invitation list
+
+optionally log decline reason if needed later (not required in Phase D)
+
+The UI should show confirmation such as:
+
+Meeting declined
+
+Do not delete the record completely. Maintain it for reporting.
+
+8. Pending Requests Section
+
+This section shows meeting requests initiated by the attendee that are awaiting sponsor response.
+
+Each card should show:
+
+Sponsor Name
+
+Sponsor Logo
+
+Request Date
+
+Status: Pending
+
+Actions:
+
+View Sponsor
+
+Cancel Request (optional if simple)
+
+Example display:
+
+Meeting Requested
+Awaiting Sponsor Response
+9. Meeting Detail View
+
+Allow a meeting card to open a simple detail view.
+
+Show:
+
+Sponsor Name
+
+Sponsor Logo
+
+Meeting Date
+
+Start Time
+
+End Time
+
+Location
+
+Meeting Notes if any
+
+Meeting Status
+
+Actions:
+
+Add to Calendar
+
+View Sponsor Profile
+
+Keep this simple.
+
+10. Meeting Status Model
+
+Ensure meetings support clear status values.
+
+Recommended statuses:
+
+REQUESTED
+
+INVITED
+
+CONFIRMED
+
+DECLINED
+
+CANCELLED
+
+The attendee UI should translate these into friendly labels:
+
+Example:
+
+Awaiting Sponsor Response
+Awaiting Your Response
+Confirmed
+Declined
+11. Add Meeting Calendar Export
+
+Confirmed meetings should support:
+
+Add to Calendar
+
+Generate an ICS file that includes:
+
+meeting title
+
+sponsor name
+
+meeting date
+
+start time
+
+end time
+
+location if available
+
+event name
+
+This should work from:
+
+My Meetings
+
+Meeting Detail
+
+12. Combine Meetings with My Agenda (Planning View)
+
+Create a Combined Planning View that helps attendees see their schedule clearly.
+
+This can be implemented as either:
+
+Option A (Recommended)
+A new tab inside My Agenda:
+
+My Schedule
+
+Option B
+A toggle on the My Agenda page:
+
+Sessions | Full Schedule
+13. Combined Schedule Behavior
+
+The planning view should show:
+
+saved sessions
+
+confirmed meetings
+
+All in chronological order.
+
+Example:
+
+Day 1
+
+10:00 AM
+Panel: Banking 2027
+
+11:00 AM
+Meeting – Acme AI
+
+1:00 PM
+Peer Discussion: Real-Time Payments
+
+2:00 PM
+Meeting – FuturePay
+
+This helps attendees avoid conflicts and plan their time.
+
+14. Conflict Awareness (Basic)
+
+Phase D does not need full conflict management.
+
+However, if a meeting overlaps a saved session:
+
+Optionally display a small warning icon:
+
+Conflicts with saved session
+
+Do not block the meeting.
+
+Just inform the attendee.
+
+15. Meeting Invitations Indicator
+
+The attendee dashboard should now include a small indicator for meeting activity.
+
+Example:
+
+Meeting Invitations (2)
+
+or
+
+You have 2 meeting requests waiting for your response
+
+Clicking this should take the attendee to My Meetings.
+
+16. Email Integration
+
+Meeting actions should trigger email notifications if email automation exists.
+
+Examples:
+
+When attendee accepts meeting:
+
+send confirmation email
+
+When sponsor sends meeting invitation:
+
+attendee receives invitation email
+
+Email templates should already exist in Email Center.
+
+This phase should connect to them if possible.
+
+17. Graceful Empty States
+
+Handle empty states cleanly.
+
+Examples:
+
+If no meetings exist:
+
+You do not have any meetings scheduled yet.
+Explore sponsors to request meetings.
+
+If no invitations exist:
+
+No meeting invitations at this time.
+
+If no pending requests:
+
+You have no pending meeting requests.
+18. Mobile-Friendly Layout
+
+Meeting cards should stack vertically and remain readable on mobile.
+
+Important requirements:
+
+Accept/Decline buttons easy to tap
+
+meeting times clearly visible
+
+planning view scrollable
+
+sponsor logos small but visible
+
+19. Privacy Protection
+
+Attendee contact information must not be exposed through the meeting interface.
+
+Sponsors should only receive:
+
+meeting request record
+
+approved meeting confirmation
+
+Do not expose attendee email or phone unless the existing business rules allow it.
+
+20. Admin Visibility
+
+The admin Attendee record page should show meeting engagement.
+
+Recommended additions:
+
+Meetings Requested
+
+Meetings Confirmed
+
+Meetings Declined
+
+This helps Converge monitor attendee engagement.
+
+21. Analytics Readiness
+
+Prepare the system to track:
+
+meeting requests sent
+
+meeting invitations accepted
+
+meeting invitations declined
+
+confirmed meetings
+
+meeting attendance potential
+
+These metrics will later feed:
+
+Sponsor Health
+
+Sponsor Performance Reports
+
+22. Acceptance Criteria
+
+Phase D is complete when:
+
+attendees can see meeting invitations
+
+attendees can accept or decline meeting invitations
+
+attendees can see pending meeting requests they initiated
+
+confirmed meetings appear in My Meetings
+
+meetings support calendar export
+
+saved sessions and confirmed meetings appear together in a planning view
+
+meeting status is clearly communicated
+
+dashboard shows meeting activity indicators
+
+UI works well on mobile
+
+23. Success Standard
+
+After Phase D, Concierge should feel like a complete event planning assistant. An attendee should be able to discover sponsors, request meetings, respond to invitations, and manage their full event schedule in one place.

@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Star, Tag, ChevronRight, Pencil, CheckCircle2, SkipForward,
-  CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail,
+  CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail, Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -157,7 +157,7 @@ interface SponsorInteractions {
   infoRequests: Record<string, { status: string }>;
 }
 
-function Dashboard({ me, topics, selections, sessions, sponsors, savedSessionIds, onEditInterests, onSaveSession, onUnsaveSession, isSavingSession, sponsorInteractions, onRequestMeeting, onRequestInfo, isActingOnSponsor }: {
+function Dashboard({ me, topics, selections, sessions, sponsors, savedSessionIds, onEditInterests, onSaveSession, onUnsaveSession, isSavingSession, sponsorInteractions, onRequestMeeting, onRequestInfo, isActingOnSponsor, invitationCount }: {
   me: AttendeeMe; topics: Topic[]; selections: TopicSelection[];
   sessions: RecommendedSession[]; sponsors: RecommendedSponsor[];
   savedSessionIds: Set<string>;
@@ -168,6 +168,7 @@ function Dashboard({ me, topics, selections, sessions, sponsors, savedSessionIds
   onRequestMeeting: (id: string) => void;
   onRequestInfo: (id: string) => void;
   isActingOnSponsor: string | null;
+  invitationCount: number;
 }) {
   const topicMap = new Map(topics.map((t) => [t.id, t]));
   const selectedTopics = selections.map((s) => topicMap.get(s.topicId)).filter(Boolean) as Topic[];
@@ -184,6 +185,26 @@ function Dashboard({ me, topics, selections, sessions, sponsors, savedSessionIds
           {me.event.name}{me.event.location ? ` · ${me.event.location}` : ""}
         </p>
       </div>
+
+      {/* Meeting invitation banner */}
+      {invitationCount > 0 && (
+        <Link href="/attendee/meetings">
+          <div className="flex items-center gap-3 bg-primary/5 border border-primary/30 rounded-xl px-4 py-3 cursor-pointer hover:bg-primary/10 transition-colors" data-testid="banner-meeting-invitations">
+            <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+              <Bell className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                Meeting Invitation{invitationCount !== 1 ? "s" : ""} ({invitationCount})
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {invitationCount === 1 ? "You have 1 meeting invitation" : `You have ${invitationCount} meeting invitations`} waiting for your response
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </div>
+        </Link>
+      )}
 
       {/* Interests */}
       <div className="bg-card border border-border/60 rounded-2xl p-5">
@@ -393,6 +414,12 @@ export default function AttendeePortalPage() {
     enabled: !!meQuery.data?.onboarding.isDone,
   });
 
+  const meetingsQuery = useQuery<{ id: string; status: string; source: string }[]>({
+    queryKey: ["/api/attendee-portal/meetings"],
+    queryFn: () => fetch("/api/attendee-portal/meetings", { headers }).then((r) => r.json()),
+    enabled: !!meQuery.data?.onboarding.isDone,
+  });
+
   const [actingOnSponsor, setActingOnSponsor] = useState<string | null>(null);
 
   const requestMeetingMutation = useMutation({
@@ -466,6 +493,7 @@ export default function AttendeePortalPage() {
   }
 
   const savedSessionIds = new Set((savedQuery.data ?? []).map((s) => s.id));
+  const invitationCount = (meetingsQuery.data ?? []).filter((m) => m.source === "admin" && m.status === "Scheduled").length;
 
   return (
     <AttendeeShell onLogout={logout} attendeeName={me.attendee.firstName || me.attendee.name}>
@@ -484,6 +512,7 @@ export default function AttendeePortalPage() {
         onRequestMeeting={(id) => requestMeetingMutation.mutate(id)}
         onRequestInfo={(id) => requestInfoMutation.mutate(id)}
         isActingOnSponsor={actingOnSponsor}
+        invitationCount={invitationCount}
       />
     </AttendeeShell>
   );

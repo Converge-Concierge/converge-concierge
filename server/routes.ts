@@ -7268,7 +7268,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     const attendeeMeetings = allMeetings
       .filter((m) => m.attendeeId === tokenRecord.attendeeId && m.eventId === tokenRecord.eventId && m.archiveState !== "archived")
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
       .map((m) => {
         const sponsor = sponsorMap.get(m.sponsorId);
         return {
@@ -7281,10 +7281,86 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           location: m.location,
           meetingType: m.meetingType,
           status: m.status,
+          source: m.source,
+          notes: m.notes ?? null,
+          meetingLink: m.meetingLink ?? null,
         };
       });
 
     return res.json(attendeeMeetings);
+  });
+
+  // Attendee accept a meeting invitation (admin-created meeting → Confirmed)
+  app.post("/api/attendee-portal/meetings/:id/accept", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const meeting = await storage.getMeeting(req.params.id);
+    if (!meeting) return res.status(404).json({ message: "Meeting not found" });
+    if (meeting.attendeeId !== tokenRecord.attendeeId) return res.status(403).json({ message: "Forbidden" });
+    if (meeting.eventId !== tokenRecord.eventId) return res.status(403).json({ message: "Forbidden" });
+
+    const updated = await storage.updateMeeting(meeting.id, { status: "Confirmed" });
+    return res.json({ ok: true, meeting: updated });
+  });
+
+  // Attendee decline a meeting invitation
+  app.post("/api/attendee-portal/meetings/:id/decline", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const meeting = await storage.getMeeting(req.params.id);
+    if (!meeting) return res.status(404).json({ message: "Meeting not found" });
+    if (meeting.attendeeId !== tokenRecord.attendeeId) return res.status(403).json({ message: "Forbidden" });
+    if (meeting.eventId !== tokenRecord.eventId) return res.status(403).json({ message: "Forbidden" });
+
+    const updated = await storage.updateMeeting(meeting.id, { status: "Declined" });
+    return res.json({ ok: true, meeting: updated });
+  });
+
+  // ICS for a single meeting (attendee)
+  app.get("/api/attendee-portal/meetings/:id/ics", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const meeting = await storage.getMeeting(req.params.id);
+    if (!meeting) return res.status(404).json({ message: "Meeting not found" });
+    if (meeting.attendeeId !== tokenRecord.attendeeId) return res.status(403).json({ message: "Forbidden" });
+
+    const [event, allSponsors] = await Promise.all([storage.getEvent(meeting.eventId), storage.getSponsors()]);
+    const sponsor = allSponsors.find((s) => s.id === meeting.sponsorId);
+
+    const formatDT = (date: string, time: string) => date.replace(/-/g, "") + "T" + time.replace(/:/g, "") + "00";
+    // Compute endTime (+1 hour default since meetings table has no endTime column)
+    const addHour = (time: string) => {
+      const [h, m] = time.split(":").map(Number);
+      const end = new Date(2000, 0, 1, h + 1, m);
+      return `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`;
+    };
+
+    const summary = `Meeting – ${sponsor?.name ?? "Sponsor"} @ ${event?.name ?? "Event"}`;
+    let ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Converge Concierge//Meeting//EN\r\nCALSCALE:GREGORIAN\r\nBEGIN:VEVENT\r\n";
+    ics += `DTSTART:${formatDT(meeting.date, meeting.time)}\r\n`;
+    ics += `DTEND:${formatDT(meeting.date, addHour(meeting.time))}\r\n`;
+    ics += `SUMMARY:${summary}\r\n`;
+    if (meeting.location) ics += `LOCATION:${meeting.location}\r\n`;
+    if (meeting.notes) ics += `DESCRIPTION:${meeting.notes.replace(/\n/g, "\\n").substring(0, 500)}\r\n`;
+    if (meeting.meetingLink) ics += `URL:${meeting.meetingLink}\r\n`;
+    ics += `UID:meeting-${meeting.id}@converge\r\n`;
+    ics += "END:VEVENT\r\nEND:VCALENDAR\r\n";
+
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename=meeting-${meeting.id}.ics`);
+    return res.send(ics);
   });
 
   // ── Attendee Portal: Agenda (Phase B) ────────────────────────────────────

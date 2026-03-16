@@ -245,6 +245,20 @@ export interface IStorage {
   getAttendeeTokensByAttendee(attendeeId: string): Promise<import("@shared/schema").AttendeeToken[]>;
   updateAttendeeToken(token: string, updates: Partial<Pick<import("@shared/schema").AttendeeToken, "isActive" | "onboardingCompletedAt" | "onboardingSkippedAt">>): Promise<import("@shared/schema").AttendeeToken | undefined>;
 
+  // Pending Concierge Profiles (anonymous welcome flow)
+  createPendingConciergeProfile(eventId: string, source?: string): Promise<import("@shared/schema").PendingConciergeProfile>;
+  getPendingConciergeProfile(profileId: string): Promise<import("@shared/schema").PendingConciergeProfile | undefined>;
+  updatePendingConciergeProfile(profileId: string, updates: Partial<Pick<import("@shared/schema").PendingConciergeProfile, "email" | "onboardingStep" | "isCompleted" | "matchedAttendeeId">>): Promise<void>;
+  getPendingConciergeTopics(profileId: string): Promise<import("@shared/schema").PendingConciergeTopic[]>;
+  setPendingConciergeTopics(profileId: string, topicIds: string[]): Promise<void>;
+  getPendingConciergeSessions(profileId: string): Promise<import("@shared/schema").PendingConciergeSession[]>;
+  addPendingConciergeSession(profileId: string, sessionId: string): Promise<void>;
+  removePendingConciergeSession(profileId: string, sessionId: string): Promise<void>;
+  getPendingConciergeMeetingRequests(profileId: string): Promise<import("@shared/schema").PendingConciergeMeetingRequest[]>;
+  addPendingConciergeMeetingRequest(profileId: string, sponsorId: string, requestType: string): Promise<void>;
+  getPendingConciergeProfilesByEmail(eventId: string, email: string): Promise<import("@shared/schema").PendingConciergeProfile[]>;
+  reconcilePendingConciergeProfiles(eventId: string, email: string, attendeeId: string): Promise<void>;
+
   // Sponsor Users & Magic Login
   upsertSponsorUser(data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser>;
   getSponsorUserByEmail(email: string): Promise<SponsorUser | undefined>;
@@ -1035,6 +1049,22 @@ export class MemStorage implements IStorage {
   async getAttendeeToken(_token: string): Promise<import("@shared/schema").AttendeeToken | undefined> { return undefined; }
   async getAttendeeTokensByAttendee(_attendeeId: string): Promise<import("@shared/schema").AttendeeToken[]> { return []; }
   async updateAttendeeToken(_token: string, _updates: any): Promise<import("@shared/schema").AttendeeToken | undefined> { return undefined; }
+
+  async createPendingConciergeProfile(eventId: string, source?: string): Promise<import("@shared/schema").PendingConciergeProfile> {
+    const id = randomUUID();
+    return { id, eventId, email: null, onboardingStep: "topics", isCompleted: false, matchedAttendeeId: null, source: source ?? "welcome_flow", createdAt: new Date(), updatedAt: new Date() };
+  }
+  async getPendingConciergeProfile(_profileId: string): Promise<import("@shared/schema").PendingConciergeProfile | undefined> { return undefined; }
+  async updatePendingConciergeProfile(_profileId: string, _updates: any): Promise<void> {}
+  async getPendingConciergeTopics(_profileId: string): Promise<import("@shared/schema").PendingConciergeTopic[]> { return []; }
+  async setPendingConciergeTopics(_profileId: string, _topicIds: string[]): Promise<void> {}
+  async getPendingConciergeSessions(_profileId: string): Promise<import("@shared/schema").PendingConciergeSession[]> { return []; }
+  async addPendingConciergeSession(_profileId: string, _sessionId: string): Promise<void> {}
+  async removePendingConciergeSession(_profileId: string, _sessionId: string): Promise<void> {}
+  async getPendingConciergeMeetingRequests(_profileId: string): Promise<import("@shared/schema").PendingConciergeMeetingRequest[]> { return []; }
+  async addPendingConciergeMeetingRequest(_profileId: string, _sponsorId: string, _requestType: string): Promise<void> {}
+  async getPendingConciergeProfilesByEmail(_eventId: string, _email: string): Promise<import("@shared/schema").PendingConciergeProfile[]> { return []; }
+  async reconcilePendingConciergeProfiles(_eventId: string, _email: string, _attendeeId: string): Promise<void> {}
 
   async upsertSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser> { return { id: randomUUID(), sponsorId: _data.sponsorId, name: _data.name, email: _data.email, accessLevel: _data.accessLevel ?? "owner", isPrimary: _data.isPrimary ?? false, isActive: true, lastLoginAt: null, loginCount: 0, createdAt: new Date(), updatedAt: new Date() }; }
   async getSponsorUserByEmail(_email: string): Promise<SponsorUser | undefined> { return undefined; }

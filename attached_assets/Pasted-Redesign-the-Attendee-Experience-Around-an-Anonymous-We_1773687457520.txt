@@ -1,0 +1,666 @@
+Redesign the Attendee Experience Around an Anonymous Welcome Flow + Persistent My Concierge Page
+
+We are simplifying the attendee experience.
+
+The prior attendee build became too complex and too dependent on identity being known immediately. That does not fit the real Eventzilla flow, because Eventzilla cannot identify the attendee when redirecting to the Concierge welcome page.
+
+We need to redesign the attendee experience around two coordinated flows:
+
+Flow A — Immediate Post-Registration Welcome Flow
+
+Eventzilla → Welcome Page
+
+At this point, Concierge does not know who the attendee is yet.
+
+So the welcome flow must begin as an anonymous event-specific onboarding experience that:
+
+asks about topics of interest
+
+previews how many sessions and sponsors match those interests
+
+asks for the attendee’s registration email to continue
+
+shows session recommendations
+
+shows sponsor recommendations
+
+completes the flow and sends a summary / persistent Concierge link by email
+
+Flow B — Persistent Personalized Experience
+
+Eventzilla → Zapier → Concierge Attendees → Attendee Concierge Email
+
+Separately, the registration data is sent through Zapier into Concierge.
+
+Once the attendee exists in Concierge, the system sends an Attendee Concierge Email.
+
+That email contains a personalized link to the attendee’s persistent page:
+
+My Concierge Page
+
+If the attendee already completed the welcome flow, the link should bring them to a page showing their saved selections and recommendations.
+
+If they have not yet completed the welcome flow, the link should start them at Card 1 and move them through the experience.
+
+This creates two valid engagement paths:
+
+immediate post-registration onboarding
+
+later return through the personalized email link
+
+This is the architecture we want.
+
+1. Primary Goal
+
+Build a new attendee experience that:
+
+does not assume attendee identity on Eventzilla redirect
+
+allows attendees to start with topics immediately
+
+requests email only after showing value
+
+stores progress even if the attendee record from Zapier has not arrived yet
+
+later merges that progress to the attendee record
+
+creates a persistent My Concierge Page that attendees can return to via email
+
+2. Remove Dependence on Immediate Attendee Identity
+
+Do not assume that the attendee is already known when they land on the welcome page from Eventzilla.
+
+The new welcome flow must work even when:
+
+no attendee token exists yet
+
+no attendee record exists yet
+
+Zapier sync is still in progress
+
+This is a critical product decision.
+
+3. Introduce a New Anonymous / Pending Concierge State Model
+
+We need a way to store attendee onboarding progress before the attendee has been matched to a Concierge attendee record.
+
+Create a lightweight model/table to store this state.
+
+Recommended name:
+
+pending_concierge_profiles
+
+or similar.
+
+Recommended fields
+
+id
+
+event_id
+
+email nullable initially
+
+selected_topic_ids or structured relation
+
+saved_session_ids optional
+
+sponsor_interest_state optional
+
+onboarding_step
+
+is_completed
+
+matched_attendee_id nullable
+
+source
+
+created_at
+
+updated_at
+
+Notes
+
+this record may begin without email
+
+once email is entered, it becomes the main key for reconciliation
+
+when the real attendee record arrives, merge/link this state
+
+You may use normalized child tables instead of arrays if that fits the current architecture better.
+
+4. Welcome Flow Entry Point
+
+Create or repurpose a public attendee welcome route for event-specific onboarding.
+
+Recommended route concept:
+
+/event/:slug/welcome
+
+or another event-specific public route.
+
+This route should be the anonymous welcome flow.
+
+It is no longer the old static sponsor page.
+It becomes the new 5-card guided experience.
+
+5. New Welcome Flow Structure
+
+The welcome flow should now use five cards:
+
+Card 1 — Select Topics
+Card 2 — Match Preview + Ask for Email
+Card 3 — Suggested Sessions
+Card 4 — Sponsors to Meet
+Card 5 — Completion / Email Summary Sent
+
+This should be a guided experience, not a static page.
+
+Use:
+
+step indicator
+
+clear CTAs
+
+mobile-friendly layout
+
+auto-save between steps where possible
+
+6. Card 1 — Select Topics
+
+This is the first screen after Eventzilla redirect.
+
+Required behavior
+
+Show:
+
+approved active event interest topics only
+
+chip/card multi-select UI
+
+allow up to 5 selections
+
+Messaging
+
+Use something like:
+
+Select the topics most relevant to you.
+We’ll use these to personalize your event plan.
+Save behavior
+
+Selections should be saved to the pending concierge profile immediately or when continuing.
+
+CTA
+
+Primary:
+
+Continue
+
+Optional secondary:
+
+Skip for now
+
+If skipped, allow progression but recommendations may be weaker.
+
+7. Card 2 — Match Preview + Ask for Email
+
+This is the key conversion step.
+
+By this point, the attendee has already selected interests.
+
+Now we want to show immediate value before asking for email.
+
+Required behavior
+
+Display something like:
+
+Based on your interests, we found:
+6 relevant sessions
+5 sponsors you may want to meet
+
+Use real recommendation counts if possible based on topic overlap.
+
+Then ask:
+
+Enter the email address you used to register to continue.
+
+This wording is important.
+We must explicitly ask for the registration email so we can match the attendee correctly.
+
+Required fields
+
+email address input
+
+Save behavior
+
+When email is submitted:
+
+save email to the pending concierge profile
+
+attempt to match to existing attendee record by:
+
+event
+
+email
+
+If a match is found:
+
+link this pending profile to that attendee
+
+If no match is found yet:
+
+keep the pending profile and allow the attendee to continue
+
+later reconcile when the Zapier attendee record arrives
+
+CTA
+
+Primary:
+
+Continue
+8. Reconciliation Logic Between Pending Profile and Real Attendee
+
+This is critical.
+
+The system must support this scenario:
+
+attendee registers in Eventzilla
+
+attendee lands on welcome flow
+
+attendee completes some or all steps
+
+attendee enters email
+
+Concierge still does not yet have their attendee record from Zapier
+
+later, Zapier creates attendee record
+
+system must merge/link the pending concierge profile to the real attendee record
+
+Required behavior
+
+Implement reconciliation logic using:
+
+event_id
+
+email
+
+When attendee record arrives later:
+
+link it to the pending profile
+
+preserve selected topics
+
+preserve saved sessions
+
+preserve onboarding completion
+
+preserve any recommendation state needed
+
+Do not create duplicate attendee experiences.
+
+9. Card 3 — Suggested Sessions
+
+After Card 2, show the attendee their recommended sessions.
+
+Required behavior
+
+Use the real recommendation logic based on:
+
+selected attendee topics
+
+session topic overlap
+
+Show top 3 sessions.
+
+Each session card should include:
+
+title
+
+date
+
+time
+
+session type
+
+location if available
+
+relevance text if available
+
+Actions
+
+View Session
+
+Save to My Agenda
+
+Add to Calendar
+
+If attendee identity is not yet fully matched to a real attendee record, saving must still go to the pending concierge profile state and later merge.
+
+CTA
+
+Primary:
+
+Continue
+
+Secondary:
+
+View Full Agenda
+10. Card 4 — Sponsors to Meet
+
+This card shows sponsor recommendations.
+
+Required behavior
+
+Use the real sponsor recommendation logic based on:
+
+selected attendee topics
+
+sponsor topic overlap
+
+Show top 3 sponsors.
+
+Each sponsor card should include:
+
+logo
+
+name
+
+short description
+
+overlap/relevance text if available
+
+Actions
+
+View Sponsor
+
+Request Meeting
+
+Request Information
+
+If the attendee identity is not yet fully reconciled, these actions should still be able to:
+
+store interest/request intent on the pending profile
+or
+
+require email confirmation first if needed
+
+Choose the simplest safe implementation that preserves the attendee’s actions until reconciliation.
+
+Messaging
+
+Frame this as:
+
+Sponsors you may want to meet
+
+not generic sponsor browsing.
+
+CTA
+
+Primary:
+
+Continue
+
+Secondary:
+
+View All Sponsors
+11. Card 5 — Completion / Email Summary Sent
+
+This is the final onboarding card.
+
+Required behavior
+
+Show a confirmation like:
+
+Your Concierge Page is ready.
+We’ll email your personalized event plan to [email].
+
+If email was entered in Card 2, show that email here.
+
+Include summary
+
+selected interests
+
+count of saved/recommended sessions
+
+count of recommended sponsors
+
+CTA
+
+Primary:
+
+Go to My Concierge Page
+
+Secondary:
+
+Check Your Email
+
+This card should mark the flow as completed.
+
+12. Build the Persistent My Concierge Page
+
+Create a persistent attendee page that becomes the long-term return destination.
+
+Recommended route pattern:
+
+/attendee-access/:token
+→ /attendee
+
+or your existing tokenized attendee route.
+
+This page should show the attendee’s personalized summary once they are identified.
+
+My Concierge Page should include:
+
+selected interests
+
+recommended sessions
+
+saved sessions / My Agenda
+
+recommended sponsors
+
+meeting requests / meeting status
+
+link to full agenda
+
+link to full sponsor directory
+
+This page is the persistent “home base” returned to via email.
+
+13. Behavior of Attendee Concierge Email
+
+When Concierge sends the attendee email:
+
+If onboarding is completed
+
+The email link should go directly to:
+
+My Concierge Page
+
+with the attendee’s saved selections and recommendations.
+
+If onboarding is not completed
+
+The email link should bring the attendee into the welcome flow at:
+
+Card 1 if necessary
+or
+
+the correct saved step if resume logic is implemented
+
+This email should become the durable return path for the attendee.
+
+14. Update the “Attendee Concierge Email” Logic
+
+The attendee email should now function as:
+
+Your Concierge Page
+
+This email should:
+
+summarize what Concierge is for
+
+include personalized link
+
+return attendee to their persistent page
+
+work whether onboarding was already completed or not
+
+If practical, update the email wording to match this new product model.
+
+15. Save / Merge Meeting and Session Actions Carefully
+
+Because attendees may interact with sessions and sponsors before the attendee record exists, we need a safe behavior for actions taken during the anonymous flow.
+
+Required behavior
+
+Actions taken during Cards 3 and 4 should be preserved.
+
+Examples:
+
+saved sessions
+
+sponsor meeting requests
+
+info requests
+
+These should either:
+
+be stored against the pending concierge profile and later merged
+or
+
+be converted to final attendee-linked records as soon as attendee reconciliation happens
+
+Do not lose these actions if Zapier sync lags.
+
+16. Admin Visibility
+
+Converge admins should be able to understand whether an attendee is:
+
+pending only
+
+matched to a real attendee record
+
+completed onboarding
+
+sent Concierge email
+
+Add admin visibility where practical so support is manageable.
+
+This may be:
+
+attendee record fields
+
+admin reconciliation status
+
+concierge profile status view
+
+17. Empty and Delay States
+
+We need graceful handling for sync delays.
+
+If attendee record is not found yet after email entry
+
+Still allow the attendee to continue.
+
+Do not show a hard error.
+
+Optional helper text:
+
+We’re setting up your personalized event access now.
+Your selections will be saved and your Concierge page will be emailed to you.
+
+This is much better than blocking them.
+
+18. Use the Existing Recommendation Engines
+
+Do not rebuild the recommendation engines.
+
+Use the existing logic for:
+
+recommended sessions
+
+recommended sponsors
+
+suggested meeting actions
+
+This is primarily a flow architecture and identity/state management change.
+
+19. Keep the Experience Simple
+
+The attendee experience should now feel like:
+
+choose interests
+
+see value
+
+provide email
+
+review sessions
+
+review sponsors
+
+get persistent personalized page by email
+
+Do not reintroduce portal complexity into the public welcome flow.
+
+20. Mobile-Friendly Design
+
+This new flow must work very well on mobile.
+
+Important:
+
+cards stack cleanly
+
+chips are easy to tap
+
+email field is clear and large enough
+
+session and sponsor cards remain readable
+
+CTA buttons stay prominent
+
+This flow should feel quick and polished on a phone.
+
+21. Acceptance Criteria
+
+This implementation is complete when:
+
+Eventzilla redirect can land on an anonymous welcome flow
+
+Card 1 captures topics
+
+Card 2 shows match counts and asks for registration email
+
+Card 3 shows suggested sessions
+
+Card 4 shows sponsors to meet
+
+Card 5 confirms the process and email summary
+
+pending concierge state is stored even before attendee record exists
+
+pending concierge state can later reconcile to the real attendee record from Zapier
+
+attendee email link returns the user to My Concierge Page if onboarding is complete
+
+attendee email link starts or resumes onboarding if it is not complete
+
+actions taken during onboarding are not lost due to Zapier timing delays
+
+22. Success Standard
+
+After this implementation, the attendee experience should be much simpler and more resilient:
+
+immediate post-registration flow works without requiring identity from Eventzilla
+
+attendees see value before being asked for email
+
+recommendations are still personalized
+
+the attendee always has a persistent My Concierge Page accessible from email
+
+the system handles Zapier timing delays gracefully
+
+That is the standard this redesign should meet.

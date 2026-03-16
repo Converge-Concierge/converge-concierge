@@ -13,6 +13,8 @@ import {
   emailTemplateVersions, automationRules, automationLogs, campaigns, messageJobs,
   eventInterestTopics, attendeeInterestTopicSelections, sponsorInterestTopicSelections, sessionInterestTopicSelections,
   attendeeTokens, type AttendeeToken,
+  pendingConciergeProfiles, pendingConciergeTopics, pendingConciergeSessions, pendingConciergeMeetingRequests,
+  type PendingConciergeProfile, type PendingConciergeTopic, type PendingConciergeSession, type PendingConciergeMeetingRequest,
   type EventInterestTopic, type InsertEventInterestTopic,
   type User, type InsertUser,
   type Event, type InsertEvent,
@@ -1482,6 +1484,89 @@ export class DatabaseStorage implements IStorage {
   async updateAttendeeToken(token: string, updates: Partial<Pick<AttendeeToken, "isActive" | "onboardingCompletedAt" | "onboardingSkippedAt">>): Promise<AttendeeToken | undefined> {
     const [row] = await db.update(attendeeTokens).set(updates).where(eq(attendeeTokens.token, token)).returning();
     return row ?? undefined;
+  }
+
+  // ── Pending Concierge Profiles ─────────────────────────────────────────────
+
+  async createPendingConciergeProfile(eventId: string, source = "welcome_flow"): Promise<PendingConciergeProfile> {
+    const [row] = await db.insert(pendingConciergeProfiles).values({ eventId, source }).returning();
+    return row;
+  }
+
+  async getPendingConciergeProfile(profileId: string): Promise<PendingConciergeProfile | undefined> {
+    const [row] = await db.select().from(pendingConciergeProfiles).where(eq(pendingConciergeProfiles.id, profileId)).limit(1);
+    return row ?? undefined;
+  }
+
+  async updatePendingConciergeProfile(profileId: string, updates: Partial<Pick<PendingConciergeProfile, "email" | "onboardingStep" | "isCompleted" | "matchedAttendeeId">>): Promise<void> {
+    await db.update(pendingConciergeProfiles).set({ ...updates, updatedAt: new Date() }).where(eq(pendingConciergeProfiles.id, profileId));
+  }
+
+  async getPendingConciergeTopics(profileId: string): Promise<PendingConciergeTopic[]> {
+    return db.select().from(pendingConciergeTopics).where(eq(pendingConciergeTopics.pendingProfileId, profileId));
+  }
+
+  async setPendingConciergeTopics(profileId: string, topicIds: string[]): Promise<void> {
+    await db.delete(pendingConciergeTopics).where(eq(pendingConciergeTopics.pendingProfileId, profileId));
+    if (topicIds.length > 0) {
+      await db.insert(pendingConciergeTopics).values(topicIds.map((topicId) => ({ pendingProfileId: profileId, topicId })));
+    }
+  }
+
+  async getPendingConciergeSessions(profileId: string): Promise<PendingConciergeSession[]> {
+    return db.select().from(pendingConciergeSessions).where(eq(pendingConciergeSessions.pendingProfileId, profileId));
+  }
+
+  async addPendingConciergeSession(profileId: string, sessionId: string): Promise<void> {
+    const existing = await db.select().from(pendingConciergeSessions)
+      .where(and(eq(pendingConciergeSessions.pendingProfileId, profileId), eq(pendingConciergeSessions.sessionId, sessionId))).limit(1);
+    if (existing.length === 0) {
+      await db.insert(pendingConciergeSessions).values({ pendingProfileId: profileId, sessionId });
+    }
+  }
+
+  async removePendingConciergeSession(profileId: string, sessionId: string): Promise<void> {
+    await db.delete(pendingConciergeSessions)
+      .where(and(eq(pendingConciergeSessions.pendingProfileId, profileId), eq(pendingConciergeSessions.sessionId, sessionId)));
+  }
+
+  async getPendingConciergeMeetingRequests(profileId: string): Promise<PendingConciergeMeetingRequest[]> {
+    return db.select().from(pendingConciergeMeetingRequests).where(eq(pendingConciergeMeetingRequests.pendingProfileId, profileId));
+  }
+
+  async addPendingConciergeMeetingRequest(profileId: string, sponsorId: string, requestType: string): Promise<void> {
+    const existing = await db.select().from(pendingConciergeMeetingRequests)
+      .where(and(eq(pendingConciergeMeetingRequests.pendingProfileId, profileId), eq(pendingConciergeMeetingRequests.sponsorId, sponsorId), eq(pendingConciergeMeetingRequests.requestType, requestType))).limit(1);
+    if (existing.length === 0) {
+      await db.insert(pendingConciergeMeetingRequests).values({ pendingProfileId: profileId, sponsorId, requestType });
+    }
+  }
+
+  async getPendingConciergeProfilesByEmail(eventId: string, email: string): Promise<PendingConciergeProfile[]> {
+    return db.select().from(pendingConciergeProfiles)
+      .where(and(eq(pendingConciergeProfiles.eventId, eventId), eq(pendingConciergeProfiles.email, email.toLowerCase())));
+  }
+
+  async reconcilePendingConciergeProfiles(eventId: string, email: string, attendeeId: string): Promise<void> {
+    const profiles = await this.getPendingConciergeProfilesByEmail(eventId, email.toLowerCase());
+    const unmatched = profiles.filter((p) => !p.matchedAttendeeId);
+    for (const profile of unmatched) {
+      // Copy topic selections to attendee
+      const profileTopics = await this.getPendingConciergeTopics(profile.id);
+      if (profileTopics.length > 0) {
+        const topicIds = profileTopics.map((t) => t.topicId);
+        await this.upsertAttendeeTopics(attendeeId, eventId, topicIds);
+      }
+      // Copy saved sessions
+      const savedSessions = await this.getPendingConciergeSessions(profile.id);
+      for (const s of savedSessions) {
+        try {
+          await db.insert(attendeeSavedSessions).values({ attendeeId, eventId, sessionId: s.sessionId }).onConflictDoNothing();
+        } catch { /* ignore duplicates */ }
+      }
+      // Mark profile as matched
+      await this.updatePendingConciergeProfile(profile.id, { matchedAttendeeId: attendeeId, isCompleted: true });
+    }
   }
 
   // ── Agreement Package Templates ────────────────────────────────────────────

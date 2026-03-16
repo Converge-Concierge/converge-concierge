@@ -2081,6 +2081,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         ...ticketAndCategory,
       });
       console.log(`[eventzilla] updated attendee ${existing.id} for ${email} / ${eventCode}`);
+      await storage.reconcilePendingConciergeProfiles(event.id, String(email).toLowerCase(), existing.id).catch((e) => console.error("[eventzilla] reconcile error", e));
       return res.json({ ok: true, action: "updated", attendeeId: existing.id, eventCode });
     }
 
@@ -2100,6 +2101,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         ...ticketAndCategory,
       });
       console.log(`[eventzilla] reactivated + updated archived attendee ${archived.id} for ${email} / ${eventCode}`);
+      await storage.reconcilePendingConciergeProfiles(event.id, String(email).toLowerCase(), archived.id).catch((e) => console.error("[eventzilla] reconcile error", e));
       return res.json({ ok: true, action: "updated", attendeeId: archived.id, eventCode });
     }
 
@@ -2120,7 +2122,188 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       attendeeCategory:       normalizedCategory ?? undefined,
     });
     console.log(`[eventzilla] created attendee ${created.id} for ${email} / ${eventCode}`);
+    await storage.reconcilePendingConciergeProfiles(event.id, String(email).toLowerCase(), created.id).catch((e) => console.error("[eventzilla] reconcile error", e));
     return res.status(201).json({ ok: true, action: "created", attendeeId: created.id, eventCode });
+  });
+
+  // ── Anonymous Welcome Flow (Pending Concierge) ───────────────────────────
+
+  // POST /api/public/welcome/:slug/start — create a pending profile for the wizard
+  app.post("/api/public/welcome/:slug/start", async (req, res) => {
+    try {
+      const event = await storage.getEventBySlug(req.params.slug);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const profile = await storage.createPendingConciergeProfile(event.id, "welcome_flow");
+      return res.json({ profileId: profile.id, eventId: event.id });
+    } catch (e) {
+      console.error("[welcome] start error", e);
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // GET /api/public/welcome/:slug/event — public event data for wizard header
+  app.get("/api/public/welcome/:slug/event", async (req, res) => {
+    try {
+      const event = await storage.getEventBySlug(req.params.slug);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      return res.json({ id: event.id, name: event.name, startDate: event.startDate, endDate: event.endDate, venue: event.venue, logoUrl: event.logoUrl });
+    } catch (e) {
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // GET /api/public/welcome/:slug/topics — event interest topics for card 1
+  app.get("/api/public/welcome/:slug/topics", async (req, res) => {
+    try {
+      const event = await storage.getEventBySlug(req.params.slug);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const topics = await storage.getEventInterestTopics(event.id);
+      return res.json(topics);
+    } catch (e) {
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // GET /api/public/welcome/:slug/sessions — sessions for card 3
+  app.get("/api/public/welcome/:slug/sessions", async (req, res) => {
+    try {
+      const event = await storage.getEventBySlug(req.params.slug);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const sessions = await storage.getAgendaSessions(event.id);
+      return res.json(sessions);
+    } catch (e) {
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // GET /api/public/welcome/:slug/sponsors — sponsors for card 4
+  app.get("/api/public/welcome/:slug/sponsors", async (req, res) => {
+    try {
+      const event = await storage.getEventBySlug(req.params.slug);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const allSponsors = await storage.getSponsors();
+      const eventSponsors = allSponsors.filter((s: any) => (s.assignedEvents ?? []).some((ae: any) => ae.eventId === event.id) && s.archiveState === "active"); return res.json(eventSponsors);
+    } catch (e) {
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // GET /api/public/pending/:profileId — get pending profile state
+  app.get("/api/public/pending/:profileId", async (req, res) => {
+    try {
+      const profile = await storage.getPendingConciergeProfile(req.params.profileId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      const topics = await storage.getPendingConciergeTopics(profile.id);
+      const sessions = await storage.getPendingConciergeSessions(profile.id);
+      const meetingRequests = await storage.getPendingConciergeMeetingRequests(profile.id);
+      return res.json({ profile, topics: topics.map((t) => t.topicId), sessions: sessions.map((s) => s.sessionId), meetingRequests });
+    } catch (e) {
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // PATCH /api/public/pending/:profileId/topics — save topic selections
+  app.patch("/api/public/pending/:profileId/topics", async (req, res) => {
+    try {
+      const profile = await storage.getPendingConciergeProfile(req.params.profileId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      const { topicIds } = req.body as { topicIds: string[] };
+      if (!Array.isArray(topicIds)) return res.status(400).json({ error: "topicIds must be an array" });
+      await storage.setPendingConciergeTopics(profile.id, topicIds);
+      await storage.updatePendingConciergeProfile(profile.id, { onboardingStep: "email" });
+      return res.json({ ok: true });
+    } catch (e) {
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // PATCH /api/public/pending/:profileId/email — save email (card 2)
+  app.patch("/api/public/pending/:profileId/email", async (req, res) => {
+    try {
+      const profile = await storage.getPendingConciergeProfile(req.params.profileId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      const { email } = req.body as { email: string };
+      if (!email || typeof email !== "string") return res.status(400).json({ error: "email required" });
+      const lowerEmail = email.toLowerCase().trim();
+      await storage.updatePendingConciergeProfile(profile.id, { email: lowerEmail, onboardingStep: "sessions" });
+      // Check if this email already has a real attendee — return token if so
+      const attendee = await storage.getAttendeeByEmailAndEvent(lowerEmail, profile.eventId);
+      if (attendee) {
+        const tokenRecord = await storage.createAttendeeToken(attendee.id, profile.eventId);
+        await storage.reconcilePendingConciergeProfiles(profile.eventId, lowerEmail, attendee.id).catch(() => {});
+        return res.json({ ok: true, matched: true, token: tokenRecord.token, attendeeId: attendee.id });
+      }
+      return res.json({ ok: true, matched: false });
+    } catch (e) {
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // PATCH /api/public/pending/:profileId/sessions — save session (add or remove)
+  app.patch("/api/public/pending/:profileId/sessions", async (req, res) => {
+    try {
+      const profile = await storage.getPendingConciergeProfile(req.params.profileId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      const { sessionId, action } = req.body as { sessionId: string; action: "add" | "remove" };
+      if (!sessionId) return res.status(400).json({ error: "sessionId required" });
+      if (action === "remove") {
+        await storage.removePendingConciergeSession(profile.id, sessionId);
+      } else {
+        await storage.addPendingConciergeSession(profile.id, sessionId);
+      }
+      await storage.updatePendingConciergeProfile(profile.id, { onboardingStep: "sponsors" });
+      return res.json({ ok: true });
+    } catch (e) {
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // POST /api/public/pending/:profileId/meeting-request — add a sponsor meeting/info request
+  app.post("/api/public/pending/:profileId/meeting-request", async (req, res) => {
+    try {
+      const profile = await storage.getPendingConciergeProfile(req.params.profileId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      const { sponsorId, requestType } = req.body as { sponsorId: string; requestType: string };
+      if (!sponsorId || !requestType) return res.status(400).json({ error: "sponsorId and requestType required" });
+      await storage.addPendingConciergeMeetingRequest(profile.id, sponsorId, requestType);
+      return res.json({ ok: true });
+    } catch (e) {
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // POST /api/public/pending/:profileId/complete — mark wizard as done
+  app.post("/api/public/pending/:profileId/complete", async (req, res) => {
+    try {
+      const profile = await storage.getPendingConciergeProfile(req.params.profileId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      await storage.updatePendingConciergeProfile(profile.id, { isCompleted: true, onboardingStep: "complete" });
+      return res.json({ ok: true });
+    } catch (e) {
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // GET /api/public/welcome/:slug/recommended-sessions/:profileId — topic-matched sessions for card 2 preview
+  app.get("/api/public/welcome/:slug/recommended-sessions/:profileId", async (req, res) => {
+    try {
+      const event = await storage.getEventBySlug(req.params.slug);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const profile = await storage.getPendingConciergeProfile(req.params.profileId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      const profileTopics = await storage.getPendingConciergeTopics(profile.id);
+      const topicIds = new Set(profileTopics.map((t) => t.topicId));
+      const sessions = await storage.getAgendaSessions(event.id);
+      // Score by how many topic tags match
+      const scored = sessions.map((s) => {
+        const tags: string[] = (s as any).topicTags ?? [];
+        const score = tags.filter((t) => topicIds.has(t)).length;
+        return { ...s, matchScore: score };
+      }).filter((s) => s.matchScore > 0).sort((a, b) => b.matchScore - a.matchScore);
+      return res.json(scored.slice(0, 6));
+    } catch (e) {
+      return res.status(500).json({ error: "Internal error" });
+    }
   });
 
   // ── Attendee Category Definitions CRUD ───────────────────────────────────

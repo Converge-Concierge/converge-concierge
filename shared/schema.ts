@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, jsonb, bigint, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, jsonb, bigint, integer, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1656,3 +1656,43 @@ export const attendeeTokens = pgTable("attendee_tokens", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type AttendeeToken = typeof attendeeTokens.$inferSelect;
+
+// ── Pending Concierge Profiles (anonymous welcome flow) ────────────────────────
+// Stores an attendee's onboarding progress before they are matched to a
+// real attendee record. Created when someone lands on /event/:slug/welcome.
+
+export const pendingConciergeProfiles = pgTable("pending_concierge_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull(),
+  email: varchar("email"),
+  onboardingStep: varchar("onboarding_step").notNull().default("topics"),
+  isCompleted: boolean("is_completed").notNull().default(false),
+  matchedAttendeeId: varchar("matched_attendee_id"),
+  source: varchar("source").notNull().default("welcome_flow"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+export type PendingConciergeProfile = typeof pendingConciergeProfiles.$inferSelect;
+
+export const pendingConciergeTopics = pgTable("pending_concierge_topics", {
+  id: serial("id").primaryKey(),
+  pendingProfileId: varchar("pending_profile_id").notNull(),
+  topicId: varchar("topic_id").notNull(),
+});
+export type PendingConciergeTopic = typeof pendingConciergeTopics.$inferSelect;
+
+export const pendingConciergeSessions = pgTable("pending_concierge_sessions", {
+  id: serial("id").primaryKey(),
+  pendingProfileId: varchar("pending_profile_id").notNull(),
+  sessionId: varchar("session_id").notNull(),
+});
+export type PendingConciergeSession = typeof pendingConciergeSessions.$inferSelect;
+
+export const pendingConciergeMeetingRequests = pgTable("pending_concierge_meeting_requests", {
+  id: serial("id").primaryKey(),
+  pendingProfileId: varchar("pending_profile_id").notNull(),
+  sponsorId: varchar("sponsor_id").notNull(),
+  requestType: varchar("request_type").notNull(), // "meeting" or "info"
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type PendingConciergeMeetingRequest = typeof pendingConciergeMeetingRequests.$inferSelect;

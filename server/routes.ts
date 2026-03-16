@@ -2146,7 +2146,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const event = await storage.getEventBySlug(req.params.slug);
       if (!event) return res.status(404).json({ error: "Event not found" });
-      return res.json({ id: event.id, name: event.name, startDate: event.startDate, endDate: event.endDate, venue: event.venue, logoUrl: event.logoUrl });
+      return res.json({ id: event.id, name: event.name, startDate: event.startDate, endDate: event.endDate, venue: event.location, logoUrl: event.logoUrl });
     } catch (e) {
       return res.status(500).json({ error: "Internal error" });
     }
@@ -2182,7 +2182,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const event = await storage.getEventBySlug(req.params.slug);
       if (!event) return res.status(404).json({ error: "Event not found" });
       const allSponsors = await storage.getSponsors();
-      const eventSponsors = allSponsors.filter((s: any) => (s.assignedEvents ?? []).some((ae: any) => ae.eventId === event.id) && s.archiveState === "active"); return res.json(eventSponsors);
+      const eventSponsors = allSponsors.filter((s: any) => (s.assignedEvents ?? []).some((ae: any) => ae.eventId === event.id) && s.archiveState === "active");
+      const withTopics = await Promise.all(
+        eventSponsors.map(async (s) => {
+          const topicRows = await storage.getSponsorTopics(s.id, event.id);
+          return { ...s, topicIds: topicRows.map((t: any) => t.topicId) };
+        })
+      );
+      return res.json(withTopics);
     } catch (e) {
       return res.status(500).json({ error: "Internal error" });
     }

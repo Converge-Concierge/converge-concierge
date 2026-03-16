@@ -1,0 +1,339 @@
+Refine the Attendee Welcome Flow UI and Enable Direct Meeting Scheduling on the Sponsors Step
+
+The attendee flow is moving in the right direction, but the current implementation still needs refinement in presentation, layout, and sponsor-step interaction design.
+
+There are three specific corrections needed:
+
+The first page should feel like a registration confirmation / next steps page, not just a narrow survey form.
+
+The onboarding card container is too narrow and should be widened.
+
+On the Sponsors step, attendees should be able to schedule meetings directly from that step, including Onsite and Online options where supported.
+
+This work is primarily UI/UX refinement, not a change to the overall flow architecture.
+
+1. Primary Goal
+
+Refine the attendee welcome flow so that:
+
+Card 1 feels like a polished registration confirmation experience
+
+the onboarding container is wider and more professional
+
+the sponsor step supports direct meeting scheduling actions
+
+the overall flow feels like a guided event preparation assistant
+
+2. Card 1 Should Feel Like a Registration Confirmation Page
+
+The first screen currently feels too much like a plain form.
+
+We want it to feel like:
+
+Registration Confirmed
+Now let’s prepare for the conference.
+
+This is important because the attendee has just registered and should feel that Concierge is the natural next step.
+
+3. Add Registration Confirmation Header Treatment
+
+At the top of Card 1, add a more polished event confirmation section.
+
+Required elements
+
+event logo
+
+event name
+
+animated / pulsing Registration Confirmed badge or graphic
+
+short supportive message
+
+Example content
+Registration Confirmed
+You’re all set for The 2026 Fintech Risk & Compliance Forum.
+
+Now let’s personalize your event experience in about 60 seconds.
+
+This should visually feel like a continuation of the registration journey.
+
+4. Add “Next Steps” Framing to Card 1
+
+Before the topic chips, add a short “Next Steps” section or micro-copy.
+
+Example
+Next Steps
+
+1. Tell us what topics interest you
+2. We’ll show you recommended sessions
+3. We’ll recommend sponsors worth meeting
+4. We’ll send you your personalized event plan
+
+This does not need to be overly large, but it should frame the flow clearly.
+
+The attendee should understand where they are headed.
+
+5. Improve Card 1 Headline and Supporting Copy
+
+The current copy is functional but can be improved.
+
+Recommended structure
+
+Headline:
+
+What topics interest you?
+
+Supporting copy:
+
+Select the topics most relevant to you so Concierge can personalize your sessions, sponsors, and meeting suggestions.
+
+Keep this attendee-friendly and polished.
+
+6. Widen the Onboarding Container
+
+Yes, the current onboarding container is too narrow.
+
+It feels like an auth form width rather than a recommendation/preparation experience.
+
+Required behavior
+
+Increase the max width of the onboarding card/container.
+
+Recommended target
+
+Use something closer to:
+
+max-width: 760px
+to
+
+max-width: 900px
+
+depending on the current design system
+
+The goal is to allow:
+
+topic chips to breathe
+
+sponsor/session cards to look more polished
+
+content to feel less cramped
+
+Do not make it excessively wide, but it should clearly be wider than the current narrow form layout.
+
+7. Improve Internal Spacing and Layout
+
+Once the card width is increased, also refine spacing:
+
+more generous horizontal padding
+
+cleaner spacing between header, copy, and chip groups
+
+more room for session and sponsor cards
+
+footer/buttons should not feel compressed
+
+This should feel like a polished event experience, not a utility form.
+
+8. Keep the Flow Centered and Mobile-Friendly
+
+Even though the card should be wider on desktop, preserve a clean centered layout.
+
+Required behavior
+
+centered container on desktop
+
+stacked, readable layout on tablet/mobile
+
+topic chips wrap well on smaller screens
+
+CTAs remain easy to tap on mobile
+
+This should not become a desktop-only redesign.
+
+9. Refine the Progress Step Labels
+
+The current step labels can be improved for clarity.
+
+Recommended labels
+
+Instead of vague/internal labels, use attendee-friendly wording such as:
+
+Interests
+
+Your Email
+
+Sessions
+
+Sponsors
+
+Complete
+
+This will make the flow easier to understand.
+
+If these labels are already close, refine them rather than rebuilding the component.
+
+10. Sponsors Step Should Support Direct Meeting Scheduling
+
+On the sponsor step, attendees should not only be able to “Request Meeting.”
+
+They should be able to schedule a meeting directly where the sponsor supports it.
+
+Required behavior
+
+For each sponsor card on the Sponsors step, show meeting actions based on sponsor capabilities.
+
+If sponsor supports onsite meetings
+
+Show:
+
+Schedule Onsite Meeting
+If sponsor supports online meetings
+
+Show:
+
+Schedule Online Meeting
+Also keep
+Request Information
+
+Do not force attendees to leave this screen just to take the next action.
+
+This is a high-intent moment and should convert directly into meetings.
+
+11. Use Existing Sponsor Meeting Capabilities
+
+Do not invent new meeting types.
+
+Use the sponsor meeting capabilities already supported in the platform, such as:
+
+onsite meeting allowed
+
+online meeting allowed
+
+If a sponsor only supports one type, show only that option.
+
+If a sponsor supports both, show both.
+
+If a sponsor supports neither direct scheduling mode, fall back to:
+
+Request Meeting
+
+if that is still the correct existing behavior.
+
+12. Sponsor Card CTA Hierarchy
+
+The sponsor cards on the Sponsors step should have a clearer action hierarchy.
+
+Recommended priority
+
+Primary CTA:
+
+Schedule Onsite Meeting
+or
+
+Schedule Online Meeting
+or
+
+Request Meeting
+
+Secondary CTA:
+
+Request Information
+
+If both onsite and online scheduling are supported, show both clearly without cluttering the card.
+
+Make sure the visual hierarchy guides attendees toward scheduling.
+
+13. Preserve Existing Meeting / Info Request State Logic
+
+If the attendee has already:
+
+requested a meeting
+
+confirmed a meeting
+
+requested information
+
+the card should continue to show the proper interaction state.
+
+Examples:
+
+Meeting Requested
+
+Meeting Confirmed
+
+Info Sent
+
+Do not regress this behavior while changing the CTA layout.
+
+14. Add Relevance Context to Sponsor Cards If Available
+
+Where topic overlap exists, improve the sponsor cards with relevance text.
+
+Example:
+
+Relevant to your interests:
+AML Monitoring, Fraud Defense
+
+This is not strictly required to complete the scheduling behavior, but it should be displayed where the data already exists.
+
+This makes the page feel much more intelligent.
+
+15. Make the Sponsors Step Feel Like “Sponsors to Meet”
+
+The sponsor step should feel contextual, not like a sponsor directory.
+
+Update heading/copy as needed
+
+Example headline:
+
+Sponsors You May Want to Meet
+
+Supporting copy:
+
+These sponsors align with your interests and are available for meetings during the event.
+
+This framing is stronger than a generic sponsor listing.
+
+16. Preserve the 5-Card Flow
+
+Do not change the overall flow structure.
+
+It should remain:
+
+Interests
+
+Your Email / Match Preview
+
+Suggested Sessions
+
+Sponsors to Meet
+
+Complete
+
+This task is about refining how those cards look and behave.
+
+17. Acceptance Criteria
+
+This refinement is complete when:
+
+Card 1 visually feels like a registration confirmation / next steps page
+
+Card 1 includes a polished Registration Confirmed treatment
+
+Card 1 includes clearer next-step framing
+
+the onboarding card/container is noticeably wider and less cramped
+
+the layout remains centered and mobile-friendly
+
+the Sponsors step supports direct meeting scheduling actions where available
+
+sponsors can show Onsite and/or Online meeting actions directly on the sponsor cards
+
+Request Information remains available
+
+existing interaction states still display correctly
+
+18. Success Standard
+
+After this update, the attendee onboarding flow should feel polished, intentional, and easy to understand. The first screen should feel like a continuation of registration, and the Sponsors step should make it easy for attendees to schedule meetings immediately when they are most engaged.

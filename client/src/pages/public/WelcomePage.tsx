@@ -1,7 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle, ChevronRight, ChevronLeft, Mail, Calendar, Building2, Bookmark, BookmarkCheck, Info, Video, Users } from "lucide-react";
+import {
+  CheckCircle, ChevronRight, ChevronLeft, Mail, Calendar, Building2,
+  Bookmark, BookmarkCheck, Info, Users, Laptop, MapPin, Sparkles,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgendaSession, EventInterestTopic, Sponsor, EventSponsorLink } from "@shared/schema";
 
@@ -28,10 +31,14 @@ interface PublicEvent {
   logoUrl: string | null;
 }
 
+interface SponsorWithTopics extends Sponsor {
+  topicIds: string[];
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const STEP_ORDER: WizardStep[] = ["topics", "email", "sessions", "sponsors", "complete"];
-const STEP_LABELS = ["Interests", "Your Info", "Sessions", "Sponsors", "Done"];
+const STEP_LABELS = ["Interests", "Your Email", "Sessions", "Sponsors", "Complete"];
 
 function storageKey(slug: string) {
   return `pending_concierge_${slug}`;
@@ -59,6 +66,12 @@ function getSponsorLevel(sponsor: Sponsor, eventId: string): string {
 }
 
 const LEVEL_ORDER: Record<string, number> = { Platinum: 4, Gold: 3, Silver: 2, Bronze: 1 };
+const LEVEL_COLORS: Record<string, string> = {
+  Platinum: "bg-slate-100 text-slate-700 border-slate-300",
+  Gold: "bg-amber-50 text-amber-700 border-amber-300",
+  Silver: "bg-gray-100 text-gray-600 border-gray-300",
+  Bronze: "bg-orange-50 text-orange-700 border-orange-300",
+};
 
 function formatTime(t: string) {
   const [h, m] = t.split(":").map(Number);
@@ -94,16 +107,19 @@ async function apiPatch(url: string, body: unknown) {
 function StepBar({ step }: { step: WizardStep }) {
   const idx = STEP_ORDER.indexOf(step);
   return (
-    <div className="flex items-center gap-1 mb-8">
+    <div className="flex items-start gap-1.5 mb-8">
       {STEP_ORDER.map((s, i) => (
-        <div key={s} className="flex-1 flex flex-col items-center gap-1">
+        <div key={s} className="flex-1 flex flex-col items-center gap-1.5">
           <div
             className={cn(
-              "h-1.5 w-full rounded-full transition-all duration-300",
-              i <= idx ? "bg-blue-600" : "bg-gray-200"
+              "h-1.5 w-full rounded-full transition-all duration-500",
+              i < idx ? "bg-blue-600" : i === idx ? "bg-blue-500" : "bg-gray-200"
             )}
           />
-          <span className={cn("text-[10px] font-medium hidden sm:block", i <= idx ? "text-blue-600" : "text-gray-400")}>
+          <span className={cn(
+            "text-[10px] font-semibold hidden sm:block tracking-wide",
+            i < idx ? "text-blue-500" : i === idx ? "text-blue-700" : "text-gray-400"
+          )}>
             {STEP_LABELS[i]}
           </span>
         </div>
@@ -115,12 +131,14 @@ function StepBar({ step }: { step: WizardStep }) {
 // ── Card 1: Topics ────────────────────────────────────────────────────────────
 
 function TopicsCard({
+  event,
   topics,
   selected,
   onChange,
   onNext,
   loading,
 }: {
+  event: PublicEvent | undefined;
   topics: EventInterestTopic[];
   selected: string[];
   onChange: (ids: string[]) => void;
@@ -135,54 +153,103 @@ function TopicsCard({
     }
   }
 
-  const active = topics.filter((t) => t.isActive && t.status === "APPROVED");
+  const active = topics.filter((t) => t.isActive && t.status === "APPROVED")
+    .sort((a, b) => a.displayOrder - b.displayOrder);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">What topics interest you?</h2>
-        <p className="mt-1 text-gray-500 text-sm">Select all that apply. We'll personalise your agenda and sponsor recommendations.</p>
+    <div className="space-y-8">
+      {/* Registration Confirmed banner */}
+      <div className="text-center space-y-4 pb-6 border-b border-gray-100">
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-full">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+          </span>
+          <span className="text-sm font-semibold text-green-700">Registration Confirmed</span>
+        </div>
+
+        {event && (
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">You're registered for</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">{event.name}</h1>
+            {event.venue && (
+              <p className="mt-1 text-sm text-gray-500 flex items-center justify-center gap-1">
+                <MapPin className="w-3.5 h-3.5" />{event.venue}
+              </p>
+            )}
+          </div>
+        )}
+
+        <p className="text-sm text-gray-600 max-w-lg mx-auto">
+          Now let's personalise your event experience in about 60 seconds.
+        </p>
       </div>
 
-      {active.length === 0 ? (
-        <p className="text-gray-400 text-sm italic">No topics available yet.</p>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {active.sort((a, b) => a.displayOrder - b.displayOrder).map((t) => {
-            const on = selected.includes(t.id);
-            return (
-              <button
-                key={t.id}
-                data-testid={`topic-chip-${t.id}`}
-                onClick={() => toggle(t.id)}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
-                  on
-                    ? "bg-blue-600 border-blue-600 text-white shadow-sm"
-                    : "bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600"
-                )}
-              >
-                {on && <CheckCircle className="inline-block w-3.5 h-3.5 mr-1 -mt-0.5" />}
-                {t.topicLabel}
-              </button>
-            );
-          })}
+      {/* Next Steps framing */}
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+        <p className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-3">What happens next</p>
+        <ol className="space-y-2">
+          {[
+            "Tell us which topics interest you",
+            "We'll show you recommended sessions",
+            "We'll suggest sponsors worth meeting",
+            "We'll send you your personalised event plan",
+          ].map((step, i) => (
+            <li key={i} className="flex items-start gap-2.5 text-sm text-blue-900">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold mt-0.5">
+                {i + 1}
+              </span>
+              {step}
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      {/* Topic selection */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">What topics interest you?</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Select the topics most relevant to you so Concierge can personalise your sessions, sponsors, and meeting suggestions.
+          </p>
         </div>
-      )}
+
+        {active.length === 0 ? (
+          <p className="text-gray-400 text-sm italic">No topics available yet — we'll show all sessions and sponsors.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {active.map((t) => {
+              const on = selected.includes(t.id);
+              return (
+                <button
+                  key={t.id}
+                  data-testid={`topic-chip-${t.id}`}
+                  onClick={() => toggle(t.id)}
+                  className={cn(
+                    "px-3.5 py-2 rounded-full text-sm font-medium border transition-all duration-150",
+                    on
+                      ? "bg-blue-600 border-blue-600 text-white shadow-sm scale-[1.02]"
+                      : "bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50"
+                  )}
+                >
+                  {on && <CheckCircle className="inline-block w-3.5 h-3.5 mr-1.5 -mt-0.5" />}
+                  {t.topicLabel}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <button
         data-testid="button-topics-next"
         onClick={onNext}
         disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm"
       >
-        {loading ? "Saving…" : "Continue"}
+        {loading ? "Saving…" : selected.length > 0 ? `Personalise My Experience (${selected.length} topic${selected.length !== 1 ? "s" : ""} selected)` : "Continue Without Topics"}
         {!loading && <ChevronRight className="w-4 h-4" />}
       </button>
-
-      {selected.length === 0 && (
-        <p className="text-center text-xs text-gray-400">You can skip topic selection and browse everything.</p>
-      )}
     </div>
   );
 }
@@ -190,10 +257,7 @@ function TopicsCard({
 // ── Card 2: Email + Match Preview ─────────────────────────────────────────────
 
 function EmailCard({
-  slug,
   profileId,
-  topicIds,
-  allTopics,
   allSessions,
   onNext,
   onBack,
@@ -201,10 +265,7 @@ function EmailCard({
   setEmail,
   email,
 }: {
-  slug: string;
   profileId: string;
-  topicIds: string[];
-  allTopics: EventInterestTopic[];
   allSessions: AgendaSession[];
   onNext: (email: string, matched: boolean, token: string | null) => void;
   onBack: () => void;
@@ -215,17 +276,12 @@ function EmailCard({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // Compute recommended sessions locally from topic IDs
-  const topicSet = new Set(topicIds);
-  const recommended = allSessions
-    .filter((s) => s.status === "Published" && s.isPublic)
-    .slice(0, 3);
+  const preview = allSessions.filter((s) => s.status === "Published" && s.isPublic).slice(0, 3);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) { setError("Please enter your email."); return; }
-    const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRx.test(email.trim())) { setError("Please enter a valid email address."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError("Please enter a valid email address."); return; }
     setError("");
     setSubmitting(true);
     try {
@@ -241,19 +297,19 @@ function EmailCard({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">A few sessions picked for you</h2>
-        <p className="mt-1 text-gray-500 text-sm">Based on your interests — you'll customise your full agenda next.</p>
+        <h2 className="text-xl font-bold text-gray-900">A glimpse of what awaits you</h2>
+        <p className="mt-1 text-gray-500 text-sm">Based on your interests — you'll customise your full agenda on the next step.</p>
       </div>
 
-      {recommended.length > 0 && (
+      {preview.length > 0 && (
         <div className="space-y-2">
-          {recommended.map((s) => (
-            <div key={s.id} className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
+          {preview.map((s) => (
+            <div key={s.id} className="flex items-start gap-3 p-3.5 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors">
               <Calendar className="w-4 h-4 mt-0.5 text-blue-500 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-gray-900">{s.title}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900">{s.title}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {s.sessionDate ? new Date(s.sessionDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : ""}
+                  {s.sessionDate ? new Date(s.sessionDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : ""}
                   {s.startTime ? ` · ${formatTime(s.startTime)}` : ""}
                   {s.locationName ? ` · ${s.locationName}` : ""}
                 </p>
@@ -263,20 +319,23 @@ function EmailCard({
         </div>
       )}
 
-      <div className="border-t pt-5">
-        <h3 className="text-base font-semibold text-gray-900 mb-1">Save your personalised plan</h3>
-        <p className="text-sm text-gray-500 mb-4">Enter your email so we can match your selections to your registration and send your personalised agenda.</p>
+      <div className="border-t border-gray-100 pt-6">
+        <h3 className="text-base font-bold text-gray-900 mb-1">Save your personalised plan</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Enter your registration email so we can match your selections to your account and send you your personalised agenda.
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               data-testid="input-email"
               type="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setError(""); }}
               placeholder="your@email.com"
-              className="w-full pl-9 pr-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              autoComplete="email"
             />
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
@@ -284,9 +343,9 @@ function EmailCard({
             data-testid="button-email-submit"
             type="submit"
             disabled={submitting || loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm"
           >
-            {submitting ? "Saving…" : "Continue"}
+            {submitting ? "Saving…" : "Save & Build My Agenda"}
             {!submitting && <ChevronRight className="w-4 h-4" />}
           </button>
         </form>
@@ -295,9 +354,9 @@ function EmailCard({
       <button
         data-testid="button-back-topics"
         onClick={onBack}
-        className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition-colors mx-auto"
+        className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors mx-auto"
       >
-        <ChevronLeft className="w-4 h-4" /> Back
+        <ChevronLeft className="w-4 h-4" /> Back to Interests
       </button>
     </div>
   );
@@ -306,7 +365,6 @@ function EmailCard({
 // ── Card 3: Sessions ──────────────────────────────────────────────────────────
 
 function SessionsCard({
-  profileId,
   sessions,
   savedIds,
   onToggle,
@@ -314,7 +372,6 @@ function SessionsCard({
   onBack,
   loading,
 }: {
-  profileId: string;
   sessions: AgendaSession[];
   savedIds: string[];
   onToggle: (id: string, saved: boolean) => Promise<void>;
@@ -325,7 +382,6 @@ function SessionsCard({
   const [toggling, setToggling] = useState<Record<string, boolean>>({});
   const published = sessions.filter((s) => s.status === "Published" && s.isPublic);
 
-  // Group by date
   const byDate: Record<string, AgendaSession[]> = {};
   for (const s of published) {
     (byDate[s.sessionDate] ??= []).push(s);
@@ -345,17 +401,24 @@ function SessionsCard({
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Build your agenda</h2>
-        <p className="mt-1 text-gray-500 text-sm">Bookmark the sessions you want to attend. You can always update this later.</p>
+        <h2 className="text-xl font-bold text-gray-900">Build your agenda</h2>
+        <p className="mt-1 text-gray-500 text-sm">Bookmark the sessions you want to attend. You can always update your selections later.</p>
       </div>
 
+      {savedIds.length > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+          <BookmarkCheck className="w-4 h-4 text-blue-600 flex-shrink-0" />
+          <p className="text-xs font-semibold text-blue-700">{savedIds.length} session{savedIds.length !== 1 ? "s" : ""} saved to your agenda</p>
+        </div>
+      )}
+
       {published.length === 0 ? (
-        <p className="text-sm text-gray-400 italic">No sessions published yet.</p>
+        <p className="text-sm text-gray-400 italic py-8 text-center">No sessions published yet — check back soon.</p>
       ) : (
-        <div className="space-y-6 max-h-[420px] overflow-y-auto pr-1">
+        <div className="space-y-6 max-h-[460px] overflow-y-auto pr-1 -mr-1">
           {dates.map((date) => (
             <div key={date}>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 sticky top-0 bg-white py-1">
                 {new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
               </p>
               <div className="space-y-2">
@@ -366,30 +429,30 @@ function SessionsCard({
                     <div
                       key={s.id}
                       data-testid={`session-card-${s.id}`}
+                      onClick={() => !busy && handleToggle(s.id)}
                       className={cn(
-                        "flex items-start gap-3 p-3 rounded-lg border transition-all",
-                        saved ? "border-blue-200 bg-blue-50" : "border-gray-100 bg-white hover:border-gray-200"
+                        "flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all duration-150",
+                        saved
+                          ? "border-blue-200 bg-blue-50 shadow-sm"
+                          : "border-gray-100 bg-white hover:border-blue-200 hover:bg-blue-50/40"
                       )}
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 leading-snug">{s.title}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-sm font-semibold text-gray-900 leading-snug">{s.title}</p>
+                        <p className="text-xs text-gray-500 mt-1">
                           {formatTime(s.startTime)}–{formatTime(s.endTime)}
                           {s.locationName ? ` · ${s.locationName}` : ""}
                         </p>
                       </div>
-                      <button
-                        data-testid={`button-session-save-${s.id}`}
-                        onClick={() => handleToggle(s.id)}
-                        disabled={busy}
+                      <div
                         className={cn(
-                          "flex-shrink-0 p-1.5 rounded-lg transition-colors",
-                          saved ? "text-blue-600 bg-blue-100 hover:bg-blue-200" : "text-gray-400 hover:text-blue-500 hover:bg-blue-50",
+                          "flex-shrink-0 p-1.5 rounded-lg transition-all mt-0.5",
+                          saved ? "text-blue-600 bg-blue-100" : "text-gray-300",
                           busy && "opacity-40"
                         )}
                       >
                         {saved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-                      </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -399,11 +462,11 @@ function SessionsCard({
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-1">
         <button
           data-testid="button-back-email"
           onClick={onBack}
-          className="flex items-center gap-1 px-4 py-3 rounded-xl border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
@@ -411,9 +474,9 @@ function SessionsCard({
           data-testid="button-sessions-next"
           onClick={onNext}
           disabled={loading}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm"
         >
-          {loading ? "Saving…" : "Continue"}
+          {loading ? "Saving…" : "Continue to Sponsors"}
           {!loading && <ChevronRight className="w-4 h-4" />}
         </button>
       </div>
@@ -426,6 +489,8 @@ function SessionsCard({
 function SponsorsCard({
   eventId,
   sponsors,
+  allTopics,
+  selectedTopicIds,
   meetingRequests,
   onRequest,
   onNext,
@@ -433,7 +498,9 @@ function SponsorsCard({
   loading,
 }: {
   eventId: string;
-  sponsors: Sponsor[];
+  sponsors: SponsorWithTopics[];
+  allTopics: EventInterestTopic[];
+  selectedTopicIds: string[];
   meetingRequests: { sponsorId: string; requestType: string }[];
   onRequest: (sponsorId: string, requestType: string) => Promise<void>;
   onNext: () => void;
@@ -442,99 +509,182 @@ function SponsorsCard({
 }) {
   const [requesting, setRequesting] = useState<Record<string, boolean>>({});
 
+  // Build topic label map
+  const topicMap = new Map<string, string>(allTopics.map((t) => [t.id, t.topicLabel]));
+  const attendeeTopicSet = new Set(selectedTopicIds);
+
   const sorted = [...sponsors].sort((a, b) => {
     const la = LEVEL_ORDER[getSponsorLevel(a, eventId)] ?? 0;
     const lb = LEVEL_ORDER[getSponsorLevel(b, eventId)] ?? 0;
-    return lb - la;
+    // Secondary: sponsors with matching topics first
+    const ra = (a.topicIds ?? []).filter((t) => attendeeTopicSet.has(t)).length;
+    const rb = (b.topicIds ?? []).filter((t) => attendeeTopicSet.has(t)).length;
+    return lb - la || rb - ra;
   });
 
   function hasRequest(sponsorId: string, type: string) {
-    return meetingRequests.some((r) => r.sponsorId === sponsorId && r.requestType === type);
+    return meetingRequests.some((r) => r.sponsorId === sponsorId && (r.requestType === type || (type === "onsite" && r.requestType === "meeting")));
+  }
+
+  function hasAnyMeeting(sponsorId: string) {
+    return meetingRequests.some((r) => r.sponsorId === sponsorId && ["onsite", "online", "meeting"].includes(r.requestType));
   }
 
   async function handleRequest(sponsorId: string, requestType: string) {
-    if (hasRequest(sponsorId, requestType)) return;
-    setRequesting((p) => ({ ...p, [`${sponsorId}_${requestType}`]: true }));
+    const key = `${sponsorId}_${requestType}`;
+    if (requesting[key]) return;
+    setRequesting((p) => ({ ...p, [key]: true }));
     try {
       await onRequest(sponsorId, requestType);
     } finally {
-      setRequesting((p) => ({ ...p, [`${sponsorId}_${requestType}`]: false }));
+      setRequesting((p) => ({ ...p, [key]: false }));
     }
   }
 
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Meet our sponsors</h2>
-        <p className="mt-1 text-gray-500 text-sm">Request a meeting or more information from sponsors you'd like to connect with.</p>
+        <h2 className="text-xl font-bold text-gray-900">Sponsors You May Want to Meet</h2>
+        <p className="mt-1 text-gray-500 text-sm">
+          These sponsors align with your interests and are available for meetings during the event.
+        </p>
       </div>
 
       {sorted.length === 0 ? (
-        <p className="text-sm text-gray-400 italic">No sponsors available yet.</p>
+        <p className="text-sm text-gray-400 italic py-8 text-center">No sponsors to show yet.</p>
       ) : (
-        <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1 -mr-1">
           {sorted.map((s) => {
             const level = getSponsorLevel(s, eventId);
-            const meetingDone = hasRequest(s.id, "meeting");
+            const levelColor = LEVEL_COLORS[level] ?? "";
+
+            // Matching topics
+            const matchingTopics = (s.topicIds ?? [])
+              .filter((tid) => attendeeTopicSet.has(tid))
+              .map((tid) => topicMap.get(tid))
+              .filter(Boolean) as string[];
+
+            // Meeting states
+            const onsiteDone = hasRequest(s.id, "onsite");
+            const onlineDone = hasRequest(s.id, "online");
             const infoDone = hasRequest(s.id, "info");
-            const meetBusy = requesting[`${s.id}_meeting`];
+            const anyMeetingDone = hasAnyMeeting(s.id);
+
+            const onsiteBusy = requesting[`${s.id}_onsite`];
+            const onlineBusy = requesting[`${s.id}_online`];
             const infoBusy = requesting[`${s.id}_info`];
+
+            // Whether the sponsor supports online meetings
+            const supportsOnline = !!s.allowOnlineMeetings;
+
             return (
               <div
                 key={s.id}
                 data-testid={`sponsor-card-${s.id}`}
-                className="p-4 rounded-xl border border-gray-100 bg-white hover:border-gray-200 transition-all"
+                className={cn(
+                  "p-4 rounded-xl border transition-all",
+                  matchingTopics.length > 0 ? "border-blue-100 bg-blue-50/30" : "border-gray-100 bg-white hover:border-gray-200"
+                )}
               >
-                <div className="flex items-start gap-3">
+                {/* Header */}
+                <div className="flex items-start gap-3 mb-3">
                   {s.logoUrl ? (
-                    <img src={s.logoUrl} alt={s.name} className="w-10 h-10 object-contain rounded" />
+                    <img src={s.logoUrl} alt={s.name} className="w-11 h-11 object-contain rounded-lg border border-gray-100 bg-white p-0.5 flex-shrink-0" />
                   ) : (
-                    <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                       <Building2 className="w-5 h-5 text-gray-400" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{s.name}</p>
+                    <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                      <p className="text-sm font-bold text-gray-900">{s.name}</p>
                       {level && (
-                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex-shrink-0">
+                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border font-semibold flex-shrink-0", levelColor)}>
                           {level}
                         </span>
                       )}
                     </div>
                     {s.shortDescription && (
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{s.shortDescription}</p>
+                      <p className="text-xs text-gray-500 line-clamp-2">{s.shortDescription}</p>
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2 mt-3">
-                  <button
-                    data-testid={`button-sponsor-meeting-${s.id}`}
-                    onClick={() => handleRequest(s.id, "meeting")}
-                    disabled={meetingDone || !!meetBusy}
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium border transition-colors",
-                      meetingDone
-                        ? "bg-green-50 border-green-200 text-green-700"
-                        : "bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600 disabled:opacity-50"
+
+                {/* Topic relevance */}
+                {matchingTopics.length > 0 && (
+                  <div className="flex items-start gap-1.5 mb-3 p-2 bg-blue-50 rounded-lg border border-blue-100">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-blue-700">
+                      <span className="font-semibold">Relevant to your interests: </span>
+                      {matchingTopics.join(", ")}
+                    </p>
+                  </div>
+                )}
+
+                {/* Meeting CTAs */}
+                <div className="space-y-2">
+                  {/* Primary: Meeting scheduling */}
+                  <div className={cn("grid gap-2", supportsOnline ? "grid-cols-2" : "grid-cols-1")}>
+                    {/* Onsite Meeting */}
+                    <button
+                      data-testid={`button-sponsor-onsite-${s.id}`}
+                      onClick={() => handleRequest(s.id, "onsite")}
+                      disabled={onsiteDone || anyMeetingDone || !!onsiteBusy}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold border transition-all",
+                        onsiteDone || anyMeetingDone
+                          ? "bg-green-50 border-green-200 text-green-700"
+                          : "bg-blue-600 border-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                      )}
+                    >
+                      {onsiteDone || anyMeetingDone
+                        ? <><CheckCircle className="w-3.5 h-3.5" /> Meeting Requested</>
+                        : onsiteBusy
+                          ? "…"
+                          : <><MapPin className="w-3.5 h-3.5" /> Schedule Onsite Meeting</>
+                      }
+                    </button>
+
+                    {/* Online Meeting */}
+                    {supportsOnline && (
+                      <button
+                        data-testid={`button-sponsor-online-${s.id}`}
+                        onClick={() => handleRequest(s.id, "online")}
+                        disabled={onlineDone || anyMeetingDone || !!onlineBusy}
+                        className={cn(
+                          "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold border transition-all",
+                          onlineDone || anyMeetingDone
+                            ? "bg-green-50 border-green-200 text-green-700"
+                            : "bg-white border-blue-400 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                        )}
+                      >
+                        {onlineDone || anyMeetingDone
+                          ? <><CheckCircle className="w-3.5 h-3.5" /> Meeting Requested</>
+                          : onlineBusy
+                            ? "…"
+                            : <><Laptop className="w-3.5 h-3.5" /> Schedule Online Meeting</>
+                        }
+                      </button>
                     )}
-                  >
-                    {meetingDone ? <CheckCircle className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
-                    {meetingDone ? "Meeting Requested" : meetBusy ? "…" : "Request Meeting"}
-                  </button>
+                  </div>
+
+                  {/* Secondary: Request Info */}
                   <button
                     data-testid={`button-sponsor-info-${s.id}`}
                     onClick={() => handleRequest(s.id, "info")}
                     disabled={infoDone || !!infoBusy}
                     className={cn(
-                      "flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium border transition-colors",
+                      "w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium border transition-all",
                       infoDone
-                        ? "bg-green-50 border-green-200 text-green-700"
-                        : "bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:text-blue-600 disabled:opacity-50"
+                        ? "bg-gray-50 border-gray-200 text-gray-500"
+                        : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800 disabled:opacity-50"
                     )}
                   >
-                    {infoDone ? <CheckCircle className="w-3.5 h-3.5" /> : <Info className="w-3.5 h-3.5" />}
-                    {infoDone ? "Info Requested" : infoBusy ? "…" : "Request Info"}
+                    {infoDone
+                      ? <><CheckCircle className="w-3.5 h-3.5" /> Information Requested</>
+                      : infoBusy ? "…"
+                        : <><Info className="w-3.5 h-3.5" /> Request Information</>
+                    }
                   </button>
                 </div>
               </div>
@@ -543,11 +693,11 @@ function SponsorsCard({
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-1">
         <button
           data-testid="button-back-sessions"
           onClick={onBack}
-          className="flex items-center gap-1 px-4 py-3 rounded-xl border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
@@ -555,9 +705,9 @@ function SponsorsCard({
           data-testid="button-sponsors-next"
           onClick={onNext}
           disabled={loading}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm"
         >
-          {loading ? "Finishing…" : "Complete Setup"}
+          {loading ? "Finishing…" : "Complete My Setup"}
           {!loading && <CheckCircle className="w-4 h-4" />}
         </button>
       </div>
@@ -572,53 +722,55 @@ function CompleteCard({
   sessionCount,
   meetingCount,
   eventName,
-  slug,
 }: {
   email: string;
   sessionCount: number;
   meetingCount: number;
   eventName: string;
-  slug: string;
 }) {
-  const [, navigate] = useLocation();
-
   return (
-    <div className="text-center space-y-6 py-4">
-      <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-        <CheckCircle className="w-9 h-9 text-green-600" />
+    <div className="text-center space-y-7 py-4">
+      <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center ring-8 ring-green-50">
+        <CheckCircle className="w-10 h-10 text-green-600" />
       </div>
 
       <div>
         <h2 className="text-2xl font-bold text-gray-900">You're all set!</h2>
         <p className="mt-2 text-gray-500 text-sm max-w-sm mx-auto">
-          Your personalised plan for <span className="font-medium text-gray-700">{eventName}</span> has been saved.
+          Your personalised plan for <span className="font-semibold text-gray-700">{eventName}</span> has been saved.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
-        {sessionCount > 0 && (
-          <div className="bg-blue-50 rounded-xl p-3">
-            <p className="text-2xl font-bold text-blue-600">{sessionCount}</p>
-            <p className="text-xs text-blue-700 mt-0.5">Session{sessionCount !== 1 ? "s" : ""} saved</p>
-          </div>
-        )}
-        {meetingCount > 0 && (
-          <div className="bg-purple-50 rounded-xl p-3">
-            <p className="text-2xl font-bold text-purple-600">{meetingCount}</p>
-            <p className="text-xs text-purple-700 mt-0.5">Request{meetingCount !== 1 ? "s" : ""} sent</p>
-          </div>
-        )}
-      </div>
-
-      {email && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 max-w-sm mx-auto">
-          <Mail className="inline-block w-4 h-4 mr-1.5 -mt-0.5" />
-          We'll send your personalised agenda to <span className="font-semibold">{email}</span> once your registration is confirmed.
+      {(sessionCount > 0 || meetingCount > 0) && (
+        <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
+          {sessionCount > 0 && (
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+              <p className="text-3xl font-bold text-blue-600">{sessionCount}</p>
+              <p className="text-xs text-blue-700 mt-1 font-medium">Session{sessionCount !== 1 ? "s" : ""} saved</p>
+            </div>
+          )}
+          {meetingCount > 0 && (
+            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+              <p className="text-3xl font-bold text-purple-600">{meetingCount}</p>
+              <p className="text-xs text-purple-700 mt-1 font-medium">Sponsor{meetingCount !== 1 ? "s" : ""} contacted</p>
+            </div>
+          )}
         </div>
       )}
 
-      <p className="text-xs text-gray-400 max-w-sm mx-auto">
-        Your selections have been linked to your registration. You can update your agenda anytime by returning to this page.
+      {email && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 max-w-sm mx-auto text-left">
+          <div className="flex items-start gap-2">
+            <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <p>
+              We'll send your personalised agenda to <span className="font-semibold">{email}</span> once your registration is confirmed.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed">
+        Your selections are linked to your registration. Return to this page any time to update your agenda or add more sponsor meetings.
       </p>
     </div>
   );
@@ -628,9 +780,7 @@ function CompleteCard({
 
 export default function WelcomePage() {
   const { slug } = useParams<{ slug: string }>();
-  const [, navigate] = useLocation();
 
-  // Core wizard state
   const [step, setStep] = useState<WizardStep>("topics");
   const [profileId, setProfileId] = useState<string | null>(null);
   const [topicIds, setTopicIds] = useState<string[]>([]);
@@ -641,7 +791,6 @@ export default function WelcomePage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [initialising, setInitialising] = useState(true);
 
-  // Fetch public event data
   const { data: event } = useQuery<PublicEvent>({
     queryKey: ["/api/public/welcome", slug, "event"],
     queryFn: async () => {
@@ -652,7 +801,6 @@ export default function WelcomePage() {
     enabled: !!slug,
   });
 
-  // Fetch topics
   const { data: topics = [] } = useQuery<EventInterestTopic[]>({
     queryKey: ["/api/public/welcome", slug, "topics"],
     queryFn: async () => {
@@ -663,7 +811,6 @@ export default function WelcomePage() {
     enabled: !!slug,
   });
 
-  // Fetch sessions
   const { data: sessions = [] } = useQuery<AgendaSession[]>({
     queryKey: ["/api/public/welcome", slug, "sessions"],
     queryFn: async () => {
@@ -674,8 +821,7 @@ export default function WelcomePage() {
     enabled: !!slug,
   });
 
-  // Fetch sponsors
-  const { data: sponsors = [] } = useQuery<Sponsor[]>({
+  const { data: sponsors = [] } = useQuery<SponsorWithTopics[]>({
     queryKey: ["/api/public/welcome", slug, "sponsors"],
     queryFn: async () => {
       const res = await fetch(`/api/public/welcome/${slug}/sponsors`);
@@ -692,26 +838,24 @@ export default function WelcomePage() {
       try {
         const stored = loadFromStorage(slug);
         if (stored?.profileId) {
-          // Verify profile still exists
           const res = await fetch(`/api/public/pending/${stored.profileId}`);
           if (res.ok) {
             const data = await res.json();
             setProfileId(stored.profileId);
             setTopicIds(data.topics ?? stored.topicIds ?? []);
             setSessionIds(data.sessions ?? stored.sessionIds ?? []);
-            setMeetingRequests(data.meetingRequests?.map((r: any) => ({ sponsorId: r.sponsorId, requestType: r.requestType })) ?? stored.meetingRequests ?? []);
+            setMeetingRequests(
+              data.meetingRequests?.map((r: any) => ({ sponsorId: r.sponsorId, requestType: r.requestType }))
+              ?? stored.meetingRequests ?? []
+            );
             setEmail(stored.email ?? "");
             setMatchedToken(stored.matchedToken ?? null);
-            // Restore step from API or storage
             const apiStep = data.profile?.onboardingStep as WizardStep | undefined;
-            const storedStep = stored.step;
-            setStep(apiStep ?? storedStep ?? "topics");
+            setStep(apiStep === "complete" || apiStep === "sponsors" || apiStep === "sessions" || apiStep === "email" || apiStep === "topics" ? apiStep : stored.step ?? "topics");
             setInitialising(false);
             return;
           }
         }
-        // Create a new profile
-        if (!slug) { setInitialising(false); return; }
         const data = await apiPost(`/api/public/welcome/${slug}/start`);
         setProfileId(data.profileId);
         saveToStorage(slug, { profileId: data.profileId, step: "topics" });
@@ -723,7 +867,6 @@ export default function WelcomePage() {
     })();
   }, [slug]);
 
-  // Sync local state to storage on changes
   useEffect(() => {
     if (!slug || !profileId) return;
     saveToStorage(slug, { profileId, step, topicIds, sessionIds, meetingRequests, email, matchedToken });
@@ -736,37 +879,28 @@ export default function WelcomePage() {
     setActionLoading(true);
     try {
       await apiPatch(`/api/public/pending/${profileId}/topics`, { topicIds });
-      setStep("email");
     } catch (e) {
       console.error("[welcome] topics save error", e);
-      setStep("email"); // advance anyway
     } finally {
       setActionLoading(false);
+      setStep("email");
     }
   }
 
   async function handleEmailNext(submittedEmail: string, matched: boolean, token: string | null) {
     setEmail(submittedEmail);
     setMatchedToken(token);
-    if (matched && token) {
-      // Real attendee found — could redirect to portal; for now continue to sessions
-    }
     setStep("sessions");
   }
 
   async function handleSessionToggle(sessionId: string, isSaved: boolean) {
     if (!profileId) return;
-    const action = isSaved ? "remove" : "add";
-    await apiPatch(`/api/public/pending/${profileId}/sessions`, { sessionId, action });
+    await apiPatch(`/api/public/pending/${profileId}/sessions`, { sessionId, action: isSaved ? "remove" : "add" });
     if (isSaved) {
       setSessionIds((p) => p.filter((x) => x !== sessionId));
     } else {
       setSessionIds((p) => [...p, sessionId]);
     }
-  }
-
-  async function handleSessionsNext() {
-    setStep("sponsors");
   }
 
   async function handleMeetingRequest(sponsorId: string, requestType: string) {
@@ -792,7 +926,7 @@ export default function WelcomePage() {
 
   if (initialising) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-gray-500">Setting up your experience…</p>
@@ -801,26 +935,34 @@ export default function WelcomePage() {
     );
   }
 
+  // Unique sponsor contacts for complete card
+  const uniqueSponsorContacts = new Set(meetingRequests.map((r) => r.sponsorId)).size;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-white">
-      <div className="max-w-lg mx-auto px-4 py-10">
-        {/* Event header */}
-        {event && (
-          <div className="text-center mb-8">
-            {event.logoUrl && (
-              <img src={event.logoUrl} alt={event.name} className="h-10 object-contain mx-auto mb-3" />
-            )}
-            <h1 className="text-lg font-bold text-gray-900">{event.name}</h1>
-            {event.venue && <p className="text-sm text-gray-500 mt-0.5">{event.venue}</p>}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        {/* Logo only (event name shown inside Card 1) */}
+        {event?.logoUrl && step === "topics" && (
+          <div className="text-center mb-6">
+            <img src={event.logoUrl} alt={event.name} className="h-10 object-contain mx-auto" />
+          </div>
+        )}
+
+        {/* Compact event header on steps 2–4 */}
+        {event && step !== "topics" && step !== "complete" && (
+          <div className="text-center mb-6">
+            {event.logoUrl && <img src={event.logoUrl} alt={event.name} className="h-8 object-contain mx-auto mb-2" />}
+            <p className="text-sm font-semibold text-gray-700">{event.name}</p>
           </div>
         )}
 
         {/* Wizard card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-10">
           {step !== "complete" && <StepBar step={step} />}
 
           {step === "topics" && (
             <TopicsCard
+              event={event}
               topics={topics}
               selected={topicIds}
               onChange={setTopicIds}
@@ -831,10 +973,7 @@ export default function WelcomePage() {
 
           {step === "email" && (
             <EmailCard
-              slug={slug ?? ""}
               profileId={profileId ?? ""}
-              topicIds={topicIds}
-              allTopics={topics}
               allSessions={sessions}
               onNext={handleEmailNext}
               onBack={() => setStep("topics")}
@@ -846,11 +985,10 @@ export default function WelcomePage() {
 
           {step === "sessions" && (
             <SessionsCard
-              profileId={profileId ?? ""}
               sessions={sessions}
               savedIds={sessionIds}
               onToggle={handleSessionToggle}
-              onNext={handleSessionsNext}
+              onNext={() => setStep("sponsors")}
               onBack={() => setStep("email")}
               loading={actionLoading}
             />
@@ -860,6 +998,8 @@ export default function WelcomePage() {
             <SponsorsCard
               eventId={event.id}
               sponsors={sponsors}
+              allTopics={topics}
+              selectedTopicIds={topicIds}
               meetingRequests={meetingRequests}
               onRequest={handleMeetingRequest}
               onNext={handleSponsorsNext}
@@ -872,9 +1012,8 @@ export default function WelcomePage() {
             <CompleteCard
               email={email}
               sessionCount={sessionIds.length}
-              meetingCount={meetingRequests.length}
+              meetingCount={uniqueSponsorContacts}
               eventName={event?.name ?? "the event"}
-              slug={slug ?? ""}
             />
           )}
         </div>

@@ -1,0 +1,874 @@
+We need to build the Agenda module for Concierge from the ground up, but with the updated product decisions below.
+
+The agenda is now a core platform layer, but we are not building a full attendee username/password system. Instead, we will use passwordless attendee access tied to the attendee record and event.
+
+This agenda module should support:
+
+admin agenda management
+
+CSV agenda import
+
+structured sessions as first-class records
+
+multiple speakers per session
+
+configurable session types
+
+optional locations
+
+future attendee browsing and recommendations
+
+attendee My Agenda using passwordless access
+
+admin visibility into each attendee’s My Agenda when it exists
+
+The implementation should be structured so we can launch the operational/admin side first and layer in attendee-facing features without refactoring.
+
+Primary Goal
+
+Create an Agenda system that allows:
+
+admins to create and manage sessions by event
+
+admins to upload agenda sessions by CSV
+
+the platform to support multiple speakers per session
+
+the platform to support configurable session types
+
+the platform to support missing speakers and missing locations gracefully
+
+attendees to later access their agenda experience through secure passwordless links, not usernames/passwords
+
+attendees to build My Agenda later
+
+Converge admins to see whether an attendee has completed My Agenda and launch that page from the attendee record
+
+1. Core Architecture
+
+Treat agenda sessions as first-class records in the database.
+
+Do not store the agenda as:
+
+a blob of HTML
+
+a single JSON field on the event
+
+a static manually rendered page
+
+Each session must be its own structured record tied to an event.
+
+2. Database Design
+Main table: agenda_sessions
+
+Create a table/model for sessions with fields like:
+
+id
+
+event_id
+
+session_code
+
+title
+
+description
+
+session_type_key
+
+session_date
+
+start_time
+
+end_time
+
+timezone
+
+location_name nullable
+
+location_details nullable
+
+sponsor_id nullable
+
+sponsor_name_snapshot nullable
+
+status
+
+display_order
+
+is_featured
+
+is_public
+
+created_at
+
+updated_at
+
+Notes
+
+location_name must be optional
+
+location_details must be optional
+
+session_type_key should point to a configurable session type system, not only a hard-coded enum
+
+is_public should exist now for future flexibility
+
+Supporting table: agenda_session_speakers
+
+Create a separate table/model for speakers so each session can support multiple speakers.
+
+Fields:
+
+id
+
+session_id
+
+speaker_order
+
+name
+
+title
+
+company
+
+role_label nullable
+
+created_at
+
+updated_at
+
+Notes
+
+CSV import must support up to five speakers
+
+speakers are optional
+
+role_label can exist for future flexibility, but attendee-facing labels will primarily come from session type
+
+Supporting table: attendee_saved_sessions
+
+This powers My Agenda.
+
+Fields:
+
+id
+
+attendee_id
+
+event_id
+
+session_id
+
+saved_at
+
+Supporting table: agenda_import_jobs (recommended)
+
+Track CSV imports.
+
+Fields:
+
+id
+
+event_id
+
+file_name
+
+status
+
+rows_total
+
+rows_created
+
+rows_updated
+
+rows_failed
+
+error_log
+
+created_by_user_id
+
+created_at
+
+completed_at
+
+Supporting table: session_types
+
+We need the ability to define other session types.
+
+Fields:
+
+id
+
+key
+
+label
+
+speaker_label_singular
+
+speaker_label_plural
+
+is_active
+
+display_order
+
+created_at
+
+updated_at
+
+Seed initial session types
+
+Create defaults such as:
+
+PANEL
+
+label: Panel
+
+speaker label singular: Panelist
+
+speaker label plural: Panelists
+
+PEER_TO_PEER
+
+label: Peer-to-Peer
+
+speaker label singular: Discussion Leader
+
+speaker label plural: Discussion Leaders
+
+KEYNOTE
+
+label: Keynote
+
+speaker label singular: Speaker
+
+speaker label plural: Speakers
+
+NETWORKING
+
+label: Networking
+
+speaker label singular: Speaker
+
+speaker label plural: Speakers
+
+OTHER
+
+label: Other
+
+speaker label singular: Speaker
+
+speaker label plural: Speakers
+
+Admins must be able to define additional session types later.
+
+3. Session Type Behavior
+
+We need flexible attendee-facing speaker labels based on session type.
+
+Required behavior
+
+For a Panel session:
+
+show speakers under the heading Panelists
+
+For a Peer-to-Peer session:
+
+show speakers under the heading Discussion Leaders
+
+For other session types:
+
+use that session type’s configured speaker labels
+
+Do not hard-code “Speakers” everywhere.
+
+4. Speakers Are Optional at First
+
+Sometimes attendees will register before a speaker is assigned.
+
+Required behavior
+
+A session may exist with:
+
+no speakers yet
+
+one speaker
+
+multiple speakers
+
+If no speakers are assigned:
+
+do not show a speaker section in the attendee UI
+
+do not show blank placeholders
+
+do not show “TBD”
+
+Just omit the speaker section entirely until speakers exist.
+
+5. Locations Are Optional
+
+Room assignments may be finalized very close to the event.
+
+Required behavior
+
+Session location must not be required.
+
+The following fields must be nullable / optional:
+
+location_name
+
+location_details
+
+If location is blank:
+
+do not show location in attendee UI
+
+do not show placeholder text like TBD
+
+do not include LOCATION in calendar export
+
+Just hide the location field entirely when not present.
+
+6. Admin UI — Agenda Management
+
+Create a new agenda management area under the event/admin structure.
+
+Recommended location:
+
+Admin → Events → Agenda
+
+This should be event-aware.
+
+7. Admin Agenda Page Structure
+
+For the selected event, the admin page should include:
+
+page title: Agenda
+
+selected event context
+
+summary counts
+
+actions:
+
+Add Session
+
+Upload Agenda CSV
+
+Download Agenda Template
+
+Table/list of sessions with:
+
+date
+
+start time
+
+end time
+
+title
+
+session type
+
+location if available
+
+sponsor if assigned
+
+speaker count
+
+status
+
+actions
+
+Actions:
+
+View
+
+Edit
+
+Delete
+
+8. Manual Session Creation / Edit Form
+
+Admins must be able to create and edit sessions manually.
+
+Required fields
+
+Event
+
+Session Title
+
+Session Description
+
+Session Type
+
+Date
+
+Start Time
+
+End Time
+
+Timezone
+
+Location Name optional
+
+Location Details optional
+
+Sponsor optional
+
+Status
+
+Featured toggle optional
+
+Public toggle optional
+
+Speaker management
+
+Allow admins to add multiple speakers in the session form.
+
+Each speaker row should support:
+
+Name
+
+Title
+
+Company
+
+order
+
+Admins must be able to:
+
+add speaker
+
+remove speaker
+
+reorder speaker if practical
+
+9. CSV Import
+
+CSV import should be the primary bulk agenda setup method for Julie.
+
+Add a button:
+
+Upload Agenda (CSV)
+
+Also provide:
+
+Download Agenda Template
+10. CSV Template Requirements
+
+The agenda CSV should support the following columns:
+
+EventCode
+
+SessionCode optional
+
+SessionTitle
+
+SessionDescription
+
+SessionType
+
+SessionDate
+
+StartTime
+
+EndTime
+
+Timezone
+
+LocationName
+
+LocationDetails
+
+Sponsor
+
+Speaker1Name
+
+Speaker1Title
+
+Speaker1Company
+
+Speaker2Name
+
+Speaker2Title
+
+Speaker2Company
+
+Speaker3Name
+
+Speaker3Title
+
+Speaker3Company
+
+Speaker4Name
+
+Speaker4Title
+
+Speaker4Company
+
+Speaker5Name
+
+Speaker5Title
+
+Speaker5Company
+
+Status
+
+Featured
+
+IsPublic
+
+Notes
+
+speaker columns must support up to five speakers
+
+speakers are optional
+
+location is optional
+
+sponsor is optional
+
+SessionType should map to configured session types
+
+EventCode should map to the event
+
+11. CSV Import Behavior
+
+When importing:
+
+validate headers
+
+validate event
+
+validate date/time
+
+create session records
+
+create speaker records for non-empty speaker fields
+
+skip blank speakers gracefully
+
+allow blank locations
+
+allow blank sponsors
+
+show import summary
+
+Do not fail the whole import because one session has blank location or blank speakers.
+
+Import summary example
+
+rows total
+
+rows created
+
+rows updated
+
+rows failed
+
+Show row-level errors clearly.
+
+12. CSV Re-import / Update Logic
+
+Support re-importing agenda data for the same event.
+
+Preferred behavior:
+
+match by session_code if present
+
+otherwise use a combination of event + title + date + start_time as fallback
+
+Allow admins to update sessions via re-import instead of forcing full manual edits.
+
+This is especially important for late room assignments.
+
+13. Passwordless Attendee Access Model
+
+We are not building a full attendee username/password system.
+
+Required behavior
+
+Design attendee agenda access around passwordless secure links tied to the attendee and event.
+
+Use:
+
+secure event-specific attendee token or magic link
+
+short-lived or renewable access token
+
+attendee record already created from registration/import
+
+session-based access once link is opened
+
+This access model should support future attendee features such as:
+
+view agenda
+
+save sessions to My Agenda
+
+add to calendar
+
+receive recommended sessions
+
+Do not build:
+
+usernames
+
+passwords
+
+password reset
+
+full account settings
+
+14. Attendee-Facing Agenda Scope
+
+We are building the foundation now, but attendee-facing features should be scoped so they do not require a full auth system.
+
+Required later-ready support
+
+The architecture must support these attendee-facing experiences:
+
+full agenda browsing
+
+session detail page
+
+Add to My Agenda
+
+Remove from My Agenda
+
+Add to Calendar
+
+These do not all need to be fully launched immediately, but the data model and routing should support them cleanly.
+
+15. Session Detail View Rules
+
+Each session should support a detail view/card/page/modal showing:
+
+title
+
+full description
+
+date
+
+start/end time
+
+location if present
+
+session type
+
+sponsor if applicable
+
+speakers if assigned
+
+Speaker labeling
+
+Use session-type-specific label:
+
+Panelists
+
+Discussion Leaders
+
+Speakers
+
+etc.
+
+If no speakers exist:
+
+omit the speaker section entirely
+
+16. My Agenda Behavior
+
+Attendees must eventually be able to save sessions.
+
+Add support for:
+
+Add to My Agenda
+
+When clicked:
+
+store record in attendee_saved_sessions
+
+Also support:
+
+Remove from My Agenda
+
+Create a My Agenda view showing the attendee’s saved sessions in chronological order.
+
+This can be rolled out after the admin agenda foundation is live, but the table/model must exist now.
+
+17. Add to Calendar
+
+Every session should support:
+
+Add to Calendar
+
+Generate an ICS file dynamically using:
+
+title
+
+start_time
+
+end_time
+
+timezone
+
+description
+
+location if present
+
+If location is blank:
+
+do not include LOCATION field in ICS
+
+Also leave room later for:
+
+Download My Agenda
+
+as a combined ICS for saved sessions.
+
+18. Sponsor / Session Linkage
+
+If a sponsor is attached to a session:
+
+show sponsor in the session detail
+
+use sponsor snapshot text if helpful
+
+do not force a sponsor for every session
+
+This helps sponsor visibility without making it mandatory.
+
+19. Recommendation Readiness
+
+We are not necessarily building full recommendations in this phase, but the agenda structure must support them later.
+
+That means:
+
+title and description must be clean searchable text
+
+session type must be structured
+
+session records must be queryable by event
+
+attendee topics can later be compared against title/description
+
+Do not build the agenda in a way that blocks future recommendation logic.
+
+20. Admin Session Type Management
+
+Under Configuration, add a place to manage session types.
+
+Recommended location:
+
+Configuration → Session Types
+
+Admins should be able to:
+
+view session types
+
+add new session types
+
+edit label
+
+edit speaker label singular/plural
+
+set active/inactive
+
+reorder display
+
+This is necessary because different events may use different formats.
+
+21. Admin Visibility Into Each Attendee’s My Agenda
+
+Converge needs a way to see each attendee’s My Agenda once it has been completed.
+
+Required behavior
+
+In the Attendees section, add a row action or visible link for:
+
+View My Agenda
+
+This should launch that attendee’s agenda page using admin-authorized access.
+
+Rules
+
+if the attendee has completed or populated My Agenda, the link/button should be active
+
+if the attendee has not yet completed My Agenda or has not saved any sessions, the link/button should be visible but greyed out / disabled
+
+tooltip example for disabled state:
+
+My Agenda not yet completed
+
+This gives Converge visibility into attendee engagement.
+
+22. Validation Rules
+Required session fields
+
+event
+
+title
+
+session_type
+
+session_date
+
+start_time
+
+end_time
+
+timezone
+
+Optional fields
+
+description strongly recommended
+
+location
+
+sponsor
+
+speakers
+
+featured
+
+public
+
+Do not require speaker or location to create a session.
+
+23. Acceptance Criteria
+
+This module is complete when:
+
+sessions are stored as structured records
+
+admins can create/edit/delete sessions
+
+admins can import agenda by CSV
+
+CSV supports up to five speakers
+
+sessions can exist without speakers
+
+sessions can exist without locations
+
+attendee UI rules hide blank speaker/location fields
+
+session types are configurable
+
+attendee-facing speaker labels change by session type
+
+passwordless attendee access is the intended architecture
+
+attendee_saved_sessions exists to power My Agenda
+
+sessions support add-to-calendar
+
+attendee records include a View My Agenda link/button
+
+that link is active when My Agenda exists and greyed out when not completed
+
+agenda data is ready for future recommendation features
+
+Success Standard
+
+After this implementation, Concierge should have a fully usable agenda foundation that supports real event operations now, avoids unnecessary attendee login friction, and creates a clean path toward attendee-facing agenda experiences, My Agenda, calendar export, and future recommendations.

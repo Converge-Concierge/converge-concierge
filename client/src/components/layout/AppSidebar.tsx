@@ -18,6 +18,7 @@ import {
   Package,
   Tags,
   HeartPulse,
+  BookOpen,
 } from "lucide-react";
 import {
   Sidebar,
@@ -40,6 +41,7 @@ const managementItems = [
   { title: "Sponsors", url: "/admin/sponsors", icon: Building2 },
   { title: "Attendees", url: "/admin/attendees", icon: Users },
   { title: "Meetings", url: "/admin/meetings", icon: Handshake },
+  { title: "Agenda", url: "/admin/agenda", icon: BookOpen },
   { title: "Info Requests", url: "/admin/information-requests", icon: Mail },
 ];
 

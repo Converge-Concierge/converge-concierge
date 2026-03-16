@@ -49,6 +49,7 @@ The platform employs a modern web stack, separating frontend and backend concern
 - **Event-Scoped Admin Dashboard**: KPIs and alerts are filtered by the selected event.
 - **Sponsor Dashboard**: Redesigned with a 6-tab layout (Overview, Meetings, Info Requests, Leads, Deliverables, Reports) and structured UIs for various deliverable types.
 - **Public Scheduling Flow**: Distinct "Onsite" and "Online request" flows available at `/event/:slug`.
+- **Agenda Module**: Full event agenda management with configurable session types (PANEL, PEER_TO_PEER, KEYNOTE, NETWORKING, OTHER), agenda sessions with multi-speaker support (up to 5 per session), CSV template download and bulk import with upsert logic, ICS calendar export for published public sessions, and admin CRUD UI at `/admin/agenda`. Schema: `session_types`, `agenda_sessions`, `agenda_session_speakers`, `attendee_saved_sessions`, `agenda_import_jobs`. Session type seeder runs on startup.
 - **Calendar Integration**: ICS file generation, Google Calendar URL, and Outlook URL for meetings.
 - **Settings**: Unified admin settings page with tabs for General, Branding, and Notifications. Branding and notification email configuration consolidated from previously separate pages.
 - **Admin Navigation**: Sidebar consolidation — Branding merged into Settings, Access Control merged into Users page as a tab. Legacy routes (`/admin/branding`, `/admin/access-control`) redirect to their new locations.

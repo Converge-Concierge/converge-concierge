@@ -9,6 +9,7 @@ import {
   agreementPackageTemplates, agreementDeliverableTemplateItems, agreementDeliverables,
   agreementDeliverableRegistrants, agreementDeliverableSpeakers, agreementDeliverableReminders,
   fileAssets, deliverableLinks, deliverableSocialEntries, meetingInvitations,
+  sessionTypes, agendaSessions, agendaSessionSpeakers, attendeeSavedSessions, agendaImportJobs,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -34,6 +35,11 @@ import {
   type MeetingInvitation, type InsertMeetingInvitation, type MeetingInvitationStatus,
   type AttendeeCategoryDef, type InsertAttendeeCategoryDef,
   type CategoryMatchingRule, type InsertCategoryMatchingRule,
+  type SessionType, type InsertSessionType,
+  type AgendaSession, type InsertAgendaSession,
+  type AgendaSessionSpeaker, type InsertAgendaSessionSpeaker,
+  type AttendeeSavedSession, type InsertAttendeeSavedSession,
+  type AgendaImportJob, type InsertAgendaImportJob,
   attendeeCategories, categoryMatchingRules,
   scheduledEmails,
   type ScheduledEmail, type InsertScheduledEmail,
@@ -1675,5 +1681,114 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteCategoryMatchingRule(id: string): Promise<void> {
     await db.delete(categoryMatchingRules).where(eq(categoryMatchingRules.id, id));
+  }
+
+  // ── Agenda: Session Types ───────────────────────────────────────────────
+
+  async getSessionTypes(): Promise<SessionType[]> {
+    return db.select().from(sessionTypes).orderBy(sessionTypes.displayOrder);
+  }
+  async getSessionType(id: string): Promise<SessionType | undefined> {
+    const [row] = await db.select().from(sessionTypes).where(eq(sessionTypes.id, id)).limit(1);
+    return row;
+  }
+  async getSessionTypeByKey(key: string): Promise<SessionType | undefined> {
+    const [row] = await db.select().from(sessionTypes).where(eq(sessionTypes.key, key)).limit(1);
+    return row;
+  }
+  async createSessionType(data: InsertSessionType): Promise<SessionType> {
+    const [row] = await db.insert(sessionTypes).values(data).returning();
+    return row;
+  }
+  async updateSessionType(id: string, updates: Partial<InsertSessionType>): Promise<SessionType | undefined> {
+    const [row] = await db.update(sessionTypes).set({ ...updates, updatedAt: new Date() }).where(eq(sessionTypes.id, id)).returning();
+    return row;
+  }
+  async deleteSessionType(id: string): Promise<void> {
+    await db.delete(sessionTypes).where(eq(sessionTypes.id, id));
+  }
+
+  // ── Agenda: Sessions ────────────────────────────────────────────────────
+
+  async getAgendaSessions(eventId?: string): Promise<AgendaSession[]> {
+    if (eventId) {
+      return db.select().from(agendaSessions).where(eq(agendaSessions.eventId, eventId)).orderBy(agendaSessions.sessionDate, agendaSessions.startTime, agendaSessions.displayOrder);
+    }
+    return db.select().from(agendaSessions).orderBy(agendaSessions.sessionDate, agendaSessions.startTime, agendaSessions.displayOrder);
+  }
+  async getAgendaSession(id: string): Promise<AgendaSession | undefined> {
+    const [row] = await db.select().from(agendaSessions).where(eq(agendaSessions.id, id)).limit(1);
+    return row;
+  }
+  async getAgendaSessionByCode(eventId: string, sessionCode: string): Promise<AgendaSession | undefined> {
+    const [row] = await db.select().from(agendaSessions).where(and(eq(agendaSessions.eventId, eventId), eq(agendaSessions.sessionCode, sessionCode))).limit(1);
+    return row;
+  }
+  async createAgendaSession(data: InsertAgendaSession): Promise<AgendaSession> {
+    const [row] = await db.insert(agendaSessions).values(data).returning();
+    return row;
+  }
+  async updateAgendaSession(id: string, updates: Partial<InsertAgendaSession>): Promise<AgendaSession | undefined> {
+    const [row] = await db.update(agendaSessions).set({ ...updates, updatedAt: new Date() }).where(eq(agendaSessions.id, id)).returning();
+    return row;
+  }
+  async deleteAgendaSession(id: string): Promise<void> {
+    await db.delete(agendaSessionSpeakers).where(eq(agendaSessionSpeakers.sessionId, id));
+    await db.delete(attendeeSavedSessions).where(eq(attendeeSavedSessions.sessionId, id));
+    await db.delete(agendaSessions).where(eq(agendaSessions.id, id));
+  }
+
+  // ── Agenda: Session Speakers ────────────────────────────────────────────
+
+  async getSessionSpeakers(sessionId: string): Promise<AgendaSessionSpeaker[]> {
+    return db.select().from(agendaSessionSpeakers).where(eq(agendaSessionSpeakers.sessionId, sessionId)).orderBy(agendaSessionSpeakers.speakerOrder);
+  }
+  async createSessionSpeaker(data: InsertAgendaSessionSpeaker): Promise<AgendaSessionSpeaker> {
+    const [row] = await db.insert(agendaSessionSpeakers).values(data).returning();
+    return row;
+  }
+  async updateSessionSpeaker(id: string, updates: Partial<InsertAgendaSessionSpeaker>): Promise<AgendaSessionSpeaker | undefined> {
+    const [row] = await db.update(agendaSessionSpeakers).set({ ...updates, updatedAt: new Date() }).where(eq(agendaSessionSpeakers.id, id)).returning();
+    return row;
+  }
+  async deleteSessionSpeaker(id: string): Promise<void> {
+    await db.delete(agendaSessionSpeakers).where(eq(agendaSessionSpeakers.id, id));
+  }
+  async deleteSessionSpeakersBySession(sessionId: string): Promise<void> {
+    await db.delete(agendaSessionSpeakers).where(eq(agendaSessionSpeakers.sessionId, sessionId));
+  }
+
+  // ── Agenda: Attendee Saved Sessions ─────────────────────────────────────
+
+  async getAttendeeSavedSessions(attendeeId: string, eventId: string): Promise<AttendeeSavedSession[]> {
+    return db.select().from(attendeeSavedSessions).where(and(eq(attendeeSavedSessions.attendeeId, attendeeId), eq(attendeeSavedSessions.eventId, eventId)));
+  }
+  async createAttendeeSavedSession(data: InsertAttendeeSavedSession): Promise<AttendeeSavedSession> {
+    const [row] = await db.insert(attendeeSavedSessions).values(data).returning();
+    return row;
+  }
+  async deleteAttendeeSavedSession(id: string): Promise<void> {
+    await db.delete(attendeeSavedSessions).where(eq(attendeeSavedSessions.id, id));
+  }
+  async countAttendeeSavedSessions(attendeeId: string, eventId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)::int` }).from(attendeeSavedSessions).where(and(eq(attendeeSavedSessions.attendeeId, attendeeId), eq(attendeeSavedSessions.eventId, eventId)));
+    return result[0]?.count ?? 0;
+  }
+
+  // ── Agenda: Import Jobs ─────────────────────────────────────────────────
+
+  async getAgendaImportJobs(eventId?: string): Promise<AgendaImportJob[]> {
+    if (eventId) {
+      return db.select().from(agendaImportJobs).where(eq(agendaImportJobs.eventId, eventId)).orderBy(desc(agendaImportJobs.createdAt));
+    }
+    return db.select().from(agendaImportJobs).orderBy(desc(agendaImportJobs.createdAt));
+  }
+  async createAgendaImportJob(data: InsertAgendaImportJob): Promise<AgendaImportJob> {
+    const [row] = await db.insert(agendaImportJobs).values(data).returning();
+    return row;
+  }
+  async updateAgendaImportJob(id: string, updates: Partial<InsertAgendaImportJob>): Promise<AgendaImportJob | undefined> {
+    const [row] = await db.update(agendaImportJobs).set(updates).where(eq(agendaImportJobs.id, id)).returning();
+    return row;
   }
 }

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, insertAttendeeCategorySchema, insertCategoryMatchingRuleSchema, insertScheduledEmailSchema, DEFAULT_ATTENDEE_CATEGORIES, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS, INVITATION_QUOTAS, MAX_INVITATIONS_PER_ATTENDEE } from "@shared/schema";
+import { insertEventSchema, insertSponsorSchema, insertAttendeeSchema, insertMeetingSchema, manualAttendeeSchema, insertInformationRequestSchema, insertAttendeeCategorySchema, insertCategoryMatchingRuleSchema, insertScheduledEmailSchema, insertSessionTypeSchema, insertAgendaSessionSchema, DEFAULT_ATTENDEE_CATEGORIES, type InsertEvent, type InsertSponsor, type InsertAttendee, type EventSponsorLink, type SponsorNotificationType, type UserPermissions, type InformationRequestStatus, INFORMATION_REQUEST_STATUSES, DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS, INVITATION_QUOTAS, MAX_INVITATIONS_PER_ATTENDEE } from "@shared/schema";
 import { normalizeAttendeeCategory, rankAttendees, categoryLabel, setCategoryWeights, setCategoryLabels } from "./services/matchmakingService";
 import { evaluateRules, testRulesAgainstValue } from "./services/categoryRuleEngine";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
@@ -2124,6 +2124,320 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     await storage.deleteAttendeeCategory(req.params.id);
     await refreshCategoryConfig();
     res.json({ ok: true });
+  });
+
+  // ── Agenda: Session Types CRUD ──────────────────────────────────────────
+
+  app.get("/api/admin/session-types", requireAuth, async (_req, res) => {
+    const types = await storage.getSessionTypes();
+    res.json(types);
+  });
+
+  app.post("/api/admin/session-types", requireAuth, async (req, res) => {
+    const parsed = insertSessionTypeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    const existing = await storage.getSessionTypeByKey(parsed.data.key);
+    if (existing) return res.status(409).json({ error: "Session type key already exists" });
+    const st = await storage.createSessionType(parsed.data);
+    res.status(201).json(st);
+  });
+
+  app.patch("/api/admin/session-types/:id", requireAuth, async (req, res) => {
+    const allowed = ["label", "speakerLabelSingular", "speakerLabelPlural", "isActive", "displayOrder"];
+    const updates: any = {};
+    for (const k of allowed) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ error: "No valid fields to update" });
+    const st = await storage.updateSessionType(req.params.id, updates);
+    if (!st) return res.status(404).json({ error: "Session type not found" });
+    res.json(st);
+  });
+
+  app.delete("/api/admin/session-types/:id", requireAuth, async (req, res) => {
+    await storage.deleteSessionType(req.params.id);
+    res.json({ success: true });
+  });
+
+  // ── Agenda: Sessions CRUD ─────────────────────────────────────────────
+
+  app.get("/api/admin/agenda-sessions", requireAuth, async (req, res) => {
+    const eventId = req.query.eventId as string | undefined;
+    const sessions = await storage.getAgendaSessions(eventId);
+    const sessionsWithSpeakers = await Promise.all(
+      sessions.map(async (s) => ({
+        ...s,
+        speakers: await storage.getSessionSpeakers(s.id),
+      }))
+    );
+    res.json(sessionsWithSpeakers);
+  });
+
+  app.get("/api/admin/agenda-sessions/:id", requireAuth, async (req, res) => {
+    const session = await storage.getAgendaSession(req.params.id);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+    const speakers = await storage.getSessionSpeakers(session.id);
+    res.json({ ...session, speakers });
+  });
+
+  app.post("/api/admin/agenda-sessions", requireAuth, async (req, res) => {
+    const { speakers, ...sessionData } = req.body;
+    const parsed = insertAgendaSessionSchema.safeParse(sessionData);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+    if (parsed.data.sponsorId) {
+      const sponsor = await storage.getSponsor(parsed.data.sponsorId);
+      if (sponsor) parsed.data.sponsorNameSnapshot = sponsor.name;
+    }
+
+    const session = await storage.createAgendaSession(parsed.data);
+
+    if (speakers && Array.isArray(speakers)) {
+      for (let i = 0; i < speakers.length; i++) {
+        const sp = speakers[i];
+        if (sp.name?.trim()) {
+          await storage.createSessionSpeaker({
+            sessionId: session.id,
+            speakerOrder: i + 1,
+            name: sp.name.trim(),
+            title: sp.title || null,
+            company: sp.company || null,
+            roleLabel: sp.roleLabel || null,
+          });
+        }
+      }
+    }
+
+    const result = await storage.getAgendaSession(session.id);
+    const spk = await storage.getSessionSpeakers(session.id);
+    res.status(201).json({ ...result, speakers: spk });
+  });
+
+  app.patch("/api/admin/agenda-sessions/:id", requireAuth, async (req, res) => {
+    const { speakers, ...sessionData } = req.body;
+    const allowed = ["eventId", "title", "description", "sessionCode", "sessionTypeKey", "sessionDate", "startTime", "endTime", "timezone", "locationName", "locationDetails", "sponsorId", "sponsorNameSnapshot", "status", "isFeatured", "isPublic"];
+    const updates: any = {};
+    for (const k of allowed) { if (sessionData[k] !== undefined) updates[k] = sessionData[k]; }
+
+    if (updates.sponsorId) {
+      const sponsor = await storage.getSponsor(updates.sponsorId);
+      if (sponsor) updates.sponsorNameSnapshot = sponsor.name;
+    }
+
+    const session = await storage.updateAgendaSession(req.params.id, updates);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    if (speakers && Array.isArray(speakers)) {
+      await storage.deleteSessionSpeakersBySession(session.id);
+      for (let i = 0; i < speakers.length; i++) {
+        const sp = speakers[i];
+        if (sp.name?.trim()) {
+          await storage.createSessionSpeaker({
+            sessionId: session.id,
+            speakerOrder: i + 1,
+            name: sp.name.trim(),
+            title: sp.title || null,
+            company: sp.company || null,
+            roleLabel: sp.roleLabel || null,
+          });
+        }
+      }
+    }
+
+    const spk = await storage.getSessionSpeakers(session.id);
+    res.json({ ...session, speakers: spk });
+  });
+
+  app.delete("/api/admin/agenda-sessions/:id", requireAuth, async (req, res) => {
+    await storage.deleteAgendaSession(req.params.id);
+    res.json({ success: true });
+  });
+
+  // ── Agenda: CSV Import ────────────────────────────────────────────────
+
+  app.get("/api/admin/agenda-csv-template", requireAuth, (_req, res) => {
+    const headers = [
+      "EventCode", "SessionCode", "SessionTitle", "SessionDescription", "SessionType",
+      "SessionDate", "StartTime", "EndTime", "Timezone", "LocationName", "LocationDetails",
+      "Sponsor", "Speaker1Name", "Speaker1Title", "Speaker1Company",
+      "Speaker2Name", "Speaker2Title", "Speaker2Company",
+      "Speaker3Name", "Speaker3Title", "Speaker3Company",
+      "Speaker4Name", "Speaker4Title", "Speaker4Company",
+      "Speaker5Name", "Speaker5Title", "Speaker5Company",
+      "Status", "Featured", "IsPublic",
+    ];
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=agenda_template.csv");
+    res.send(headers.join(",") + "\n");
+  });
+
+  app.post("/api/admin/agenda-sessions/import-csv", requireAuth, async (req, res) => {
+    const { csvData, eventId } = req.body;
+    if (!csvData || !eventId) return res.status(400).json({ error: "csvData and eventId are required" });
+
+    const event = await storage.getEvent(eventId);
+    if (!event) return res.status(404).json({ error: "Event not found" });
+
+    const allEvents = await storage.getEvents();
+    const allSponsors = await storage.getSponsors();
+    const sessionTypesAll = await storage.getSessionTypes();
+
+    const lines = csvData.trim().split("\n");
+    if (lines.length < 2) return res.status(400).json({ error: "CSV must have header row and at least one data row" });
+
+    const parseCSVLine = (line: string): string[] => {
+      const result: string[] = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+          else { inQuotes = !inQuotes; }
+        } else if (ch === ',' && !inQuotes) { result.push(current.trim()); current = ""; }
+        else { current += ch; }
+      }
+      result.push(current.trim());
+      return result;
+    };
+
+    const headers = parseCSVLine(lines[0]);
+    const colIndex = (name: string) => headers.findIndex(h => h.toLowerCase().replace(/[_\s]/g, "") === name.toLowerCase().replace(/[_\s]/g, ""));
+
+    const job = await storage.createAgendaImportJob({
+      eventId,
+      fileName: "csv-upload",
+      status: "processing",
+      rowsTotal: lines.length - 1,
+      rowsCreated: 0,
+      rowsUpdated: 0,
+      rowsFailed: 0,
+      createdByUserId: (req.user as any)?.id || null,
+    });
+
+    let created = 0, updated = 0, failed = 0;
+    const errors: string[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      try {
+        const cols = parseCSVLine(line);
+        const get = (name: string) => { const idx = colIndex(name); return idx >= 0 ? (cols[idx] || "").trim() : ""; };
+
+        const rowEventCode = get("EventCode") || event.slug;
+        const rowEvent = allEvents.find(e => e.slug === rowEventCode);
+        if (!rowEvent) { errors.push(`Row ${i}: unknown event code "${rowEventCode}"`); failed++; continue; }
+        if (rowEvent.id !== eventId) { errors.push(`Row ${i}: event code "${rowEventCode}" does not match selected event`); failed++; continue; }
+
+        const title = get("SessionTitle");
+        if (!title) { errors.push(`Row ${i}: title is required`); failed++; continue; }
+
+        const sessionTypeKey = get("SessionType") || "OTHER";
+        const stMatch = sessionTypesAll.find(st => st.key.toUpperCase() === sessionTypeKey.toUpperCase() || st.label.toLowerCase() === sessionTypeKey.toLowerCase());
+        const finalTypeKey = stMatch?.key || "OTHER";
+
+        const sessionDate = get("SessionDate");
+        const startTime = get("StartTime");
+        const endTime = get("EndTime");
+        if (!sessionDate || !startTime || !endTime) { errors.push(`Row ${i}: date, start time, and end time are required`); failed++; continue; }
+
+        const timezone = get("Timezone") || "America/New_York";
+        const locationName = get("LocationName") || null;
+        const locationDetails = get("LocationDetails") || null;
+        const sponsorName = get("Sponsor");
+        let sponsorId: string | null = null;
+        let sponsorNameSnapshot: string | null = null;
+        if (sponsorName) {
+          const sp = allSponsors.find(s => s.name.toLowerCase() === sponsorName.toLowerCase());
+          if (sp) { sponsorId = sp.id; sponsorNameSnapshot = sp.name; }
+          else { sponsorNameSnapshot = sponsorName; }
+        }
+
+        const sessionCode = get("SessionCode") || null;
+        const status = get("Status") || "Draft";
+        const featured = get("Featured")?.toLowerCase() === "true" || get("Featured") === "1";
+        const isPublic = get("IsPublic") ? (get("IsPublic").toLowerCase() === "true" || get("IsPublic") === "1") : true;
+
+        let existingSession = sessionCode ? await storage.getAgendaSessionByCode(eventId, sessionCode) : null;
+        if (!existingSession) {
+          const allSessions = await storage.getAgendaSessions(eventId);
+          existingSession = allSessions.find(s => s.title === title && s.sessionDate === sessionDate && s.startTime === startTime) || null;
+        }
+
+        const sessionPayload: any = {
+          eventId, title, sessionTypeKey: finalTypeKey, sessionDate, startTime, endTime, timezone,
+          locationName, locationDetails, sponsorId, sponsorNameSnapshot,
+          status: ["Draft", "Published", "Cancelled"].includes(status) ? status : "Draft",
+          isFeatured: featured, isPublic,
+          ...(sessionCode ? { sessionCode } : {}),
+        };
+
+        let sessionId: string;
+        if (existingSession) {
+          await storage.updateAgendaSession(existingSession.id, sessionPayload);
+          await storage.deleteSessionSpeakersBySession(existingSession.id);
+          sessionId = existingSession.id;
+          updated++;
+        } else {
+          const newSession = await storage.createAgendaSession(sessionPayload);
+          sessionId = newSession.id;
+          created++;
+        }
+
+        for (let s = 1; s <= 5; s++) {
+          const spName = get(`Speaker${s}Name`);
+          if (spName) {
+            await storage.createSessionSpeaker({
+              sessionId,
+              speakerOrder: s,
+              name: spName,
+              title: get(`Speaker${s}Title`) || null,
+              company: get(`Speaker${s}Company`) || null,
+            });
+          }
+        }
+      } catch (err: any) {
+        errors.push(`Row ${i}: ${err.message}`);
+        failed++;
+      }
+    }
+
+    await storage.updateAgendaImportJob(job.id, {
+      status: "completed",
+      rowsCreated: created,
+      rowsUpdated: updated,
+      rowsFailed: failed,
+      errorLog: errors.length > 0 ? errors.join("\n") : null,
+    });
+
+    res.json({ created, updated, failed, errors, total: lines.length - 1, jobId: job.id });
+  });
+
+  // ── Agenda: ICS Calendar Export ────────────────────────────────────────
+
+  app.get("/api/agenda-sessions/:id/ics", async (req, res) => {
+    const session = await storage.getAgendaSession(req.params.id);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+    if (!session.isPublic || session.status !== "Published") return res.status(403).json({ error: "Session not available for export" });
+
+    const event = await storage.getEvent(session.eventId);
+    const formatDT = (date: string, time: string) => {
+      const d = date.replace(/-/g, "");
+      const t = time.replace(/:/g, "") + "00";
+      return d + "T" + t;
+    };
+
+    let ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Converge Concierge//Agenda//EN\r\nBEGIN:VEVENT\r\n";
+    ics += `DTSTART;TZID=${session.timezone}:${formatDT(session.sessionDate, session.startTime)}\r\n`;
+    ics += `DTEND;TZID=${session.timezone}:${formatDT(session.sessionDate, session.endTime)}\r\n`;
+    ics += `SUMMARY:${session.title.replace(/\n/g, "\\n")}\r\n`;
+    if (session.description) ics += `DESCRIPTION:${session.description.replace(/\n/g, "\\n").substring(0, 500)}\r\n`;
+    if (session.locationName) ics += `LOCATION:${session.locationName}${session.locationDetails ? " - " + session.locationDetails : ""}\r\n`;
+    ics += `UID:agenda-${session.id}@converge\r\n`;
+    ics += "END:VEVENT\r\nEND:VCALENDAR\r\n";
+
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename=${event?.slug || "session"}-${session.sessionCode || session.id}.ics`);
+    res.send(ics);
   });
 
   // ── Category Matching Rules CRUD ────────────────────────────────────────

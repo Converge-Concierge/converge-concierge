@@ -26,6 +26,11 @@ import {
   type MeetingInvitation, type InsertMeetingInvitation, type MeetingInvitationStatus,
   type AttendeeCategoryDef, type InsertAttendeeCategoryDef,
   type CategoryMatchingRule, type InsertCategoryMatchingRule,
+  type SessionType, type InsertSessionType,
+  type AgendaSession, type InsertAgendaSession,
+  type AgendaSessionSpeaker, type InsertAgendaSessionSpeaker,
+  type AttendeeSavedSession, type InsertAttendeeSavedSession,
+  type AgendaImportJob, type InsertAgendaImportJob,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -321,6 +326,40 @@ export interface IStorage {
   createCategoryMatchingRule(data: InsertCategoryMatchingRule): Promise<CategoryMatchingRule>;
   updateCategoryMatchingRule(id: string, updates: Partial<InsertCategoryMatchingRule>): Promise<CategoryMatchingRule | undefined>;
   deleteCategoryMatchingRule(id: string): Promise<void>;
+
+  // ── Agenda: Session Types ───────────────────────────────────────────────
+  getSessionTypes(): Promise<SessionType[]>;
+  getSessionType(id: string): Promise<SessionType | undefined>;
+  getSessionTypeByKey(key: string): Promise<SessionType | undefined>;
+  createSessionType(data: InsertSessionType): Promise<SessionType>;
+  updateSessionType(id: string, updates: Partial<InsertSessionType>): Promise<SessionType | undefined>;
+  deleteSessionType(id: string): Promise<void>;
+
+  // ── Agenda: Sessions ────────────────────────────────────────────────────
+  getAgendaSessions(eventId?: string): Promise<AgendaSession[]>;
+  getAgendaSession(id: string): Promise<AgendaSession | undefined>;
+  getAgendaSessionByCode(eventId: string, sessionCode: string): Promise<AgendaSession | undefined>;
+  createAgendaSession(data: InsertAgendaSession): Promise<AgendaSession>;
+  updateAgendaSession(id: string, updates: Partial<InsertAgendaSession>): Promise<AgendaSession | undefined>;
+  deleteAgendaSession(id: string): Promise<void>;
+
+  // ── Agenda: Session Speakers ────────────────────────────────────────────
+  getSessionSpeakers(sessionId: string): Promise<AgendaSessionSpeaker[]>;
+  createSessionSpeaker(data: InsertAgendaSessionSpeaker): Promise<AgendaSessionSpeaker>;
+  updateSessionSpeaker(id: string, updates: Partial<InsertAgendaSessionSpeaker>): Promise<AgendaSessionSpeaker | undefined>;
+  deleteSessionSpeaker(id: string): Promise<void>;
+  deleteSessionSpeakersBySession(sessionId: string): Promise<void>;
+
+  // ── Agenda: Attendee Saved Sessions ─────────────────────────────────────
+  getAttendeeSavedSessions(attendeeId: string, eventId: string): Promise<AttendeeSavedSession[]>;
+  createAttendeeSavedSession(data: InsertAttendeeSavedSession): Promise<AttendeeSavedSession>;
+  deleteAttendeeSavedSession(id: string): Promise<void>;
+  countAttendeeSavedSessions(attendeeId: string, eventId: string): Promise<number>;
+
+  // ── Agenda: Import Jobs ─────────────────────────────────────────────────
+  getAgendaImportJobs(eventId?: string): Promise<AgendaImportJob[]>;
+  createAgendaImportJob(data: InsertAgendaImportJob): Promise<AgendaImportJob>;
+  updateAgendaImportJob(id: string, updates: Partial<InsertAgendaImportJob>): Promise<AgendaImportJob | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -1037,6 +1076,35 @@ export class MemStorage implements IStorage {
     return updated;
   }
   async deleteCategoryMatchingRule(id: string): Promise<void> { this.catRules.delete(id); }
+
+  async getSessionTypes(): Promise<SessionType[]> { return []; }
+  async getSessionType(_id: string): Promise<SessionType | undefined> { return undefined; }
+  async getSessionTypeByKey(_key: string): Promise<SessionType | undefined> { return undefined; }
+  async createSessionType(data: InsertSessionType): Promise<SessionType> { return { id: randomUUID(), ...data, isActive: data.isActive ?? true, displayOrder: data.displayOrder ?? 0, createdAt: new Date(), updatedAt: new Date() } as SessionType; }
+  async updateSessionType(_id: string, _updates: Partial<InsertSessionType>): Promise<SessionType | undefined> { return undefined; }
+  async deleteSessionType(_id: string): Promise<void> {}
+
+  async getAgendaSessions(_eventId?: string): Promise<AgendaSession[]> { return []; }
+  async getAgendaSession(_id: string): Promise<AgendaSession | undefined> { return undefined; }
+  async getAgendaSessionByCode(_eventId: string, _sessionCode: string): Promise<AgendaSession | undefined> { return undefined; }
+  async createAgendaSession(data: InsertAgendaSession): Promise<AgendaSession> { return { id: randomUUID(), ...data, createdAt: new Date(), updatedAt: new Date() } as AgendaSession; }
+  async updateAgendaSession(_id: string, _updates: Partial<InsertAgendaSession>): Promise<AgendaSession | undefined> { return undefined; }
+  async deleteAgendaSession(_id: string): Promise<void> {}
+
+  async getSessionSpeakers(_sessionId: string): Promise<AgendaSessionSpeaker[]> { return []; }
+  async createSessionSpeaker(data: InsertAgendaSessionSpeaker): Promise<AgendaSessionSpeaker> { return { id: randomUUID(), ...data, createdAt: new Date(), updatedAt: new Date() } as AgendaSessionSpeaker; }
+  async updateSessionSpeaker(_id: string, _updates: Partial<InsertAgendaSessionSpeaker>): Promise<AgendaSessionSpeaker | undefined> { return undefined; }
+  async deleteSessionSpeaker(_id: string): Promise<void> {}
+  async deleteSessionSpeakersBySession(_sessionId: string): Promise<void> {}
+
+  async getAttendeeSavedSessions(_attendeeId: string, _eventId: string): Promise<AttendeeSavedSession[]> { return []; }
+  async createAttendeeSavedSession(data: InsertAttendeeSavedSession): Promise<AttendeeSavedSession> { return { id: randomUUID(), ...data, savedAt: new Date() } as AttendeeSavedSession; }
+  async deleteAttendeeSavedSession(_id: string): Promise<void> {}
+  async countAttendeeSavedSessions(_attendeeId: string, _eventId: string): Promise<number> { return 0; }
+
+  async getAgendaImportJobs(_eventId?: string): Promise<AgendaImportJob[]> { return []; }
+  async createAgendaImportJob(data: InsertAgendaImportJob): Promise<AgendaImportJob> { return { id: randomUUID(), ...data, createdAt: new Date(), completedAt: null } as AgendaImportJob; }
+  async updateAgendaImportJob(_id: string, _updates: Partial<InsertAgendaImportJob>): Promise<AgendaImportJob | undefined> { return undefined; }
 }
 
 export const storage = new DatabaseStorage();

@@ -498,6 +498,7 @@ export interface UserPermissions {
   mod_emailCenter: boolean;
   mod_dataBackup: boolean;
   mod_dataManagement: boolean;
+  mod_agenda: boolean;
   // Events actions
   ev_create: boolean;
   ev_edit: boolean;
@@ -591,6 +592,12 @@ export interface UserPermissions {
   us_resetPassword: boolean;
   us_managePermissions: boolean;
   us_manageRoles: boolean;
+  // Agenda
+  ag_create: boolean;
+  ag_edit: boolean;
+  ag_delete: boolean;
+  ag_import: boolean;
+  ag_manageSessionTypes: boolean;
   // Matchmaking & Invitations
   mm_viewDiscovery: boolean;
   mm_manageSettings: boolean;
@@ -617,7 +624,7 @@ export const DEFAULT_USER_PERMISSIONS: UserPermissions = {
   mod_meetings: false, mod_infoRequests: false, mod_reports: false, mod_dataExchange: false,
   mod_branding: false, mod_settings: false, mod_users: false, mod_accessControl: false,
   mod_deliverables: false, mod_sponsorDashboards: false, mod_sponsorshipTemplates: false,
-  mod_emailCenter: false, mod_dataBackup: false, mod_dataManagement: false,
+  mod_emailCenter: false, mod_dataBackup: false, mod_dataManagement: false, mod_agenda: false,
   ev_create: false, ev_edit: false, ev_archive: false, ev_delete: false, ev_copy: false,
   ev_editBranding: false, ev_editMeetingBlocks: false, ev_toggleScheduling: false,
   sp_create: false, sp_edit: false, sp_archive: false, sp_delete: false, sp_copy: false,
@@ -642,6 +649,8 @@ export const DEFAULT_USER_PERMISSIONS: UserPermissions = {
   br_edit: false, st_edit: false,
   us_create: false, us_edit: false, us_deactivate: false, us_resetPassword: false,
   us_managePermissions: false, us_manageRoles: false,
+  ag_create: false, ag_edit: false, ag_delete: false, ag_import: false,
+  ag_manageSessionTypes: false,
   mm_viewDiscovery: false, mm_manageSettings: false, mm_viewInvitations: false,
   mm_manageInvitations: false, mm_sendInvitations: false, mm_viewAnalytics: false,
   demo_viewTools: false, demo_resetEnvironment: false, demo_runSeed: false,
@@ -660,6 +669,7 @@ export const ROLE_PRESETS: Record<string, Partial<UserPermissions>> = {
     mod_dashboard: true, mod_events: true, mod_sponsors: true, mod_attendees: true,
     mod_meetings: true, mod_infoRequests: true, mod_reports: true, mod_deliverables: true,
     mod_sponsorDashboards: true, mod_sponsorshipTemplates: true, mod_emailCenter: true,
+    mod_agenda: true,
     ev_create: true, ev_edit: true, ev_archive: true, ev_copy: true,
     ev_editBranding: true, ev_editMeetingBlocks: true, ev_toggleScheduling: true,
     sp_create: true, sp_edit: true, sp_archive: true, sp_copy: true, sp_export: true,
@@ -676,6 +686,8 @@ export const ROLE_PRESETS: Record<string, Partial<UserPermissions>> = {
     rp_view: true, rp_export: true, rp_generate: true, rp_download: true,
     rp_viewContactData: true,
     ec_viewTemplates: true, ec_editTemplates: true, ec_sendTestEmail: true, ec_viewLogs: true,
+    ag_create: true, ag_edit: true, ag_delete: true, ag_import: true,
+    ag_manageSessionTypes: true,
     mm_viewDiscovery: true, mm_manageSettings: true, mm_viewInvitations: true,
     mm_manageInvitations: true, mm_sendInvitations: true, mm_viewAnalytics: true,
     data_viewAttendeeEmails: true, data_viewSponsorContacts: true,
@@ -1283,3 +1295,122 @@ export const backupJobs = pgTable("backup_jobs", {
 export const insertBackupJobSchema = createInsertSchema(backupJobs).omit({ id: true, createdAt: true });
 export type InsertBackupJob = z.infer<typeof insertBackupJobSchema>;
 export type BackupJob = typeof backupJobs.$inferSelect;
+
+// ── Agenda Module ─────────────────────────────────────────────────────────────
+
+// Session Types (configurable)
+export const sessionTypes = pgTable("session_types", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  label: text("label").notNull(),
+  speakerLabelSingular: text("speaker_label_singular").notNull().default("Speaker"),
+  speakerLabelPlural: text("speaker_label_plural").notNull().default("Speakers"),
+  isActive: boolean("is_active").notNull().default(true),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertSessionTypeSchema = createInsertSchema(sessionTypes).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertSessionType = z.infer<typeof insertSessionTypeSchema>;
+export type SessionType = typeof sessionTypes.$inferSelect;
+
+export const DEFAULT_SESSION_TYPES: Omit<InsertSessionType, "displayOrder">[] = [
+  { key: "PANEL", label: "Panel", speakerLabelSingular: "Panelist", speakerLabelPlural: "Panelists" },
+  { key: "PEER_TO_PEER", label: "Peer-to-Peer", speakerLabelSingular: "Discussion Leader", speakerLabelPlural: "Discussion Leaders" },
+  { key: "KEYNOTE", label: "Keynote", speakerLabelSingular: "Speaker", speakerLabelPlural: "Speakers" },
+  { key: "NETWORKING", label: "Networking", speakerLabelSingular: "Speaker", speakerLabelPlural: "Speakers" },
+  { key: "OTHER", label: "Other", speakerLabelSingular: "Speaker", speakerLabelPlural: "Speakers" },
+];
+
+// Agenda Sessions
+export const agendaSessions = pgTable("agenda_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull(),
+  sessionCode: text("session_code"),
+  title: text("title").notNull(),
+  description: text("description"),
+  sessionTypeKey: text("session_type_key").notNull(),
+  sessionDate: text("session_date").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  timezone: text("timezone").notNull().default("America/New_York"),
+  locationName: text("location_name"),
+  locationDetails: text("location_details"),
+  sponsorId: varchar("sponsor_id"),
+  sponsorNameSnapshot: text("sponsor_name_snapshot"),
+  status: text("status", { enum: ["Draft", "Published", "Cancelled"] }).notNull().default("Draft"),
+  displayOrder: integer("display_order").notNull().default(0),
+  isFeatured: boolean("is_featured").notNull().default(false),
+  isPublic: boolean("is_public").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertAgendaSessionSchema = createInsertSchema(agendaSessions).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  sessionCode: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  locationName: z.string().nullable().optional(),
+  locationDetails: z.string().nullable().optional(),
+  sponsorId: z.string().nullable().optional(),
+  sponsorNameSnapshot: z.string().nullable().optional(),
+  status: z.enum(["Draft", "Published", "Cancelled"]).default("Draft"),
+  isFeatured: z.boolean().default(false),
+  isPublic: z.boolean().default(true),
+});
+export type InsertAgendaSession = z.infer<typeof insertAgendaSessionSchema>;
+export type AgendaSession = typeof agendaSessions.$inferSelect;
+
+// Agenda Session Speakers
+export const agendaSessionSpeakers = pgTable("agenda_session_speakers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull(),
+  speakerOrder: integer("speaker_order").notNull().default(1),
+  name: text("name").notNull(),
+  title: text("title"),
+  company: text("company"),
+  roleLabel: text("role_label"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertAgendaSessionSpeakerSchema = createInsertSchema(agendaSessionSpeakers).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  title: z.string().nullable().optional(),
+  company: z.string().nullable().optional(),
+  roleLabel: z.string().nullable().optional(),
+});
+export type InsertAgendaSessionSpeaker = z.infer<typeof insertAgendaSessionSpeakerSchema>;
+export type AgendaSessionSpeaker = typeof agendaSessionSpeakers.$inferSelect;
+
+// Attendee Saved Sessions (My Agenda)
+export const attendeeSavedSessions = pgTable("attendee_saved_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  attendeeId: varchar("attendee_id").notNull(),
+  eventId: varchar("event_id").notNull(),
+  sessionId: varchar("session_id").notNull(),
+  savedAt: timestamp("saved_at").notNull().defaultNow(),
+});
+
+export const insertAttendeeSavedSessionSchema = createInsertSchema(attendeeSavedSessions).omit({ id: true, savedAt: true });
+export type InsertAttendeeSavedSession = z.infer<typeof insertAttendeeSavedSessionSchema>;
+export type AttendeeSavedSession = typeof attendeeSavedSessions.$inferSelect;
+
+// Agenda Import Jobs
+export const agendaImportJobs = pgTable("agenda_import_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull(),
+  fileName: text("file_name").notNull(),
+  status: text("status", { enum: ["pending", "processing", "completed", "failed"] }).notNull().default("pending"),
+  rowsTotal: integer("rows_total").notNull().default(0),
+  rowsCreated: integer("rows_created").notNull().default(0),
+  rowsUpdated: integer("rows_updated").notNull().default(0),
+  rowsFailed: integer("rows_failed").notNull().default(0),
+  errorLog: text("error_log"),
+  createdByUserId: varchar("created_by_user_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertAgendaImportJobSchema = createInsertSchema(agendaImportJobs).omit({ id: true, createdAt: true, completedAt: true });
+export type InsertAgendaImportJob = z.infer<typeof insertAgendaImportJobSchema>;
+export type AgendaImportJob = typeof agendaImportJobs.$inferSelect;

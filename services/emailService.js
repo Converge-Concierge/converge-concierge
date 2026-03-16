@@ -53,6 +53,40 @@ export async function sendEmail(to, subject, htmlContent, attachments) {
   return apiInstance.sendTransacEmail(email);
 }
 
+// ── Automation gate check ─────────────────────────────────────────────────────
+
+const AUTOMATION_KEY_MAP = {
+  meeting_confirmation_attendee: "meeting_confirmation",
+  meeting_notification_sponsor: "meeting_notification_sponsor",
+  info_request_notification_sponsor: "info_request_notification",
+  info_request_confirmation_attendee: "info_request_confirmation",
+  scheduling_invitation: "scheduling_invitation",
+  sponsor_magic_login: "sponsor_dashboard_welcome",
+  meeting_reminder_24h: "meeting_reminder_24h",
+  meeting_reminder_2h: "meeting_reminder_2h",
+  deliverable_reminder: "deliverable_reminder",
+};
+
+export async function isAutomationEnabled(storage, emailType) {
+  const automationKey = AUTOMATION_KEY_MAP[emailType];
+  if (!automationKey) return true;
+  try {
+    const rule = await storage.getAutomationRuleByKey(automationKey);
+    if (!rule) return true;
+    return rule.isEnabled;
+  } catch {
+    return true;
+  }
+}
+
+export async function recordAutomationSend(storage, emailType, sent, failures, errorMsg) {
+  const automationKey = AUTOMATION_KEY_MAP[emailType];
+  if (!automationKey) return;
+  try {
+    await storage.recordAutomationExecution(automationKey, sent, failures, errorMsg);
+  } catch {}
+}
+
 // ── Internal: send + log ──────────────────────────────────────────────────────
 
 async function sendAndLog(storage, { emailType, to, subject, html, eventId, sponsorId, attendeeId, resendOfId, attachments, source, templateId }) {
@@ -70,6 +104,7 @@ async function sendAndLog(storage, { emailType, to, subject, html, eventId, spon
   }
   try {
     const id = await storage.createEmailLog({ emailType, recipientEmail: to, subject, htmlContent: html, eventId, sponsorId, attendeeId, status, errorMessage, resendOfId: resendOfId ?? null, providerMessageId, source: source ?? null, templateId: templateId ?? null });
+    await recordAutomationSend(storage, emailType, status === "sent" ? 1 : 0, status === "failed" ? 1 : 0, errorMessage);
     return id;
   } catch (logErr) {
     console.error(`[EMAIL LOG] Failed to write email log: ${logErr?.message || logErr}`);
@@ -82,6 +117,10 @@ async function sendAndLog(storage, { emailType, to, subject, html, eventId, spon
 export async function sendMeetingConfirmationToAttendee(storage, attendee, sponsor, meeting, event) {
   if (!attendee?.email) {
     console.warn(`[EMAIL] No attendee email — skipping meeting confirmation for meeting ${meeting?.id}`);
+    return;
+  }
+  if (!await isAutomationEnabled(storage, "meeting_confirmation_attendee")) {
+    console.log(`[EMAIL] Automation disabled — skipping meeting confirmation for ${attendee.email}`);
     return;
   }
 
@@ -131,6 +170,10 @@ export async function sendMeetingNotificationToSponsor(storage, attendee, sponso
   const contactEmail = sponsor?.contactEmail;
   if (!contactEmail) {
     console.warn(`[EMAIL] Sponsor "${sponsor?.name}" has no contact email — skipping meeting notification for meeting ${meeting?.id}`);
+    return;
+  }
+  if (!await isAutomationEnabled(storage, "meeting_notification_sponsor")) {
+    console.log(`[EMAIL] Automation disabled — skipping meeting notification to sponsor for meeting ${meeting?.id}`);
     return;
   }
 
@@ -186,6 +229,10 @@ export async function sendInformationRequestNotificationToSponsor(storage, atten
     console.warn(`[EMAIL] Sponsor "${sponsor?.name}" has no contact email — skipping info request notification for request ${infoRequest?.id}`);
     return;
   }
+  if (!await isAutomationEnabled(storage, "info_request_notification_sponsor")) {
+    console.log(`[EMAIL] Automation disabled — skipping info request notification for ${contactEmail}`);
+    return;
+  }
   const firstName = infoRequest?.attendeeFirstName ?? attendee?.firstName ?? "";
   const lastName = infoRequest?.attendeeLastName ?? attendee?.lastName ?? "";
   const subject = `New information request from ${firstName} ${lastName}`.trim();
@@ -216,6 +263,10 @@ export async function sendInformationRequestConfirmationToAttendee(storage, info
   const toEmail = infoRequest?.attendeeEmail;
   if (!toEmail) {
     console.warn(`[EMAIL] No attendee email on info request ${infoRequest?.id} — skipping confirmation`);
+    return;
+  }
+  if (!await isAutomationEnabled(storage, "info_request_confirmation_attendee")) {
+    console.log(`[EMAIL] Automation disabled — skipping info request confirmation for ${toEmail}`);
     return;
   }
   const sponsorDisplayName = sponsor?.name ? sponsor.name.trim() : "";
@@ -264,6 +315,10 @@ export async function sendPasswordResetEmail(storage, user, rawToken, baseUrl) {
 export async function sendSponsorMagicLoginEmail(storage, sponsorUser, sponsor, rawToken, baseUrl, eventName) {
   const toEmail = sponsorUser?.email;
   if (!toEmail) return;
+  if (!await isAutomationEnabled(storage, "sponsor_magic_login")) {
+    console.log(`[EMAIL] Automation disabled — skipping sponsor magic login for ${toEmail}`);
+    return;
+  }
   const loginUrl = `${baseUrl}/sponsor/auth/magic?token=${rawToken}`;
   const subject = `Your Converge Concierge Sponsor Dashboard${eventName ? ` — ${eventName}` : ""}`;
   const html = sponsorMagicLoginEmail({

@@ -5,6 +5,7 @@ import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { seedEmailTemplates } from "./email-template-seeder";
+import { seedAutomationRules } from "./automation-seeder";
 import { seedSessionTypes } from "./session-type-seeder";
 import { startReminderJob } from "./reminder-service";
 import { startBackupScheduler } from "./backup-service";
@@ -98,6 +99,7 @@ app.use((req, res, next) => {
   await registerRoutes(httpServer, app);
 
   seedEmailTemplates(storage).catch(err => console.error("[STARTUP] Email template seeding failed:", err));
+  seedAutomationRules(storage).catch(err => console.error("[STARTUP] Automation rules seeding failed:", err));
   seedSessionTypes().catch(err => console.error("[STARTUP] Session type seeding failed:", err));
   startReminderJob();
   startBackupScheduler();

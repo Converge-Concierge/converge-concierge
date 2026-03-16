@@ -943,6 +943,43 @@ export const emailTemplateVersions = pgTable("email_template_versions", {
 
 export type EmailTemplateVersion = typeof emailTemplateVersions.$inferSelect;
 
+// ── Automation Rules ────────────────────────────────────────────────────────────
+
+export const AUTOMATION_CATEGORIES = ["Meeting", "Info Requests", "Sponsor", "Attendee", "System"] as const;
+export type AutomationCategory = typeof AUTOMATION_CATEGORIES[number];
+
+export const automationRules = pgTable("automation_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  automationKey: varchar("automation_key").notNull().unique(),
+  name: varchar("name").notNull(),
+  category: varchar("category").notNull(),
+  triggerDescription: varchar("trigger_description").notNull(),
+  audience: varchar("audience").notNull(),
+  templateKey: varchar("template_key"),
+  eventScope: varchar("event_scope").notNull().default("All Events"),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  lastRunAt: timestamp("last_run_at"),
+  emailsSent: integer("emails_sent").notNull().default(0),
+  failures: integer("failures").notNull().default(0),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type AutomationRule = typeof automationRules.$inferSelect;
+
+export const automationLogs = pgTable("automation_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  automationId: varchar("automation_id").notNull(),
+  executedAt: timestamp("executed_at").notNull().defaultNow(),
+  emailsSent: integer("emails_sent").notNull().default(0),
+  failures: integer("failures").notNull().default(0),
+  status: varchar("status").notNull().default("success"),
+  errorMessage: text("error_message"),
+});
+
+export type AutomationLog = typeof automationLogs.$inferSelect;
+
 // ── Agreement Deliverables ─────────────────────────────────────────────────────
 
 export const DELIVERABLE_CATEGORIES = [

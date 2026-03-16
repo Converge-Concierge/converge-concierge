@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import type { EmailLog, Event, Sponsor, EmailTemplate, EmailTemplateVersion, ScheduledEmail } from "@shared/schema";
+import type { EmailLog, Event, Sponsor, EmailTemplate, EmailTemplateVersion, ScheduledEmail, AutomationRule, AutomationLog } from "@shared/schema";
 import { EMAIL_TEMPLATE_CATEGORIES } from "@shared/schema";
 
 const EMAIL_SOURCE_OPTIONS = [
@@ -18,7 +18,8 @@ import {
   FlaskConical, Building2, User, AlertCircle, CheckCircle2,
   Clock, CalendarDays, X, RotateCcw, ChevronRight, Code,
   Settings2, Edit2, FileText, Layout, Plus, Pencil, Trash2, Ban,
-  Timer, History, Tag, Filter, Undo2,
+  Timer, History, Tag, Filter, Undo2, Zap, Power, PauseCircle,
+  PlayCircle, ToggleLeft, ToggleRight, Activity, Info,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -784,6 +785,315 @@ function EmailTemplatesTab() {
   );
 }
 
+// ── Automations Tab Component ─────────────────────────────────────────────────
+
+const AUTOMATION_CATEGORY_COLORS: Record<string, string> = {
+  Meeting: "bg-blue-100 text-blue-700 border-blue-200",
+  "Info Requests": "bg-purple-100 text-purple-700 border-purple-200",
+  Sponsor: "bg-amber-100 text-amber-700 border-amber-200",
+  Attendee: "bg-green-100 text-green-700 border-green-200",
+  System: "bg-gray-100 text-gray-700 border-gray-200",
+};
+
+function AutomationsTab() {
+  const { toast } = useToast();
+  const [selectedRule, setSelectedRule] = useState<AutomationRule | null>(null);
+
+  const { data: rules = [], isLoading } = useQuery<AutomationRule[]>({
+    queryKey: ["/api/admin/automations"],
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, isEnabled }: { id: string; isEnabled: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/admin/automations/${id}`, { isEnabled });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/automations"] });
+    },
+  });
+
+  const pauseAllMutation = useMutation({
+    mutationFn: async () => { await apiRequest("POST", "/api/admin/automations/pause-all"); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/automations"] });
+      toast({ title: "All automations paused" });
+    },
+  });
+
+  const resumeAllMutation = useMutation({
+    mutationFn: async () => { await apiRequest("POST", "/api/admin/automations/resume-all"); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/automations"] });
+      toast({ title: "All automations resumed" });
+    },
+  });
+
+  const allEnabled = rules.length > 0 && rules.every((r) => r.isEnabled);
+  const allDisabled = rules.length > 0 && rules.every((r) => !r.isEnabled);
+  const enabledCount = rules.filter((r) => r.isEnabled).length;
+
+  const categories = useMemo(() => {
+    const cats: Record<string, AutomationRule[]> = {};
+    for (const r of rules) {
+      if (!cats[r.category]) cats[r.category] = [];
+      cats[r.category].push(r);
+    }
+    return cats;
+  }, [rules]);
+
+  const fmtDate = (d: string | Date | null | undefined) => {
+    if (!d) return "Never";
+    const dt = new Date(d);
+    return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
+      " " + dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
+            <Zap className="h-6 w-6 text-accent" />
+            Automations
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage automated email workflows — toggle individual rules or pause everything at once.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-muted-foreground mr-2">
+            <span className="font-semibold text-foreground">{enabledCount}</span> of {rules.length} active
+          </div>
+          {!allDisabled && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 h-8 text-amber-700 border-amber-200 hover:bg-amber-50"
+              onClick={() => pauseAllMutation.mutate()}
+              disabled={pauseAllMutation.isPending}
+              data-testid="button-pause-all-automations"
+            >
+              <PauseCircle className="h-3.5 w-3.5" /> Pause All
+            </Button>
+          )}
+          {!allEnabled && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 h-8 text-green-700 border-green-200 hover:bg-green-50"
+              onClick={() => resumeAllMutation.mutate()}
+              disabled={resumeAllMutation.isPending}
+              data-testid="button-resume-all-automations"
+            >
+              <PlayCircle className="h-3.5 w-3.5" /> Resume All
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {allDisabled && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3" data-testid="banner-all-paused">
+          <PauseCircle className="h-5 w-5 text-amber-600 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">All automations are paused</p>
+            <p className="text-xs text-amber-600 mt-0.5">No automated emails will be sent until automations are resumed.</p>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
+          <RefreshCw className="h-4 w-4 animate-spin" /> Loading automations…
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(categories).map(([category, catRules]) => (
+            <div key={category}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className={cn("text-xs font-semibold px-2.5 py-0.5 rounded-full border", AUTOMATION_CATEGORY_COLORS[category] || AUTOMATION_CATEGORY_COLORS.System)}>
+                  {category}
+                </span>
+                <span className="text-xs text-muted-foreground">{catRules.length} rule{catRules.length !== 1 ? "s" : ""}</span>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-card overflow-hidden divide-y divide-border/40">
+                {catRules.map((rule) => (
+                  <div key={rule.id} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/20 transition-colors" data-testid={`automation-row-${rule.automationKey}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground truncate">{rule.name}</p>
+                        <span className={cn(
+                          "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                          rule.isEnabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                        )}>
+                          {rule.isEnabled ? "Enabled" : "Disabled"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        <span className="font-medium">Trigger:</span> {rule.triggerDescription}
+                      </p>
+                      <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><User className="h-3 w-3" /> {rule.audience}</span>
+                        {rule.templateKey && (
+                          <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> {rule.templateKey}</span>
+                        )}
+                        <span className="flex items-center gap-1"><Settings2 className="h-3 w-3" /> {rule.eventScope}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6 shrink-0">
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Last Run</p>
+                        <p className="text-xs font-medium">{fmtDate(rule.lastRunAt)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Sent</p>
+                        <p className="text-sm font-semibold">{rule.emailsSent}</p>
+                      </div>
+                      {(rule.failures ?? 0) > 0 && (
+                        <div className="text-right">
+                          <p className="text-xs text-red-500">Failures</p>
+                          <p className="text-sm font-semibold text-red-600">{rule.failures}</p>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => toggleMutation.mutate({ id: rule.id, isEnabled: !rule.isEnabled })}
+                        className="focus:outline-none"
+                        data-testid={`toggle-automation-${rule.automationKey}`}
+                        disabled={toggleMutation.isPending}
+                      >
+                        {rule.isEnabled ? (
+                          <ToggleRight className="h-7 w-7 text-green-500" />
+                        ) : (
+                          <ToggleLeft className="h-7 w-7 text-gray-400" />
+                        )}
+                      </button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setSelectedRule(rule)} data-testid={`view-automation-${rule.automationKey}`}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Sheet open={!!selectedRule} onOpenChange={(o) => { if (!o) setSelectedRule(null); }}>
+        <SheetContent side="right" className="w-[520px] sm:max-w-[520px] flex flex-col">
+          <SheetHeader className="pb-4 border-b border-border/40">
+            <SheetTitle className="flex items-center gap-2 text-base font-display">
+              <Zap className="h-4 w-4 text-accent" />
+              Automation Detail
+            </SheetTitle>
+          </SheetHeader>
+          {selectedRule && <AutomationDetailPanel rule={selectedRule} fmtDate={fmtDate} />}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function AutomationDetailPanel({ rule, fmtDate }: { rule: AutomationRule; fmtDate: (d: string | Date | null | undefined) => string }) {
+  const { data: logs = [], isLoading } = useQuery<AutomationLog[]>({
+    queryKey: ["/api/admin/automations", rule.id, "logs"],
+  });
+
+  return (
+    <div className="flex-1 overflow-y-auto py-4 space-y-5">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border border-border/50 bg-muted/20 p-3 col-span-2">
+          <p className="text-xs text-muted-foreground mb-1">Name</p>
+          <p className="text-sm font-semibold">{rule.name}</p>
+        </div>
+        <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+          <p className="text-xs text-muted-foreground mb-1">Category</p>
+          <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full border", AUTOMATION_CATEGORY_COLORS[rule.category] || AUTOMATION_CATEGORY_COLORS.System)}>
+            {rule.category}
+          </span>
+        </div>
+        <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+          <p className="text-xs text-muted-foreground mb-1">Status</p>
+          <span className={cn("text-xs font-semibold px-2 py-0.5 rounded", rule.isEnabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
+            {rule.isEnabled ? "Enabled" : "Disabled"}
+          </span>
+        </div>
+        <div className="rounded-lg border border-border/50 bg-muted/20 p-3 col-span-2">
+          <p className="text-xs text-muted-foreground mb-1">Trigger</p>
+          <p className="text-sm">{rule.triggerDescription}</p>
+        </div>
+        <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+          <p className="text-xs text-muted-foreground mb-1">Audience</p>
+          <p className="text-sm">{rule.audience}</p>
+        </div>
+        <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+          <p className="text-xs text-muted-foreground mb-1">Event Scope</p>
+          <p className="text-sm">{rule.eventScope}</p>
+        </div>
+        {rule.templateKey && (
+          <div className="rounded-lg border border-border/50 bg-muted/20 p-3 col-span-2">
+            <p className="text-xs text-muted-foreground mb-1">Template</p>
+            <p className="text-sm font-mono">{rule.templateKey}</p>
+          </div>
+        )}
+        <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+          <p className="text-xs text-muted-foreground mb-1">Last Run</p>
+          <p className="text-sm">{fmtDate(rule.lastRunAt)}</p>
+        </div>
+        <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+          <p className="text-xs text-muted-foreground mb-1">Total Emails Sent</p>
+          <p className="text-sm font-semibold">{rule.emailsSent}</p>
+        </div>
+        {(rule.failures ?? 0) > 0 && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+            <p className="text-xs text-red-600 mb-1">Failures</p>
+            <p className="text-sm font-semibold text-red-700">{rule.failures}</p>
+          </div>
+        )}
+        {rule.lastError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 col-span-2">
+            <p className="text-xs text-red-600 mb-1 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Last Error</p>
+            <p className="text-xs text-red-700 font-mono">{rule.lastError}</p>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent Execution History</p>
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground py-4"><RefreshCw className="h-3 w-3 animate-spin" /> Loading…</div>
+        ) : logs.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-4">No execution history yet.</p>
+        ) : (
+          <div className="rounded-lg border border-border/50 bg-muted/10 divide-y divide-border/30">
+            {logs.slice(0, 10).map((log) => (
+              <div key={log.id} className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className={cn("h-2 w-2 rounded-full", log.status === "success" ? "bg-green-500" : "bg-red-500")} />
+                  <span className="text-xs text-muted-foreground">{fmtDate(log.executedAt)}</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="text-foreground font-medium">{log.emailsSent} sent</span>
+                  {(log.failures ?? 0) > 0 && <span className="text-red-600">{log.failures} failed</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {!rule.isEnabled && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs text-amber-700 flex items-center gap-1">
+            <Info className="h-3 w-3" />
+            This automation is currently disabled. No new emails will be triggered until it is re-enabled.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Scheduled Emails Tab ─────────────────────────────────────────────────────
 
 const SCHED_STATUS_CONFIG: Record<string, { className: string }> = {
@@ -1266,6 +1576,9 @@ export default function EmailCenterPage() {
             <TabsTrigger value="templates" className="gap-2">
               <Layout className="h-3.5 w-3.5" /> Templates
             </TabsTrigger>
+            <TabsTrigger value="automations" className="gap-2" data-testid="tab-automations">
+              <Zap className="h-3.5 w-3.5" /> Automations
+            </TabsTrigger>
             <TabsTrigger value="scheduled" className="gap-2" data-testid="tab-scheduled-emails">
               <Timer className="h-3.5 w-3.5" /> Scheduled
             </TabsTrigger>
@@ -1426,6 +1739,10 @@ export default function EmailCenterPage() {
 
         <TabsContent value="templates" className="mt-0">
           <EmailTemplatesTab />
+        </TabsContent>
+
+        <TabsContent value="automations" className="mt-0">
+          <AutomationsTab />
         </TabsContent>
 
         <TabsContent value="scheduled" className="mt-0">

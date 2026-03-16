@@ -6,7 +6,7 @@ import { normalizeAttendeeCategory, rankAttendees, categoryLabel, setCategoryWei
 import { evaluateRules, testRulesAgainstValue } from "./services/categoryRuleEngine";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
-import { sendEmail, sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee, sendInternalDeliverableNotification as sendInternalNotification } from "../services/emailService";
+import { sendEmail, sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee, sendInternalDeliverableNotification as sendInternalNotification, isAutomationEnabled, recordAutomationSend } from "../services/emailService";
 import multer from "multer";
 import path from "path";
 import { randomBytes, createHash } from "crypto";
@@ -708,6 +708,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.post("/api/admin/attendees/:id/send-scheduling-email", requireAuth, async (req, res) => {
     try {
+      if (!await isAutomationEnabled(storage, "scheduling_invitation")) {
+        return res.status(400).json({ message: "The Scheduling Invitation automation is currently disabled" });
+      }
       const attendee = await storage.getAttendee(req.params.id);
       if (!attendee) return res.status(404).json({ message: "Attendee not found" });
       if (!attendee.email) return res.status(400).json({ message: "Attendee has no email address" });
@@ -778,6 +781,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         providerMessageId,
         source: "Automation – Scheduling Invitation",
       });
+
+      await recordAutomationSend(storage, "scheduling_invitation", status === "sent" ? 1 : 0, status === "failed" ? 1 : 0, errorMessage);
 
       if (status === "failed") {
         return res.status(500).json({ message: `Failed to send email: ${errorMessage}` });
@@ -4002,6 +4007,35 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
     const logId = await storage.createEmailLog({ emailType: `template_test_${template.templateKey}`, recipientEmail: email.trim(), subject: `[Test] ${subject}`, htmlContent: html, status: sendStatus, errorMessage, source: "Manual" });
     res.json({ ok: sendStatus === "sent", status: sendStatus, errorMessage, logId });
+  });
+
+  // ── Automation Rules API ─────────────────────────────────────────────────
+
+  app.get("/api/admin/automations", requireAuth, async (_req, res) => {
+    const rules = await storage.getAutomationRules();
+    res.json(rules);
+  });
+
+  app.patch("/api/admin/automations/:id", requireAdmin, async (req, res) => {
+    const { isEnabled } = req.body;
+    if (typeof isEnabled !== "boolean") return res.status(400).json({ message: "isEnabled must be a boolean" });
+    const updated = await storage.updateAutomationRule(req.params.id, { isEnabled });
+    res.json(updated);
+  });
+
+  app.post("/api/admin/automations/pause-all", requireAdmin, async (_req, res) => {
+    await storage.setAllAutomationsEnabled(false);
+    res.json({ ok: true, message: "All automations paused" });
+  });
+
+  app.post("/api/admin/automations/resume-all", requireAdmin, async (_req, res) => {
+    await storage.setAllAutomationsEnabled(true);
+    res.json({ ok: true, message: "All automations resumed" });
+  });
+
+  app.get("/api/admin/automations/:id/logs", requireAuth, async (req, res) => {
+    const logs = await storage.getAutomationLogs(req.params.id, 20);
+    res.json(logs);
   });
 
   // ── Email Test Routes (admin-only) ────────────────────────────────────────

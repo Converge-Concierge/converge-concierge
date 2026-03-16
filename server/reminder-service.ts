@@ -1,5 +1,5 @@
 import { storage } from "./storage";
-import { sendMeetingReminderEmail, sendDeliverableReminderEmail } from "../services/emailService.js";
+import { sendMeetingReminderEmail, sendDeliverableReminderEmail, isAutomationEnabled } from "../services/emailService.js";
 
 const INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const WEEKLY_INTERVAL_MS = 60 * 60 * 1000; // 1 hour check for weekly job
@@ -18,17 +18,27 @@ async function runReminderCheck(): Promise<void> {
 
     console.log(`[REMINDERS] Processing ${dueMeetings.length} meeting(s) due for reminders`);
 
+    const is24hEnabled = await isAutomationEnabled(storage, "meeting_reminder_24h");
+    const is2hEnabled = await isAutomationEnabled(storage, "meeting_reminder_2h");
+
+    if (!is24hEnabled && !is2hEnabled) {
+      console.log("[REMINDERS] All meeting reminder automations disabled — skipping");
+      return;
+    }
+
     const now = new Date();
     const plus23_5h = new Date(now.getTime() + 23.5 * 60 * 60 * 1000);
     const plus24_5h = new Date(now.getTime() + 24.5 * 60 * 60 * 1000);
     const plus1_5h = new Date(now.getTime() + 1.5 * 60 * 60 * 1000);
     const plus2_5h = new Date(now.getTime() + 2.5 * 60 * 60 * 1000);
 
+    let sent24 = 0, sent2 = 0, failures24 = 0, failures2 = 0;
+
     for (const meeting of dueMeetings) {
       try {
         const meetingDt = new Date(`${meeting.date}T${meeting.time}`);
-        const needs24 = !meeting.reminder24SentAt && meetingDt >= plus23_5h && meetingDt <= plus24_5h;
-        const needs2 = !meeting.reminder2SentAt && meetingDt >= plus1_5h && meetingDt <= plus2_5h;
+        const needs24 = is24hEnabled && !meeting.reminder24SentAt && meetingDt >= plus23_5h && meetingDt <= plus24_5h;
+        const needs2 = is2hEnabled && !meeting.reminder2SentAt && meetingDt >= plus1_5h && meetingDt <= plus2_5h;
 
         const [attendee, sponsor, event] = await Promise.all([
           storage.getAttendee(meeting.attendeeId),
@@ -37,19 +47,32 @@ async function runReminderCheck(): Promise<void> {
         ]);
 
         if (needs24) {
-          await sendMeetingReminderEmail(storage, attendee, sponsor, meeting, event, "24h");
-          await storage.updateMeetingReminderFlags(meeting.id, { reminder24SentAt: new Date() });
-          console.log(`[REMINDERS] Sent 24h reminder for meeting ${meeting.id}`);
+          try {
+            await sendMeetingReminderEmail(storage, attendee, sponsor, meeting, event, "24h");
+            await storage.updateMeetingReminderFlags(meeting.id, { reminder24SentAt: new Date() });
+            console.log(`[REMINDERS] Sent 24h reminder for meeting ${meeting.id}`);
+            sent24++;
+          } catch (e: any) { failures24++; }
         }
 
         if (needs2) {
-          await sendMeetingReminderEmail(storage, attendee, sponsor, meeting, event, "2h");
-          await storage.updateMeetingReminderFlags(meeting.id, { reminder2SentAt: new Date() });
-          console.log(`[REMINDERS] Sent 2h reminder for meeting ${meeting.id}`);
+          try {
+            await sendMeetingReminderEmail(storage, attendee, sponsor, meeting, event, "2h");
+            await storage.updateMeetingReminderFlags(meeting.id, { reminder2SentAt: new Date() });
+            console.log(`[REMINDERS] Sent 2h reminder for meeting ${meeting.id}`);
+            sent2++;
+          } catch (e: any) { failures2++; }
         }
       } catch (err: any) {
         console.error(`[REMINDERS] Error processing meeting ${meeting.id}:`, err?.message ?? err);
       }
+    }
+
+    if (sent24 > 0 || failures24 > 0) {
+      await storage.recordAutomationExecution("meeting_reminder_24h", sent24, failures24);
+    }
+    if (sent2 > 0 || failures2 > 0) {
+      await storage.recordAutomationExecution("meeting_reminder_2h", sent2, failures2);
     }
   } catch (err: any) {
     console.error("[REMINDERS] Reminder check failed:", err?.message ?? err);
@@ -67,6 +90,11 @@ async function runWeeklyDeliverableReminders(): Promise<void> {
     const dayOfWeek = now.getUTCDay(); // 2 = Tuesday
     const hour = now.getUTCHours();
     if (dayOfWeek !== 2 || hour < 8 || hour >= 10) return;
+
+    if (!await isAutomationEnabled(storage, "deliverable_reminder")) {
+      console.log("[WEEKLY-REMINDERS] Deliverable reminder automation disabled — skipping");
+      return;
+    }
 
     console.log("[WEEKLY-REMINDERS] Tuesday 8-10am UTC window — running deliverable reminders");
 
@@ -166,6 +194,9 @@ async function runWeeklyDeliverableReminders(): Promise<void> {
     }
 
     console.log(`[WEEKLY-REMINDERS] Done — sent: ${sent}, skipped: ${skipped}`);
+    if (sent > 0 || skipped > 0) {
+      await storage.recordAutomationExecution("deliverable_reminder", sent, 0);
+    }
   } catch (err: any) {
     console.error("[WEEKLY-REMINDERS] Job failed:", err?.message ?? err);
   }

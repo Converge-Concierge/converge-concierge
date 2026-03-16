@@ -14,6 +14,7 @@ import {
   type EmailLog,
   type SponsorUser, type SponsorLoginToken,
   type EmailTemplate, type EmailTemplateVersion,
+  type AutomationRule, type AutomationLog,
   type PackageTemplate, type InsertPackageTemplate,
   type DeliverableTemplateItem, type InsertDeliverableTemplateItem,
   type AgreementDeliverable, type InsertAgreementDeliverable,
@@ -238,6 +239,15 @@ export interface IStorage {
   updateEmailTemplate(id: string, data: Partial<{ displayName: string; category: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean; variables: string[] }>, updatedBy?: string): Promise<EmailTemplate>;
   getEmailTemplateVersions(templateId: string): Promise<EmailTemplateVersion[]>;
   restoreEmailTemplateVersion(templateId: string, versionId: string, restoredBy?: string): Promise<EmailTemplate>;
+
+  // ── Automation Rules ────────────────────────────────────────────────────
+  getAutomationRules(): Promise<AutomationRule[]>;
+  getAutomationRuleByKey(key: string): Promise<AutomationRule | undefined>;
+  upsertAutomationRule(data: { automationKey: string; name: string; category: string; triggerDescription: string; audience: string; templateKey?: string | null; eventScope?: string }): Promise<AutomationRule>;
+  updateAutomationRule(id: string, data: Partial<{ isEnabled: boolean }>): Promise<AutomationRule>;
+  setAllAutomationsEnabled(enabled: boolean): Promise<void>;
+  recordAutomationExecution(automationKey: string, emailsSent: number, failures: number, errorMessage?: string | null): Promise<void>;
+  getAutomationLogs(automationId: string, limit?: number): Promise<AutomationLog[]>;
 
   // ── Agreement Deliverables ────────────────────────────────────────────────
   listPackageTemplates(filters?: { sponsorshipLevel?: string; isArchived?: boolean }): Promise<PackageTemplate[]>;
@@ -979,6 +989,14 @@ export class MemStorage implements IStorage {
   async updateEmailTemplate(_id: string, _data: Partial<{ displayName: string; category: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean; variables: string[] }>, _updatedBy?: string): Promise<EmailTemplate> { return { id: _id, templateKey: "", displayName: "", category: "System", subjectTemplate: "", htmlTemplate: "", textTemplate: null, description: null, variables: [], isActive: true, createdAt: new Date(), updatedAt: new Date() }; }
   async getEmailTemplateVersions(_templateId: string): Promise<EmailTemplateVersion[]> { return []; }
   async restoreEmailTemplateVersion(_templateId: string, _versionId: string, _restoredBy?: string): Promise<EmailTemplate> { return { id: _templateId, templateKey: "", displayName: "", category: "System", subjectTemplate: "", htmlTemplate: "", textTemplate: null, description: null, variables: [], isActive: true, createdAt: new Date(), updatedAt: new Date() }; }
+
+  async getAutomationRules(): Promise<AutomationRule[]> { return []; }
+  async getAutomationRuleByKey(_key: string): Promise<AutomationRule | undefined> { return undefined; }
+  async upsertAutomationRule(data: { automationKey: string; name: string; category: string; triggerDescription: string; audience: string; templateKey?: string | null; eventScope?: string }): Promise<AutomationRule> { return { id: randomUUID(), automationKey: data.automationKey, name: data.name, category: data.category, triggerDescription: data.triggerDescription, audience: data.audience, templateKey: data.templateKey ?? null, eventScope: data.eventScope ?? "All Events", isEnabled: true, lastRunAt: null, emailsSent: 0, failures: 0, lastError: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateAutomationRule(_id: string, _data: Partial<{ isEnabled: boolean }>): Promise<AutomationRule> { return { id: _id, automationKey: "", name: "", category: "", triggerDescription: "", audience: "", templateKey: null, eventScope: "All Events", isEnabled: true, lastRunAt: null, emailsSent: 0, failures: 0, lastError: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async setAllAutomationsEnabled(_enabled: boolean): Promise<void> {}
+  async recordAutomationExecution(_key: string, _sent: number, _failures: number, _err?: string | null): Promise<void> {}
+  async getAutomationLogs(_automationId: string, _limit?: number): Promise<AutomationLog[]> { return []; }
 
   async listPackageTemplates(_filters?: { sponsorshipLevel?: string; isArchived?: boolean }): Promise<PackageTemplate[]> { return []; }
   async getPackageTemplate(_id: string): Promise<PackageTemplate | undefined> { return undefined; }

@@ -10,7 +10,7 @@ import {
   agreementDeliverableRegistrants, agreementDeliverableSpeakers, agreementDeliverableReminders,
   fileAssets, deliverableLinks, deliverableSocialEntries, meetingInvitations,
   sessionTypes, agendaSessions, agendaSessionSpeakers, attendeeSavedSessions, agendaImportJobs,
-  emailTemplateVersions,
+  emailTemplateVersions, automationRules, automationLogs,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -24,6 +24,7 @@ import {
   type EmailLog,
   type SponsorUser, type SponsorLoginToken,
   type EmailTemplate, type EmailTemplateVersion,
+  type AutomationRule, type AutomationLog,
   type PackageTemplate, type InsertPackageTemplate,
   type DeliverableTemplateItem, type InsertDeliverableTemplateItem,
   type AgreementDeliverable, type InsertAgreementDeliverable,
@@ -1063,6 +1064,74 @@ export class DatabaseStorage implements IStorage {
       isActive: version.isActive,
       variables: version.variables,
     }, restoredBy ? `${restoredBy} (restored v${version.version})` : `Restored v${version.version}`);
+  }
+
+  // ── Automation Rules ──────────────────────────────────────────────────────
+
+  async getAutomationRules(): Promise<AutomationRule[]> {
+    return db.select().from(automationRules).orderBy(automationRules.category, automationRules.name);
+  }
+
+  async getAutomationRuleByKey(key: string): Promise<AutomationRule | undefined> {
+    const [row] = await db.select().from(automationRules).where(eq(automationRules.automationKey, key)).limit(1);
+    return row;
+  }
+
+  async upsertAutomationRule(data: { automationKey: string; name: string; category: string; triggerDescription: string; audience: string; templateKey?: string | null; eventScope?: string }): Promise<AutomationRule> {
+    const existing = await this.getAutomationRuleByKey(data.automationKey);
+    if (existing) {
+      const [updated] = await db.update(automationRules)
+        .set({ name: data.name, category: data.category, triggerDescription: data.triggerDescription, audience: data.audience, templateKey: data.templateKey ?? existing.templateKey, eventScope: data.eventScope ?? existing.eventScope, updatedAt: new Date() })
+        .where(eq(automationRules.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(automationRules).values({
+      id: randomUUID(),
+      automationKey: data.automationKey,
+      name: data.name,
+      category: data.category,
+      triggerDescription: data.triggerDescription,
+      audience: data.audience,
+      templateKey: data.templateKey ?? null,
+      eventScope: data.eventScope ?? "All Events",
+    }).returning();
+    return created;
+  }
+
+  async updateAutomationRule(id: string, data: Partial<{ isEnabled: boolean }>): Promise<AutomationRule> {
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (data.isEnabled !== undefined) updates.isEnabled = data.isEnabled;
+    const [row] = await db.update(automationRules).set(updates).where(eq(automationRules.id, id)).returning();
+    return row;
+  }
+
+  async setAllAutomationsEnabled(enabled: boolean): Promise<void> {
+    await db.update(automationRules).set({ isEnabled: enabled, updatedAt: new Date() });
+  }
+
+  async recordAutomationExecution(automationKey: string, emailsSent: number, failures: number, errorMessage?: string | null): Promise<void> {
+    const rule = await this.getAutomationRuleByKey(automationKey);
+    if (!rule) return;
+    await db.update(automationRules).set({
+      lastRunAt: new Date(),
+      emailsSent: sql`${automationRules.emailsSent} + ${emailsSent}`,
+      failures: sql`${automationRules.failures} + ${failures}`,
+      lastError: errorMessage ?? null,
+      updatedAt: new Date(),
+    }).where(eq(automationRules.id, rule.id));
+    await db.insert(automationLogs).values({
+      id: randomUUID(),
+      automationId: rule.id,
+      emailsSent,
+      failures,
+      status: failures > 0 ? "partial" : "success",
+      errorMessage: errorMessage ?? null,
+    });
+  }
+
+  async getAutomationLogs(automationId: string, limit = 10): Promise<AutomationLog[]> {
+    return db.select().from(automationLogs).where(eq(automationLogs.automationId, automationId)).orderBy(sql`executed_at DESC`).limit(limit);
   }
 
   async createSponsorLoginToken(data: { sponsorUserId: string; sponsorId: string; tokenHash: string; expiresAt: Date }): Promise<SponsorLoginToken> {

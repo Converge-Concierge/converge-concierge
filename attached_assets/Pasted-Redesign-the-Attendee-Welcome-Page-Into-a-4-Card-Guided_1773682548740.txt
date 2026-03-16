@@ -1,0 +1,413 @@
+Redesign the Attendee Welcome Page Into a 4-Card Guided Flow
+Select topics → recommended sessions → recommended sponsors → view/save dashboard
+
+The attendee experience needs one more important UX refinement.
+
+Right now, the new attendee portal exists, but the welcome/onboarding experience is not guiding the attendee through the value of the platform clearly enough.
+
+Also, the attendee currently only sees Recommended Sessions through the email-linked flow, which is not sufficient. Recommended sessions need to be surfaced directly in the attendee onboarding experience.
+
+We want the welcome page to become a guided 4-card onboarding flow that walks the attendee through the new experience in a simple, intuitive sequence.
+
+1. Primary Goal
+
+Redesign the attendee welcome/onboarding entry point so it functions as a structured 4-step guided flow:
+
+Select Your Topics
+
+Recommended Sessions
+
+Recommended Sponsors
+
+View / Save Dashboard
+
+This should replace the current experience where topic selection and sponsor browsing appear together too early and without enough structure.
+
+The attendee should feel like Concierge is guiding them, not just presenting a page.
+
+2. New Welcome Flow Structure
+
+The welcome experience should now be implemented as four onboarding cards / screens.
+
+Use a clear step indicator and make the flow feel progressive.
+
+Recommended pattern:
+
+Step 1 of 4
+Step 2 of 4
+Step 3 of 4
+Step 4 of 4
+
+The attendee should move forward through the cards with clear CTA buttons.
+
+3. Card 1 — Select Your Topics
+
+This is the first and most important step.
+
+Required content
+
+Headline:
+
+Select Your Interests
+
+Supporting text:
+
+Choose the topics most relevant to you so Concierge can personalize your sessions, sponsors, and meeting suggestions.
+Required behavior
+
+show only approved, active event interest topics
+
+use the current chip/card multi-select UI
+
+allow up to 5 selections
+
+persist selections to the attendee topic selection table
+
+restore prior selections if they already exist
+
+CTA
+
+Primary button:
+
+Continue
+
+Optional secondary button:
+
+Skip for Now
+
+If skipped, the system should still allow progression but note that recommendations will be weaker.
+
+4. Card 2 — Recommended Sessions
+
+This is the key correction.
+
+Right now attendees do not clearly see recommended sessions as part of the welcome/onboarding experience.
+
+We need that fixed.
+
+Required content
+
+Headline:
+
+Recommended Sessions
+
+Supporting text:
+
+Based on your selected interests, here are sessions you may want to attend.
+Required behavior
+
+Show the top 3 recommended sessions based on:
+
+attendee-selected interest topics
+
+session interest topic overlap
+
+For each session show:
+
+title
+
+date
+
+time
+
+session type
+
+location if available
+
+relevance text if available
+
+Example:
+
+Relevant to your interests: Fraud Defense, AML Monitoring
+Actions on each session
+
+View Session
+
+Save to My Agenda
+
+CTA for the card
+
+Primary button:
+
+Continue
+
+Secondary button:
+
+View Full Agenda
+
+This card must exist inside the onboarding flow, not only through email.
+
+5. Card 3 — Recommended Sponsors
+
+This card should show sponsors after the attendee has selected interests and seen relevant sessions.
+
+Required content
+
+Headline:
+
+Recommended Sponsors
+
+Supporting text:
+
+These sponsors align with the interests you selected.
+Required behavior
+
+Show top 3 recommended sponsors based on:
+
+attendee-selected topics
+
+sponsor-selected topics
+
+existing relevance logic already built
+
+For each sponsor show:
+
+logo
+
+name
+
+short description
+
+overlapping topics if available
+
+Example:
+
+Relevant to your interests: AI Regulations, Vendor Governance
+Actions on each sponsor
+
+View Sponsor
+
+Request Meeting
+
+Request Information
+
+Keep this card concise and mobile-friendly.
+
+CTA for the card
+
+Primary button:
+
+Continue
+
+Secondary button:
+
+View All Sponsors
+6. Card 4 — View / Save Dashboard
+
+The final onboarding card should transition the attendee into their ongoing portal experience.
+
+Required content
+
+Headline:
+
+Your Concierge Dashboard Is Ready
+
+Supporting text:
+
+You can now explore your recommended sessions, sponsors, meetings, and saved agenda all in one place.
+
+Optional summary:
+
+selected interests
+
+number of recommended sessions
+
+number of recommended sponsors
+
+Example:
+
+You selected:
+AI Regulations, Fraud Defense, AML Monitoring
+CTA
+
+Primary button:
+
+Go to My Dashboard
+
+Optional secondary button:
+
+Save and Finish Later
+
+This card should mark the welcome flow as complete.
+
+7. Onboarding Completion Rules
+
+The attendee should not remain stuck on the welcome flow forever.
+
+Required behavior
+
+Once the attendee completes the 4-card flow:
+
+mark onboarding as completed
+
+route future visits to the attendee dashboard by default
+
+allow the welcome flow to be revisited only if intentionally reopened later
+
+Returning attendees should land on the dashboard, not repeat the onboarding flow every time.
+
+8. Save State Between Cards
+
+Progress should persist as the attendee moves through the cards.
+
+Required behavior
+
+topic selections must save immediately or at least when leaving Card 1
+
+saved sessions from Card 2 must persist
+
+onboarding completion must persist
+
+attendee can refresh without losing progress
+
+If possible, track current onboarding step so resuming is smoother.
+
+9. Add Save to My Agenda Directly in Card 2
+
+This is important.
+
+Recommended Sessions should not just be informational. It should allow immediate action.
+
+Required behavior
+
+From Card 2, the attendee must be able to:
+
+save a session to My Agenda
+
+remove it if already saved
+
+This makes the onboarding flow useful, not just explanatory.
+
+10. Use Existing Recommendation Logic, Do Not Rebuild It
+
+Do not invent a new recommendation engine for this change.
+
+Use the recommendation logic already audited as implemented:
+
+recommended sessions = topic overlap with session topics
+
+recommended sponsors = topic overlap with sponsor topics
+
+This task is primarily a welcome flow / UX restructuring task, not a new intelligence engine task.
+
+11. Preserve Existing Sponsor/Session Routes
+
+The onboarding cards should link into the existing attendee pages:
+
+Full Agenda
+
+Sponsors
+
+Dashboard
+
+My Agenda
+
+Do not duplicate those experiences unnecessarily.
+
+Use the current attendee route structure and connect it properly.
+
+12. Improve Welcome Flow Messaging
+
+The current welcome page should feel more guided.
+
+Use language like:
+
+Card 1
+Let’s personalize your conference experience.
+Card 2
+Here are sessions that match your interests.
+Card 3
+Here are sponsors you may want to meet.
+Card 4
+Your personalized dashboard is ready.
+
+This will make the onboarding feel polished and intentional.
+
+13. Mobile-Friendly Design
+
+This 4-card flow must work well on mobile.
+
+Important requirements:
+
+cards stack cleanly
+
+chips remain easy to tap
+
+session cards are compact but readable
+
+sponsor cards are compact and actionable
+
+CTA buttons remain prominent at the bottom of each card
+
+Do not overload each card with too much content.
+
+14. Recommended Page Structure
+
+The welcome flow should now behave like:
+
+Card 1 → Select Topics
+Card 2 → Recommended Sessions
+Card 3 → Recommended Sponsors
+Card 4 → Dashboard Ready
+
+Do not show all sections stacked on one long page if that makes the experience feel cluttered.
+
+A true step-by-step guided flow is preferred.
+
+If you must use a single page technically, at least visually separate them as progressive cards with primary continue actions and step states.
+
+15. Ensure Recommended Sessions Are Not Email-Only
+
+This is one of the main reasons for this change.
+
+Required correction
+
+Recommended Sessions must be surfaced directly in the live attendee onboarding/welcome experience.
+
+They should not be visible only through:
+
+email link behavior
+
+hidden dashboard state
+
+later pages the attendee may never reach
+
+This recommendation block must be part of the initial attendee journey.
+
+16. Acceptance Criteria
+
+This change is complete when:
+
+the attendee welcome page is restructured into a 4-card onboarding flow
+
+Card 1 allows topic selection and saves it
+
+Card 2 shows recommended sessions in the live onboarding experience
+
+Card 2 allows Save to My Agenda
+
+Card 3 shows recommended sponsors
+
+Card 4 transitions the attendee to the dashboard
+
+onboarding completion is persisted
+
+returning attendees go to the dashboard by default
+
+the flow works cleanly on mobile
+
+recommended sessions are no longer only accessible through the email-driven path
+
+17. Success Standard
+
+After this update, the attendee’s first experience should feel like a guided personalized setup:
+
+choose interests
+
+discover relevant sessions
+
+discover relevant sponsors
+
+enter the dashboard
+
+The attendee should understand immediately that Concierge is helping them prepare for the event, not just listing sponsors.

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Star, Tag, ChevronRight, Pencil, CheckCircle2,
   CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail, Bell,
-  Lightbulb, Sparkles, MapPin, Clock, UserCheck, AlertCircle,
+  Lightbulb, Sparkles, MapPin, Clock, UserCheck, AlertCircle, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +40,7 @@ interface SponsorInteractions {
 
 function formatDate(d: string | null) {
   if (!d) return "";
-  return new Date(d + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  return new Date(d + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 function formatTimeRange(s: string | null, e: string | null) {
   if (!s) return "";
@@ -48,7 +48,40 @@ function formatTimeRange(s: string | null, e: string | null) {
   return e ? `${fmt(s)} – ${fmt(e)}` : fmt(s);
 }
 
-// ── Onboarding Steps ──────────────────────────────────────────────────────────
+// ── Shared wizard chrome ───────────────────────────────────────────────────────
+
+function OnboardingCard({ step, children }: { step: number; children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/60">
+        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Star className="h-4 w-4 text-primary" />
+            </div>
+            <span className="text-sm font-semibold text-foreground">Converge Concierge</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className={`h-1.5 rounded-full transition-all ${i === step ? "w-6 bg-primary" : i < step ? "w-4 bg-primary/50" : "w-4 bg-border"}`}
+                />
+              ))}
+            </div>
+            <span className="text-xs text-muted-foreground ml-1">Step {step} of 4</span>
+          </div>
+        </div>
+      </div>
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── Welcome screen (pre-wizard) ────────────────────────────────────────────────
 
 function WelcomeStep({ me, onStart, onSkip, isSkipping }: { me: AttendeeMe; onStart: () => void; onSkip: () => void; isSkipping: boolean }) {
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : null;
@@ -84,12 +117,12 @@ function WelcomeStep({ me, onStart, onSkip, isSkipping }: { me: AttendeeMe; onSt
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Let's personalise your experience so you get the most out of the event.
+            Let's personalise your conference experience in just a few steps.
           </p>
         </div>
         <div className="space-y-3">
           <Button className="w-full gap-2" size="lg" onClick={onStart} data-testid="button-get-started">
-            Select My Interests <ArrowRight className="h-4 w-4" />
+            Get Started <ArrowRight className="h-4 w-4" />
           </Button>
           <Button variant="ghost" className="w-full text-muted-foreground" onClick={onSkip} disabled={isSkipping} data-testid="button-skip-onboarding">
             Skip for now
@@ -100,63 +133,31 @@ function WelcomeStep({ me, onStart, onSkip, isSkipping }: { me: AttendeeMe; onSt
   );
 }
 
-function TopicSelectionStep({ topics, currentSelections, onSave, onSkip, isSaving, isSkipping, me, headers }: {
+// ── Card 1: Select Topics ─────────────────────────────────────────────────────
+
+function TopicsCard({ topics, currentSelections, onSave, onSkip, isSaving, isSkipping }: {
   topics: Topic[]; currentSelections: string[];
   onSave: (ids: string[]) => void; onSkip: () => void;
   isSaving: boolean; isSkipping: boolean;
-  me: AttendeeMe; headers: Record<string, string>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(currentSelections));
   const topicMap = new Map(topics.map((t) => [t.id, t]));
-  const selectedTopicsList = [...selected].map((id) => topicMap.get(id)).filter(Boolean) as Topic[];
-  const hasSelections = selected.size > 0;
-
+  const selectedList = [...selected].map((id) => topicMap.get(id)).filter(Boolean) as Topic[];
   const toggle = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const recSessionsQuery = useQuery<RecommendedSession[]>({
-    queryKey: ["/api/attendee-portal/recommended-sessions"],
-    queryFn: () => fetch("/api/attendee-portal/recommended-sessions", { headers }).then((r) => r.json()),
-  });
-
-  const recSponsorsQuery = useQuery<RecommendedSponsor[]>({
-    queryKey: ["/api/attendee-portal/recommended-sponsors"],
-    queryFn: () => fetch("/api/attendee-portal/recommended-sponsors", { headers }).then((r) => r.json()),
-  });
-
-  const recSessions = recSessionsQuery.data ?? [];
-  const recSponsors = recSponsorsQuery.data ?? [];
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Sticky header */}
-      <div className="border-b border-border/60 bg-background/95 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Star className="h-4 w-4 text-primary" />
-            </div>
-            <span className="text-sm font-semibold text-foreground">Converge Concierge</span>
-          </div>
-          <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">Step 1 of 2</span>
-        </div>
-      </div>
-
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
-
-        {/* Heading */}
+    <OnboardingCard step={1}>
+      <div className="space-y-6">
         <div>
+          <p className="text-sm text-primary font-medium mb-1">Let's personalise your conference experience.</p>
           <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-topic-heading">
             Select Your Interests
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {me.event.name}{me.event.location ? ` · ${me.event.location}` : ""}
-          </p>
-          <p className="text-sm text-foreground/70 mt-2">
-            Select the topics most relevant to you to unlock personalised session and sponsor recommendations.
+          <p className="text-sm text-muted-foreground mt-2">
+            Choose the topics most relevant to you so Concierge can personalise your sessions, sponsors, and meeting suggestions.
           </p>
         </div>
 
-        {/* Topic chips */}
         <div className="bg-card border border-border/60 rounded-2xl p-5">
           {topics.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">Loading topics…</p>
@@ -178,13 +179,13 @@ function TopicSelectionStep({ topics, currentSelections, onSave, onSkip, isSavin
               ))}
             </div>
           )}
-          {selectedTopicsList.length > 0 && (
+          {selectedList.length > 0 && (
             <div className="mt-4 pt-4 border-t border-border/50">
               <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Your selected interests
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> {selectedList.length} interest{selectedList.length !== 1 ? "s" : ""} selected
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {selectedTopicsList.map((t) => (
+                {selectedList.map((t) => (
                   <Badge key={t.id} variant="secondary" className="rounded-full text-xs">{t.label}</Badge>
                 ))}
               </div>
@@ -192,114 +193,365 @@ function TopicSelectionStep({ topics, currentSelections, onSave, onSkip, isSavin
           )}
         </div>
 
-        {/* Recommended Sessions preview */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-primary" /> Recommended Sessions
-            </h2>
-            <Link href="/attendee/agenda">
-              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1 h-7" data-testid="link-view-full-agenda-onboarding">
-                View Full Agenda <ArrowRight className="h-3 w-3" />
-              </Button>
-            </Link>
-          </div>
-          {!hasSelections ? (
-            <div className="bg-card border border-border/60 rounded-xl p-5 text-center">
-              <CalendarDays className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Select your interests above to see recommended sessions.</p>
-            </div>
-          ) : recSessions.length === 0 ? (
-            <div className="bg-card border border-border/60 rounded-xl p-5 text-center">
-              <p className="text-sm text-muted-foreground">Recommended sessions will appear as the agenda is updated.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {recSessions.slice(0, 3).map((s) => (
-                <div key={s.id} className="bg-card border border-border/60 rounded-xl p-3">
-                  <div className="flex items-start gap-3">
-                    <CalendarDays className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground leading-snug">{s.title}</p>
-                      {(s.sessionTypeLabel || s.sessionDate) && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {[s.sessionTypeLabel, s.sessionDate ? formatDate(s.sessionDate) : null, (s.startTime && s.endTime) ? formatTimeRange(s.startTime, s.endTime) : null].filter(Boolean).join(" · ")}
-                        </p>
-                      )}
-                      {(s.overlapTopicLabels ?? []).length > 0 && (
-                        <p className="text-xs text-primary/80 mt-0.5 flex items-center gap-1">
-                          <Sparkles className="h-3 w-3" /> Relevant to: {s.overlapTopicLabels.slice(0, 2).join(", ")}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Recommended Sponsors preview */}
-        <div>
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
-            <Users className="h-4 w-4 text-primary" />
-            {hasSelections ? "Sponsors You May Want to Meet" : "Sponsors Available for Meetings"}
-          </h2>
-          {!hasSelections ? (
-            <div className="bg-card border border-border/60 rounded-xl p-5 text-center">
-              <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Select your interests above to see personalised sponsor recommendations.</p>
-            </div>
-          ) : recSponsors.length === 0 ? (
-            <div className="bg-card border border-border/60 rounded-xl p-5 text-center">
-              <p className="text-sm text-muted-foreground">Sponsor recommendations will appear as sponsor profiles are completed.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {recSponsors.slice(0, 3).map((s) => (
-                <div key={s.id} className="bg-card border border-border/60 rounded-xl p-3 flex items-center gap-3" data-testid={`card-onboarding-sponsor-${s.id}`}>
-                  {s.logoUrl
-                    ? <img src={s.logoUrl} alt={s.name} className="h-8 w-8 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-0.5" />
-                    : <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-4 w-4 text-primary" /></div>
-                  }
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{s.name}</p>
-                    {s.shortDescription && <p className="text-xs text-muted-foreground line-clamp-1">{s.shortDescription}</p>}
-                    {(s.overlapTopicLabels ?? []).length > 0 && (
-                      <p className="text-xs text-primary/80 flex items-center gap-1">
-                        <Sparkles className="h-3 w-3" /> Relevant to: {s.overlapTopicLabels.slice(0, 2).join(", ")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* CTAs */}
-        <div className="space-y-3 pb-10">
+        <div className="space-y-3 pb-8">
           <Button
-            className="w-full gap-2"
-            size="lg"
+            className="w-full gap-2" size="lg"
             onClick={() => onSave([...selected])}
             disabled={isSaving}
             data-testid="button-save-interests"
           >
-            {isSaving ? "Saving…" : "Continue to My Dashboard"}
+            {isSaving ? "Saving…" : "Continue"}
             {!isSaving && <ArrowRight className="h-4 w-4" />}
           </Button>
           <Button
-            variant="ghost"
-            className="w-full text-muted-foreground"
-            onClick={onSkip}
-            disabled={isSkipping}
+            variant="ghost" className="w-full text-muted-foreground"
+            onClick={onSkip} disabled={isSkipping}
             data-testid="button-skip-topics"
           >
             Skip for now
           </Button>
         </div>
+      </div>
+    </OnboardingCard>
+  );
+}
 
+// ── Card 2: Recommended Sessions ──────────────────────────────────────────────
+
+function SessionsCard({ sessions, savedSessionIds, onSave, onUnsave, isSaving, onContinue, onViewSession }: {
+  sessions: RecommendedSession[];
+  savedSessionIds: Set<string>;
+  onSave: (id: string) => void;
+  onUnsave: (id: string) => void;
+  isSaving: boolean;
+  onContinue: () => void;
+  onViewSession: (s: RecommendedSession) => void;
+}) {
+  return (
+    <OnboardingCard step={2}>
+      <div className="space-y-6">
+        <div>
+          <p className="text-sm text-primary font-medium mb-1">Here are sessions that match your interests.</p>
+          <h1 className="text-2xl font-display font-bold text-foreground">Recommended Sessions</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Based on your selected interests, here are sessions you may want to attend.
+          </p>
+        </div>
+
+        {sessions.length === 0 ? (
+          <div className="bg-card border border-border/60 rounded-2xl p-8 text-center">
+            <CalendarDays className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm font-medium text-foreground mb-1">No recommendations yet</p>
+            <p className="text-xs text-muted-foreground">Recommended sessions will appear as the agenda is published.</p>
+          </div>
+        ) : (
+          <div className="space-y-3" data-testid="onboarding-sessions-list">
+            {sessions.slice(0, 3).map((s) => {
+              const saved = savedSessionIds.has(s.id);
+              return (
+                <div key={s.id} className="bg-card border border-border/60 rounded-xl p-4" data-testid={`card-onboarding-session-${s.id}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      {s.sessionTypeLabel && (
+                        <Badge variant="outline" className="text-xs rounded-full mb-1.5">{s.sessionTypeLabel}</Badge>
+                      )}
+                      <button
+                        className="font-medium text-foreground text-sm leading-snug text-left hover:text-primary transition-colors w-full"
+                        onClick={() => onViewSession(s)}
+                        data-testid={`button-view-onboarding-session-${s.id}`}
+                      >
+                        {s.title}
+                      </button>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                        {s.sessionDate && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {formatDate(s.sessionDate)}{s.startTime ? ` · ${formatTimeRange(s.startTime, s.endTime)}` : ""}
+                          </span>
+                        )}
+                        {s.locationName && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3" />{s.locationName}
+                          </span>
+                        )}
+                      </div>
+                      {(s.overlapTopicLabels ?? []).length > 0 && (
+                        <p className="text-xs text-primary/80 mt-1 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" /> Relevant to your interests: {s.overlapTopicLabels.slice(0, 3).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant={saved ? "secondary" : "outline"}
+                      size="sm"
+                      className="h-8 gap-1.5 text-xs shrink-0"
+                      disabled={isSaving}
+                      onClick={() => saved ? onUnsave(s.id) : onSave(s.id)}
+                      data-testid={`button-save-onboarding-session-${s.id}`}
+                    >
+                      <Bookmark className={`h-3.5 w-3.5 ${saved ? "fill-current" : ""}`} />
+                      {saved ? "Saved" : "Save"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="space-y-3 pb-8">
+          <Button className="w-full gap-2" size="lg" onClick={onContinue} data-testid="button-sessions-continue">
+            Continue <ArrowRight className="h-4 w-4" />
+          </Button>
+          <Link href="/attendee/agenda">
+            <Button variant="ghost" className="w-full text-muted-foreground" data-testid="button-view-full-agenda-onboarding">
+              View Full Agenda
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </OnboardingCard>
+  );
+}
+
+// ── Card 3: Recommended Sponsors ──────────────────────────────────────────────
+
+function SponsorsCard({ sponsors, sponsorInteractions, onRequestMeeting, onRequestInfo, isActingOnSponsor, onContinue }: {
+  sponsors: RecommendedSponsor[];
+  sponsorInteractions: SponsorInteractions;
+  onRequestMeeting: (id: string) => void;
+  onRequestInfo: (id: string) => void;
+  isActingOnSponsor: string | null;
+  onContinue: () => void;
+}) {
+  return (
+    <OnboardingCard step={3}>
+      <div className="space-y-6">
+        <div>
+          <p className="text-sm text-primary font-medium mb-1">Here are sponsors you may want to meet.</p>
+          <h1 className="text-2xl font-display font-bold text-foreground">Recommended Sponsors</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            These sponsors align with the interests you selected.
+          </p>
+        </div>
+
+        {sponsors.length === 0 ? (
+          <div className="bg-card border border-border/60 rounded-2xl p-8 text-center">
+            <Users className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">Sponsor recommendations will appear as profiles are completed.</p>
+          </div>
+        ) : (
+          <div className="space-y-3" data-testid="onboarding-sponsors-list">
+            {sponsors.slice(0, 3).map((s) => {
+              const hasMeeting = !!sponsorInteractions.meetings[s.id];
+              const hasInfo = !!sponsorInteractions.infoRequests[s.id];
+              const acting = isActingOnSponsor === s.id;
+              return (
+                <div key={s.id} className="bg-card border border-border/60 rounded-xl p-4" data-testid={`card-onboarding-sponsor-${s.id}`}>
+                  <div className="flex items-start gap-3 mb-3">
+                    {s.logoUrl
+                      ? <img src={s.logoUrl} alt={s.name} className="h-10 w-10 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-0.5" />
+                      : <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-5 w-5 text-primary" /></div>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground text-sm">{s.name}</p>
+                      {s.shortDescription && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{s.shortDescription}</p>}
+                      {(s.overlapTopicLabels ?? []).length > 0 && (
+                        <p className="text-xs text-primary/80 mt-1 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" /> Relevant to your interests: {s.overlapTopicLabels.slice(0, 3).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {hasMeeting ? (
+                      <span className="flex items-center gap-1 text-xs text-primary font-medium" data-testid={`status-onboarding-meeting-${s.id}`}>
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Meeting Requested
+                      </span>
+                    ) : (
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={acting}
+                        onClick={() => onRequestMeeting(s.id)}
+                        data-testid={`button-onboarding-request-meeting-${s.id}`}>
+                        <Calendar className="h-3 w-3" /> Request Meeting
+                      </Button>
+                    )}
+                    {hasInfo ? (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium" data-testid={`status-onboarding-info-${s.id}`}>
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Info Sent
+                      </span>
+                    ) : (
+                      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" disabled={acting}
+                        onClick={() => onRequestInfo(s.id)}
+                        data-testid={`button-onboarding-request-info-${s.id}`}>
+                        <Mail className="h-3 w-3" /> Request Info
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="space-y-3 pb-8">
+          <Button className="w-full gap-2" size="lg" onClick={onContinue} data-testid="button-sponsors-continue">
+            Continue <ArrowRight className="h-4 w-4" />
+          </Button>
+          <Link href="/attendee/sponsors">
+            <Button variant="ghost" className="w-full text-muted-foreground" data-testid="button-view-all-sponsors-onboarding">
+              View All Sponsors
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </OnboardingCard>
+  );
+}
+
+// ── Card 4: Dashboard Ready ───────────────────────────────────────────────────
+
+function ReadyCard({ me, selections, topics, sessionCount, sponsorCount, onDone }: {
+  me: AttendeeMe;
+  selections: TopicSelection[];
+  topics: Topic[];
+  sessionCount: number;
+  sponsorCount: number;
+  onDone: () => void;
+}) {
+  const topicMap = new Map(topics.map((t) => [t.id, t]));
+  const selectedTopics = selections.map((s) => topicMap.get(s.topicId)).filter(Boolean) as Topic[];
+
+  return (
+    <OnboardingCard step={4}>
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="h-8 w-8 text-primary" />
+          </div>
+          <p className="text-sm text-primary font-medium mb-1">Your personalised dashboard is ready.</p>
+          <h1 className="text-2xl font-display font-bold text-foreground">Your Concierge Dashboard Is Ready</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            You can now explore your recommended sessions, sponsors, meetings, and saved agenda all in one place.
+          </p>
+        </div>
+
+        <div className="bg-card border border-border/60 rounded-2xl p-5 space-y-4">
+          {selectedTopics.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">You selected</p>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedTopics.map((t) => (
+                  <Badge key={t.id} variant="secondary" className="rounded-full text-xs">{t.label}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className={`flex gap-4 ${selectedTopics.length > 0 ? "pt-4 border-t border-border/40" : ""}`}>
+            <div className="flex-1 text-center">
+              <p className="text-2xl font-display font-bold text-primary" data-testid="text-ready-session-count">{sessionCount}</p>
+              <p className="text-xs text-muted-foreground">Recommended Sessions</p>
+            </div>
+            <div className="flex-1 text-center">
+              <p className="text-2xl font-display font-bold text-primary" data-testid="text-ready-sponsor-count">{sponsorCount}</p>
+              <p className="text-xs text-muted-foreground">Recommended Sponsors</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="pb-8">
+          <Button className="w-full gap-2" size="lg" onClick={onDone} data-testid="button-go-to-dashboard">
+            Go to My Dashboard <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </OnboardingCard>
+  );
+}
+
+// ── Edit Topics (from dashboard) ──────────────────────────────────────────────
+
+function EditTopicsCard({ topics, currentSelections, onSave, onCancel, isSaving }: {
+  topics: Topic[]; currentSelections: string[];
+  onSave: (ids: string[]) => void; onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set(currentSelections));
+  const topicMap = new Map(topics.map((t) => [t.id, t]));
+  const selectedList = [...selected].map((id) => topicMap.get(id)).filter(Boolean) as Topic[];
+  const toggle = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/60">
+        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Star className="h-4 w-4 text-primary" />
+            </div>
+            <span className="text-sm font-semibold text-foreground">Edit Your Interests</span>
+          </div>
+          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground h-8 px-2" onClick={onCancel} data-testid="button-cancel-edit-topics">
+            <X className="h-4 w-4" /> Cancel
+          </Button>
+        </div>
+      </div>
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+        <div>
+          <h1 className="text-xl font-display font-bold text-foreground">Your Interests</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Update your topic selections to refresh your session and sponsor recommendations.
+          </p>
+        </div>
+
+        <div className="bg-card border border-border/60 rounded-2xl p-5">
+          {topics.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Loading topics…</p>
+          ) : (
+            <div className="flex flex-wrap gap-2" data-testid="topics-list">
+              {topics.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => toggle(t.id)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                    selected.has(t.id)
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
+                  }`}
+                  data-testid={`button-topic-${t.id}`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {selectedList.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> {selectedList.length} interest{selectedList.length !== 1 ? "s" : ""} selected
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedList.map((t) => (
+                  <Badge key={t.id} variant="secondary" className="rounded-full text-xs">{t.label}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-3 pb-8">
+          <Button
+            className="w-full gap-2" size="lg"
+            onClick={() => onSave([...selected])}
+            disabled={isSaving}
+            data-testid="button-save-interests"
+          >
+            {isSaving ? "Saving…" : "Save Interests"}
+            {!isSaving && <CheckCircle2 className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" className="w-full text-muted-foreground" onClick={onCancel} data-testid="button-cancel-edit-interests">
+            Cancel
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -344,7 +596,6 @@ function Dashboard({
   const hasMeetings = Object.keys(sponsorInteractions.meetings).length > 0;
   const hasSuggestedMeetings = suggestedMeetings.length > 0;
 
-  // ── Smart contextual prompts ──────────────────────────────────────────────
   const prompts: { key: string; icon: React.ReactNode; text: string; cta: string; href?: string; action?: () => void }[] = [];
   if (!hasInterests) {
     prompts.push({ key: "no-interests", icon: <Tag className="h-4 w-4" />, text: "Select your interests to unlock personalised session and sponsor recommendations.", cta: "Add Interests", action: onEditInterests });
@@ -369,7 +620,7 @@ function Dashboard({
         </p>
       </div>
 
-      {/* Meeting invitation banner — highest priority */}
+      {/* Meeting invitation banner */}
       {invitationCount > 0 && (
         <Link href="/attendee/meetings">
           <div className="flex items-center gap-3 bg-primary/5 border border-primary/30 rounded-xl px-4 py-3 cursor-pointer hover:bg-primary/10 transition-colors" data-testid="banner-meeting-invitations">
@@ -588,7 +839,7 @@ function Dashboard({
                       </Button>
                     )}
                     {hasInfo ? (
-                      <span className="flex items-center gap-1 text-xs text-accent font-medium" data-testid={`status-info-${sponsor.id}`}>
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium" data-testid={`status-info-${sponsor.id}`}>
                         <CheckCircle2 className="h-3.5 w-3.5" /> Info Sent
                       </span>
                     ) : (
@@ -639,12 +890,13 @@ function Dashboard({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-type OnboardingStep = "welcome" | "topics" | null;
+type OnboardingStep = "welcome" | "topics" | "edit-topics" | "sessions" | "sponsors" | "ready" | null;
 
 export default function AttendeePortalPage() {
   const { token, headers, meQuery, logout } = useAttendeeAuth();
   const qc = useQueryClient();
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>(null);
+  const [wizardDetailSession, setWizardDetailSession] = useState<RecommendedSession | null>(null);
 
   const topicsQuery = useQuery<Topic[]>({
     queryKey: ["/api/attendee-portal/topics"],
@@ -658,28 +910,32 @@ export default function AttendeePortalPage() {
     enabled: !!meQuery.data,
   });
 
+  // Enable post-onboarding queries during wizard steps 2-4 AND when onboarding is done
+  const isPostOnboarding = !!(meQuery.data?.onboarding.isDone) ||
+    (["sessions", "sponsors", "ready"].includes(onboardingStep ?? ""));
+
   const sessionsQuery = useQuery<RecommendedSession[]>({
     queryKey: ["/api/attendee-portal/recommended-sessions"],
     queryFn: () => fetch("/api/attendee-portal/recommended-sessions", { headers }).then((r) => r.json()),
-    enabled: !!meQuery.data?.onboarding.isDone,
+    enabled: isPostOnboarding,
   });
 
   const sponsorsQuery = useQuery<RecommendedSponsor[]>({
     queryKey: ["/api/attendee-portal/recommended-sponsors"],
     queryFn: () => fetch("/api/attendee-portal/recommended-sponsors", { headers }).then((r) => r.json()),
-    enabled: !!meQuery.data?.onboarding.isDone,
+    enabled: isPostOnboarding,
   });
 
   const suggestedMeetingsQuery = useQuery<SuggestedMeeting[]>({
     queryKey: ["/api/attendee-portal/suggested-meetings"],
     queryFn: () => fetch("/api/attendee-portal/suggested-meetings", { headers }).then((r) => r.json()),
-    enabled: !!meQuery.data?.onboarding.isDone,
+    enabled: isPostOnboarding,
   });
 
   const savedQuery = useQuery<{ savedId: string; id: string }[]>({
     queryKey: ["/api/attendee-portal/saved-sessions"],
     queryFn: () => fetch("/api/attendee-portal/saved-sessions", { headers }).then((r) => r.json()),
-    enabled: !!meQuery.data?.onboarding.isDone,
+    enabled: isPostOnboarding,
   });
 
   const saveSessionMutation = useMutation({
@@ -699,13 +955,13 @@ export default function AttendeePortalPage() {
   const interactionsQuery = useQuery<SponsorInteractions>({
     queryKey: ["/api/attendee-portal/sponsor-interactions"],
     queryFn: () => fetch("/api/attendee-portal/sponsor-interactions", { headers }).then((r) => r.json()),
-    enabled: !!meQuery.data?.onboarding.isDone,
+    enabled: isPostOnboarding,
   });
 
   const meetingsQuery = useQuery<{ id: string; status: string; source: string }[]>({
     queryKey: ["/api/attendee-portal/meetings"],
     queryFn: () => fetch("/api/attendee-portal/meetings", { headers }).then((r) => r.json()),
-    enabled: !!meQuery.data?.onboarding.isDone,
+    enabled: isPostOnboarding,
   });
 
   const [actingOnSponsor, setActingOnSponsor] = useState<string | null>(null);
@@ -745,14 +1001,19 @@ export default function AttendeePortalPage() {
       qc.invalidateQueries({ queryKey: ["/api/attendee-portal/recommended-sessions"] });
       qc.invalidateQueries({ queryKey: ["/api/attendee-portal/recommended-sponsors"] });
       qc.invalidateQueries({ queryKey: ["/api/attendee-portal/suggested-meetings"] });
-      setOnboardingStep(null);
+      // Wizard flow: advance to sessions card. Edit mode: return to dashboard.
+      setOnboardingStep((curr) => curr === "topics" ? "sessions" : null);
     },
   });
 
   const skipMutation = useMutation({
     mutationFn: () =>
       fetch("/api/attendee-portal/skip-onboarding", { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: "{}" }).then((r) => r.json()),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/attendee-portal/me"] }); setOnboardingStep(null); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/attendee-portal/me"] });
+      // Skip from wizard: advance to sessions (weaker recs, but still guided). Skip from edit: return to dashboard.
+      setOnboardingStep((curr) => curr === "topics" ? "sessions" : null);
+    },
   });
 
   if (!token || meQuery.isLoading) {
@@ -764,8 +1025,30 @@ export default function AttendeePortalPage() {
   }
 
   const me = meQuery.data;
-
   const showOnboarding: OnboardingStep = onboardingStep !== null ? onboardingStep : (!me.onboarding.isDone ? "welcome" : null);
+
+  const topics = topicsQuery.data ?? [];
+  const selections = selectionsQuery.data ?? [];
+  const sessions = sessionsQuery.data ?? [];
+  const sponsors = sponsorsQuery.data ?? [];
+  const savedSessionIds = new Set((savedQuery.data ?? []).map((s) => s.id));
+  const interactions = interactionsQuery.data ?? { meetings: {}, infoRequests: {} };
+  const invitationCount = (meetingsQuery.data ?? []).filter((m) => m.source === "admin" && m.status === "Scheduled").length;
+  const isSavingSession = saveSessionMutation.isPending || unsaveSessionMutation.isPending;
+
+  // ── Wizard Card 2: session detail sheet ───────────────────────────────────
+  const wizardSessionSheet = wizardDetailSession && (
+    <SessionDetailSheet
+      session={wizardDetailSession as AgendaSessionDetail}
+      isSaved={savedSessionIds.has(wizardDetailSession.id)}
+      onClose={() => setWizardDetailSession(null)}
+      onSave={() => saveSessionMutation.mutate(wizardDetailSession.id)}
+      onUnsave={() => unsaveSessionMutation.mutate(wizardDetailSession.id)}
+      isSaving={isSavingSession}
+    />
+  );
+
+  // ── Render wizard steps ────────────────────────────────────────────────────
 
   if (showOnboarding === "welcome") {
     return <WelcomeStep me={me} onStart={() => setOnboardingStep("topics")} onSkip={() => skipMutation.mutate()} isSkipping={skipMutation.isPending} />;
@@ -773,37 +1056,89 @@ export default function AttendeePortalPage() {
 
   if (showOnboarding === "topics") {
     return (
-      <TopicSelectionStep
-        topics={topicsQuery.data ?? []}
-        currentSelections={(selectionsQuery.data ?? []).map((s) => s.topicId)}
+      <TopicsCard
+        topics={topics}
+        currentSelections={selections.map((s) => s.topicId)}
         onSave={(ids) => saveTopicsMutation.mutate(ids)}
         onSkip={() => skipMutation.mutate()}
         isSaving={saveTopicsMutation.isPending}
         isSkipping={skipMutation.isPending}
-        me={me}
-        headers={headers}
       />
     );
   }
 
-  const savedSessionIds = new Set((savedQuery.data ?? []).map((s) => s.id));
-  const invitationCount = (meetingsQuery.data ?? []).filter((m) => m.source === "admin" && m.status === "Scheduled").length;
+  if (showOnboarding === "sessions") {
+    return (
+      <>
+        <SessionsCard
+          sessions={sessions}
+          savedSessionIds={savedSessionIds}
+          onSave={(id) => saveSessionMutation.mutate(id)}
+          onUnsave={(id) => unsaveSessionMutation.mutate(id)}
+          isSaving={isSavingSession}
+          onContinue={() => setOnboardingStep("sponsors")}
+          onViewSession={(s) => setWizardDetailSession(s)}
+        />
+        {wizardSessionSheet}
+      </>
+    );
+  }
+
+  if (showOnboarding === "sponsors") {
+    return (
+      <SponsorsCard
+        sponsors={sponsors}
+        sponsorInteractions={interactions}
+        onRequestMeeting={(id) => requestMeetingMutation.mutate(id)}
+        onRequestInfo={(id) => requestInfoMutation.mutate(id)}
+        isActingOnSponsor={actingOnSponsor}
+        onContinue={() => setOnboardingStep("ready")}
+      />
+    );
+  }
+
+  if (showOnboarding === "ready") {
+    return (
+      <ReadyCard
+        me={me}
+        selections={selections}
+        topics={topics}
+        sessionCount={sessions.length}
+        sponsorCount={sponsors.length}
+        onDone={() => setOnboardingStep(null)}
+      />
+    );
+  }
+
+  if (showOnboarding === "edit-topics") {
+    return (
+      <EditTopicsCard
+        topics={topics}
+        currentSelections={selections.map((s) => s.topicId)}
+        onSave={(ids) => saveTopicsMutation.mutate(ids)}
+        onCancel={() => setOnboardingStep(null)}
+        isSaving={saveTopicsMutation.isPending}
+      />
+    );
+  }
+
+  // ── Dashboard ──────────────────────────────────────────────────────────────
 
   return (
     <AttendeeShell onLogout={logout} attendeeName={me.attendee.firstName || me.attendee.name}>
       <Dashboard
         me={me}
-        topics={topicsQuery.data ?? []}
-        selections={selectionsQuery.data ?? []}
-        sessions={sessionsQuery.data ?? []}
-        sponsors={sponsorsQuery.data ?? []}
+        topics={topics}
+        selections={selections}
+        sessions={sessions}
+        sponsors={sponsors}
         suggestedMeetings={suggestedMeetingsQuery.data ?? []}
         savedSessionIds={savedSessionIds}
-        onEditInterests={() => setOnboardingStep("topics")}
+        onEditInterests={() => setOnboardingStep("edit-topics")}
         onSaveSession={(id) => saveSessionMutation.mutate(id)}
         onUnsaveSession={(id) => unsaveSessionMutation.mutate(id)}
-        isSavingSession={saveSessionMutation.isPending || unsaveSessionMutation.isPending}
-        sponsorInteractions={interactionsQuery.data ?? { meetings: {}, infoRequests: {} }}
+        isSavingSession={isSavingSession}
+        sponsorInteractions={interactions}
         onRequestMeeting={(id) => requestMeetingMutation.mutate(id)}
         onRequestInfo={(id) => requestInfoMutation.mutate(id)}
         isActingOnSponsor={actingOnSponsor}

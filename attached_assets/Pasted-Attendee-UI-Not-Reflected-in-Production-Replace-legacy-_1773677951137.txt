@@ -1,0 +1,279 @@
+Attendee UI Not Reflected in Production
+Replace legacy attendee landing page with the new attendee experience and verify routing
+
+I published the recent updates, but the attendee-facing interface still appears to be the old legacy page.
+
+The screenshot shows the current attendee experience is still the old layout:
+
+event hero card
+
+static topic chips
+
+sponsor cards
+
+no guided onboarding
+
+no attendee dashboard structure
+
+no distinct Home / Agenda / My Agenda / Sponsors / Meetings experience
+
+no clearly upgraded recommendation-driven UI
+
+This means the new attendee UI work is either:
+
+not implemented
+
+not wired to the production attendee route
+
+or not replacing the legacy attendee experience
+
+We need to correct that.
+
+1. Primary Goal
+
+Ensure the new attendee UI actually becomes the live production attendee experience.
+
+Do not leave the old landing page as the page that attendees see from their secure event links.
+
+2. Audit the Current Attendee Route
+
+Identify the actual route currently used by attendee invitation/scheduling links.
+
+Examples might include something like:
+
+/event/:eventCode
+
+/schedule/:eventCode
+
+/attendee/:token
+
+other tokenized attendee route
+
+Required action
+
+Determine:
+
+which route the attendee email link currently opens
+
+which component/page renders that route
+
+whether it is still pointing to the legacy attendee page
+
+This must be explicitly verified.
+
+3. Replace the Legacy Attendee Landing Page
+
+The current attendee page shown in the screenshot must no longer be the primary production experience.
+
+Required behavior
+
+The secure attendee link should now open the new attendee UI flow:
+
+First-time attendee
+
+guided onboarding flow first
+
+Returning attendee
+
+attendee dashboard
+
+Partially completed onboarding
+
+resume or re-enter onboarding appropriately
+
+Do not keep the legacy one-page sponsor browsing layout as the default attendee experience.
+
+4. Implement / Verify Phase A Is Actually Live
+
+The live attendee experience should now include:
+
+Onboarding
+
+Welcome screen
+
+topic selection using Event Interest Topics
+
+progress/save behavior
+
+Dashboard
+
+Recommended Sessions
+
+Recommended Sponsors
+
+selected interests summary if applicable
+
+If these pieces do not yet exist in the code, build them.
+If they already exist, connect them to the live attendee route.
+
+5. Route Logic Requirements
+
+When attendee opens secure tokenized link:
+
+If onboarding incomplete
+
+Show:
+
+Onboarding flow
+If onboarding complete
+
+Show:
+
+Attendee dashboard
+If token invalid
+
+Show a clean access error state
+
+This logic must be part of the live attendee entry point.
+
+6. Do Not Leave the Old Topic Chip Section as the Main UI
+
+The screenshot shows the old section:
+
+Make the most of your time at the conference. What topics interest you?
+
+with static pill-style topics on the same page as sponsor cards.
+
+That is not the intended upgraded attendee experience.
+
+Required correction
+
+Move topic selection into the structured onboarding flow.
+
+It should not remain as a loose inline section on the old landing page.
+
+7. Do Not Leave Sponsor Browsing as the Only First Impression
+
+The attendee UI should no longer begin as:
+
+Sponsors Available for Meetings
+
+with static sponsor cards as the main interface.
+
+Instead, the system should:
+
+collect interests
+
+personalize recommendations
+
+then show relevant sessions and sponsors
+
+The attendee experience should feel guided and intelligent, not like a static sponsor directory.
+
+8. Add Basic Attendee Navigation
+
+The new attendee UI should include a lightweight attendee navigation structure.
+
+Minimum:
+
+Home
+
+Agenda
+
+My Agenda
+
+Sponsors
+
+Meetings
+
+If full nav is not ready, at least the page structure should support:
+
+Dashboard / Home
+
+Agenda
+
+Sponsors
+
+Meetings
+
+The current legacy page does not reflect this.
+
+9. Verify Production Build Uses the New Components
+
+Specifically confirm:
+
+production build includes the new attendee components
+
+published route points to the new components
+
+no stale legacy route remains primary
+
+no feature flag is hiding the new UI in production
+
+If a feature flag exists, enable it for production.
+
+If an old component is still imported, replace it.
+
+10. Preserve Existing Core Capabilities While Replacing the UI
+
+When replacing the attendee page, preserve the existing working capabilities such as:
+
+sponsor browsing
+
+meeting scheduling actions
+
+request information
+
+event context
+
+secure attendee access
+
+But reorganize them into the new attendee experience.
+
+This is not just visual redesign. It is a new interaction flow.
+
+11. Minimum Correct Production Experience
+
+At minimum, when an attendee opens their event link, the live experience should now be:
+
+First visit
+
+Welcome to Converge Concierge
+
+Select your interests
+
+Continue to dashboard
+
+Then dashboard shows
+
+Recommended Sessions
+
+Recommended Sponsors
+
+navigation to Agenda / Sponsors / Meetings
+
+If that is not what appears, the implementation is not complete.
+
+12. Add Temporary Debug Confirmation
+
+To avoid ambiguity, add a temporary visible label in non-production or admin test mode showing something like:
+
+Attendee UI Version: New Experience
+
+or confirm in code/comments/logging which component is rendering.
+
+This helps ensure the correct page is live during testing.
+
+Remove or hide this label in final production if needed.
+
+13. Acceptance Criteria
+
+This correction is complete when:
+
+the secure attendee event link no longer opens the legacy attendee landing page
+
+first-time attendees see the onboarding flow
+
+returning attendees see the attendee dashboard
+
+topic selection is part of onboarding, not a static inline legacy section
+
+the attendee UI is clearly recommendation-driven
+
+sponsor browsing remains available but is no longer the only primary page
+
+production is confirmed to use the new attendee route/components
+
+14. Success Standard
+
+After this fix, the attendee-facing experience should clearly look and behave like the new Concierge attendee interface, not the old scheduling page with topic chips and sponsor cards. If an attendee opens their secure link, it should be obvious that the upgraded UI is live.

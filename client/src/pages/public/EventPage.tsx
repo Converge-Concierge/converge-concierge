@@ -301,6 +301,16 @@ export default function EventPage() {
   const { slug } = useParams<{ slug: string }>();
   const [, nav] = useLocation();
 
+  // If the attendee has a stored concierge token, send them to the new attendee experience.
+  // This ensures returning visitors who previously clicked a personal concierge link always
+  // land on the new UI even if they navigate to the legacy /event/:slug URL.
+  useEffect(() => {
+    const storedToken = localStorage.getItem("attendee_token");
+    if (storedToken) {
+      nav("/attendee");
+    }
+  }, []);
+
   const { data: events   = [], isLoading: evL } = useQuery<Event[]>  ({ queryKey: ["/api/events"]   });
   const { data: sponsors = [], isLoading: spL } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
   const { data: meetings = [] }                 = useQuery<Meeting[]>({ queryKey: ["/api/meetings"] });

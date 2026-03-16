@@ -724,7 +724,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       const baseUrl = await getAppBaseUrl();
-      const schedulingUrl = `${baseUrl}/event/${event.slug}`;
+      // Generate a personal concierge token so the invitation opens the new attendee experience
+      const inviteToken = await storage.createAttendeeToken(attendee.id, attendee.assignedEvent);
+      const schedulingUrl = `${baseUrl}/attendee-access/${inviteToken.token}`;
       const firstName = attendee.firstName || attendee.name?.split(" ")[0] || attendee.name || "Attendee";
 
       const template = await storage.getEmailTemplateByKey("scheduling_invitation");

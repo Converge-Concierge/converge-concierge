@@ -1,0 +1,497 @@
+Audit Attendee UI Phases A, B, C, and D
+Verify what was actually implemented, what is live, what routes are using legacy pages, and what remains incomplete
+
+The attendee screens in production still do not reflect the phased attendee UI work that was specified.
+
+At this point, we need to stop issuing more feature instructions and instead perform a structured implementation audit of the attendee experience.
+
+The goal is to determine:
+
+what parts of Phases A, B, C, and D were actually built
+
+what parts are only partially built
+
+what routes/components are still rendering legacy attendee pages
+
+what is missing from production entirely
+
+what needs to be corrected next in a clean sequence
+
+This audit should be explicit and evidence-based.
+
+1. Primary Goal
+
+Perform a full audit of the attendee-facing implementation for:
+
+Phase A
+
+Phase B
+
+Phase C
+
+Phase D
+
+Then return a structured report showing:
+
+implemented
+
+partially implemented
+
+not implemented
+
+implemented but not wired to production
+
+legacy page still active
+
+Do not do more feature work until this audit is complete.
+
+2. Audit Scope
+
+Audit the attendee experience across these four phases:
+
+Phase A
+
+secure attendee access
+
+welcome / onboarding flow
+
+topic selection
+
+attendee dashboard
+
+recommended sessions
+
+recommended sponsors
+
+Phase B
+
+full agenda page
+
+session detail view
+
+My Agenda
+
+add to calendar
+
+admin visibility into My Agenda
+
+Phase C
+
+sponsor directory
+
+sponsor detail page
+
+request meeting
+
+request information
+
+interaction state visibility
+
+Phase D
+
+My Meetings
+
+meeting invitations
+
+accept / decline flows
+
+pending requests
+
+combined planning view
+
+dashboard meeting indicators
+
+3. Required Audit Deliverable Format
+
+Return the results in a structured matrix using this format:
+
+Attendee UI Audit
+
+Phase A
+A1. Secure attendee access ............. Implemented / Partial / Missing
+A2. Welcome onboarding flow ............ Implemented / Partial / Missing
+A3. Topic selection persistence ........ Implemented / Partial / Missing
+A4. Dashboard exists ................... Implemented / Partial / Missing
+A5. Recommended Sessions ............... Implemented / Partial / Missing
+A6. Recommended Sponsors ............... Implemented / Partial / Missing
+
+Phase B
+B1. Full Agenda page ................... Implemented / Partial / Missing
+B2. Session detail view ................ Implemented / Partial / Missing
+B3. My Agenda save/remove .............. Implemented / Partial / Missing
+B4. Add to Calendar .................... Implemented / Partial / Missing
+B5. Admin View My Agenda ............... Implemented / Partial / Missing
+
+Phase C
+C1. Sponsor directory .................. Implemented / Partial / Missing
+C2. Sponsor detail page ................ Implemented / Partial / Missing
+C3. Request Meeting .................... Implemented / Partial / Missing
+C4. Request Information ................ Implemented / Partial / Missing
+C5. Interaction state visibility ....... Implemented / Partial / Missing
+
+Phase D
+D1. My Meetings page ................... Implemented / Partial / Missing
+D2. Meeting invitations ................ Implemented / Partial / Missing
+D3. Accept / Decline flow .............. Implemented / Partial / Missing
+D4. Pending requests ................... Implemented / Partial / Missing
+D5. Combined planning view ............. Implemented / Partial / Missing
+D6. Dashboard meeting indicators ....... Implemented / Partial / Missing
+
+Each line item must include a short note explaining:
+
+where it exists
+
+what route/component it uses
+
+whether it is live in production
+
+4. Audit the Live Attendee Entry Route First
+
+Before anything else, identify the actual production attendee entry route.
+
+Examples may include:
+
+/event/:eventCode
+
+/attendee/:token
+
+/schedule/:eventCode
+
+another secure tokenized route
+
+Required action
+
+Determine:
+
+which route attendee emails currently link to
+
+which component renders that route
+
+whether that route is using the old attendee page or the new phased UI
+
+This is critical because the screenshots strongly suggest that the live attendee route is still using a legacy page.
+
+5. Identify Legacy Attendee Components Still in Use
+
+Find and list all attendee-facing components/pages currently in the codebase that appear to be legacy.
+
+Examples of legacy behavior seen in screenshots:
+
+registration confirmation hero
+
+inline topic chips on same page
+
+static sponsor cards below
+
+no true dashboard
+
+no obvious nav to Agenda / My Agenda / Sponsors / Meetings
+
+Required output
+
+Provide a list of:
+
+legacy attendee components
+
+new attendee components
+
+which are still imported into production routes
+
+We need to know exactly what is still live.
+
+6. Audit Phase A Specifically
+
+For Phase A, verify whether the following are truly implemented and live:
+
+A1. Secure attendee access
+
+Is tokenized attendee access working?
+
+What route/component uses it?
+
+A2. Guided onboarding flow
+
+Is there a true onboarding flow?
+
+Or is the page still just a static confirmation page with topic chips?
+
+A3. Topic selection persistence
+
+Are selections saved to the new structured topic selection table?
+
+Do they persist after refresh?
+
+A4. Attendee dashboard
+
+Does a real attendee dashboard exist?
+
+What route shows it?
+
+A5. Recommended Sessions
+
+Are sessions actually recommended from topic overlap?
+
+Or is there no session recommendation block?
+
+A6. Recommended Sponsors
+
+Are sponsors actually ranked/recommended from topic overlap?
+
+Or are they just statically listed?
+
+For each item, provide:
+
+implemented / partial / missing
+
+route/component
+
+live in production: yes/no
+
+7. Audit Phase B Specifically
+
+Verify whether the following exist and are live:
+
+B1. Full Agenda page
+
+attendee-facing agenda route
+
+displays published/public sessions only
+
+B2. Session detail view
+
+does attendee have session detail view/modal/page
+
+B3. My Agenda
+
+save session
+
+remove session
+
+attendee My Agenda page
+
+B4. Add to Calendar
+
+single-session ICS export
+
+where it appears
+
+B5. Admin View My Agenda
+
+is the admin attendee record wired to My Agenda
+
+active vs greyed-out logic
+
+Again, provide:
+
+implemented / partial / missing
+
+route/component
+
+live in production: yes/no
+
+8. Audit Phase C Specifically
+
+Verify whether the following exist and are live:
+
+C1. Sponsor directory
+
+attendee-facing sponsor listing page beyond the old landing page
+
+C2. Sponsor detail page
+
+attendee can open a full sponsor view
+
+C3. Request Meeting
+
+action exists in attendee sponsor experience
+
+creates correct records
+
+prevents duplicates
+
+C4. Request Information
+
+action exists in attendee sponsor experience
+
+creates correct records
+
+reflects state
+
+C5. Interaction state visibility
+
+UI shows requested / confirmed / already requested states
+
+Again, provide:
+
+implemented / partial / missing
+
+route/component
+
+live in production: yes/no
+
+9. Audit Phase D Specifically
+
+Verify whether the following exist and are live:
+
+D1. My Meetings page
+
+attendee-facing meeting list
+
+D2. Meeting invitations
+
+attendee can see invitations requiring response
+
+D3. Accept / Decline flow
+
+attendee can respond to invitations
+
+D4. Pending requests
+
+attendee can see requests they initiated
+
+D5. Combined planning view
+
+meetings + saved sessions together
+
+D6. Dashboard meeting indicators
+
+dashboard shows invitations / meeting counts / status
+
+Again, provide:
+
+implemented / partial / missing
+
+route/component
+
+live in production: yes/no
+
+10. Verify Database / Backend Support vs UI Support
+
+For each phase item, distinguish between:
+
+backend/data model exists
+
+UI exists
+
+routing exists
+
+production wiring exists
+
+Example:
+
+My Agenda
+Backend: Implemented
+UI: Implemented
+Route: Implemented
+Production link: Missing
+Status: Partial
+
+This distinction is very important because some work may exist in code but not be connected.
+
+11. Verify Event Interest Topics Integration
+
+Since attendee recommendations depend on Event Interest Topics, audit whether the attendee UI is actually using the new topic model.
+
+Required checks
+
+Are attendee interest chips coming from approved active event interest topics?
+
+Or are they still coming from old sponsor-derived text / legacy category source?
+
+Are sponsor recommendations using sponsor_interest_topic_selections?
+
+Are session recommendations using session_interest_topic_selections?
+
+This must be explicitly verified.
+
+12. Verify Recommendation Logic vs Static Rendering
+
+The screenshots suggest the current attendee page may still be mostly static.
+
+Audit whether recommendation blocks are truly recommendation-driven or just rendering available records.
+
+Examples:
+
+Are sponsors ranked by topic overlap?
+
+Are sessions ranked by topic overlap?
+
+Is relevance text shown?
+
+Or are these just static lists?
+
+For every “recommended” element, verify whether logic exists or the label is just cosmetic.
+
+13. Produce a Production Gap Summary
+
+After the audit matrix, provide a short section:
+
+Production Gaps
+
+List the top gaps preventing the attendee experience from matching the intended design.
+
+Example format:
+
+Live attendee route still points to legacy page
+
+Dashboard not connected to post-onboarding flow
+
+My Agenda exists in backend but not visible in attendee navigation
+
+Sponsor directory logic is static, not recommendation-driven
+
+Meeting invitations UI missing from production
+
+This gap summary will drive the next corrective implementation phase.
+
+14. Identify the Correct Next Fix Sequence
+
+After the audit, recommend the next build order based on what is actually missing.
+
+The recommendation should be pragmatic.
+
+Example:
+
+Replace live attendee route
+
+Wire onboarding to dashboard
+
+Surface full agenda + My Agenda nav
+
+Connect sponsor detail and request flows
+
+Add My Meetings and invitation responses
+
+Do not assume all phases need to be rebuilt equally. Base this on the audit findings.
+
+15. No Additional Feature Work Until Audit Is Returned
+
+Do not continue implementing more attendee features before this audit is complete.
+
+The immediate deliverable is the audit report itself, not more new code.
+
+If there are quick route fixes discovered during the audit, note them, but first return the full assessment.
+
+16. Acceptance Criteria
+
+This audit is complete when:
+
+the live attendee route is identified
+
+legacy vs new attendee components are identified
+
+every major Phase A/B/C/D feature is marked as implemented / partial / missing
+
+backend vs UI vs production wiring distinctions are clearly documented
+
+Event Interest Topics integration is verified
+
+recommendation logic is verified as real vs static
+
+a production gap summary is provided
+
+a recommended corrective sequence is provided
+
+17. Success Standard
+
+After this audit, we should have a clear, evidence-based picture of the attendee implementation status and know exactly why the attendee screens still look mostly unchanged in production. The result should remove ambiguity and let us correct the right things in the right order.

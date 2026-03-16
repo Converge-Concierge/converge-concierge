@@ -1,0 +1,601 @@
+Build Event Interest Topics Functionality
+Replace sponsor-driven free-text interests with Converge-managed event topics that power attendees, sponsors, sessions, and recommendations
+
+We need to redesign how areas of interest / topics work in Concierge.
+
+The current model relies too heavily on sponsor-entered free text. That creates inconsistent wording and weakens:
+
+attendee onboarding
+
+sponsor onboarding
+
+session recommendations
+
+sponsor recommendations
+
+future matchmaking
+
+reporting
+
+We want to move to a new model where Converge defines the official event interest topics and sponsors can select from them or suggest additions.
+
+This should become the shared topic system for each event.
+
+1. Primary Goal
+
+Build an Event Interest Topics system that allows Converge to define the official topics for each event and use them consistently across:
+
+attendee interest selection
+
+sponsor onboarding
+
+agenda/session topic tagging
+
+sponsor recommendations
+
+session recommendations
+
+future attendee/sponsor matchmaking
+
+future analytics and reporting
+
+2. Product Decision
+Old model
+
+Topics/categories are mainly derived from sponsor onboarding free-text entries.
+
+New model
+
+Topics are event-specific and primarily controlled by Converge.
+
+New workflow
+
+Converge uploads/finalizes the agenda
+
+Converge runs agenda titles/descriptions through ChatGPT analysis externally or through an admin helper workflow
+
+Suggested topic phrases are reviewed by Converge
+
+Approved topics become the official Event Interest Topics
+
+Attendees select from those topics
+
+Sponsors select from those topics
+
+Sponsors may suggest additional topics for admin review
+
+3. Create New Data Model
+Table: event_interest_topics
+
+Create a new table/model:
+
+id
+
+event_id
+
+topic_key
+
+topic_label
+
+topic_description nullable
+
+topic_source
+
+status
+
+display_order
+
+is_active
+
+created_by_user_id nullable
+
+created_at
+
+updated_at
+
+Field notes
+topic_key
+
+Normalized internal key.
+
+Examples:
+
+AI_RISK_MANAGEMENT
+
+REAL_TIME_PAYMENTS
+
+CORE_MODERNIZATION
+
+topic_label
+
+Admin/user-facing label.
+
+Examples:
+
+AI Risk Management
+
+Real-Time Payments
+
+Core Modernization
+
+topic_source
+
+Allowed values:
+
+AGENDA_ANALYSIS
+
+ADMIN_DEFINED
+
+SPONSOR_SUGGESTED
+
+status
+
+Allowed values:
+
+PENDING
+
+APPROVED
+
+REJECTED
+
+Only approved + active topics should appear to attendees and sponsors.
+
+4. Create Topic Selection Link Tables
+Table: attendee_interest_topic_selections
+
+id
+
+attendee_id
+
+event_id
+
+topic_id
+
+created_at
+
+Table: sponsor_interest_topic_selections
+
+id
+
+sponsor_id
+
+event_id
+
+topic_id
+
+created_at
+
+Table: session_interest_topic_selections
+
+id
+
+session_id
+
+event_id
+
+topic_id
+
+created_at
+
+These link tables will power matching, recommendations, and reporting.
+
+5. Sponsor Suggested Topics
+
+Use one of these two approaches. Either is acceptable.
+
+Preferred approach
+
+Keep sponsor suggestions in the same event_interest_topics table with:
+
+topic_source = SPONSOR_SUGGESTED
+
+status = PENDING
+
+Alternative approach
+
+Create a separate topic_suggestions table.
+
+If you use a separate table, fields should include:
+
+id
+
+event_id
+
+sponsor_id nullable
+
+suggested_label
+
+normalized_key
+
+status
+
+review_notes nullable
+
+created_at
+
+updated_at
+
+If approved, create a real event_interest_topics record.
+
+6. Add Admin Area: Event Interest Topics
+
+Create a new admin section.
+
+Recommended location:
+
+Admin → Events → Interest Topics
+
+or
+
+Admin → Event Setup → Interest Topics
+
+This must be event-specific.
+
+7. Event Interest Topics Admin Page
+
+For the selected event, show:
+
+page title: Interest Topics
+
+event tabs in the standard event order
+
+actions:
+
+Add Topic
+
+Bulk Add Topics
+
+Review Suggestions
+
+Main table columns
+
+Topic Label
+
+Source
+
+Status
+
+Active
+
+Display Order
+
+Used By Attendees
+
+Used By Sponsors
+
+Used By Sessions
+
+Actions
+
+Row actions
+
+Edit
+
+Approve
+
+Reject
+
+Activate / Deactivate
+
+Delete if unused
+
+8. Bulk Add / Import Topic Suggestions
+
+Add a bulk-add function for Converge.
+
+Converge should be able to paste lines like:
+
+AI Risk Management
+Fraud Detection
+Real-Time Payments
+Core Modernization
+Embedded Finance
+Digital Customer Experience
+
+The system should:
+
+normalize keys
+
+prevent duplicates within the same event
+
+create topics as approved or pending based on admin choice
+
+assign display order automatically
+
+This is the minimum workflow needed to support ChatGPT-generated topic lists.
+
+9. Agenda Analysis Workflow
+
+We do not need to build a full AI workflow inside Concierge yet.
+
+Minimum implementation
+
+Support a practical admin workflow:
+
+Option A
+
+Converge runs agenda analysis in ChatGPT externally and pastes the suggested topics into Bulk Add Topics.
+
+Option B
+
+Add a helper text area in admin where Converge can paste ChatGPT output and create topics from it.
+
+This is enough for now.
+
+Do not block the feature waiting on full embedded AI.
+
+10. Topic Quality Rules
+
+Topics should be concise and useful to attendees.
+
+Recommended guidance
+
+2–3 word phrases preferred
+
+avoid long sponsor marketing phrases
+
+avoid weak one-word topics unless clearly necessary
+
+aim for roughly 8–15 active topics per event
+
+Examples of good topics:
+
+AI Risk Management
+
+Fraud Detection
+
+Real-Time Payments
+
+Vendor Risk
+
+Core Modernization
+
+Digital Banking
+
+11. Sponsor Onboarding Changes
+
+Remove the old model where sponsors define the primary topic list through free-form words.
+
+New sponsor onboarding behavior
+
+Sponsors should see:
+
+Select the areas your company supports
+
+Show the approved, active event topics for that sponsor’s event.
+
+Allow multi-select.
+
+Also allow:
+
+Suggest a New Topic
+
+This should create a pending suggestion for admin review. It should not immediately become a live topic.
+
+12. Sponsor Suggestion Workflow
+
+When a sponsor suggests a topic:
+
+create suggestion record or pending topic
+
+mark as PENDING
+
+link to sponsor and event
+
+optionally notify admin
+
+do not expose it to attendees or recommendations until approved
+
+Admin can:
+
+approve
+
+reject
+
+edit wording before approval
+
+13. Attendee Onboarding Changes
+
+Update attendee interest selection so it uses only approved, active event topics.
+
+Prompt example:
+
+Select the topics most relevant to you
+
+Allow attendees to select up to a configured number, such as:
+
+minimum 1
+
+maximum 5
+
+If possible, use card-style or chip-style multi-select rather than a cluttered checkbox list.
+
+14. Session Topic Tagging
+
+Agenda sessions should also be linked to event interest topics.
+
+Required behavior
+
+Allow admins to assign one or more event topics to each session.
+
+This can be done:
+
+manually in the session edit form
+
+through a future import workflow if needed
+
+This is important for session recommendations later.
+
+15. Add Topic Selection to Session Edit Form
+
+In the agenda session admin form, add a multi-select section:
+
+Related Interest Topics
+
+This should display the approved, active event topics for the same event.
+
+Do not require topics for every session immediately, but support them cleanly.
+
+Recommended guardrail:
+
+max 3 topics per session
+
+16. Optional CSV Support for Session Topics
+
+If practical, add session-topic support to agenda CSV import later.
+
+Possible columns:
+
+Topic1
+
+Topic2
+
+Topic3
+
+This is optional for the first release, but leave room for it in the design.
+
+17. Recommendation Engine Readiness
+
+The point of this new topic system is to power future recommendations.
+
+This implementation must support:
+
+Attendee → Session recommendations
+
+Recommend sessions where:
+
+session topics overlap attendee-selected topics
+
+Attendee → Sponsor recommendations
+
+Recommend sponsors where:
+
+sponsor-selected topics overlap attendee-selected topics
+
+Sponsor → Attendee matching later
+
+Rank attendees by topic overlap plus attendee category priority
+
+Do not necessarily build the full recommendation UI in this phase, but the data structure must support it now.
+
+18. Reporting Readiness
+
+This topic system should support future reporting such as:
+
+most selected attendee interests by event
+
+sponsor topic coverage by event
+
+session topic distribution
+
+topic-based engagement analytics
+
+Examples:
+
+AI Risk Management selected by 28 attendees
+
+Fraud Detection selected by 11 sponsors
+
+Real-Time Payments tagged on 4 sessions
+
+Add count fields in admin views where practical.
+
+19. Prevent Duplicate / Near-Duplicate Topics
+
+When creating or approving topics, add duplicate protection.
+
+Normalize at minimum:
+
+case
+
+whitespace
+
+punctuation where practical
+
+Examples to catch:
+
+Fraud Detection
+
+fraud detection
+
+Fraud Detection
+
+If a near-duplicate is entered, warn the admin and block or require confirmation.
+
+20. UI Language
+
+Use clear labels such as:
+
+Interest Topics
+
+Areas of Interest
+
+Select Your Interests
+
+Select the Areas Your Company Supports
+
+Suggest a Topic
+
+Do not expose internal terms like taxonomy or normalized key in user-facing views.
+
+21. Permissions
+
+Add permissions as needed:
+
+View Interest Topics
+
+Manage Interest Topics
+
+Approve Topic Suggestions
+
+Edit Session Topics
+
+Manage Sponsor Topic Selections
+
+These should integrate with the current access control model.
+
+22. Migration / Legacy Handling
+
+The app likely has old sponsor-defined free-text categories today.
+
+Required approach
+
+Do not keep the old free-text model as the main source of truth.
+
+Instead:
+
+preserve legacy values for reference if needed
+
+move active events to Converge-approved event topics
+
+use the new event topic system as the authoritative source going forward
+
+If helpful, you can display old sponsor-defined values in admin during migration, but they should not drive the live attendee/sponsor topic selection UI.
+
+23. Acceptance Criteria
+
+This implementation is complete when:
+
+event-specific interest topics can be created and managed
+
+topics are tied to events, not global by default
+
+Converge can bulk-add event topics from ChatGPT-generated outputs
+
+attendees select from approved active event topics
+
+sponsors select from approved active event topics
+
+sponsors can suggest new topics for admin review
+
+sessions can be linked to event interest topics
+
+duplicate topic handling is in place
+
+the old sponsor free-text topic model is no longer the main driver of interest selection
+
+the data model is ready to power session and sponsor recommendations
+
+24. Success Standard
+
+After this implementation, Concierge should have a clean, Converge-controlled, event-specific interest topic system that powers attendees, sponsors, sessions, and future recommendations in a consistent way. This should be a much stronger foundation than the current sponsor-driven free-text approach.

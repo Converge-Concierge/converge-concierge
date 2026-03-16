@@ -11,6 +11,8 @@ import {
   fileAssets, deliverableLinks, deliverableSocialEntries, meetingInvitations,
   sessionTypes, agendaSessions, agendaSessionSpeakers, attendeeSavedSessions, agendaImportJobs,
   emailTemplateVersions, automationRules, automationLogs, campaigns, messageJobs,
+  eventInterestTopics, attendeeInterestTopicSelections, sponsorInterestTopicSelections, sessionInterestTopicSelections,
+  type EventInterestTopic, type InsertEventInterestTopic,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -1340,6 +1342,120 @@ export class DatabaseStorage implements IStorage {
 
   async getMessageJobEmailLogs(jobId: string): Promise<import("@shared/schema").EmailLog[]> {
     return db.select().from(emailLogs).where(eq(emailLogs.messageJobId, jobId)).orderBy(desc(emailLogs.sentAt));
+  }
+
+  // ── Event Interest Topics ──────────────────────────────────────────────────
+
+  async createEventInterestTopic(data: InsertEventInterestTopic): Promise<EventInterestTopic> {
+    const [row] = await db.insert(eventInterestTopics).values({ id: randomUUID(), ...data }).returning();
+    return row;
+  }
+
+  async updateEventInterestTopic(id: string, updates: Partial<InsertEventInterestTopic>): Promise<EventInterestTopic | undefined> {
+    const [row] = await db.update(eventInterestTopics).set({ ...updates, updatedAt: new Date() }).where(eq(eventInterestTopics.id, id)).returning();
+    return row;
+  }
+
+  async deleteEventInterestTopic(id: string): Promise<void> {
+    await db.delete(eventInterestTopics).where(eq(eventInterestTopics.id, id));
+  }
+
+  async getEventInterestTopic(id: string): Promise<EventInterestTopic | undefined> {
+    const [row] = await db.select().from(eventInterestTopics).where(eq(eventInterestTopics.id, id)).limit(1);
+    return row;
+  }
+
+  async getEventInterestTopics(eventId: string, filters?: { status?: string; isActive?: boolean }): Promise<EventInterestTopic[]> {
+    let rows = await db.select().from(eventInterestTopics)
+      .where(eq(eventInterestTopics.eventId, eventId))
+      .orderBy(eventInterestTopics.displayOrder, eventInterestTopics.topicLabel);
+    if (filters?.status) rows = rows.filter(r => r.status === filters.status);
+    if (filters?.isActive !== undefined) rows = rows.filter(r => r.isActive === filters.isActive);
+    return rows;
+  }
+
+  async upsertAttendeeTopics(attendeeId: string, eventId: string, topicIds: string[]): Promise<void> {
+    await db.delete(attendeeInterestTopicSelections).where(
+      and(eq(attendeeInterestTopicSelections.attendeeId, attendeeId), eq(attendeeInterestTopicSelections.eventId, eventId))
+    );
+    if (topicIds.length > 0) {
+      await db.insert(attendeeInterestTopicSelections).values(
+        topicIds.map(topicId => ({ id: randomUUID(), attendeeId, eventId, topicId }))
+      );
+    }
+  }
+
+  async getAttendeeTopics(attendeeId: string, eventId: string): Promise<import("@shared/schema").AttendeeInterestTopicSelection[]> {
+    return db.select().from(attendeeInterestTopicSelections).where(
+      and(eq(attendeeInterestTopicSelections.attendeeId, attendeeId), eq(attendeeInterestTopicSelections.eventId, eventId))
+    );
+  }
+
+  async upsertSponsorTopics(sponsorId: string, eventId: string, topicIds: string[]): Promise<void> {
+    await db.delete(sponsorInterestTopicSelections).where(
+      and(eq(sponsorInterestTopicSelections.sponsorId, sponsorId), eq(sponsorInterestTopicSelections.eventId, eventId))
+    );
+    if (topicIds.length > 0) {
+      await db.insert(sponsorInterestTopicSelections).values(
+        topicIds.map(topicId => ({ id: randomUUID(), sponsorId, eventId, topicId }))
+      );
+    }
+  }
+
+  async getSponsorTopics(sponsorId: string, eventId: string): Promise<import("@shared/schema").SponsorInterestTopicSelection[]> {
+    return db.select().from(sponsorInterestTopicSelections).where(
+      and(eq(sponsorInterestTopicSelections.sponsorId, sponsorId), eq(sponsorInterestTopicSelections.eventId, eventId))
+    );
+  }
+
+  async upsertSessionTopics(sessionId: string, eventId: string, topicIds: string[]): Promise<void> {
+    await db.delete(sessionInterestTopicSelections).where(eq(sessionInterestTopicSelections.sessionId, sessionId));
+    if (topicIds.length > 0) {
+      await db.insert(sessionInterestTopicSelections).values(
+        topicIds.map(topicId => ({ id: randomUUID(), sessionId, eventId, topicId }))
+      );
+    }
+  }
+
+  async getSessionTopics(sessionId: string): Promise<import("@shared/schema").SessionInterestTopicSelection[]> {
+    return db.select().from(sessionInterestTopicSelections).where(eq(sessionInterestTopicSelections.sessionId, sessionId));
+  }
+
+  async countTopicUsage(topicId: string): Promise<{ attendees: number; sponsors: number; sessions: number }> {
+    const [a] = await db.select({ count: sql<number>`count(*)::int` }).from(attendeeInterestTopicSelections).where(eq(attendeeInterestTopicSelections.topicId, topicId));
+    const [s] = await db.select({ count: sql<number>`count(*)::int` }).from(sponsorInterestTopicSelections).where(eq(sponsorInterestTopicSelections.topicId, topicId));
+    const [se] = await db.select({ count: sql<number>`count(*)::int` }).from(sessionInterestTopicSelections).where(eq(sessionInterestTopicSelections.topicId, topicId));
+    return { attendees: a?.count ?? 0, sponsors: s?.count ?? 0, sessions: se?.count ?? 0 };
+  }
+
+  async bulkCountTopicUsage(topicIds: string[]): Promise<Map<string, { attendees: number; sponsors: number; sessions: number }>> {
+    const result = new Map<string, { attendees: number; sponsors: number; sessions: number }>();
+    if (topicIds.length === 0) return result;
+    topicIds.forEach(id => result.set(id, { attendees: 0, sponsors: 0, sessions: 0 }));
+    const aRows = await db.select({ topicId: attendeeInterestTopicSelections.topicId, count: sql<number>`count(*)::int` })
+      .from(attendeeInterestTopicSelections).where(inArray(attendeeInterestTopicSelections.topicId, topicIds))
+      .groupBy(attendeeInterestTopicSelections.topicId);
+    const sRows = await db.select({ topicId: sponsorInterestTopicSelections.topicId, count: sql<number>`count(*)::int` })
+      .from(sponsorInterestTopicSelections).where(inArray(sponsorInterestTopicSelections.topicId, topicIds))
+      .groupBy(sponsorInterestTopicSelections.topicId);
+    const seRows = await db.select({ topicId: sessionInterestTopicSelections.topicId, count: sql<number>`count(*)::int` })
+      .from(sessionInterestTopicSelections).where(inArray(sessionInterestTopicSelections.topicId, topicIds))
+      .groupBy(sessionInterestTopicSelections.topicId);
+    aRows.forEach(r => { const e = result.get(r.topicId); if (e) e.attendees = r.count; });
+    sRows.forEach(r => { const e = result.get(r.topicId); if (e) e.sponsors = r.count; });
+    seRows.forEach(r => { const e = result.get(r.topicId); if (e) e.sessions = r.count; });
+    return result;
+  }
+
+  async countSessionTopicsForEvent(eventId: string): Promise<{ sessionId: string; count: number }[]> {
+    const rows = await db.select({
+      sessionId: sessionInterestTopicSelections.sessionId,
+      count: sql<number>`count(*)::int`,
+    })
+      .from(sessionInterestTopicSelections)
+      .where(eq(sessionInterestTopicSelections.eventId, eventId))
+      .groupBy(sessionInterestTopicSelections.sessionId);
+    return rows.map(r => ({ sessionId: r.sessionId, count: r.count ?? 0 }));
   }
 
   // ── Agreement Package Templates ────────────────────────────────────────────

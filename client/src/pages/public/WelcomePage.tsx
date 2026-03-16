@@ -92,6 +92,12 @@ export default function WelcomePage() {
 
   const event = events.find((e) => e.slug === slug);
 
+  const { data: eventInterestTopics = [] } = useQuery<{ id: string; topicLabel: string; topicKey: string }[]>({
+    queryKey: ["/api/events", event?.id, "interest-topics"],
+    queryFn: () => fetch(`/api/events/${event!.id}/interest-topics`).then(r => r.json()),
+    enabled: !!event,
+  });
+
   const eventSponsors = useMemo(() => {
     if (!event) return [];
     const base = sponsors.filter((s) =>
@@ -111,14 +117,21 @@ export default function WelcomePage() {
     return Array.from(set).sort();
   }, [eventSponsors]);
 
+  const filterChips = useMemo(() => {
+    if (eventInterestTopics.length > 0) return eventInterestTopics.map(t => t.topicLabel);
+    return attributesInUse;
+  }, [eventInterestTopics, attributesInUse]);
+
   const filteredSponsors = useMemo(() => {
     if (activeFilters.length === 0) return eventSponsors;
     const fk = activeFilters.map((f) => f.toLowerCase());
-    const filtered = eventSponsors.filter((s) =>
-      fk.some((k) => (s.attributes ?? []).some((a) => a.trim().toLowerCase() === k))
+    return eventSponsors.filter((s) =>
+      fk.some((k) =>
+        (s.attributes ?? []).some((a) => a.trim().toLowerCase() === k) ||
+        (eventInterestTopics.length > 0 && eventInterestTopics.some(t => t.topicLabel.toLowerCase() === k))
+      )
     );
-    return filtered;
-  }, [eventSponsors, activeFilters]);
+  }, [eventSponsors, activeFilters, eventInterestTopics]);
 
   if (evL || spL) {
     return (
@@ -143,8 +156,8 @@ export default function WelcomePage() {
   }
 
   const eventWebsite = getEventWebsite(event.slug, event.websiteUrl);
-  const visibleFilters = showAllFilters ? attributesInUse : attributesInUse.slice(0, FILTER_LIMIT);
-  const hasMoreFilters = attributesInUse.length > FILTER_LIMIT;
+  const visibleFilters = showAllFilters ? filterChips : filterChips.slice(0, FILTER_LIMIT);
+  const hasMoreFilters = filterChips.length > FILTER_LIMIT;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -216,7 +229,7 @@ export default function WelcomePage() {
               Make the most of your time at the conference. What topics interest you?
             </p>
 
-            {attributesInUse.length > 0 && (
+            {filterChips.length > 0 && (
               <div className="flex flex-wrap gap-2 items-center pt-1">
                 {visibleFilters.map((attr) => {
                   const active = activeFilters.some((f) => f.toLowerCase() === attr.toLowerCase());
@@ -244,7 +257,7 @@ export default function WelcomePage() {
                     className="px-3 py-1.5 rounded-full text-sm font-medium text-accent border border-accent/40 hover:bg-accent/10 transition-all"
                     data-testid="filter-show-more"
                   >
-                    {showAllFilters ? "Show Less" : `+${attributesInUse.length - FILTER_LIMIT} More`}
+                    {showAllFilters ? "Show Less" : `+${filterChips.length - FILTER_LIMIT} More`}
                   </button>
                 )}
                 {activeFilters.length > 0 && (

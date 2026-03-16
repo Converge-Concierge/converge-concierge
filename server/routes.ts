@@ -3426,13 +3426,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   }
 
-  // GET /api/sponsor-dashboard/event-topics — suggested category topic words from event sponsors' attributes
+  // GET /api/sponsor-dashboard/event-topics — returns event interest topics (new model) with fallback to sponsor attributes
   app.get("/api/sponsor-dashboard/event-topics", async (req, res) => {
     const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
     if (!token) return res.status(401).json({ message: "No token provided" });
     const validation = await validateSponsorToken(token);
     if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
     const { tokenRecord } = validation;
+
+    const interestTopics = await storage.getEventInterestTopics(tokenRecord.eventId, { status: "APPROVED", isActive: true });
+    if (interestTopics.length > 0) {
+      return res.json({ topics: interestTopics.map(t => t.topicLabel), interestTopics, eventId: tokenRecord.eventId, sponsorId: tokenRecord.sponsorId });
+    }
 
     const allSponsors = await storage.getSponsors();
     const eventSponsors = allSponsors.filter(s =>
@@ -3446,7 +3451,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
       }
     }
-    res.json({ topics: Array.from(topicSet).sort() });
+    res.json({ topics: Array.from(topicSet).sort(), interestTopics: [], eventId: tokenRecord.eventId, sponsorId: tokenRecord.sponsorId });
   });
 
   // ── Sponsor Dashboard: Agreement Deliverables (Phase 2) ───────────────────
@@ -4597,6 +4602,247 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message ?? "Failed to get message job" });
+    }
+  });
+
+  // ── Event Interest Topics ─────────────────────────────────────────────────
+
+  function normalizeTopicKey(label: string): string {
+    return label.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
+  }
+
+  // Public: approved + active topics for attendee/sponsor selection
+  app.get("/api/events/:eventId/interest-topics", async (req, res) => {
+    try {
+      const topics = await storage.getEventInterestTopics(req.params.eventId, { status: "APPROVED", isActive: true });
+      res.json(topics);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Admin: all topics for an event (with usage counts)
+  app.get("/api/admin/events/:eventId/interest-topics", requireAdmin, async (req, res) => {
+    try {
+      const topics = await storage.getEventInterestTopics(req.params.eventId);
+      if (topics.length === 0) return res.json([]);
+      const usageMap = await storage.bulkCountTopicUsage(topics.map(t => t.id));
+      const result = topics.map(t => ({ ...t, usage: usageMap.get(t.id) ?? { attendees: 0, sponsors: 0, sessions: 0 } }));
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Admin: create a single topic
+  app.post("/api/admin/events/:eventId/interest-topics", requireAdmin, async (req, res) => {
+    try {
+      const { topicLabel, topicDescription, topicSource, status, displayOrder, isActive } = req.body;
+      if (!topicLabel?.trim()) return res.status(400).json({ message: "topicLabel is required" });
+      const topicKey = normalizeTopicKey(topicLabel);
+      const existing = await storage.getEventInterestTopics(req.params.eventId);
+      const dup = existing.find(t => t.topicKey === topicKey);
+      if (dup) return res.status(409).json({ message: `Duplicate topic: "${dup.topicLabel}" already exists for this event`, existingId: dup.id });
+      const topic = await storage.createEventInterestTopic({
+        eventId: req.params.eventId,
+        topicKey,
+        topicLabel: topicLabel.trim(),
+        topicDescription: topicDescription ?? null,
+        topicSource: topicSource ?? "ADMIN_DEFINED",
+        status: status ?? "APPROVED",
+        displayOrder: displayOrder ?? (existing.length),
+        isActive: isActive ?? true,
+        createdByUserId: (req.user as any)?.id ?? null,
+        suggestedBySponsorId: null,
+      });
+      res.status(201).json(topic);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Admin: bulk-add topics (paste multi-line text)
+  app.post("/api/admin/events/:eventId/interest-topics/bulk", requireAdmin, async (req, res) => {
+    try {
+      const { lines, status = "APPROVED" } = req.body as { lines: string[]; status?: string };
+      if (!Array.isArray(lines) || lines.length === 0) return res.status(400).json({ message: "lines array is required" });
+      const existing = await storage.getEventInterestTopics(req.params.eventId);
+      const existingKeys = new Set(existing.map(t => t.topicKey));
+      const results: { label: string; key: string; status: "created" | "duplicate" }[] = [];
+      let orderOffset = existing.length;
+      for (const raw of lines) {
+        const label = raw.trim();
+        if (!label) continue;
+        const key = normalizeTopicKey(label);
+        if (existingKeys.has(key)) { results.push({ label, key, status: "duplicate" }); continue; }
+        await storage.createEventInterestTopic({
+          eventId: req.params.eventId,
+          topicKey: key,
+          topicLabel: label,
+          topicDescription: null,
+          topicSource: "ADMIN_DEFINED",
+          status,
+          displayOrder: orderOffset++,
+          isActive: true,
+          createdByUserId: (req.user as any)?.id ?? null,
+          suggestedBySponsorId: null,
+        });
+        existingKeys.add(key);
+        results.push({ label, key, status: "created" });
+      }
+      res.json({ results, created: results.filter(r => r.status === "created").length, duplicates: results.filter(r => r.status === "duplicate").length });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Admin: update a topic
+  app.patch("/api/admin/interest-topics/:id", requireAdmin, async (req, res) => {
+    try {
+      const topic = await storage.getEventInterestTopic(req.params.id);
+      if (!topic) return res.status(404).json({ message: "Topic not found" });
+      const updates: Record<string, any> = {};
+      if (req.body.topicLabel !== undefined) { updates.topicLabel = req.body.topicLabel.trim(); updates.topicKey = normalizeTopicKey(req.body.topicLabel); }
+      if (req.body.topicDescription !== undefined) updates.topicDescription = req.body.topicDescription;
+      if (req.body.status !== undefined) updates.status = req.body.status;
+      if (req.body.isActive !== undefined) updates.isActive = req.body.isActive;
+      if (req.body.displayOrder !== undefined) updates.displayOrder = req.body.displayOrder;
+      const updated = await storage.updateEventInterestTopic(req.params.id, updates);
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Admin: delete a topic (only if no usage)
+  app.delete("/api/admin/interest-topics/:id", requireAdmin, async (req, res) => {
+    try {
+      const topic = await storage.getEventInterestTopic(req.params.id);
+      if (!topic) return res.status(404).json({ message: "Topic not found" });
+      if (req.query.force !== "true") {
+        const usage = await storage.countTopicUsage(req.params.id);
+        if (usage.attendees + usage.sponsors + usage.sessions > 0) {
+          return res.status(409).json({ message: `Cannot delete — topic is in use (${usage.attendees} attendees, ${usage.sponsors} sponsors, ${usage.sessions} sessions)`, usage });
+        }
+      }
+      await storage.deleteEventInterestTopic(req.params.id);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Attendee topic selections (public — attendee context)
+  app.get("/api/attendees/:attendeeId/topic-selections", async (req, res) => {
+    try {
+      const { eventId } = req.query as Record<string, string>;
+      if (!eventId) return res.status(400).json({ message: "eventId required" });
+      const selections = await storage.getAttendeeTopics(req.params.attendeeId, eventId);
+      res.json(selections);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/attendees/:attendeeId/topic-selections", async (req, res) => {
+    try {
+      const { eventId, topicIds } = req.body as { eventId: string; topicIds: string[] };
+      if (!eventId || !Array.isArray(topicIds)) return res.status(400).json({ message: "eventId and topicIds[] required" });
+      await storage.upsertAttendeeTopics(req.params.attendeeId, eventId, topicIds);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Sponsor topic selections (sponsor-token authenticated)
+  app.get("/api/sponsor-dashboard/topic-selections", async (req, res) => {
+    try {
+      const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+      if (!token) return res.status(401).json({ message: "Sponsor token required" });
+      const tokenRecord = await storage.getSponsorToken(token);
+      if (!tokenRecord) return res.status(401).json({ message: "Invalid token" });
+      const selections = await storage.getSponsorTopics(tokenRecord.sponsorId, tokenRecord.eventId);
+      res.json(selections);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/sponsor-dashboard/topic-selections", async (req, res) => {
+    try {
+      const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+      if (!token) return res.status(401).json({ message: "Sponsor token required" });
+      const tokenRecord = await storage.getSponsorToken(token);
+      if (!tokenRecord) return res.status(401).json({ message: "Invalid token" });
+      const { topicIds } = req.body as { topicIds: string[] };
+      if (!Array.isArray(topicIds)) return res.status(400).json({ message: "topicIds[] required" });
+      await storage.upsertSponsorTopics(tokenRecord.sponsorId, tokenRecord.eventId, topicIds);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Sponsor topic suggestion (sponsor-token authenticated)
+  app.post("/api/sponsor-dashboard/suggest-topic", async (req, res) => {
+    try {
+      const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
+      if (!token) return res.status(401).json({ message: "Sponsor token required" });
+      const tokenRecord = await storage.getSponsorToken(token);
+      if (!tokenRecord) return res.status(401).json({ message: "Invalid token" });
+      const { topicLabel } = req.body as { topicLabel: string };
+      if (!topicLabel?.trim()) return res.status(400).json({ message: "topicLabel is required" });
+      const topicKey = normalizeTopicKey(topicLabel);
+      const existing = await storage.getEventInterestTopics(tokenRecord.eventId);
+      const dup = existing.find(t => t.topicKey === topicKey);
+      if (dup) return res.status(409).json({ message: "A similar topic already exists", existingId: dup.id, existingLabel: dup.topicLabel });
+      const topic = await storage.createEventInterestTopic({
+        eventId: tokenRecord.eventId,
+        topicKey,
+        topicLabel: topicLabel.trim(),
+        topicDescription: null,
+        topicSource: "SPONSOR_SUGGESTED",
+        status: "PENDING",
+        displayOrder: existing.length,
+        isActive: false,
+        suggestedBySponsorId: tokenRecord.sponsorId,
+        createdByUserId: null,
+      });
+      res.status(201).json(topic);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Session topic selections (admin)
+  app.get("/api/admin/sessions/:sessionId/topic-selections", requireAuth, async (req, res) => {
+    try {
+      const selections = await storage.getSessionTopics(req.params.sessionId);
+      res.json(selections);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/admin/sessions/:sessionId/topic-selections", requireAuth, async (req, res) => {
+    try {
+      const { eventId, topicIds } = req.body as { eventId: string; topicIds: string[] };
+      if (!eventId || !Array.isArray(topicIds)) return res.status(400).json({ message: "eventId and topicIds[] required" });
+      await storage.upsertSessionTopics(req.params.sessionId, eventId, topicIds);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Session topic counts by event (admin)
+  app.get("/api/admin/events/:eventId/session-topic-counts", requireAuth, async (req, res) => {
+    try {
+      const counts = await storage.countSessionTopicsForEvent(req.params.eventId);
+      res.json(counts);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
     }
   });
 

@@ -223,6 +223,22 @@ export interface IStorage {
   listMessageJobs(filters?: { messageType?: string; status?: string; eventId?: string; sponsorId?: string; sourceType?: string; search?: string; from?: Date; to?: Date }, limit?: number, offset?: number): Promise<import("@shared/schema").MessageJob[]>;
   getMessageJobEmailLogs(jobId: string): Promise<EmailLog[]>;
 
+  // Event Interest Topics
+  createEventInterestTopic(data: import("@shared/schema").InsertEventInterestTopic): Promise<import("@shared/schema").EventInterestTopic>;
+  updateEventInterestTopic(id: string, updates: Partial<import("@shared/schema").InsertEventInterestTopic>): Promise<import("@shared/schema").EventInterestTopic | undefined>;
+  deleteEventInterestTopic(id: string): Promise<void>;
+  getEventInterestTopic(id: string): Promise<import("@shared/schema").EventInterestTopic | undefined>;
+  getEventInterestTopics(eventId: string, filters?: { status?: string; isActive?: boolean }): Promise<import("@shared/schema").EventInterestTopic[]>;
+  upsertAttendeeTopics(attendeeId: string, eventId: string, topicIds: string[]): Promise<void>;
+  getAttendeeTopics(attendeeId: string, eventId: string): Promise<import("@shared/schema").AttendeeInterestTopicSelection[]>;
+  upsertSponsorTopics(sponsorId: string, eventId: string, topicIds: string[]): Promise<void>;
+  getSponsorTopics(sponsorId: string, eventId: string): Promise<import("@shared/schema").SponsorInterestTopicSelection[]>;
+  upsertSessionTopics(sessionId: string, eventId: string, topicIds: string[]): Promise<void>;
+  getSessionTopics(sessionId: string): Promise<import("@shared/schema").SessionInterestTopicSelection[]>;
+  countTopicUsage(topicId: string): Promise<{ attendees: number; sponsors: number; sessions: number }>;
+  countSessionTopicsForEvent(eventId: string): Promise<{ sessionId: string; count: number }[]>;
+  bulkCountTopicUsage(topicIds: string[]): Promise<Map<string, { attendees: number; sponsors: number; sessions: number }>>;
+
   // Sponsor Users & Magic Login
   upsertSponsorUser(data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser>;
   getSponsorUserByEmail(email: string): Promise<SponsorUser | undefined>;
@@ -989,6 +1005,21 @@ export class MemStorage implements IStorage {
   async getMessageJob(_id: string): Promise<any> { return undefined; }
   async listMessageJobs(_filters?: any, _limit?: number, _offset?: number): Promise<any[]> { return []; }
   async getMessageJobEmailLogs(_jobId: string): Promise<EmailLog[]> { return []; }
+
+  async createEventInterestTopic(data: import("@shared/schema").InsertEventInterestTopic): Promise<import("@shared/schema").EventInterestTopic> { return { id: randomUUID(), ...data, topicDescription: data.topicDescription ?? null, suggestedBySponsorId: data.suggestedBySponsorId ?? null, createdByUserId: data.createdByUserId ?? null, createdAt: new Date(), updatedAt: new Date() } as import("@shared/schema").EventInterestTopic; }
+  async updateEventInterestTopic(_id: string, _updates: any): Promise<any> { return undefined; }
+  async deleteEventInterestTopic(_id: string): Promise<void> {}
+  async getEventInterestTopic(_id: string): Promise<any> { return undefined; }
+  async getEventInterestTopics(_eventId: string, _filters?: any): Promise<any[]> { return []; }
+  async upsertAttendeeTopics(_attendeeId: string, _eventId: string, _topicIds: string[]): Promise<void> {}
+  async getAttendeeTopics(_attendeeId: string, _eventId: string): Promise<any[]> { return []; }
+  async upsertSponsorTopics(_sponsorId: string, _eventId: string, _topicIds: string[]): Promise<void> {}
+  async getSponsorTopics(_sponsorId: string, _eventId: string): Promise<any[]> { return []; }
+  async upsertSessionTopics(_sessionId: string, _eventId: string, _topicIds: string[]): Promise<void> {}
+  async getSessionTopics(_sessionId: string): Promise<any[]> { return []; }
+  async countTopicUsage(_topicId: string): Promise<{ attendees: number; sponsors: number; sessions: number }> { return { attendees: 0, sponsors: 0, sessions: 0 }; }
+  async countSessionTopicsForEvent(_eventId: string): Promise<{ sessionId: string; count: number }[]> { return []; }
+  async bulkCountTopicUsage(_topicIds: string[]): Promise<Map<string, { attendees: number; sponsors: number; sessions: number }>> { return new Map(); }
 
   async upsertSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser> { return { id: randomUUID(), sponsorId: _data.sponsorId, name: _data.name, email: _data.email, accessLevel: _data.accessLevel ?? "owner", isPrimary: _data.isPrimary ?? false, isActive: true, lastLoginAt: null, loginCount: 0, createdAt: new Date(), updatedAt: new Date() }; }
   async getSponsorUserByEmail(_email: string): Promise<SponsorUser | undefined> { return undefined; }

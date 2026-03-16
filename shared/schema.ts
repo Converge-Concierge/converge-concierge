@@ -1579,3 +1579,66 @@ export const messageJobs = pgTable("message_jobs", {
 export const insertMessageJobSchema = createInsertSchema(messageJobs).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertMessageJob = z.infer<typeof insertMessageJobSchema>;
 export type MessageJob = typeof messageJobs.$inferSelect;
+
+// ── Event Interest Topics ─────────────────────────────────────────────────────
+
+export const TOPIC_SOURCES = ["AGENDA_ANALYSIS", "ADMIN_DEFINED", "SPONSOR_SUGGESTED"] as const;
+export type TopicSource = typeof TOPIC_SOURCES[number];
+
+export const TOPIC_STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
+export type TopicStatus = typeof TOPIC_STATUSES[number];
+
+export const eventInterestTopics = pgTable("event_interest_topics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull(),
+  topicKey: text("topic_key").notNull(),
+  topicLabel: text("topic_label").notNull(),
+  topicDescription: text("topic_description"),
+  topicSource: text("topic_source").notNull().default("ADMIN_DEFINED"),
+  status: text("status").notNull().default("APPROVED"),
+  displayOrder: integer("display_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  suggestedBySponsorId: varchar("suggested_by_sponsor_id"),
+  createdByUserId: varchar("created_by_user_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertEventInterestTopicSchema = createInsertSchema(eventInterestTopics).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  topicSource: z.enum(TOPIC_SOURCES).default("ADMIN_DEFINED"),
+  status: z.enum(TOPIC_STATUSES).default("APPROVED"),
+  displayOrder: z.number().int().min(0).default(0),
+  isActive: z.boolean().default(true),
+});
+export type InsertEventInterestTopic = z.infer<typeof insertEventInterestTopicSchema>;
+export type EventInterestTopic = typeof eventInterestTopics.$inferSelect;
+
+// Link table: attendee ↔ topic
+export const attendeeInterestTopicSelections = pgTable("attendee_interest_topic_selections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  attendeeId: varchar("attendee_id").notNull(),
+  eventId: varchar("event_id").notNull(),
+  topicId: varchar("topic_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type AttendeeInterestTopicSelection = typeof attendeeInterestTopicSelections.$inferSelect;
+
+// Link table: sponsor ↔ topic
+export const sponsorInterestTopicSelections = pgTable("sponsor_interest_topic_selections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sponsorId: varchar("sponsor_id").notNull(),
+  eventId: varchar("event_id").notNull(),
+  topicId: varchar("topic_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type SponsorInterestTopicSelection = typeof sponsorInterestTopicSelections.$inferSelect;
+
+// Link table: session ↔ topic
+export const sessionInterestTopicSelections = pgTable("session_interest_topic_selections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull(),
+  eventId: varchar("event_id").notNull(),
+  topicId: varchar("topic_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type SessionInterestTopicSelection = typeof sessionInterestTopicSelections.$inferSelect;

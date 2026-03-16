@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label";
 import {
   Plus, Upload, Download, Edit, Trash2, Search, CalendarDays,
-  Clock, MapPin, Users, Mic2, FileText, AlertCircle,
+  Clock, MapPin, Users, Mic2, FileText, AlertCircle, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Event, AgendaSession, AgendaSessionSpeaker, SessionType, Sponsor } from "@shared/schema";
@@ -79,6 +79,22 @@ export default function AgendaPage() {
       return r.json();
     },
   });
+
+  const { data: sessionTopicCounts = [] } = useQuery<{ sessionId: string; count: number }[]>({
+    queryKey: ["/api/admin/events", effectiveEventId, "session-topic-counts"],
+    queryFn: async () => {
+      const r = await fetch(`/api/admin/events/${effectiveEventId}/session-topic-counts`, { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: effectiveEventId !== "all",
+  });
+
+  const topicCountBySession = useMemo(() => {
+    const map = new Map<string, number>();
+    sessionTopicCounts.forEach(c => map.set(c.sessionId, c.count));
+    return map;
+  }, [sessionTopicCounts]);
 
   const filtered = useMemo(() => {
     if (!search) return sessions;
@@ -222,7 +238,14 @@ export default function AgendaPage() {
                   </TableCell>
                   <TableCell>
                     <div className="font-medium text-sm">{session.title}</div>
-                    {session.sessionCode && <span className="text-xs text-muted-foreground font-mono">{session.sessionCode}</span>}
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {session.sessionCode && <span className="text-xs text-muted-foreground font-mono">{session.sessionCode}</span>}
+                      {(topicCountBySession.get(session.id) ?? 0) > 0 && (
+                        <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20" data-testid={`topic-count-${session.id}`}>
+                          <Sparkles className="h-2.5 w-2.5" />{topicCountBySession.get(session.id)}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-xs">{getSessionTypeLabel(session.sessionTypeKey)}</Badge>

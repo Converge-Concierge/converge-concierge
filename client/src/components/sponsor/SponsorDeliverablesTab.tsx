@@ -499,46 +499,108 @@ const FALLBACK_CATEGORIES = [
   "Customer Experience", "Process Automation",
 ];
 
+interface EventInterestTopic { id: string; topicLabel: string; topicKey: string; }
+
 function CategoryTagSelector({
   deliverable, token, canEdit,
 }: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
-  let existing: string[] = [];
+  let existingLegacy: string[] = [];
   if (deliverable.deliverableDescription) {
     try {
       const parsed = JSON.parse(deliverable.deliverableDescription);
-      if (Array.isArray(parsed)) existing = parsed;
+      if (Array.isArray(parsed)) existingLegacy = parsed;
     } catch {
-      existing = deliverable.deliverableDescription.split(",").map(s => s.trim()).filter(Boolean);
+      existingLegacy = deliverable.deliverableDescription.split(",").map(s => s.trim()).filter(Boolean);
     }
   }
-  const [tags, setTags] = useState<string[]>(existing);
+
+  const [tags, setTags] = useState<string[]>(existingLegacy);
+  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
+  const [topicSelectionsLoaded, setTopicSelectionsLoaded] = useState(false);
   const [inputVal, setInputVal] = useState("");
   const [saved, setSaved] = useState(false);
+  const [suggestInput, setSuggestInput] = useState("");
+  const [showSuggestBox, setShowSuggestBox] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const { data: topicsData } = useQuery<{ topics: string[] }>({
+  const { data: topicsData } = useQuery<{ topics: string[]; interestTopics: EventInterestTopic[]; eventId?: string; sponsorId?: string }>({
     queryKey: ["/api/sponsor-dashboard/event-topics", token],
     queryFn: () => fetch(`/api/sponsor-dashboard/event-topics?token=${token}`).then(r => r.json()),
   });
-  const suggestedTopics = topicsData?.topics?.length ? topicsData.topics : FALLBACK_CATEGORIES;
+  const interestTopics = topicsData?.interestTopics ?? [];
+  const isNewTopicMode = interestTopics.length > 0;
+
+  const { data: existingSelections } = useQuery<{ topicId: string }[]>({
+    queryKey: ["/api/sponsor-dashboard/topic-selections", token],
+    queryFn: () => fetch(`/api/sponsor-dashboard/topic-selections?token=${token}`).then(r => r.json()),
+    enabled: isNewTopicMode,
+  });
+
+  if (isNewTopicMode && existingSelections && !topicSelectionsLoaded) {
+    const ids = existingSelections.map(s => s.topicId);
+    if (ids.length > 0) setSelectedTopicIds(ids);
+    setTopicSelectionsLoaded(true);
+  }
+
+  const suggestedTopics = !isNewTopicMode ? (topicsData?.topics?.length ? topicsData.topics : FALLBACK_CATEGORIES) : [];
 
   const save = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}?token=${token}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deliverableDescription: JSON.stringify(tags), status: tags.length === 3 ? "Submitted" : "Awaiting Sponsor Input" }),
-      });
-      if (!res.ok) throw new Error("Failed to save");
+      if (isNewTopicMode) {
+        const selectedLabels = interestTopics.filter(t => selectedTopicIds.includes(t.id)).map(t => t.topicLabel);
+        const [r1, r2] = await Promise.all([
+          fetch(`/api/sponsor-dashboard/topic-selections?token=${token}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ topicIds: selectedTopicIds }),
+          }),
+          fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}?token=${token}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ deliverableDescription: JSON.stringify(selectedLabels), status: selectedTopicIds.length > 0 ? "Submitted" : "Awaiting Sponsor Input" }),
+          }),
+        ]);
+        if (!r1.ok || !r2.ok) throw new Error("Failed to save");
+      } else {
+        const res = await fetch(`/api/sponsor-dashboard/agreement-deliverables/${deliverable.id}?token=${token}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deliverableDescription: JSON.stringify(tags), status: tags.length === 3 ? "Submitted" : "Awaiting Sponsor Input" }),
+        });
+        if (!res.ok) throw new Error("Failed to save");
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/sponsor-dashboard/agreement-deliverables", token] });
-      toast({ title: "Categories saved", description: "Your 3 category selections have been submitted." });
+      qc.invalidateQueries({ queryKey: ["/api/sponsor-dashboard/topic-selections", token] });
+      toast({ title: "Interests saved", description: "Your topic selections have been submitted." });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     },
     onError: () => toast({ title: "Error", description: "Could not save selections.", variant: "destructive" }),
+  });
+
+  const suggestMutation = useMutation({
+    mutationFn: async (label: string) => {
+      const res = await fetch(`/api/sponsor-dashboard/suggest-topic?token=${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topicLabel: label }),
+      });
+      if (res.status === 409) {
+        const data = await res.json();
+        throw new Error(data.message ?? "A similar topic already exists");
+      }
+      if (!res.ok) throw new Error("Failed to suggest topic");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Topic suggested", description: "Your suggestion has been submitted for review by the event team." });
+      setSuggestInput("");
+      setShowSuggestBox(false);
+    },
+    onError: (err: any) => toast({ title: "Suggestion failed", description: err.message, variant: "destructive" }),
   });
 
   function addTag(val: string) {
@@ -552,16 +614,93 @@ function CategoryTagSelector({
     setTags(tags.filter((_, i) => i !== idx));
   }
 
+  function toggleTopicId(id: string) {
+    setSelectedTopicIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
+
   const availableSuggestions = suggestedTopics.filter(s => !tags.includes(s));
 
   if (!canEdit) {
-    return tags.length > 0 ? (
+    const displayTags = isNewTopicMode
+      ? interestTopics.filter(t => selectedTopicIds.includes(t.id)).map(t => t.topicLabel)
+      : tags;
+    return displayTags.length > 0 ? (
       <div className="mt-2 flex flex-wrap gap-1.5">
-        {tags.map((t, i) => (
+        {displayTags.map((t, i) => (
           <span key={i} className="px-2.5 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium border border-accent/20">{t}</span>
         ))}
       </div>
     ) : null;
+  }
+
+  if (isNewTopicMode) {
+    return (
+      <div className="mt-3 space-y-3" data-testid={`category-selector-${deliverable.id}`}>
+        {saved && (
+          <div className="flex items-center gap-1.5 text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs font-medium">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Saved
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">Select the topics that best describe your areas of focus. You can choose as many as you like.</p>
+
+        <div className="flex flex-wrap gap-1.5">
+          {interestTopics.map(t => {
+            const selected = selectedTopicIds.includes(t.id);
+            return (
+              <button
+                key={t.id}
+                onClick={() => toggleTopicId(t.id)}
+                data-testid={`topic-chip-${t.id}`}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                  selected
+                    ? "bg-accent text-white border-accent"
+                    : "bg-white text-muted-foreground border-border hover:bg-accent/10 hover:text-accent hover:border-accent/40"
+                )}
+              >
+                {t.topicLabel}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <div>
+            {!showSuggestBox ? (
+              <button
+                onClick={() => setShowSuggestBox(true)}
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline hover:text-accent transition-colors"
+                data-testid="btn-suggest-topic-link"
+              >
+                + Suggest a topic
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <Input
+                  value={suggestInput}
+                  onChange={e => setSuggestInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (suggestInput.trim()) suggestMutation.mutate(suggestInput.trim()); } if (e.key === "Escape") { setShowSuggestBox(false); setSuggestInput(""); } }}
+                  placeholder="Topic name…"
+                  className="h-7 text-xs w-40"
+                  autoFocus
+                  data-testid="input-suggest-topic"
+                />
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { if (suggestInput.trim()) suggestMutation.mutate(suggestInput.trim()); }} disabled={!suggestInput.trim() || suggestMutation.isPending} data-testid="btn-submit-suggestion">
+                  {suggestMutation.isPending ? "…" : "Submit"}
+                </Button>
+                <button onClick={() => { setShowSuggestBox(false); setSuggestInput(""); }} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{selectedTopicIds.length} selected</span>
+            <Button size="sm" className="h-7 text-xs" onClick={() => save.mutate()} disabled={save.isPending} data-testid={`btn-save-tags-${deliverable.id}`}>
+              <Save className="h-3 w-3 mr-1" /> {save.isPending ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -585,9 +724,7 @@ function CategoryTagSelector({
       {tags.length < 3 && (
         <>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
-              {topicsData?.topics?.length ? "Event Topics" : "Suggested Topics"}
-            </p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">Suggested Topics</p>
             <div className="flex flex-wrap gap-1.5">
               {availableSuggestions.map((s) => (
                 <button

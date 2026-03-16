@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Trash2, GripVertical, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Event, Sponsor, SessionType, AgendaSession, AgendaSessionSpeaker } from "@shared/schema";
 
 type SessionWithSpeakers = AgendaSession & { speakers: AgendaSessionSpeaker[] };
@@ -55,12 +57,44 @@ export function SessionFormModal({ session, events, sponsors, sessionTypes, defa
       ? session.speakers.map(sp => ({ name: sp.name, title: sp.title || "", company: sp.company || "" }))
       : []
   );
+  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
+  const [topicsPreloaded, setTopicsPreloaded] = useState(false);
 
   const addSpeaker = () => setSpeakers(s => [...s, { name: "", title: "", company: "" }]);
   const removeSpeaker = (idx: number) => setSpeakers(s => s.filter((_, i) => i !== idx));
   const updateSpeaker = (idx: number, field: keyof SpeakerRow, val: string) => {
     setSpeakers(s => s.map((sp, i) => i === idx ? { ...sp, [field]: val } : sp));
   };
+
+  const { data: availableTopics = [] } = useQuery<{ id: string; topicLabel: string }[]>({
+    queryKey: ["/api/events", eventId, "interest-topics"],
+    queryFn: async () => {
+      const res = await fetch(`/api/events/${eventId}/interest-topics`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!eventId,
+  });
+
+  const { data: existingTopicSelections } = useQuery<{ topicId: string }[]>({
+    queryKey: ["/api/admin/sessions", session?.id, "topic-selections"],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/sessions/${session!.id}/topic-selections`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isEdit && !!session?.id,
+  });
+
+  if (isEdit && existingTopicSelections && !topicsPreloaded) {
+    const ids = existingTopicSelections.map(s => s.topicId);
+    if (ids.length > 0) setSelectedTopicIds(ids);
+    setTopicsPreloaded(true);
+  }
+
+  function toggleTopic(id: string) {
+    setSelectedTopicIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -71,10 +105,18 @@ export function SessionFormModal({ session, events, sponsors, sessionTypes, defa
         sponsorId: sponsorId || null, status, isFeatured, isPublic,
         speakers: speakers.filter(sp => sp.name.trim()),
       };
+      let sessionId: string;
       if (isEdit) {
-        return apiRequest("PATCH", `/api/admin/agenda-sessions/${session!.id}`, payload);
+        await apiRequest("PATCH", `/api/admin/agenda-sessions/${session!.id}`, payload);
+        sessionId = session!.id;
+      } else {
+        const res = await apiRequest("POST", "/api/admin/agenda-sessions", payload);
+        const created = await res.json();
+        sessionId = created.id;
       }
-      return apiRequest("POST", "/api/admin/agenda-sessions", payload);
+      if (availableTopics.length > 0) {
+        await apiRequest("POST", `/api/admin/sessions/${sessionId}/topic-selections`, { eventId, topicIds: selectedTopicIds });
+      }
     },
     onSuccess: () => {
       toast({ title: isEdit ? "Session updated" : "Session created" });
@@ -218,6 +260,40 @@ export function SessionFormModal({ session, events, sponsors, sessionTypes, defa
             <Label>Public</Label>
           </div>
         </div>
+
+        {availableTopics.length > 0 && (
+          <div className="border-t pt-4 mt-1">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-semibold">Interest Topics</Label>
+              {selectedTopicIds.length > 0 && (
+                <Badge variant="secondary" className="text-xs">{selectedTopicIds.length} selected</Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mb-2">Tag this session with relevant topics to help attendees discover it.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {availableTopics.map(t => {
+                const active = selectedTopicIds.includes(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => toggleTopic(t.id)}
+                    data-testid={`topic-chip-session-${t.id}`}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                      active
+                        ? "bg-accent text-white border-accent"
+                        : "bg-background text-muted-foreground border-border hover:bg-accent/10 hover:text-accent hover:border-accent/40"
+                    )}
+                  >
+                    {t.topicLabel}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="border-t pt-4 mt-2">
           <div className="flex items-center justify-between mb-3">

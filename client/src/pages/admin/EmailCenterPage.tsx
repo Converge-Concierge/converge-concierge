@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import type { EmailLog, Event, Sponsor, EmailTemplate, EmailTemplateVersion, ScheduledEmail, AutomationRule, AutomationLog } from "@shared/schema";
+import type { EmailLog, Event, Sponsor, EmailTemplate, EmailTemplateVersion, ScheduledEmail, AutomationRule, AutomationLog, Campaign } from "@shared/schema";
+import { CAMPAIGN_STATUSES, CAMPAIGN_AUDIENCE_TYPES } from "@shared/schema";
 import { EMAIL_TEMPLATE_CATEGORIES } from "@shared/schema";
 
 const EMAIL_SOURCE_OPTIONS = [
@@ -19,7 +20,8 @@ import {
   Clock, CalendarDays, X, RotateCcw, ChevronRight, Code,
   Settings2, Edit2, FileText, Layout, Plus, Pencil, Trash2, Ban,
   Timer, History, Tag, Filter, Undo2, Zap, Power, PauseCircle,
-  PlayCircle, ToggleLeft, ToggleRight, Activity, Info,
+  PlayCircle, ToggleLeft, ToggleRight, Activity, Info, Megaphone,
+  Users, ChevronDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -1094,6 +1096,537 @@ function AutomationDetailPanel({ rule, fmtDate }: { rule: AutomationRule; fmtDat
   );
 }
 
+// ── Campaigns Tab Component ─────────────────────────────────────────────────
+
+const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
+  Draft: "bg-gray-100 text-gray-700 border-gray-200",
+  Scheduled: "bg-blue-100 text-blue-700 border-blue-200",
+  Sending: "bg-amber-100 text-amber-700 border-amber-200",
+  Sent: "bg-green-100 text-green-700 border-green-200",
+  Cancelled: "bg-red-100 text-red-500 border-red-200",
+};
+
+interface AudiencePreview {
+  count: number;
+  preview: Array<{ id: string; name: string; email: string; company: string }>;
+}
+
+function CampaignsTab({ events, sponsors }: { events: Event[]; sponsors: Sponsor[] }) {
+  const { toast } = useToast();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Campaign | null>(null);
+  const [confirmSendTarget, setConfirmSendTarget] = useState<Campaign | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<Campaign | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<Campaign | null>(null);
+  const [audiencePreview, setAudiencePreview] = useState<AudiencePreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterEvent, setFilterEvent] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const emptyForm = {
+    name: "", eventId: "", audienceType: "Attendees" as string, audienceFilters: {} as Record<string, any>,
+    templateId: "", status: "Draft", scheduledAt: "",
+  };
+  const [form, setForm] = useState(emptyForm);
+
+  const { data: campaignList = [], isLoading } = useQuery<Campaign[]>({
+    queryKey: ["/api/admin/campaigns"],
+  });
+
+  const { data: templates = [] } = useQuery<EmailTemplate[]>({
+    queryKey: ["/api/admin/email-templates"],
+  });
+
+  const filteredCampaigns = useMemo(() => {
+    let list = campaignList;
+    if (filterStatus) list = list.filter(c => c.status === filterStatus);
+    if (filterEvent) list = list.filter(c => c.eventId === filterEvent);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(c => c.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [campaignList, filterStatus, filterEvent, searchQuery]);
+
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof emptyForm) => {
+      const res = await apiRequest("POST", "/api/admin/campaigns", {
+        ...data,
+        eventId: data.eventId || null,
+        templateId: data.templateId || null,
+        scheduledAt: data.scheduledAt || null,
+        status: data.scheduledAt ? "Scheduled" : "Draft",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
+      setCreateOpen(false);
+      setForm(emptyForm);
+      toast({ title: "Campaign created" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof emptyForm }) => {
+      const res = await apiRequest("PATCH", `/api/admin/campaigns/${id}`, {
+        ...data,
+        eventId: data.eventId || null,
+        templateId: data.templateId || null,
+        scheduledAt: data.scheduledAt || null,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
+      setEditTarget(null);
+      setForm(emptyForm);
+      toast({ title: "Campaign updated" });
+    },
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/admin/campaigns/${id}/send`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
+      setConfirmSendTarget(null);
+      toast({ title: `Campaign sent — ${data.emailsSent} emails delivered${data.skippedByRateLimit ? `, ${data.skippedByRateLimit} skipped (rate limit)` : ""}` });
+    },
+    onError: (err: any) => {
+      toast({ title: "Send failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/admin/campaigns/${id}/cancel`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
+      setCancelTarget(null);
+      toast({ title: "Campaign cancelled" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/campaigns/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/campaigns"] });
+      toast({ title: "Campaign deleted" });
+    },
+  });
+
+  const openEdit = (c: Campaign) => {
+    setForm({
+      name: c.name,
+      eventId: c.eventId || "",
+      audienceType: c.audienceType || "Attendees",
+      audienceFilters: (c.audienceFilters || {}) as Record<string, any>,
+      templateId: c.templateId || "",
+      status: c.status,
+      scheduledAt: c.scheduledAt ? new Date(c.scheduledAt).toISOString().slice(0, 16) : "",
+    });
+    setEditTarget(c);
+  };
+
+  const loadAudiencePreview = async (campaignId: string) => {
+    setPreviewLoading(true);
+    try {
+      const res = await fetch(`/api/admin/campaigns/${campaignId}/preview-audience`, { method: "POST", credentials: "include" });
+      const data = await res.json();
+      setAudiencePreview(data);
+    } catch {
+      toast({ title: "Failed to load preview", variant: "destructive" });
+    }
+    setPreviewLoading(false);
+  };
+
+  const openPreview = (c: Campaign) => {
+    setPreviewTarget(c);
+    setAudiencePreview(null);
+    loadAudiencePreview(c.id);
+  };
+
+  const fmtDate = (d: string | Date | null | undefined) => {
+    if (!d) return "—";
+    const dt = new Date(d);
+    return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
+      " " + dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  };
+
+  const getEventName = (eventId: string | null) => {
+    if (!eventId) return "All Events";
+    return events.find(e => e.id === eventId)?.name || eventId;
+  };
+
+  const getTemplateName = (templateId: string | null) => {
+    if (!templateId) return "—";
+    return templates.find(t => t.id === templateId || t.templateKey === templateId)?.displayName || templateId;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
+            <Megaphone className="h-6 w-6 text-accent" />
+            Campaigns
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Create and send targeted email communications to event participants.
+          </p>
+        </div>
+        <Button size="sm" className="gap-2 h-8" onClick={() => { setForm(emptyForm); setCreateOpen(true); }} data-testid="button-create-campaign">
+          <Plus className="h-3.5 w-3.5" /> Create Campaign
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input placeholder="Search campaigns…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-8 text-sm" data-testid="input-campaign-search" />
+        </div>
+        <select className="h-8 text-xs rounded-lg border border-border/60 bg-background px-3" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} data-testid="select-campaign-status-filter">
+          <option value="">All Statuses</option>
+          {CAMPAIGN_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select className="h-8 text-xs rounded-lg border border-border/60 bg-background px-3" value={filterEvent} onChange={(e) => setFilterEvent(e.target.value)} data-testid="select-campaign-event-filter">
+          <option value="">All Events</option>
+          {events.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+      </div>
+
+      {/* Campaign Table */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
+          <RefreshCw className="h-4 w-4 animate-spin" /> Loading campaigns…
+        </div>
+      ) : filteredCampaigns.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Megaphone className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-medium">{campaignList.length === 0 ? "No campaigns yet" : "No campaigns match your filters"}</p>
+          <p className="text-xs mt-1">Create a campaign to start sending targeted emails.</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+          <table className="w-full text-sm" data-testid="table-campaigns">
+            <thead className="bg-muted/30 border-b border-border/40">
+              <tr>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Campaign</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Event</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Audience</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Template</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Status</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Sent</th>
+                <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/30">
+              {filteredCampaigns.map((c) => (
+                <tr key={c.id} className="hover:bg-muted/20 transition-colors" data-testid={`campaign-row-${c.id}`}>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-foreground truncate max-w-[200px]">{c.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{c.scheduledAt ? `Scheduled: ${fmtDate(c.scheduledAt)}` : c.sentAt ? `Sent: ${fmtDate(c.sentAt)}` : `Created: ${fmtDate(c.createdAt)}`}</p>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{getEventName(c.eventId)}</td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs flex items-center gap-1"><Users className="h-3 w-3" /> {c.audienceType}</span>
+                    {c.audienceSize > 0 && <span className="text-xs text-muted-foreground">{c.audienceSize} recipients</span>}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground truncate max-w-[150px]">{getTemplateName(c.templateId)}</td>
+                  <td className="px-4 py-3">
+                    <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium border", CAMPAIGN_STATUS_COLORS[c.status] || CAMPAIGN_STATUS_COLORS.Draft)}>
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm font-semibold">{c.emailsSent}</p>
+                    {c.failures > 0 && <p className="text-xs text-red-500">{c.failures} failed</p>}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {(c.status === "Draft" || c.status === "Scheduled") && (
+                        <>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openPreview(c)} data-testid={`preview-campaign-${c.id}`} title="Preview Audience">
+                            <Users className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(c)} data-testid={`edit-campaign-${c.id}`} title="Edit">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-green-600" onClick={() => { setConfirmSendTarget(c); openPreview(c); }} data-testid={`send-campaign-${c.id}`} title="Send Now">
+                            <Send className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => setCancelTarget(c)} data-testid={`cancel-campaign-${c.id}`} title="Cancel">
+                            <Ban className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                      {c.status === "Draft" && (
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400" onClick={() => deleteMutation.mutate(c.id)} data-testid={`delete-campaign-${c.id}`} title="Delete">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {c.status === "Sent" && (
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openPreview(c)} title="View Details">
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Create / Edit Campaign Dialog */}
+      <Dialog open={createOpen || !!editTarget} onOpenChange={(o) => { if (!o) { setCreateOpen(false); setEditTarget(null); setForm(emptyForm); } }}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="h-4 w-4 text-accent" />
+              {editTarget ? "Edit Campaign" : "Create Campaign"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Campaign Name *</label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. FRC2026 – Invite Attendees to Schedule" data-testid="input-campaign-name" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Event</label>
+              <select className="w-full h-9 text-sm rounded-lg border border-border/60 bg-background px-3" value={form.eventId} onChange={(e) => setForm({ ...form, eventId: e.target.value })} data-testid="select-campaign-event">
+                <option value="">All Events</option>
+                {events.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Audience Type</label>
+              <select className="w-full h-9 text-sm rounded-lg border border-border/60 bg-background px-3" value={form.audienceType} onChange={(e) => setForm({ ...form, audienceType: e.target.value, audienceFilters: {} })} data-testid="select-campaign-audience-type">
+                {CAMPAIGN_AUDIENCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+
+            {/* Audience Filters */}
+            <div className="space-y-2 rounded-lg border border-border/60 p-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1"><Filter className="h-3 w-3" /> Audience Filters</p>
+              {form.audienceType === "Attendees" ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Category</label>
+                      <select className="w-full h-8 text-xs rounded-lg border border-border/60 bg-background px-2" value={form.audienceFilters.category || ""} onChange={(e) => setForm({ ...form, audienceFilters: { ...form.audienceFilters, category: e.target.value || undefined } })} data-testid="filter-attendee-category">
+                        <option value="">All Categories</option>
+                        <option value="PRACTITIONER">Practitioner</option>
+                        <option value="SOLUTION_PROVIDER">Solution Provider</option>
+                        <option value="GOVERNMENT_NONPROFIT">Government / Non-Profit</option>
+                        <option value="BANKER">Banker</option>
+                        <option value="STAFF">Staff</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Meetings Scheduled</label>
+                      <select className="w-full h-8 text-xs rounded-lg border border-border/60 bg-background px-2" value={form.audienceFilters.meetingsScheduled || ""} onChange={(e) => setForm({ ...form, audienceFilters: { ...form.audienceFilters, meetingsScheduled: e.target.value || undefined } })} data-testid="filter-attendee-meetings">
+                        <option value="">Any</option>
+                        <option value="0">0 (no meetings)</option>
+                        <option value="1+">1+ meetings</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Info Requests</label>
+                      <select className="w-full h-8 text-xs rounded-lg border border-border/60 bg-background px-2" value={form.audienceFilters.infoRequests || ""} onChange={(e) => setForm({ ...form, audienceFilters: { ...form.audienceFilters, infoRequests: e.target.value || undefined } })} data-testid="filter-attendee-info-requests">
+                        <option value="">Any</option>
+                        <option value="0">0 (none)</option>
+                        <option value="1+">1+ requests</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Profile Complete</label>
+                      <select className="w-full h-8 text-xs rounded-lg border border-border/60 bg-background px-2" value={form.audienceFilters.profileComplete || ""} onChange={(e) => setForm({ ...form, audienceFilters: { ...form.audienceFilters, profileComplete: e.target.value || undefined } })} data-testid="filter-attendee-profile">
+                        <option value="">Any</option>
+                        <option value="true">Complete</option>
+                        <option value="false">Incomplete</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Company</label>
+                    <Input className="h-8 text-xs" placeholder="Filter by company name" value={form.audienceFilters.company || ""} onChange={(e) => setForm({ ...form, audienceFilters: { ...form.audienceFilters, company: e.target.value || undefined } })} data-testid="filter-attendee-company" />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Sponsorship Level</label>
+                    <select className="w-full h-8 text-xs rounded-lg border border-border/60 bg-background px-2" value={form.audienceFilters.level || ""} onChange={(e) => setForm({ ...form, audienceFilters: { ...form.audienceFilters, level: e.target.value || undefined } })} data-testid="filter-sponsor-level">
+                      <option value="">All Levels</option>
+                      <option value="Platinum">Platinum</option>
+                      <option value="Gold">Gold</option>
+                      <option value="Silver">Silver</option>
+                      <option value="Bronze">Bronze</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Template Selection */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Email Template *</label>
+              <select className="w-full h-9 text-sm rounded-lg border border-border/60 bg-background px-3" value={form.templateId} onChange={(e) => setForm({ ...form, templateId: e.target.value })} data-testid="select-campaign-template">
+                <option value="">Select a template…</option>
+                {templates.filter(t => t.isActive).map(t => (
+                  <option key={t.id} value={t.id}>{t.displayName} ({t.category})</option>
+                ))}
+              </select>
+              {form.templateId && (() => {
+                const tpl = templates.find(t => t.id === form.templateId);
+                return tpl ? (
+                  <div className="rounded-lg border border-border/40 bg-muted/20 p-2 mt-1">
+                    <p className="text-xs text-muted-foreground">Subject: <span className="text-foreground">{tpl.subjectTemplate}</span></p>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            {/* Schedule */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Schedule Send (optional)</label>
+              <Input type="datetime-local" value={form.scheduledAt} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })} data-testid="input-campaign-scheduled-at" />
+              <p className="text-xs text-muted-foreground">Leave empty to save as Draft, or set a date/time to schedule the send.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setCreateOpen(false); setEditTarget(null); setForm(emptyForm); }}>Cancel</Button>
+            {editTarget ? (
+              <Button onClick={() => updateMutation.mutate({ id: editTarget.id, data: form })} disabled={!form.name || updateMutation.isPending} className="gap-2" data-testid="button-save-campaign">
+                {updateMutation.isPending ? "Saving…" : "Save Changes"}
+              </Button>
+            ) : (
+              <Button onClick={() => createMutation.mutate(form)} disabled={!form.name || createMutation.isPending} className="gap-2" data-testid="button-submit-campaign">
+                {createMutation.isPending ? "Creating…" : <><Plus className="h-3.5 w-3.5" /> Create Campaign</>}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Audience Preview Drawer */}
+      <Sheet open={!!previewTarget && !confirmSendTarget} onOpenChange={(o) => { if (!o) { setPreviewTarget(null); setAudiencePreview(null); } }}>
+        <SheetContent side="right" className="w-[480px] sm:max-w-[480px] flex flex-col">
+          <SheetHeader className="pb-4 border-b border-border/40">
+            <SheetTitle className="flex items-center gap-2 text-base font-display">
+              <Users className="h-4 w-4 text-accent" />
+              Audience Preview
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto py-4 space-y-4">
+            {previewTarget && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                    <p className="text-xs text-muted-foreground mb-1">Campaign</p>
+                    <p className="text-sm font-semibold">{previewTarget.name}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                    <p className="text-xs text-muted-foreground mb-1">Audience Type</p>
+                    <p className="text-sm">{previewTarget.audienceType}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/50 bg-muted/20 p-3 col-span-2">
+                    <p className="text-xs text-muted-foreground mb-1">Event</p>
+                    <p className="text-sm">{getEventName(previewTarget.eventId)}</p>
+                  </div>
+                </div>
+                {previewLoading ? (
+                  <div className="flex items-center gap-2 py-8 text-xs text-muted-foreground justify-center"><RefreshCw className="h-3 w-3 animate-spin" /> Loading audience…</div>
+                ) : audiencePreview ? (
+                  <>
+                    <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 text-center">
+                      <p className="text-3xl font-display font-bold text-accent">{audiencePreview.count}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Total Recipients</p>
+                    </div>
+                    {audiencePreview.preview?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                          Preview (first {Math.min(20, audiencePreview.preview.length)})
+                        </p>
+                        <div className="rounded-lg border border-border/50 bg-muted/10 divide-y divide-border/30 max-h-[300px] overflow-y-auto">
+                          {audiencePreview.preview.map((r, i) => (
+                            <div key={i} className="flex items-center justify-between px-3 py-2">
+                              <div>
+                                <p className="text-xs font-medium">{r.name || "—"}</p>
+                                <p className="text-[10px] text-muted-foreground">{r.company}</p>
+                              </div>
+                              <p className="text-xs text-muted-foreground font-mono">{r.email}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : null}
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Send Confirmation Dialog */}
+      <AlertDialog open={!!confirmSendTarget} onOpenChange={(o) => { if (!o) { setConfirmSendTarget(null); setPreviewTarget(null); setAudiencePreview(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send this campaign?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-foreground">{confirmSendTarget?.name}</span>
+              {audiencePreview && (
+                <span className="block mt-2">This will send emails to <strong>{audiencePreview.count}</strong> {confirmSendTarget?.audienceType?.toLowerCase() || "recipients"}. Recipients who already received a campaign email today will be skipped.</span>
+              )}
+              {!audiencePreview && previewLoading && <span className="block mt-2">Loading audience count…</span>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmSendTarget && sendMutation.mutate(confirmSendTarget.id)}
+              disabled={sendMutation.isPending || previewLoading}
+              data-testid="button-confirm-send-campaign"
+            >
+              {sendMutation.isPending ? "Sending…" : "Confirm Send"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Confirmation */}
+      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => { if (!o) setCancelTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this campaign?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will cancel <strong>{cancelTarget?.name}</strong>. Cancelled campaigns cannot be sent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Campaign</AlertDialogCancel>
+            <AlertDialogAction onClick={() => cancelTarget && cancelMutation.mutate(cancelTarget.id)} disabled={cancelMutation.isPending} data-testid="button-confirm-cancel-campaign">
+              {cancelMutation.isPending ? "Cancelling…" : "Cancel Campaign"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
 // ── Scheduled Emails Tab ─────────────────────────────────────────────────────
 
 const SCHED_STATUS_CONFIG: Record<string, { className: string }> = {
@@ -1579,6 +2112,9 @@ export default function EmailCenterPage() {
             <TabsTrigger value="automations" className="gap-2" data-testid="tab-automations">
               <Zap className="h-3.5 w-3.5" /> Automations
             </TabsTrigger>
+            <TabsTrigger value="campaigns" className="gap-2" data-testid="tab-campaigns">
+              <Megaphone className="h-3.5 w-3.5" /> Campaigns
+            </TabsTrigger>
             <TabsTrigger value="scheduled" className="gap-2" data-testid="tab-scheduled-emails">
               <Timer className="h-3.5 w-3.5" /> Scheduled
             </TabsTrigger>
@@ -1743,6 +2279,10 @@ export default function EmailCenterPage() {
 
         <TabsContent value="automations" className="mt-0">
           <AutomationsTab />
+        </TabsContent>
+
+        <TabsContent value="campaigns" className="mt-0">
+          <CampaignsTab events={events} sponsors={sponsors} />
         </TabsContent>
 
         <TabsContent value="scheduled" className="mt-0">

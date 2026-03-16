@@ -10,7 +10,7 @@ import {
   agreementDeliverableRegistrants, agreementDeliverableSpeakers, agreementDeliverableReminders,
   fileAssets, deliverableLinks, deliverableSocialEntries, meetingInvitations,
   sessionTypes, agendaSessions, agendaSessionSpeakers, attendeeSavedSessions, agendaImportJobs,
-  emailTemplateVersions, automationRules, automationLogs,
+  emailTemplateVersions, automationRules, automationLogs, campaigns,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -42,6 +42,7 @@ import {
   type AgendaSessionSpeaker, type InsertAgendaSessionSpeaker,
   type AttendeeSavedSession, type InsertAttendeeSavedSession,
   type AgendaImportJob, type InsertAgendaImportJob,
+  type Campaign, type InsertCampaign,
   attendeeCategories, categoryMatchingRules,
   scheduledEmails,
   type ScheduledEmail, type InsertScheduledEmail,
@@ -1132,6 +1133,41 @@ export class DatabaseStorage implements IStorage {
 
   async getAutomationLogs(automationId: string, limit = 10): Promise<AutomationLog[]> {
     return db.select().from(automationLogs).where(eq(automationLogs.automationId, automationId)).orderBy(sql`executed_at DESC`).limit(limit);
+  }
+
+  // ── Campaigns ───────────────────────────────────────────────────────────
+
+  async listCampaigns(filters?: { eventId?: string; status?: string; audienceType?: string }): Promise<Campaign[]> {
+    const conditions = [];
+    if (filters?.eventId) conditions.push(eq(campaigns.eventId, filters.eventId));
+    if (filters?.status) conditions.push(eq(campaigns.status, filters.status));
+    if (filters?.audienceType) conditions.push(eq(campaigns.audienceType, filters.audienceType));
+    return db.select().from(campaigns)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(campaigns.createdAt));
+  }
+
+  async getCampaign(id: string): Promise<Campaign | undefined> {
+    const [row] = await db.select().from(campaigns).where(eq(campaigns.id, id)).limit(1);
+    return row;
+  }
+
+  async createCampaign(data: InsertCampaign): Promise<Campaign> {
+    const [row] = await db.insert(campaigns).values({
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return row;
+  }
+
+  async updateCampaign(id: string, data: Partial<InsertCampaign & { status?: string; sentAt?: Date; emailsSent?: number; failures?: number; audienceSize?: number }>): Promise<Campaign> {
+    const [row] = await db.update(campaigns).set({ ...data, updatedAt: new Date() }).where(eq(campaigns.id, id)).returning();
+    return row;
+  }
+
+  async deleteCampaign(id: string): Promise<void> {
+    await db.delete(campaigns).where(eq(campaigns.id, id));
   }
 
   async createSponsorLoginToken(data: { sponsorUserId: string; sponsorId: string; tokenHash: string; expiresAt: Date }): Promise<SponsorLoginToken> {

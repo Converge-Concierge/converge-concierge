@@ -4038,6 +4038,308 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(logs);
   });
 
+  // ── Campaign Routes ─────────────────────────────────────────────────────
+
+  app.get("/api/admin/campaigns", requireAuth, async (req, res) => {
+    const filters: { eventId?: string; status?: string; audienceType?: string } = {};
+    if (typeof req.query.eventId === "string") filters.eventId = req.query.eventId;
+    if (typeof req.query.status === "string") filters.status = req.query.status;
+    if (typeof req.query.audienceType === "string") filters.audienceType = req.query.audienceType;
+    const list = await storage.listCampaigns(filters);
+    res.json(list);
+  });
+
+  app.get("/api/admin/campaigns/:id", requireAuth, async (req, res) => {
+    const c = await storage.getCampaign(req.params.id);
+    if (!c) return res.status(404).json({ message: "Campaign not found" });
+    res.json(c);
+  });
+
+  app.post("/api/admin/campaigns", requireAdmin, async (req, res) => {
+    try {
+      const { name, eventId, audienceType, audienceFilters, templateId, status, scheduledAt } = req.body;
+      if (!name || typeof name !== "string") return res.status(400).json({ message: "Campaign name is required" });
+      const validStatuses = ["Draft", "Scheduled"];
+      const validAudience = ["Attendees", "Sponsors"];
+      const safeStatus = validStatuses.includes(status) ? status : "Draft";
+      const safeAudience = validAudience.includes(audienceType) ? audienceType : "Attendees";
+      const c = await storage.createCampaign({
+        name,
+        eventId: eventId || null,
+        audienceType: safeAudience,
+        audienceFilters: audienceFilters || {},
+        templateId: templateId || null,
+        status: safeStatus,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        audienceSize: 0,
+        createdBy: (req as any).user?.id ?? null,
+      });
+      res.status(201).json(c);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message ?? "Failed to create campaign" });
+    }
+  });
+
+  app.patch("/api/admin/campaigns/:id", requireAdmin, async (req, res) => {
+    try {
+      const existing = await storage.getCampaign(req.params.id);
+      if (!existing) return res.status(404).json({ message: "Campaign not found" });
+      if (existing.status === "Sent" || existing.status === "Sending") {
+        return res.status(400).json({ message: "Cannot edit a campaign that has already been sent" });
+      }
+      const updates: any = {};
+      const allowedFields = ["name", "eventId", "audienceType", "audienceFilters", "templateId", "status", "scheduledAt", "audienceSize"];
+      for (const f of allowedFields) {
+        if (req.body[f] !== undefined) updates[f] = req.body[f];
+      }
+      if (updates.scheduledAt) updates.scheduledAt = new Date(updates.scheduledAt);
+      const c = await storage.updateCampaign(req.params.id, updates);
+      res.json(c);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message ?? "Failed to update campaign" });
+    }
+  });
+
+  app.delete("/api/admin/campaigns/:id", requireAdmin, async (req, res) => {
+    const existing = await storage.getCampaign(req.params.id);
+    if (!existing) return res.status(404).json({ message: "Campaign not found" });
+    if (existing.status === "Sent" || existing.status === "Sending") {
+      return res.status(400).json({ message: "Cannot delete a sent campaign" });
+    }
+    await storage.deleteCampaign(req.params.id);
+    res.sendStatus(204);
+  });
+
+  app.post("/api/admin/campaigns/:id/cancel", requireAdmin, async (req, res) => {
+    const existing = await storage.getCampaign(req.params.id);
+    if (!existing) return res.status(404).json({ message: "Campaign not found" });
+    if (existing.status === "Sent" || existing.status === "Sending") {
+      return res.status(400).json({ message: "Cannot cancel a campaign that has already been sent" });
+    }
+    const c = await storage.updateCampaign(req.params.id, { status: "Cancelled" });
+    res.json(c);
+  });
+
+  app.post("/api/admin/campaigns/:id/preview-audience", requireAuth, async (req, res) => {
+    try {
+      const campaign = await storage.getCampaign(req.params.id);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+      const audienceType = campaign.audienceType || "Attendees";
+      const filters = (campaign.audienceFilters || {}) as Record<string, any>;
+      const eventId = campaign.eventId || undefined;
+
+      if (audienceType === "Attendees") {
+        let list = await storage.getAttendees();
+        if (filters.category) list = list.filter((a: any) => a.attendeeCategory === filters.category);
+        if (filters.company) list = list.filter((a: any) => a.company?.toLowerCase().includes(filters.company.toLowerCase()));
+        if (filters.hasEmail !== undefined) {
+          list = filters.hasEmail ? list.filter((a: any) => !!a.email) : list;
+        } else {
+          list = list.filter((a: any) => !!a.email);
+        }
+        if (filters.meetingsScheduled === "0" || filters.meetingsScheduled === "1+") {
+          const allMeetings = await storage.getMeetings();
+          const relevantMeetings = eventId ? allMeetings.filter((m: any) => m.eventId === eventId) : allMeetings;
+          const attendeesWithMeetings = new Set(relevantMeetings.map((m: any) => m.attendeeId));
+          if (filters.meetingsScheduled === "0") {
+            list = list.filter((a: any) => !attendeesWithMeetings.has(a.id));
+          } else {
+            list = list.filter((a: any) => attendeesWithMeetings.has(a.id));
+          }
+        }
+        if (filters.infoRequests === "0" || filters.infoRequests === "1+") {
+          const allRequests = await storage.listInformationRequests();
+          const withRequests = new Set(allRequests.filter((ir: any) => !eventId || ir.eventId === eventId).map((ir: any) => ir.attendeeId));
+          if (filters.infoRequests === "0") {
+            list = list.filter((a: any) => !withRequests.has(a.id));
+          } else {
+            list = list.filter((a: any) => withRequests.has(a.id));
+          }
+        }
+        if (filters.profileComplete === "true") {
+          list = list.filter((a: any) => a.firstName && a.lastName && a.company && a.title && a.email);
+        } else if (filters.profileComplete === "false") {
+          list = list.filter((a: any) => !a.firstName || !a.lastName || !a.company || !a.title);
+        }
+        list = list.filter((a: any) => a.archiveState !== "archived");
+        const preview = list.slice(0, 20).map((a: any) => ({ id: a.id, name: a.name || `${a.firstName || ""} ${a.lastName || ""}`.trim(), email: a.email, company: a.company }));
+        res.json({ count: list.length, preview });
+      } else {
+        let list = await storage.getSponsors();
+        if (eventId) {
+          list = list.filter((s: any) => {
+            const ae = s.assignedEvents;
+            if (!Array.isArray(ae)) return false;
+            return ae.some((e: any) => e.eventId === eventId);
+          });
+        }
+        if (filters.level) {
+          list = list.filter((s: any) => {
+            const ae = s.assignedEvents;
+            if (!Array.isArray(ae)) return false;
+            return ae.some((e: any) => (!eventId || e.eventId === eventId) && e.sponsorshipLevel === filters.level);
+          });
+        }
+        list = list.filter((s: any) => s.archiveState !== "archived" && !!s.contactEmail);
+        const preview = list.slice(0, 20).map((s: any) => ({ id: s.id, name: s.name, email: s.contactEmail, company: s.name }));
+        res.json({ count: list.length, preview });
+      }
+    } catch (err: any) {
+      res.status(500).json({ message: err.message ?? "Failed to preview audience" });
+    }
+  });
+
+  app.post("/api/admin/campaigns/:id/send", requireAdmin, async (req, res) => {
+    try {
+      const campaign = await storage.getCampaign(req.params.id);
+      if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+      if (campaign.status === "Sent" || campaign.status === "Sending") {
+        return res.status(400).json({ message: "Campaign has already been sent" });
+      }
+      if (campaign.status === "Cancelled") {
+        return res.status(400).json({ message: "Cancelled campaigns cannot be sent" });
+      }
+      if (!campaign.templateId) {
+        return res.status(400).json({ message: "Campaign must have a template selected" });
+      }
+      const template = await storage.getEmailTemplateByKey(campaign.templateId)
+        || (await storage.getEmailTemplateById?.(campaign.templateId));
+      if (!template) return res.status(400).json({ message: "Template not found" });
+
+      await storage.updateCampaign(campaign.id, { status: "Sending" });
+
+      const audienceType = campaign.audienceType || "Attendees";
+      const filters = (campaign.audienceFilters || {}) as Record<string, any>;
+      const eventId = campaign.eventId || undefined;
+
+      let recipients: Array<{ id: string; email: string; name: string; firstName?: string; company?: string; eventId?: string }> = [];
+
+      if (audienceType === "Attendees") {
+        let list = await storage.getAttendees();
+        if (filters.category) list = list.filter((a: any) => a.attendeeCategory === filters.category);
+        if (filters.company) list = list.filter((a: any) => a.company?.toLowerCase().includes(filters.company.toLowerCase()));
+        list = list.filter((a: any) => !!a.email && a.archiveState !== "archived");
+        if (filters.meetingsScheduled === "0" || filters.meetingsScheduled === "1+") {
+          const allMeetings = await storage.getMeetings();
+          const relevantMeetings = eventId ? allMeetings.filter((m: any) => m.eventId === eventId) : allMeetings;
+          const withMeetings = new Set(relevantMeetings.map((m: any) => m.attendeeId));
+          if (filters.meetingsScheduled === "0") {
+            list = list.filter((a: any) => !withMeetings.has(a.id));
+          } else {
+            list = list.filter((a: any) => withMeetings.has(a.id));
+          }
+        }
+        if (filters.infoRequests === "0" || filters.infoRequests === "1+") {
+          const allRequests = await storage.listInformationRequests();
+          const withReqs = new Set(allRequests.filter((ir: any) => !eventId || ir.eventId === eventId).map((ir: any) => ir.attendeeId));
+          if (filters.infoRequests === "0") {
+            list = list.filter((a: any) => !withReqs.has(a.id));
+          } else {
+            list = list.filter((a: any) => withReqs.has(a.id));
+          }
+        }
+        if (filters.profileComplete === "true") {
+          list = list.filter((a: any) => a.firstName && a.lastName && a.company && a.title && a.email);
+        } else if (filters.profileComplete === "false") {
+          list = list.filter((a: any) => !a.firstName || !a.lastName || !a.company || !a.title);
+        }
+        recipients = list.map((a: any) => ({
+          id: a.id, email: a.email!, name: a.name || `${a.firstName || ""} ${a.lastName || ""}`.trim(),
+          firstName: a.firstName || a.name?.split(" ")[0] || "", company: a.company || "",
+          eventId: a.assignedEvent || eventId,
+        }));
+      } else {
+        let list = await storage.getSponsors();
+        if (eventId) list = list.filter((s: any) => Array.isArray(s.assignedEvents) && s.assignedEvents.some((e: any) => e.eventId === eventId));
+        if (filters.level) list = list.filter((s: any) => Array.isArray(s.assignedEvents) && s.assignedEvents.some((e: any) => (!eventId || e.eventId === eventId) && e.sponsorshipLevel === filters.level));
+        list = list.filter((s: any) => s.archiveState !== "archived" && !!s.contactEmail);
+        recipients = list.map((s: any) => ({ id: s.id, email: s.contactEmail!, name: s.contactName || s.name, firstName: s.contactName?.split(" ")[0] || s.name, company: s.name, eventId }));
+      }
+
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+      const todayLogs = await storage.listEmailLogs({ emailType: "campaign", from: todayStart, to: todayEnd }, 10000, 0);
+      const sentToday = new Set<string>();
+      for (const log of todayLogs) sentToday.add(log.recipientEmail);
+      const skippedByRateLimit = recipients.filter(r => sentToday.has(r.email)).length;
+      recipients = recipients.filter(r => !sentToday.has(r.email));
+
+      let event: any = null;
+      if (eventId) event = await storage.getEvent(eventId);
+
+      let emailsSent = 0;
+      let failures = 0;
+      const campaignSource = `Campaign – ${campaign.name}`;
+
+      for (const r of recipients) {
+        try {
+          const vars: Record<string, string> = {
+            attendee_first_name: r.firstName || r.name?.split(" ")[0] || "",
+            attendee_full_name: r.name || "",
+            recipient_name: r.name || "",
+            company: r.company || "",
+            event_name: event?.name || "",
+            event_code: event?.slug || "",
+            sponsor_name: r.company || "",
+          };
+          const subject = (template.subjectTemplate || "").replace(/\{\{(\w+)\}\}/g, (_, k: string) => vars[k] ?? "");
+          const html = (template.htmlTemplate || "").replace(/\{\{(\w+)\}\}/g, (_, k: string) => vars[k] ?? "");
+
+          let status: "sent" | "failed" = "sent";
+          let errorMessage: string | null = null;
+          let providerMessageId: string | null = null;
+          try {
+            const result = await sendEmail(r.email, subject, html);
+            providerMessageId = result?.messageId ?? null;
+          } catch (err: any) {
+            status = "failed";
+            errorMessage = err?.message ?? String(err);
+          }
+
+          await storage.createEmailLog({
+            emailType: "campaign",
+            recipientEmail: r.email,
+            subject,
+            htmlContent: html,
+            eventId: r.eventId || event?.id || null,
+            sponsorId: audienceType === "Sponsors" ? r.id : null,
+            attendeeId: audienceType === "Attendees" ? r.id : null,
+            status,
+            errorMessage,
+            providerMessageId,
+            source: campaignSource,
+            templateId: template.id,
+          });
+
+          if (status === "sent") emailsSent++;
+          else failures++;
+        } catch (err: any) {
+          console.error(`[CAMPAIGN] Error sending to ${r.email}:`, err?.message ?? err);
+          failures++;
+        }
+      }
+
+      await storage.updateCampaign(campaign.id, {
+        status: "Sent",
+        sentAt: new Date(),
+        emailsSent,
+        failures,
+        audienceSize: recipients.length + skippedByRateLimit,
+      });
+
+      res.json({ message: "Campaign sent", emailsSent, failures, totalRecipients: recipients.length, skippedByRateLimit });
+    } catch (err: any) {
+      console.error("[CAMPAIGN SEND] Error:", err);
+      try {
+        const current = await storage.getCampaign(req.params.id);
+        if (current && current.status === "Sending") {
+          await storage.updateCampaign(req.params.id, { status: "Draft" });
+        }
+      } catch (_) {}
+      res.status(500).json({ message: err.message ?? "Failed to send campaign" });
+    }
+  });
+
   // ── Email Test Routes (admin-only) ────────────────────────────────────────
   // These routes are for development/QA testing of email templates.
   // Protected behind requireAdmin — do not remove auth guard.

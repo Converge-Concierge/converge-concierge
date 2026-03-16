@@ -1,0 +1,323 @@
+Email Settings, Safeguards, and System Monitoring
+
+This is the final phase of the Email Center rebuild.
+
+Phases 1–4 implemented:
+
+• Email Activity
+• Template Management
+• Automations Dashboard
+• Campaign Emails
+
+Phase 5 completes the system by introducing:
+
+• Email system settings
+• Email safety controls
+• Email volume monitoring
+• Delivery monitoring
+• system status visibility
+
+The goal is to make Email Center a fully controlled operational messaging system for Concierge.
+
+Phase 5 Objectives
+
+After Phase 5, administrators should be able to:
+
+• configure the system email sender
+• monitor email delivery health
+• prevent accidental spam or misuse
+• protect sponsor-sensitive emails
+• monitor daily email usage vs provider limits
+• pause all system emails if needed
+
+1. Add Email Center → Settings Tab
+
+Add a new tab inside Email Center.
+
+Final Email Center navigation should now be:
+
+Email Center
+   Email Activity
+   Templates
+   Automations
+   Campaigns
+   Settings
+
+The Settings tab will contain system-wide email configuration and monitoring.
+
+2. Sender Configuration
+
+In Email Center → Settings create a Sender Configuration section.
+
+Fields:
+
+Default From Name
+
+Example:
+
+Converge Concierge
+
+Default From Email
+
+Example:
+
+noreply@concierge.convergeevents.com
+
+Reply-To Email
+
+Example:
+
+events@convergeevents.com
+
+All system-generated emails should use these defaults unless explicitly overridden.
+
+3. Email Provider Status
+
+Display the current email provider configuration.
+
+Show the following information:
+
+Email Provider
+Sending Domain
+Domain Verification Status
+DKIM Status
+SPF Status
+
+Example display:
+
+Provider: Resend
+Domain: concierge.convergeevents.com
+Domain Status: Verified
+DKIM: Verified
+SPF: Verified
+
+This allows administrators to diagnose delivery issues quickly.
+
+4. Email Volume Monitoring
+
+The current email provider free tier allows 100 emails per day.
+
+The system must track email volume to ensure the limit is not exceeded.
+
+Display Daily Email Usage
+
+Add a usage card at the top of Email Center.
+
+Example:
+
+Daily Email Usage
+42 / 100 emails sent today
+
+Display as a progress bar.
+
+Example:
+
+████████░░░░░░
+42% of daily limit used
+Count All Email Types
+
+The daily usage count must include:
+
+• system emails
+• automation emails
+• campaign emails
+• manual emails
+
+All outgoing messages must be counted.
+
+Add Warning Thresholds
+
+Display warnings when the daily email limit is approached.
+
+Thresholds:
+
+75% Warning
+
+75 of 100 emails have been sent today.
+You are approaching the daily sending limit.
+
+90% Critical Warning
+
+90 of 100 emails have been sent today.
+Further automated emails may exceed the service plan limit.
+
+Warnings should appear:
+
+• on the Email Center dashboard
+• in Email Center → Settings
+
+5. Email Usage History
+
+Add a simple usage history section.
+
+Example table:
+
+Date        Emails Sent
+Mar 12      38
+Mar 13      64
+Mar 14      92
+Mar 15      41
+
+This allows Converge to monitor trends and determine when the email service plan needs to be upgraded.
+
+6. Global Email Pause
+
+Add a Global Email Pause control.
+
+Location:
+
+Email Center → Settings
+
+Controls:
+
+Pause All Emails
+Resume Email Sending
+
+When paused:
+
+• automations should not send
+• campaigns should not send
+• scheduled emails should not send
+
+This control allows administrators to stop all messaging immediately if needed.
+
+7. Email Failure Monitoring
+
+Add a Recent Email Failures section.
+
+Columns:
+
+Timestamp
+Recipient
+Template
+Event
+Error Message
+
+This allows administrators to identify delivery problems.
+
+Example errors:
+
+• provider rejection
+• invalid email address
+• API error
+
+8. Email System Status Indicator
+
+Add a status indicator at the top of Email Center.
+
+Example:
+
+Email System Status: Operational
+
+Possible states:
+
+Operational
+Paused
+Provider Error
+Delivery Issues Detected
+
+This gives admins quick confidence that email infrastructure is functioning properly.
+
+9. Email Domain Enforcement
+
+All system-generated links must use the correct domain.
+
+Required domain:
+
+https://concierge.convergeevents.com
+
+The system must prevent emails from containing:
+
+• development domains
+• demo domains
+• localhost URLs
+
+This ensures production emails always direct users to the correct environment.
+
+10. Sponsor Data Protection
+
+Certain email types must only be sent to authorized sponsor recipients.
+
+Protected email categories include:
+
+• Sponsor Performance Reports
+• Sponsor Metrics
+• Attendee Contact Lists
+• Sponsor Lead Reports
+
+The system must validate recipients before sending these email types.
+
+If a recipient is not an approved sponsor contact, block the send and show an error.
+
+11. Campaign Email Safety
+
+Add a safeguard preventing excessive campaign emails.
+
+Default rule:
+
+Maximum 1 campaign email per attendee per day
+
+This prevents accidental spam from operational campaigns.
+
+This rule should be configurable in the future if needed.
+
+12. Email Activity Metrics Enhancement
+
+If email provider tracking is available, Email Activity should support:
+
+Delivered
+Opened
+Clicked
+Bounced
+
+These metrics should appear in:
+
+• Email Activity table
+• Email Details view
+
+If provider integration is not yet available, prepare the data model so these metrics can be added later.
+
+13. Admin Permissions
+
+Ensure Email Center integrates with the existing Access Control system.
+
+Recommended permissions:
+
+View Email Activity
+Edit Templates
+Manage Automations
+Send Campaign Emails
+Manage Email Settings
+
+These permissions should be assignable through the existing user roles system.
+
+14. Acceptance Criteria
+
+Phase 5 is complete when:
+
+• Email Center includes a Settings tab
+• sender configuration is editable
+• email provider status is visible
+• daily email usage monitoring exists
+• email usage warnings appear near service limits
+• email usage history is visible
+• global email pause control exists
+• email failure monitoring exists
+• sponsor-sensitive emails are protected
+• system emails always use concierge.convergeevents.com
+
+15. Final Success Standard
+
+After Phase 5 is complete, Email Center should function as a complete communication control system.
+
+Converge should be able to:
+
+• monitor all outgoing emails
+• control automation messaging
+• send targeted campaigns
+• manage templates safely
+• protect sponsor data
+• monitor email delivery health
+• track daily email usage vs provider limits
+
+The Email Center should now feel like a professional operational messaging platform, not simply a logging tool.

@@ -1475,3 +1475,32 @@ export const agendaImportJobs = pgTable("agenda_import_jobs", {
 export const insertAgendaImportJobSchema = createInsertSchema(agendaImportJobs).omit({ id: true, createdAt: true, completedAt: true });
 export type InsertAgendaImportJob = z.infer<typeof insertAgendaImportJobSchema>;
 export type AgendaImportJob = typeof agendaImportJobs.$inferSelect;
+
+// ── Campaigns ─────────────────────────────────────────────────────────────────
+
+export const CAMPAIGN_STATUSES = ["Draft", "Scheduled", "Sending", "Sent", "Cancelled"] as const;
+export type CampaignStatus = typeof CAMPAIGN_STATUSES[number];
+export const CAMPAIGN_AUDIENCE_TYPES = ["Attendees", "Sponsors"] as const;
+export type CampaignAudienceType = typeof CAMPAIGN_AUDIENCE_TYPES[number];
+
+export const campaigns = pgTable("campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  eventId: varchar("event_id"),
+  audienceType: varchar("audience_type").notNull().default("Attendees"),
+  audienceFilters: jsonb("audience_filters").notNull().default({}),
+  templateId: varchar("template_id"),
+  status: varchar("status").notNull().default("Draft"),
+  scheduledAt: timestamp("scheduled_at"),
+  sentAt: timestamp("sent_at"),
+  emailsSent: integer("emails_sent").notNull().default(0),
+  failures: integer("failures").notNull().default(0),
+  audienceSize: integer("audience_size").notNull().default(0),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertCampaignSchema = createInsertSchema(campaigns).omit({ id: true, createdAt: true, updatedAt: true, sentAt: true, emailsSent: true, failures: true });
+export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
+export type Campaign = typeof campaigns.$inferSelect;

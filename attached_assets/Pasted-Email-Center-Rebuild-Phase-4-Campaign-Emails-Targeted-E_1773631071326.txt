@@ -1,0 +1,456 @@
+Email Center Rebuild — Phase 4
+Campaign Emails (Targeted Event Communications)
+
+We are now moving to Phase 4 of the Email Center rebuild.
+
+This phase introduces Campaign Emails, allowing Converge to send targeted communications to event participants based on filters such as meeting activity, category, or sponsor relationships.
+
+Campaigns are manual or scheduled operational communications, not automated system emails.
+
+This is important.
+
+Campaigns are used by Converge admins to:
+
+• invite attendees to schedule meetings
+• remind attendees to complete onboarding
+• notify sponsors of new opportunities
+• announce agenda updates
+• communicate event updates
+
+Campaigns should not replace automations. Automations are handled in Phase 3.
+
+Campaigns are admin-controlled messaging tools.
+
+Phase 4 Goal
+
+Add a Campaigns system to Email Center that allows admins to:
+
+• create targeted email campaigns
+• filter audiences based on event data
+• schedule or send campaigns
+• track campaign activity in Email Activity
+
+This will transform Concierge into a powerful operational communications tool for events.
+
+1. Add Campaigns Tab to Email Center
+
+Add a new tab:
+
+Email Center
+   Email Activity
+   Templates
+   Automations
+   Campaigns
+
+Campaigns should be its own section within Email Center.
+
+2. Campaigns Overview Page
+
+Create a Campaigns dashboard page listing all campaigns.
+
+Columns should include:
+
+Campaign Name
+
+Event
+
+Audience Type
+
+Audience Size
+
+Template
+
+Status
+
+Scheduled Send Time
+
+Sent Time
+
+Emails Sent
+
+Actions
+
+Statuses:
+
+Draft
+Scheduled
+Sent
+Cancelled
+3. Campaign Creation Interface
+
+Add a Create Campaign button.
+
+Campaign creation should open a structured form.
+
+Required fields:
+
+Campaign Name
+
+Internal name for tracking.
+
+Example:
+
+FRC2026 – Invite Attendees to Schedule Meetings
+Event
+
+Select event.
+
+Options:
+
+FRC2026
+TLS2026
+USBT2026
+CUGI2027
+All Events
+
+Campaigns are typically event-specific.
+
+Audience Type
+
+Choose target group.
+
+Options:
+
+Attendees
+Sponsors
+Companies
+
+For Phase 4, focus primarily on:
+
+Attendees
+Sponsors
+4. Audience Filters
+
+Campaign builder must support audience filtering.
+
+This is where the real value comes from.
+
+Allow filtering based on the following fields where available.
+
+Attendee Filters
+
+Event
+
+Category
+
+Practitioner
+
+Government / Non-Profit
+
+Solution Provider
+
+Banker
+
+Staff
+
+Meetings Scheduled
+
+0
+
+1+
+
+Info Requests
+
+0
+
+1+
+
+Profile Completed
+
+Company
+
+Registration Status
+
+Example use cases:
+
+Send campaign to all practitioners with zero meetings scheduled.
+Notify attendees who have not completed their profile.
+Sponsor Filters
+
+Sponsor campaigns may target:
+
+sponsor company
+
+sponsorship level
+
+deliverable status
+
+meetings generated
+
+info requests received
+
+Example:
+
+Send reminder to sponsors with incomplete deliverables.
+5. Audience Preview
+
+Before sending the campaign, admins must be able to preview the audience.
+
+Add:
+
+Preview Audience
+
+This should display:
+
+number of recipients
+
+list preview (first ~20)
+
+email addresses
+
+name
+
+company
+
+Admins must confirm before sending.
+
+This helps prevent mistakes.
+
+6. Template Selection
+
+Campaigns must use existing templates.
+
+The campaign builder should include a template selector.
+
+Display:
+
+template display name
+
+category
+
+subject preview
+
+Admins should also be able to preview the template before sending.
+
+7. Send Options
+
+Campaigns should support two send modes.
+
+Send Now
+
+Immediately send campaign.
+
+Schedule Send
+
+Allow scheduling for a specific date/time.
+
+Fields:
+
+send date
+
+send time
+
+timezone (optional if system default exists)
+
+Scheduled campaigns should appear in the Campaign list as:
+
+Scheduled
+8. Campaign Status Tracking
+
+Campaign lifecycle should include:
+
+Draft
+Scheduled
+Sending
+Sent
+Cancelled
+
+Admins should be able to:
+
+cancel scheduled campaigns
+
+view sent campaigns
+
+inspect campaign activity
+
+9. Campaign Activity Integration
+
+All campaign emails must appear in Email Activity.
+
+Add source attribution:
+
+Source: Campaign
+
+Also include the campaign name.
+
+Example:
+
+Source: Campaign – FRC2026 Meeting Invitation
+
+This ensures all communications remain traceable.
+
+10. Campaign Metrics
+
+Campaigns should track basic metrics.
+
+Minimum metrics:
+
+Emails Sent
+
+Failures
+
+Optional (future phases):
+
+Opens
+
+Clicks
+
+For Phase 4, do not block launch on advanced analytics.
+
+11. Campaign Safety Controls
+
+Campaigns must include safety protections.
+
+Recipient Validation
+
+Before sending:
+
+confirm recipient count
+
+confirm event context
+
+Admins must click:
+
+Confirm Send
+
+before final sending.
+
+Sponsor Data Protection
+
+Campaign system must not allow sponsor reports or sensitive sponsor data to be sent outside approved sponsor contacts.
+
+Campaigns should only send:
+
+operational communications
+
+event updates
+
+scheduling invitations
+
+Sensitive sponsor reporting must remain restricted.
+
+12. Campaign Email Limits (Safety)
+
+Add basic safeguards to prevent accidental spam.
+
+Example rule:
+
+Max one campaign email per attendee per day
+
+If this becomes restrictive later, it can be adjusted.
+
+For now, prioritize safety.
+
+13. Campaign Editing Rules
+
+Campaigns in:
+
+Draft
+
+can be edited.
+
+Campaigns in:
+
+Scheduled
+
+can be edited until send time.
+
+Campaigns in:
+
+Sent
+
+cannot be edited.
+
+14. Campaign Cancellation
+
+Admins must be able to cancel scheduled campaigns.
+
+Add:
+
+Cancel Campaign
+
+Cancelling should change status to:
+
+Cancelled
+15. Campaign Search and Filtering
+
+Campaign dashboard should support filters.
+
+Filters:
+
+Event
+
+Status
+
+Audience Type
+
+Date
+
+Search:
+
+campaign name
+
+16. UI Design Goals
+
+Campaigns should feel simple and operational.
+
+Admins should be able to create a campaign in under 1 minute.
+
+Avoid overly complex marketing automation features.
+
+Concierge is an event operations platform, not a marketing platform.
+
+17. Example Campaign Use Cases
+
+These are the primary use cases this feature should support.
+
+Attendee Scheduling Invitation
+Audience:
+Attendees
+Meetings = 0
+
+Message:
+Schedule your meetings before the event.
+Profile Completion Reminder
+Audience:
+Attendees
+Profile Complete = false
+Agenda Announcement
+Audience:
+All Attendees
+Sponsor Opportunity Notification
+Audience:
+Sponsors
+Meetings < threshold
+18. Acceptance Criteria
+
+Phase 4 is complete when:
+
+Email Center includes a Campaigns tab
+
+admins can create campaigns
+
+campaigns support audience filtering
+
+audience preview works
+
+campaigns can be scheduled or sent immediately
+
+campaign emails appear in Email Activity with source attribution
+
+campaigns track basic metrics
+
+safety confirmations exist before sending
+
+19. Success Standard
+
+After Phase 4, Converge should be able to:
+
+• invite attendees to schedule meetings
+• remind attendees to complete onboarding
+• notify sponsors about opportunities
+• communicate event updates
+
+all from within Concierge.
+
+This dramatically increases the operational power of the platform.

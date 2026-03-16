@@ -32,6 +32,7 @@ import {
   type AgendaSessionSpeaker, type InsertAgendaSessionSpeaker,
   type AttendeeSavedSession, type InsertAttendeeSavedSession,
   type AgendaImportJob, type InsertAgendaImportJob,
+  type Campaign, type InsertCampaign,
   DEFAULT_SETTINGS, DEFAULT_BRANDING, DEFAULT_USER_PERMISSIONS,
 } from "@shared/schema";
 
@@ -248,6 +249,13 @@ export interface IStorage {
   setAllAutomationsEnabled(enabled: boolean): Promise<void>;
   recordAutomationExecution(automationKey: string, emailsSent: number, failures: number, errorMessage?: string | null): Promise<void>;
   getAutomationLogs(automationId: string, limit?: number): Promise<AutomationLog[]>;
+
+  // ── Campaigns ───────────────────────────────────────────────────────────
+  listCampaigns(filters?: { eventId?: string; status?: string; audienceType?: string }): Promise<Campaign[]>;
+  getCampaign(id: string): Promise<Campaign | undefined>;
+  createCampaign(data: InsertCampaign): Promise<Campaign>;
+  updateCampaign(id: string, data: Partial<InsertCampaign & { status?: string; sentAt?: Date; emailsSent?: number; failures?: number; audienceSize?: number }>): Promise<Campaign>;
+  deleteCampaign(id: string): Promise<void>;
 
   // ── Agreement Deliverables ────────────────────────────────────────────────
   listPackageTemplates(filters?: { sponsorshipLevel?: string; isArchived?: boolean }): Promise<PackageTemplate[]>;
@@ -997,6 +1005,12 @@ export class MemStorage implements IStorage {
   async setAllAutomationsEnabled(_enabled: boolean): Promise<void> {}
   async recordAutomationExecution(_key: string, _sent: number, _failures: number, _err?: string | null): Promise<void> {}
   async getAutomationLogs(_automationId: string, _limit?: number): Promise<AutomationLog[]> { return []; }
+
+  async listCampaigns(_filters?: { eventId?: string; status?: string; audienceType?: string }): Promise<Campaign[]> { return []; }
+  async getCampaign(_id: string): Promise<Campaign | undefined> { return undefined; }
+  async createCampaign(data: InsertCampaign): Promise<Campaign> { return { id: randomUUID(), name: data.name, eventId: data.eventId ?? null, audienceType: data.audienceType ?? "Attendees", audienceFilters: data.audienceFilters ?? {}, templateId: data.templateId ?? null, status: data.status ?? "Draft", scheduledAt: data.scheduledAt ?? null, sentAt: null, emailsSent: 0, failures: 0, audienceSize: data.audienceSize ?? 0, createdBy: data.createdBy ?? null, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateCampaign(_id: string, _data: Partial<InsertCampaign & { status?: string; sentAt?: Date; emailsSent?: number; failures?: number; audienceSize?: number }>): Promise<Campaign> { return { id: _id, name: "", eventId: null, audienceType: "Attendees", audienceFilters: {}, templateId: null, status: "Draft", scheduledAt: null, sentAt: null, emailsSent: 0, failures: 0, audienceSize: 0, createdBy: null, createdAt: new Date(), updatedAt: new Date() }; }
+  async deleteCampaign(_id: string): Promise<void> {}
 
   async listPackageTemplates(_filters?: { sponsorshipLevel?: string; isArchived?: boolean }): Promise<PackageTemplate[]> { return []; }
   async getPackageTemplate(_id: string): Promise<PackageTemplate | undefined> { return undefined; }

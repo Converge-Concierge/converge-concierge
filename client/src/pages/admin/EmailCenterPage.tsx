@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import type { EmailLog, Event, Sponsor, EmailTemplate, ScheduledEmail } from "@shared/schema";
+import type { EmailLog, Event, Sponsor, EmailTemplate, EmailTemplateVersion, ScheduledEmail } from "@shared/schema";
+import { EMAIL_TEMPLATE_CATEGORIES } from "@shared/schema";
 
 const EMAIL_SOURCE_OPTIONS = [
   "System Action",
@@ -17,7 +18,7 @@ import {
   FlaskConical, Building2, User, AlertCircle, CheckCircle2,
   Clock, CalendarDays, X, RotateCcw, ChevronRight, Code,
   Settings2, Edit2, FileText, Layout, Plus, Pencil, Trash2, Ban,
-  Timer,
+  Timer, History, Tag, Filter, Undo2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -101,18 +102,150 @@ function fmtUpdatedAt(ts: string | Date | null | undefined) {
   return d.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
 }
 
+const CATEGORY_COLORS: Record<string, string> = {
+  System: "bg-blue-50 text-blue-700 border-blue-200",
+  Operational: "bg-violet-50 text-violet-700 border-violet-200",
+  Campaign: "bg-amber-50 text-amber-700 border-amber-200",
+};
+
+function CategoryBadge({ category }: { category: string }) {
+  const colors = CATEGORY_COLORS[category] ?? "bg-muted text-muted-foreground border-border";
+  return (
+    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", colors)}>
+      <Tag className="h-2.5 w-2.5" /> {category}
+    </span>
+  );
+}
+
+const VARIABLE_GROUPS: Record<string, string[]> = {
+  Attendee: ["attendee_first_name", "attendee_full_name", "attendee_email", "recipient_first_name", "recipient_email"],
+  Sponsor: ["sponsor_name", "sponsor_user_name", "sponsor_dashboard_url"],
+  Event: ["event_name", "event_code", "event_schedule_url", "scheduling_url", "app_name"],
+  Meeting: ["meeting_date", "meeting_time", "meeting_location", "meeting_type", "status"],
+  System: ["user_name", "reset_url", "magic_link_url"],
+};
+
+function groupVariable(v: string): string {
+  for (const [group, vars] of Object.entries(VARIABLE_GROUPS)) {
+    if (vars.includes(v)) return group;
+  }
+  return "Other";
+}
+
 function TemplateVariables({ variables }: { variables: string[] }) {
   if (!variables || variables.length === 0) return null;
+  const grouped: Record<string, string[]> = {};
+  for (const v of variables) {
+    const g = groupVariable(v);
+    if (!grouped[g]) grouped[g] = [];
+    grouped[g].push(v);
+  }
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Available Variables</label>
-      <div className="flex flex-wrap gap-1.5">
-        {variables.map((v) => (
-          <code key={v} className="px-2 py-1 rounded bg-muted text-[10px] font-mono text-accent border border-border/40">
-            {"{{"}{v}{"}}"}
-          </code>
+      {Object.entries(grouped).map(([group, vars]) => (
+        <div key={group} className="space-y-1.5">
+          <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-widest">{group}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {vars.map((v) => (
+              <code key={v} className="px-2 py-1 rounded bg-muted text-[10px] font-mono text-accent border border-border/40">
+                {"{{"}{v}{"}}"}
+              </code>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function VersionHistoryPanel({ templateId, onRestore }: { templateId: string; onRestore: () => void }) {
+  const { toast } = useToast();
+  const { data: versions = [], isLoading } = useQuery<EmailTemplateVersion[]>({
+    queryKey: ["/api/admin/email-templates", templateId, "versions"],
+    queryFn: () => fetch(`/api/admin/email-templates/${templateId}/versions`).then((r) => r.json()),
+    enabled: !!templateId,
+  });
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [confirmRestore, setConfirmRestore] = useState<EmailTemplateVersion | null>(null);
+
+  const restoreMutation = useMutation({
+    mutationFn: async (versionId: string) => {
+      const res = await apiRequest("POST", `/api/admin/email-templates/${templateId}/restore/${versionId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Version restored successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-templates", templateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-templates", templateId, "versions"] });
+      setConfirmRestore(null);
+      onRestore();
+    },
+    onError: (err: Error) => toast({ title: "Restore failed", description: err.message, variant: "destructive" }),
+  });
+
+  if (isLoading) return <div className="text-center py-8 text-muted-foreground text-sm">Loading version history...</div>;
+  if (versions.length === 0) return <div className="text-center py-8 text-muted-foreground text-sm">No previous versions yet. Versions are created when you save changes.</div>;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">{versions.length} previous version{versions.length !== 1 ? "s" : ""}</p>
+      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+        {versions.map((v) => (
+          <div key={v.id} className="rounded-lg border border-border/50 bg-muted/10 overflow-hidden">
+            <div className="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-muted/20 transition-colors" onClick={() => setExpandedId(expandedId === v.id ? null : v.id)}>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-bold text-accent shrink-0">v{v.version}</span>
+                <span className="text-xs text-muted-foreground truncate">{fmtUpdatedAt(v.createdAt)}</span>
+                {v.updatedBy && <span className="text-[10px] text-muted-foreground/70 truncate">by {v.updatedBy}</span>}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); setConfirmRestore(v); }} data-testid={`restore-version-${v.id}`}>
+                  <Undo2 className="h-3 w-3" /> Restore
+                </Button>
+                <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", expandedId === v.id && "rotate-90")} />
+              </div>
+            </div>
+            {expandedId === v.id && (
+              <div className="px-3 pb-3 space-y-2 border-t border-border/30 pt-2">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div><span className="text-muted-foreground">Name:</span> <span className="font-medium">{v.displayName}</span></div>
+                  <div><span className="text-muted-foreground">Category:</span> <CategoryBadge category={v.category} /></div>
+                  <div><span className="text-muted-foreground">Status:</span> {v.isActive ? "Active" : "Inactive"}</div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground font-semibold">Subject</p>
+                  <p className="text-xs font-mono bg-muted/40 rounded px-2 py-1 border border-border/30">{v.subjectTemplate}</p>
+                </div>
+                {v.htmlTemplate?.trim() && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-muted-foreground font-semibold">HTML Body</p>
+                    <pre className="text-[10px] font-mono bg-muted/40 rounded px-2 py-1 border border-border/30 max-h-[120px] overflow-y-auto whitespace-pre-wrap">{v.htmlTemplate}</pre>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         ))}
       </div>
+
+      <AlertDialog open={!!confirmRestore} onOpenChange={(open) => { if (!open) setConfirmRestore(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore Version {confirmRestore?.version}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will save the current template as a new version in the history, then restore the content from version {confirmRestore?.version}. No history will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmRestore && restoreMutation.mutate(confirmRestore.id)} disabled={restoreMutation.isPending}>
+              {restoreMutation.isPending ? "Restoring…" : "Restore Version"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -121,16 +254,35 @@ function EmailTemplatesTab() {
   const { toast } = useToast();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<null | "view" | "edit">(null);
+  const [panelTab, setPanelTab] = useState<"details" | "versions">("details");
   const [editState, setEditState] = useState<EmailTemplate | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewSubject, setPreviewSubject] = useState<string | null>(null);
   const [previewSource, setPreviewSource] = useState<"code" | "custom" | null>(null);
   const [testEmail, setTestEmail] = useState("");
   const [sendTestDialogTemplate, setSendTestDialogTemplate] = useState<EmailTemplate | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   const { data: templates = [], isLoading } = useQuery<EmailTemplate[]>({
     queryKey: ["/api/admin/email-templates"],
   });
+
+  const filteredTemplates = useMemo(() => {
+    let list = templates;
+    if (categoryFilter !== "all") {
+      list = list.filter((t) => t.category === categoryFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((t) =>
+        t.displayName.toLowerCase().includes(q) ||
+        t.templateKey.toLowerCase().includes(q) ||
+        (t.description ?? "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [templates, categoryFilter, searchQuery]);
 
   const { data: freshTemplate, isLoading: isFetchingFresh } = useQuery<EmailTemplate>({
     queryKey: ["/api/admin/email-templates", selectedId],
@@ -148,6 +300,7 @@ function EmailTemplatesTab() {
   const openView = (t: EmailTemplate) => {
     setSelectedId(t.id);
     setMode("view");
+    setPanelTab("details");
     setPreviewHtml(null);
   };
 
@@ -155,12 +308,14 @@ function EmailTemplatesTab() {
     setEditState({ ...t });
     setSelectedId(t.id);
     setMode("edit");
+    setPanelTab("details");
     setPreviewHtml(null);
   };
 
   const switchToEdit = () => {
     if (freshTemplate) setEditState({ ...freshTemplate });
     setMode("edit");
+    setPanelTab("details");
     setPreviewHtml(null);
   };
 
@@ -169,6 +324,7 @@ function EmailTemplatesTab() {
     setMode(null);
     setEditState(null);
     setPreviewHtml(null);
+    setPanelTab("details");
   };
 
   const updateMutation = useMutation({
@@ -180,6 +336,7 @@ function EmailTemplatesTab() {
       toast({ title: "Template updated successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/email-templates"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/email-templates", selectedId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-templates", selectedId, "versions"] });
       setMode("view");
     },
     onError: (err: Error) => toast({ title: "Update failed", description: err.message, variant: "destructive" }),
@@ -209,10 +366,9 @@ function EmailTemplatesTab() {
       return res.json();
     },
     onSuccess: (data) => {
-      const recipient = testEmail || sendTestDialogTemplate?.displayName;
       toast({
         title: data.ok ? "Test email sent" : "Test failed",
-        description: data.ok ? `Sent successfully` : data.message,
+        description: data.ok ? "Sent successfully" : data.message,
         variant: data.ok ? "default" : "destructive",
       });
       setSendTestDialogTemplate(null);
@@ -224,321 +380,406 @@ function EmailTemplatesTab() {
   const viewData = freshTemplate ?? templates.find((t) => t.id === selectedId);
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-280px)]">
-      {/* ── Template List ─────────────────────────────────── */}
-      <div className={cn("bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden flex flex-col transition-all duration-300", panelOpen ? "w-[40%]" : "w-full")}>
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
-                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Display Name</th>
-                {!panelOpen && <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Key</th>}
-                {!panelOpen && <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Subject</th>}
-                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Status</th>
-                {!panelOpen && <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Last Updated</th>}
-                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">Loading templates…</td></tr>
-              ) : templates.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">No templates found.</td></tr>
-              ) : (
-                templates.map((t) => (
-                  <tr key={t.id} className={cn("border-b border-border/30 hover:bg-muted/20 transition-colors", selectedId === t.id && "bg-accent/5")}>
-                    <td className="px-4 py-3 font-medium">{t.displayName}</td>
-                    {!panelOpen && <td className="px-4 py-3 text-xs font-mono text-muted-foreground">{t.templateKey}</td>}
-                    {!panelOpen && <td className="px-4 py-3 text-xs text-muted-foreground truncate max-w-[200px]">{t.subjectTemplate}</td>}
-                    <td className="px-4 py-3">
-                      <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", t.isActive ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-muted text-muted-foreground border-border")}>
-                        {t.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    {!panelOpen && <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{fmtUpdatedAt(t.updatedAt)}</td>}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" title="View template" onClick={() => openView(t)} className="h-8 w-8 p-0" data-testid={`view-template-${t.id}`}>
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="sm" title="Edit template" onClick={() => openEdit(t)} className="h-8 w-8 p-0" data-testid={`edit-template-${t.id}`}>
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="sm" title="Send test email" onClick={() => setSendTestDialogTemplate(t)} className="h-8 w-8 p-0" data-testid={`send-test-template-${t.id}`}>
-                          <FlaskConical className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+    <div className="flex flex-col gap-4 h-[calc(100vh-280px)]">
+      {/* Filter bar */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, key, or description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 h-9"
+            data-testid="input-template-search"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="h-9 rounded-md border border-border bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            data-testid="select-template-category-filter"
+          >
+            <option value="all">All Categories</option>
+            {EMAIL_TEMPLATE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* ── View / Edit Panel ─────────────────────────────── */}
-      <AnimatePresence>
-        {panelOpen && viewData && (
-          <motion.div
-            key="template-panel"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="flex-1 bg-card rounded-2xl border border-border/60 shadow-lg overflow-hidden flex flex-col"
-          >
-            {/* Panel header */}
-            <div className="p-4 border-b border-border/40 bg-muted/30 flex items-center justify-between">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-display font-bold text-foreground truncate">
-                    {mode === "view" ? "View Template" : "Edit Template"}
-                  </h3>
-                  {isFetchingFresh && <div className="h-3.5 w-3.5 rounded-full border-2 border-accent border-t-transparent animate-spin shrink-0" />}
-                </div>
-                <p className="text-xs text-muted-foreground truncate">{viewData.displayName} · <span className="font-mono">{viewData.templateKey}</span></p>
-              </div>
-              <div className="flex items-center gap-1 shrink-0 ml-3">
-                {mode === "view" && (
-                  <Button variant="outline" size="sm" onClick={switchToEdit} className="gap-1.5 h-8 text-xs">
-                    <Edit2 className="h-3 w-3" /> Edit Template
-                  </Button>
+      <div className="flex gap-6 flex-1 min-h-0">
+        {/* Template List */}
+        <div className={cn("bg-card rounded-2xl border border-border/60 shadow-sm overflow-hidden flex flex-col transition-all duration-300", panelOpen ? "w-[40%]" : "w-full")}>
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50 bg-muted/30">
+                  {!panelOpen && <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Category</th>}
+                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Display Name</th>
+                  {!panelOpen && <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Key</th>}
+                  {!panelOpen && <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Subject</th>}
+                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Status</th>
+                  {!panelOpen && <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Last Updated</th>}
+                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">Loading templates...</td></tr>
+                ) : filteredTemplates.length === 0 ? (
+                  <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">{searchQuery || categoryFilter !== "all" ? "No templates match your filters." : "No templates found."}</td></tr>
+                ) : (
+                  filteredTemplates.map((t) => (
+                    <tr key={t.id} className={cn("border-b border-border/30 hover:bg-muted/20 transition-colors", selectedId === t.id && "bg-accent/5")}>
+                      {!panelOpen && <td className="px-4 py-3"><CategoryBadge category={t.category} /></td>}
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="font-medium">{t.displayName}</p>
+                          {panelOpen && <p className="text-[10px] text-muted-foreground mt-0.5"><CategoryBadge category={t.category} /></p>}
+                        </div>
+                      </td>
+                      {!panelOpen && <td className="px-4 py-3 text-xs font-mono text-muted-foreground">{t.templateKey}</td>}
+                      {!panelOpen && <td className="px-4 py-3 text-xs text-muted-foreground truncate max-w-[200px]">{t.subjectTemplate}</td>}
+                      <td className="px-4 py-3">
+                        <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", t.isActive ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-muted text-muted-foreground border-border")}>
+                          {t.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      {!panelOpen && <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{fmtUpdatedAt(t.updatedAt)}</td>}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" title="View template" onClick={() => openView(t)} className="h-8 w-8 p-0" data-testid={`view-template-${t.id}`}>
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" title="Edit template" onClick={() => openEdit(t)} className="h-8 w-8 p-0" data-testid={`edit-template-${t.id}`}>
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" title="Send test email" onClick={() => setSendTestDialogTemplate(t)} className="h-8 w-8 p-0" data-testid={`send-test-template-${t.id}`}>
+                            <FlaskConical className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
-                <Button variant="ghost" size="icon" onClick={closePanel} className="h-8 w-8">
-                  <X className="h-4 w-4" />
-                </Button>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* View / Edit Panel */}
+        <AnimatePresence>
+          {panelOpen && viewData && (
+            <motion.div
+              key="template-panel"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="flex-1 bg-card rounded-2xl border border-border/60 shadow-lg overflow-hidden flex flex-col"
+            >
+              {/* Panel header */}
+              <div className="p-4 border-b border-border/40 bg-muted/30 flex items-center justify-between">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display font-bold text-foreground truncate">
+                      {mode === "view" ? "View Template" : "Edit Template"}
+                    </h3>
+                    {isFetchingFresh && <div className="h-3.5 w-3.5 rounded-full border-2 border-accent border-t-transparent animate-spin shrink-0" />}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{viewData.displayName} · <span className="font-mono">{viewData.templateKey}</span></p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0 ml-3">
+                  {mode === "view" && (
+                    <Button variant="outline" size="sm" onClick={switchToEdit} className="gap-1.5 h-8 text-xs">
+                      <Edit2 className="h-3 w-3" /> Edit Template
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={closePanel} className="h-8 w-8">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Panel tabs */}
+              <div className="flex border-b border-border/40 bg-muted/10 px-4">
+                <button
+                  className={cn("px-4 py-2 text-xs font-semibold border-b-2 transition-colors", panelTab === "details" ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground")}
+                  onClick={() => setPanelTab("details")}
+                  data-testid="tab-template-details"
+                >
+                  Details
+                </button>
+                <button
+                  className={cn("px-4 py-2 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5", panelTab === "versions" ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground")}
+                  onClick={() => setPanelTab("versions")}
+                  data-testid="tab-template-versions"
+                >
+                  <History className="h-3 w-3" /> Version History
+                </button>
+              </div>
 
-              {/* View Mode */}
-              {mode === "view" && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Display Name</p>
-                      <p className="text-sm font-medium">{viewData.displayName}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Template Key</p>
-                      <p className="text-sm font-mono text-muted-foreground">{viewData.templateKey}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</p>
-                      <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", viewData.isActive ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-muted text-muted-foreground border-border")}>
-                        {viewData.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Last Updated</p>
-                      <p className="text-xs text-muted-foreground">{fmtUpdatedAt(viewData.updatedAt)}</p>
-                    </div>
-                  </div>
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {panelTab === "versions" && selectedId && (
+                  <VersionHistoryPanel templateId={selectedId} onRestore={() => setPanelTab("details")} />
+                )}
 
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Subject Template</p>
-                    <p className="text-sm font-mono bg-muted/40 rounded-lg px-3 py-2 border border-border/40">{viewData.subjectTemplate}</p>
-                  </div>
+                {panelTab === "details" && (
+                  <>
+                    {/* View Mode */}
+                    {mode === "view" && (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Display Name</p>
+                            <p className="text-sm font-medium">{viewData.displayName}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category</p>
+                            <CategoryBadge category={viewData.category} />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Template Key</p>
+                            <p className="text-sm font-mono text-muted-foreground">{viewData.templateKey}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</p>
+                            <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border", viewData.isActive ? "bg-teal-50 text-teal-700 border-teal-200" : "bg-muted text-muted-foreground border-border")}>
+                              {viewData.isActive ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+                          <div className="space-y-1 col-span-2">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Last Updated</p>
+                            <p className="text-xs text-muted-foreground">{fmtUpdatedAt(viewData.updatedAt)}</p>
+                          </div>
+                        </div>
 
-                  {viewData.description && (
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</p>
-                      <p className="text-sm text-muted-foreground">{viewData.description}</p>
-                    </div>
-                  )}
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Subject Template</p>
+                          <p className="text-sm font-mono bg-muted/40 rounded-lg px-3 py-2 border border-border/40">{viewData.subjectTemplate}</p>
+                        </div>
 
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">HTML Body</p>
-                    {viewData.htmlTemplate?.trim() ? (
-                      <pre className="text-xs font-mono bg-muted/40 rounded-lg px-3 py-2 border border-border/40 overflow-x-auto whitespace-pre-wrap max-h-[200px] overflow-y-auto">{viewData.htmlTemplate}</pre>
-                    ) : (
-                      <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-3 flex items-center gap-2 text-muted-foreground">
-                        <Code className="h-4 w-4 shrink-0" />
-                        <p className="text-xs">No custom HTML body stored. Live emails use the code-rendered template.</p>
+                        {viewData.description && (
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</p>
+                            <p className="text-sm text-muted-foreground">{viewData.description}</p>
+                          </div>
+                        )}
+
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">HTML Body</p>
+                          {viewData.htmlTemplate?.trim() ? (
+                            <pre className="text-xs font-mono bg-muted/40 rounded-lg px-3 py-2 border border-border/40 overflow-x-auto whitespace-pre-wrap max-h-[200px] overflow-y-auto">{viewData.htmlTemplate}</pre>
+                          ) : (
+                            <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-3 flex items-center gap-2 text-muted-foreground">
+                              <Code className="h-4 w-4 shrink-0" />
+                              <p className="text-xs">No custom HTML body stored. Live emails use the code-rendered template.</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <TemplateVariables variables={viewData.variables} />
+                      </>
+                    )}
+
+                    {/* Edit Mode */}
+                    {mode === "edit" && editState && (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Display Name</label>
+                            <Input
+                              value={editState.displayName}
+                              onChange={(e) => setEditState({ ...editState, displayName: e.target.value })}
+                              className="h-9"
+                              data-testid="input-template-displayname"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category</label>
+                            <select
+                              value={editState.category}
+                              onChange={(e) => setEditState({ ...editState, category: e.target.value })}
+                              className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                              data-testid="select-template-category"
+                            >
+                              {EMAIL_TEMPLATE_CATEGORIES.map((c) => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="space-y-1.5 flex-1">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
+                            <div className="flex items-center gap-2 h-9">
+                              <Button variant={editState.isActive ? "default" : "outline"} size="sm" onClick={() => setEditState({ ...editState, isActive: true })} className="flex-1">Active</Button>
+                              <Button variant={!editState.isActive ? "default" : "outline"} size="sm" onClick={() => setEditState({ ...editState, isActive: false })} className="flex-1">Inactive</Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Subject Template</label>
+                          <Input
+                            value={editState.subjectTemplate}
+                            onChange={(e) => setEditState({ ...editState, subjectTemplate: e.target.value })}
+                            className="h-9 font-mono text-sm"
+                            data-testid="input-template-subject"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">HTML Body</label>
+                          {!editState.htmlTemplate?.trim() && (
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-3 py-2 flex items-center gap-2 text-amber-700 dark:text-amber-400 mb-2">
+                              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                              <p className="text-xs">No custom HTML body stored yet. Enter HTML below to override the code-rendered template.</p>
+                            </div>
+                          )}
+                          <Textarea
+                            value={editState.htmlTemplate ?? ""}
+                            onChange={(e) => setEditState({ ...editState, htmlTemplate: e.target.value })}
+                            className="min-h-[240px] font-mono text-xs leading-relaxed"
+                            placeholder="<!-- Enter custom HTML here, or leave blank to use the code-rendered template -->"
+                            data-testid="textarea-template-html"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
+                          <Textarea
+                            value={editState.description ?? ""}
+                            onChange={(e) => setEditState({ ...editState, description: e.target.value })}
+                            className="min-h-[80px] text-sm"
+                          />
+                        </div>
+
+                        <TemplateVariables variables={editState.variables} />
+                      </>
+                    )}
+
+                    {/* Preview Section */}
+                    {previewHtml && (
+                      <div className="space-y-3 pt-4 border-t border-border/40">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-bold flex items-center gap-2"><Eye className="h-4 w-4 text-accent" /> Preview</h4>
+                          <Button variant="ghost" size="sm" onClick={() => setPreviewHtml(null)} className="h-7 text-xs">Hide</Button>
+                        </div>
+                        {previewSource && (
+                          <div className={cn("rounded-lg px-3 py-2 flex items-center gap-2 text-xs border",
+                            previewSource === "code"
+                              ? "bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                              : "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                          )}>
+                            <Code className="h-3.5 w-3.5 shrink-0" />
+                            <span className="font-medium">
+                              Preview Source: {previewSource === "code" ? "Code-Rendered Template" : "Custom HTML Override"}
+                            </span>
+                          </div>
+                        )}
+                        <div className="rounded-lg border border-border/60 bg-muted/10 p-3 space-y-2">
+                          <p className="text-xs font-mono"><strong>Subject:</strong> {previewSubject}</p>
+                          <div className="rounded border border-border/40 bg-white overflow-hidden">
+                            <iframe srcDoc={previewHtml} className="w-full h-[380px]" title="Template Preview" sandbox="allow-same-origin" />
+                          </div>
+                        </div>
+
+                        <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 space-y-3">
+                          <p className="text-xs font-bold text-accent uppercase tracking-wider">Send Test Email</p>
+                          <div className="flex gap-2">
+                            <Input placeholder="test@example.com" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} className="h-9 flex-1" data-testid="input-preview-test-email" />
+                            <Button size="sm" disabled={!testEmail || sendTestMutation.isPending} onClick={() => sendTestMutation.mutate()} className="gap-2" data-testid="button-preview-send-test">
+                              <Send className="h-3.5 w-3.5" /> Send
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     )}
-                  </div>
+                  </>
+                )}
+              </div>
 
-                  <TemplateVariables variables={viewData.variables} />
-                </>
-              )}
-
-              {/* Edit Mode */}
-              {mode === "edit" && editState && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Display Name</label>
-                      <Input
-                        value={editState.displayName}
-                        onChange={(e) => setEditState({ ...editState, displayName: e.target.value })}
-                        className="h-9"
-                        data-testid="input-template-displayname"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
-                      <div className="flex items-center gap-2 h-9">
-                        <Button variant={editState.isActive ? "default" : "outline"} size="sm" onClick={() => setEditState({ ...editState, isActive: true })} className="flex-1">Active</Button>
-                        <Button variant={!editState.isActive ? "default" : "outline"} size="sm" onClick={() => setEditState({ ...editState, isActive: false })} className="flex-1">Inactive</Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Subject Template</label>
-                    <Input
-                      value={editState.subjectTemplate}
-                      onChange={(e) => setEditState({ ...editState, subjectTemplate: e.target.value })}
-                      className="h-9 font-mono text-sm"
-                      data-testid="input-template-subject"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">HTML Body</label>
-                    {!editState.htmlTemplate?.trim() && (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-3 py-2 flex items-center gap-2 text-amber-700 dark:text-amber-400 mb-2">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        <p className="text-xs">No custom HTML body stored yet. Enter HTML below to override the code-rendered template.</p>
-                      </div>
-                    )}
-                    <Textarea
-                      value={editState.htmlTemplate ?? ""}
-                      onChange={(e) => setEditState({ ...editState, htmlTemplate: e.target.value })}
-                      className="min-h-[240px] font-mono text-xs leading-relaxed"
-                      placeholder="<!-- Enter custom HTML here, or leave blank to use the code-rendered template -->"
-                      data-testid="textarea-template-html"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
-                    <Textarea
-                      value={editState.description ?? ""}
-                      onChange={(e) => setEditState({ ...editState, description: e.target.value })}
-                      className="min-h-[80px] text-sm"
-                    />
-                  </div>
-
-                  <TemplateVariables variables={editState.variables} />
-                </>
-              )}
-
-              {/* Preview Section */}
-              {previewHtml && (
-                <div className="space-y-3 pt-4 border-t border-border/40">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold flex items-center gap-2"><Eye className="h-4 w-4 text-accent" /> Preview</h4>
-                    <Button variant="ghost" size="sm" onClick={() => setPreviewHtml(null)} className="h-7 text-xs">Hide</Button>
-                  </div>
-                  {previewSource && (
-                    <div className={cn("rounded-lg px-3 py-2 flex items-center gap-2 text-xs border",
-                      previewSource === "code"
-                        ? "bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                        : "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-                    )}>
-                      <Code className="h-3.5 w-3.5 shrink-0" />
-                      <span className="font-medium">
-                        Preview Source: {previewSource === "code" ? "Code-Rendered Template" : "Custom HTML Override"}
-                      </span>
-                    </div>
-                  )}
-                  <div className="rounded-lg border border-border/60 bg-muted/10 p-3 space-y-2">
-                    <p className="text-xs font-mono"><strong>Subject:</strong> {previewSubject}</p>
-                    <div className="rounded border border-border/40 bg-white overflow-hidden">
-                      <iframe srcDoc={previewHtml} className="w-full h-[380px]" title="Template Preview" sandbox="allow-same-origin" />
-                    </div>
-                  </div>
-
-                  <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 space-y-3">
-                    <p className="text-xs font-bold text-accent uppercase tracking-wider">Send Test Email</p>
-                    <div className="flex gap-2">
-                      <Input placeholder="test@example.com" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} className="h-9 flex-1" />
-                      <Button size="sm" disabled={!testEmail || sendTestMutation.isPending} onClick={() => sendTestMutation.mutate()} className="gap-2">
-                        <Send className="h-3.5 w-3.5" /> Send
+              {/* Panel footer */}
+              {panelTab === "details" && (
+                <div className="p-4 border-t border-border/40 bg-muted/30 flex items-center justify-between">
+                  <Button variant="outline" size="sm" onClick={() => previewMutation.mutate()} disabled={previewMutation.isPending} className="gap-2" data-testid="button-template-preview">
+                    <Eye className="h-3.5 w-3.5" /> {previewMutation.isPending ? "Loading..." : "Preview"}
+                  </Button>
+                  {mode === "edit" && (
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => { setMode("view"); setPreviewHtml(null); }}>Cancel</Button>
+                      <Button
+                        size="sm"
+                        onClick={() => editState && updateMutation.mutate({
+                          displayName: editState.displayName,
+                          category: editState.category,
+                          subjectTemplate: editState.subjectTemplate,
+                          htmlTemplate: editState.htmlTemplate,
+                          description: editState.description,
+                          isActive: editState.isActive,
+                        })}
+                        disabled={updateMutation.isPending || !editState}
+                        className="gap-2"
+                        data-testid="button-template-save"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> {updateMutation.isPending ? "Saving..." : "Save Changes"}
                       </Button>
                     </div>
-                  </div>
+                  )}
+                  {mode === "view" && (
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={closePanel}>Close</Button>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            {/* Panel footer */}
-            <div className="p-4 border-t border-border/40 bg-muted/30 flex items-center justify-between">
-              <Button variant="outline" size="sm" onClick={() => previewMutation.mutate()} disabled={previewMutation.isPending} className="gap-2">
-                <Eye className="h-3.5 w-3.5" /> {previewMutation.isPending ? "Loading…" : "Preview"}
+        {/* Send Test Email Dialog (from row action) */}
+        <Dialog open={!!sendTestDialogTemplate} onOpenChange={(open) => { if (!open) setSendTestDialogTemplate(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FlaskConical className="h-5 w-5 text-accent" />
+                Send Test Email
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Template</p>
+                <p className="text-sm font-medium">{sendTestDialogTemplate?.displayName}</p>
+                <p className="text-xs font-mono text-muted-foreground">{sendTestDialogTemplate?.templateKey}</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recipient Email</label>
+                <Input
+                  placeholder="test@example.com"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  className="h-9"
+                  data-testid="input-send-test-email"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" size="sm" onClick={() => setSendTestDialogTemplate(null)}>Cancel</Button>
+              <Button
+                size="sm"
+                disabled={!testEmail.trim() || sendTestMutation.isPending}
+                onClick={() => sendTestDialogTemplate && sendTestMutation.mutate({ templateId: sendTestDialogTemplate.id, recipientEmail: testEmail.trim() })}
+                className="gap-2"
+                data-testid="button-send-test-email"
+              >
+                <Send className="h-3.5 w-3.5" /> {sendTestMutation.isPending ? "Sending..." : "Send Test"}
               </Button>
-              {mode === "edit" && (
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => { setMode("view"); setPreviewHtml(null); }}>Cancel</Button>
-                  <Button
-                    size="sm"
-                    onClick={() => editState && updateMutation.mutate({
-                      displayName: editState.displayName,
-                      subjectTemplate: editState.subjectTemplate,
-                      htmlTemplate: editState.htmlTemplate,
-                      description: editState.description,
-                      isActive: editState.isActive,
-                    })}
-                    disabled={updateMutation.isPending || !editState}
-                    className="gap-2"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" /> {updateMutation.isPending ? "Saving…" : "Save Changes"}
-                  </Button>
-                </div>
-              )}
-              {mode === "view" && (
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={closePanel}>Close</Button>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Send Test Email Dialog (from row action) ─── */}
-      <Dialog open={!!sendTestDialogTemplate} onOpenChange={(open) => { if (!open) setSendTestDialogTemplate(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FlaskConical className="h-5 w-5 text-accent" />
-              Send Test Email
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Template</p>
-              <p className="text-sm font-medium">{sendTestDialogTemplate?.displayName}</p>
-              <p className="text-xs font-mono text-muted-foreground">{sendTestDialogTemplate?.templateKey}</p>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recipient Email</label>
-              <Input
-                placeholder="test@example.com"
-                value={testEmail}
-                onChange={(e) => setTestEmail(e.target.value)}
-                className="h-9"
-                data-testid="input-send-test-email"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" size="sm" onClick={() => setSendTestDialogTemplate(null)}>Cancel</Button>
-            <Button
-              size="sm"
-              disabled={!testEmail.trim() || sendTestMutation.isPending}
-              onClick={() => sendTestDialogTemplate && sendTestMutation.mutate({ templateId: sendTestDialogTemplate.id, recipientEmail: testEmail.trim() })}
-              className="gap-2"
-              data-testid="button-send-test-email"
-            >
-              <Send className="h-3.5 w-3.5" /> {sendTestMutation.isPending ? "Sending…" : "Send Test"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }

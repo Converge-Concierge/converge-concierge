@@ -3923,16 +3923,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.patch("/api/admin/email-templates/:id", requireAdmin, async (req, res) => {
     const existing = await storage.getEmailTemplateById(req.params.id);
     if (!existing) return res.status(404).json({ message: "Template not found" });
-    const { displayName, subjectTemplate, htmlTemplate, textTemplate, description, isActive } = req.body;
+    const { displayName, category, subjectTemplate, htmlTemplate, textTemplate, description, isActive } = req.body;
+    const validCategories = ["System", "Operational", "Campaign"];
+    if (category !== undefined && !validCategories.includes(category)) {
+      return res.status(400).json({ message: `Invalid category. Must be one of: ${validCategories.join(", ")}` });
+    }
+    const updatedBy = (req as any).user?.name || (req as any).user?.email || (req.session as any)?.userId || undefined;
     const updated = await storage.updateEmailTemplate(req.params.id, {
       ...(displayName !== undefined && { displayName }),
+      ...(category !== undefined && { category }),
       ...(subjectTemplate !== undefined && { subjectTemplate }),
       ...(htmlTemplate !== undefined && { htmlTemplate }),
       ...(textTemplate !== undefined && { textTemplate: textTemplate ?? null }),
       ...(description !== undefined && { description: description ?? null }),
       ...(isActive !== undefined && { isActive }),
-    });
+    }, updatedBy);
     res.json(updated);
+  });
+
+  app.get("/api/admin/email-templates/:id/versions", requireAuth, async (req, res) => {
+    const versions = await storage.getEmailTemplateVersions(req.params.id);
+    res.json(versions);
+  });
+
+  app.post("/api/admin/email-templates/:id/restore/:versionId", requireAdmin, async (req, res) => {
+    const restoredBy = (req as any).user?.name || (req as any).user?.email || (req.session as any)?.userId || undefined;
+    try {
+      const updated = await storage.restoreEmailTemplateVersion(req.params.id, req.params.versionId, restoredBy);
+      res.json(updated);
+    } catch (err: any) {
+      res.status(404).json({ message: err?.message ?? "Restore failed" });
+    }
   });
 
   app.post("/api/admin/email-templates/:id/preview", requireAuth, async (req, res) => {

@@ -10,6 +10,7 @@ import {
   agreementDeliverableRegistrants, agreementDeliverableSpeakers, agreementDeliverableReminders,
   fileAssets, deliverableLinks, deliverableSocialEntries, meetingInvitations,
   sessionTypes, agendaSessions, agendaSessionSpeakers, attendeeSavedSessions, agendaImportJobs,
+  emailTemplateVersions,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Sponsor, type InsertSponsor,
@@ -22,7 +23,7 @@ import {
   type InformationRequest, type InsertInformationRequest, type InformationRequestStatus,
   type EmailLog,
   type SponsorUser, type SponsorLoginToken,
-  type EmailTemplate,
+  type EmailTemplate, type EmailTemplateVersion,
   type PackageTemplate, type InsertPackageTemplate,
   type DeliverableTemplateItem, type InsertDeliverableTemplateItem,
   type AgreementDeliverable, type InsertAgreementDeliverable,
@@ -1012,16 +1013,56 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateEmailTemplate(id: string, data: Partial<{ displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean }>): Promise<EmailTemplate> {
+  async updateEmailTemplate(id: string, data: Partial<{ displayName: string; category: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean; variables: string[] }>, updatedBy?: string): Promise<EmailTemplate> {
+    const existing = await this.getEmailTemplateById(id);
+    if (existing) {
+      const maxVersion = await db.select({ max: sql<number>`COALESCE(MAX(version), 0)` }).from(emailTemplateVersions).where(eq(emailTemplateVersions.templateId, id));
+      const nextVersion = (maxVersion[0]?.max ?? 0) + 1;
+      await db.insert(emailTemplateVersions).values({
+        id: randomUUID(),
+        templateId: id,
+        version: nextVersion,
+        displayName: existing.displayName,
+        category: existing.category,
+        subjectTemplate: existing.subjectTemplate,
+        htmlTemplate: existing.htmlTemplate,
+        textTemplate: existing.textTemplate,
+        description: existing.description,
+        variables: existing.variables,
+        isActive: existing.isActive,
+        updatedBy: updatedBy ?? null,
+      });
+    }
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (data.displayName !== undefined) updates.displayName = data.displayName;
+    if (data.category !== undefined) updates.category = data.category;
     if (data.subjectTemplate !== undefined) updates.subjectTemplate = data.subjectTemplate;
     if (data.htmlTemplate !== undefined) updates.htmlTemplate = data.htmlTemplate;
     if (data.textTemplate !== undefined) updates.textTemplate = data.textTemplate;
     if (data.description !== undefined) updates.description = data.description;
     if (data.isActive !== undefined) updates.isActive = data.isActive;
+    if (data.variables !== undefined) updates.variables = data.variables;
     const [row] = await db.update(emailTemplates).set(updates).where(eq(emailTemplates.id, id)).returning();
     return row;
+  }
+
+  async getEmailTemplateVersions(templateId: string): Promise<EmailTemplateVersion[]> {
+    return db.select().from(emailTemplateVersions).where(eq(emailTemplateVersions.templateId, templateId)).orderBy(sql`version DESC`);
+  }
+
+  async restoreEmailTemplateVersion(templateId: string, versionId: string, restoredBy?: string): Promise<EmailTemplate> {
+    const [version] = await db.select().from(emailTemplateVersions).where(and(eq(emailTemplateVersions.id, versionId), eq(emailTemplateVersions.templateId, templateId))).limit(1);
+    if (!version) throw new Error("Version not found");
+    return this.updateEmailTemplate(templateId, {
+      displayName: version.displayName,
+      category: version.category,
+      subjectTemplate: version.subjectTemplate,
+      htmlTemplate: version.htmlTemplate,
+      textTemplate: version.textTemplate,
+      description: version.description,
+      isActive: version.isActive,
+      variables: version.variables,
+    }, restoredBy ? `${restoredBy} (restored v${version.version})` : `Restored v${version.version}`);
   }
 
   async createSponsorLoginToken(data: { sponsorUserId: string; sponsorId: string; tokenHash: string; expiresAt: Date }): Promise<SponsorLoginToken> {

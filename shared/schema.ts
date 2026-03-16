@@ -902,10 +902,14 @@ export type SponsorLoginToken = typeof sponsorLoginTokens.$inferSelect;
 
 // ── Email Templates ────────────────────────────────────────────────────────────
 
+export const EMAIL_TEMPLATE_CATEGORIES = ["System", "Operational", "Campaign"] as const;
+export type EmailTemplateCategory = typeof EMAIL_TEMPLATE_CATEGORIES[number];
+
 export const emailTemplates = pgTable("email_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   templateKey: varchar("template_key").notNull().unique(),
   displayName: varchar("display_name").notNull(),
+  category: varchar("category").notNull().default("System"),
   subjectTemplate: varchar("subject_template").notNull(),
   htmlTemplate: text("html_template").notNull().default(""),
   textTemplate: text("text_template"),
@@ -919,6 +923,25 @@ export const emailTemplates = pgTable("email_templates", {
 export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
+
+export const emailTemplateVersions = pgTable("email_template_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateId: varchar("template_id").notNull(),
+  version: integer("version").notNull(),
+  displayName: varchar("display_name").notNull(),
+  category: varchar("category").notNull().default("System"),
+  subjectTemplate: varchar("subject_template").notNull(),
+  htmlTemplate: text("html_template").notNull().default(""),
+  textTemplate: text("text_template"),
+  description: text("description"),
+  variables: text("variables").array().notNull().default(sql`'{}'::text[]`),
+  isActive: boolean("is_active").notNull().default(true),
+  updatedBy: varchar("updated_by"),
+  changeNote: text("change_note"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type EmailTemplateVersion = typeof emailTemplateVersions.$inferSelect;
 
 // ── Agreement Deliverables ─────────────────────────────────────────────────────
 

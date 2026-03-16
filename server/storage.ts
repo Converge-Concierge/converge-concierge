@@ -13,7 +13,7 @@ import {
   type InformationRequest, type InsertInformationRequest, type InformationRequestStatus,
   type EmailLog,
   type SponsorUser, type SponsorLoginToken,
-  type EmailTemplate,
+  type EmailTemplate, type EmailTemplateVersion,
   type PackageTemplate, type InsertPackageTemplate,
   type DeliverableTemplateItem, type InsertDeliverableTemplateItem,
   type AgreementDeliverable, type InsertAgreementDeliverable,
@@ -235,7 +235,9 @@ export interface IStorage {
   getEmailTemplateByKey(key: string): Promise<EmailTemplate | undefined>;
   getEmailTemplateById(id: string): Promise<EmailTemplate | undefined>;
   upsertEmailTemplate(data: { templateKey: string; displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate?: string | null; description?: string | null; variables?: string[]; isActive?: boolean }): Promise<EmailTemplate>;
-  updateEmailTemplate(id: string, data: Partial<{ displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean }>): Promise<EmailTemplate>;
+  updateEmailTemplate(id: string, data: Partial<{ displayName: string; category: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean; variables: string[] }>, updatedBy?: string): Promise<EmailTemplate>;
+  getEmailTemplateVersions(templateId: string): Promise<EmailTemplateVersion[]>;
+  restoreEmailTemplateVersion(templateId: string, versionId: string, restoredBy?: string): Promise<EmailTemplate>;
 
   // ── Agreement Deliverables ────────────────────────────────────────────────
   listPackageTemplates(filters?: { sponsorshipLevel?: string; isArchived?: boolean }): Promise<PackageTemplate[]>;
@@ -973,8 +975,10 @@ export class MemStorage implements IStorage {
   async getEmailTemplates(): Promise<EmailTemplate[]> { return []; }
   async getEmailTemplateByKey(_key: string): Promise<EmailTemplate | undefined> { return undefined; }
   async getEmailTemplateById(_id: string): Promise<EmailTemplate | undefined> { return undefined; }
-  async upsertEmailTemplate(data: { templateKey: string; displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate?: string | null; description?: string | null; variables?: string[]; isActive?: boolean }): Promise<EmailTemplate> { return { id: randomUUID(), ...data, textTemplate: data.textTemplate ?? null, description: data.description ?? null, variables: data.variables ?? [], isActive: data.isActive ?? true, createdAt: new Date(), updatedAt: new Date() }; }
-  async updateEmailTemplate(_id: string, _data: Partial<{ displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean }>): Promise<EmailTemplate> { return { id: _id, templateKey: "", displayName: "", subjectTemplate: "", htmlTemplate: "", textTemplate: null, description: null, variables: [], isActive: true, createdAt: new Date(), updatedAt: new Date() }; }
+  async upsertEmailTemplate(data: { templateKey: string; displayName: string; subjectTemplate: string; htmlTemplate: string; textTemplate?: string | null; description?: string | null; variables?: string[]; isActive?: boolean }): Promise<EmailTemplate> { return { id: randomUUID(), ...data, category: "System", textTemplate: data.textTemplate ?? null, description: data.description ?? null, variables: data.variables ?? [], isActive: data.isActive ?? true, createdAt: new Date(), updatedAt: new Date() }; }
+  async updateEmailTemplate(_id: string, _data: Partial<{ displayName: string; category: string; subjectTemplate: string; htmlTemplate: string; textTemplate: string | null; description: string | null; isActive: boolean; variables: string[] }>, _updatedBy?: string): Promise<EmailTemplate> { return { id: _id, templateKey: "", displayName: "", category: "System", subjectTemplate: "", htmlTemplate: "", textTemplate: null, description: null, variables: [], isActive: true, createdAt: new Date(), updatedAt: new Date() }; }
+  async getEmailTemplateVersions(_templateId: string): Promise<EmailTemplateVersion[]> { return []; }
+  async restoreEmailTemplateVersion(_templateId: string, _versionId: string, _restoredBy?: string): Promise<EmailTemplate> { return { id: _templateId, templateKey: "", displayName: "", category: "System", subjectTemplate: "", htmlTemplate: "", textTemplate: null, description: null, variables: [], isActive: true, createdAt: new Date(), updatedAt: new Date() }; }
 
   async listPackageTemplates(_filters?: { sponsorshipLevel?: string; isArchived?: boolean }): Promise<PackageTemplate[]> { return []; }
   async getPackageTemplate(_id: string): Promise<PackageTemplate | undefined> { return undefined; }

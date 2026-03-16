@@ -1,0 +1,426 @@
+Refine the Attendee Welcome Page Into a True Onboarding Entry Point
+Add save/continue flow, recommendation behavior, dashboard transition, and session discovery integration
+
+The current attendee welcome page is a good start, but it is still behaving too much like the old static sponsor browsing page with topic chips added.
+
+It correctly captures attendee interests, but it is missing several key pieces that make the experience feel intentional, personalized, and complete.
+
+We need to refine this page so it becomes the true entry point into the attendee experience, not just a landing page with sponsor cards.
+
+1. Primary Goal
+
+Upgrade the current attendee welcome page so that it:
+
+clearly functions as the attendee onboarding step
+
+saves interest selections in a structured way
+
+updates recommendations based on those selections
+
+gives the attendee a clear next step
+
+transitions the attendee into their dashboard experience
+
+begins connecting interest selection to both sponsors and sessions
+
+2. Current Problem
+
+The current page shows:
+
+event registration confirmation
+
+interest topic chips
+
+sponsor cards / meeting buttons
+
+This is directionally correct, but it still feels like a static page rather than a true onboarding + personalization flow.
+
+Right now it appears the attendee can:
+
+select topics
+
+see sponsors
+but the system does not clearly guide the attendee forward
+
+What is missing:
+
+save/continue action
+
+explicit onboarding completion
+
+recommendation-based sponsor labeling
+
+session discovery entry point
+
+transition to the attendee dashboard
+
+3. Keep the Existing Structure, but Improve It
+
+Do not throw away the current welcome page layout completely.
+
+Use the current page as the base, but refine it into a proper onboarding screen.
+
+Keep:
+
+event confirmation header
+
+topic chip selection area
+
+sponsor preview area
+
+But improve the behavior and messaging around those sections.
+
+4. Add a Clear Progress / Step Indicator
+
+Add a small step label above or near the topic section.
+
+Example:
+
+Step 1 of 2
+Select your interests to unlock personalized recommendations.
+
+This helps the attendee understand that:
+
+this is an onboarding step
+
+there is a next step
+
+they are not just randomly browsing the page
+
+5. Save Topic Selection Properly
+
+When the attendee selects or deselects topics:
+
+selections must be saved to the structured attendee interest topic table
+
+selections must be tied to:
+
+attendee
+
+event
+
+approved event topic ids
+
+Do not rely only on temporary UI state.
+
+If the attendee refreshes, the selected state should persist.
+
+6. Add Explicit Continue CTA
+
+After interest selection, the attendee needs a clear next action.
+
+Add a prominent CTA such as:
+
+Continue to My Dashboard
+
+or
+
+See My Recommendations
+
+This button should:
+
+save the attendee’s topic selections if not already saved
+
+mark onboarding as completed or this step as completed
+
+take the attendee to the new dashboard/home experience
+
+This is one of the most important corrections.
+
+Right now the page does not clearly tell the attendee what to do next.
+
+7. Add Optional Skip / Finish Later Behavior
+
+If you want to preserve low friction, add a secondary action such as:
+
+Skip for Now
+
+Behavior:
+
+allow attendee to continue without selecting topics
+
+mark onboarding as incomplete/skipped
+
+still allow access to the dashboard
+
+show generic content if needed
+
+This should be secondary to the main path.
+
+8. Rename the Sponsor Section to Feel Personalized
+
+The current sponsor section label is too generic.
+
+Instead of:
+
+Meet With Our Sponsors
+
+update the heading to something more recommendation-driven, such as:
+
+Sponsors You May Want to Meet
+
+or
+
+Recommended Sponsors
+
+Optional supporting text:
+
+Based on your selected interests
+
+If the attendee has not selected interests yet, fall back gracefully to:
+
+Sponsors Available for Meetings
+
+This makes the UI feel smarter and more intentional.
+
+9. Make Sponsor Ordering Recommendation-Driven
+
+The sponsor cards shown on the welcome page should not just be static.
+
+Required behavior
+
+Once the attendee selects interests, sponsor ordering should update based on:
+
+overlap between attendee selected topics
+
+sponsor selected topics
+
+Use a simple overlap score for now.
+
+If there is no overlap data yet:
+
+show the sponsors in the default event order
+
+do not break the page
+
+This will make the welcome page already feel dynamic.
+
+10. Show Why a Sponsor Is Relevant
+
+Where possible, add small relevance text to sponsor cards.
+
+Example:
+
+Relevant to your interests:
+Fraud Defense, AML Monitoring
+
+This should only appear when topic overlap exists.
+
+Do not show technical scoring.
+
+This is a major part of making the page feel personalized.
+
+11. Add a Recommended Sessions Preview Block
+
+The welcome page currently jumps from topic selection directly into sponsors.
+
+We now need to begin introducing sessions as part of the attendee discovery experience.
+
+Add a lightweight section such as:
+
+Recommended Sessions
+
+This does not need to be a full agenda page. It can be a preview block showing the top 2–3 sessions relevant to the attendee’s selected topics.
+
+Required content
+
+Each session preview should show:
+
+title
+
+date/time
+
+session type
+
+optional location if available
+
+View Session action
+
+If attendee has not selected topics yet:
+
+show a message like:
+
+Select your interests to see recommended sessions.
+
+This connects the onboarding flow to the agenda system.
+
+12. Add View All Agenda CTA
+
+In the Recommended Sessions section, add a CTA such as:
+
+View Full Agenda
+
+This gives the attendee a natural path into the broader event content.
+
+13. Create a Clean Transition to Dashboard
+
+The welcome page should not be the final home page after onboarding.
+
+Required behavior
+
+Once the attendee clicks:
+
+Continue to My Dashboard
+or
+
+See My Recommendations
+
+they should be taken to the attendee dashboard/home page.
+
+The dashboard should then become the primary recurring landing page for returning attendees.
+
+The welcome page should function as:
+
+registration confirmation
+
+onboarding
+
+first-use entry point
+
+not the permanent home screen.
+
+14. Returning Attendee Behavior
+
+If the attendee has already completed onboarding, they should not keep seeing this same registration-style welcome screen every time.
+
+Required behavior
+
+Returning attendees should land on the attendee dashboard instead.
+
+The current welcome/onboarding page should mainly appear when:
+
+attendee is new
+
+onboarding is incomplete
+
+attendee is entering for the first time after registration
+
+This is an important correction.
+
+15. Improve Messaging Around Topic Selection
+
+Refine the wording so it sounds more valuable and less generic.
+
+Current:
+
+Make the most of your time at the conference. What topics interest you?
+
+That is good, but you can strengthen it slightly.
+
+Recommended example:
+
+Select the topics most relevant to you to unlock personalized sponsor and session recommendations.
+
+This explains why the attendee is being asked to do this.
+
+16. Add Selected Interests Summary Once Chosen
+
+Once the attendee selects topics, show a small summary such as:
+
+Your Interests
+AI Regulations
+Fraud Defense
+AML Monitoring
+
+This gives the attendee confidence that their selections are being used.
+
+It can appear:
+
+under the topic chips
+
+in a small summary block
+
+or later on the dashboard
+
+17. Ensure Topic Chips Use the New Event Interest Topics Model
+
+The chips currently shown must be powered by the new approved event topics, not old sponsor free text or hard-coded values.
+
+Required behavior
+
+Only show:
+
+approved
+
+active
+
+event-specific
+
+interest topics for the event.
+
+Do not allow old free-text category logic to leak into this screen.
+
+18. Keep the Meeting Actions on Sponsor Cards Working
+
+The sponsor cards currently include:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+Preserve these capabilities if they are already working.
+
+However, make sure they now exist inside a more personalized experience.
+
+Do not remove working sponsor engagement actions while refining the UI.
+
+19. Add Graceful Empty States
+
+The welcome page should handle incomplete data gracefully.
+
+Examples:
+
+No interests selected
+Select your interests to personalize your recommendations.
+No topic overlap for sponsors
+Sponsors available for meetings
+No session topics yet
+Recommended sessions will appear as the agenda is updated.
+
+Do not show broken empty spaces.
+
+20. Mobile-Friendly Behavior
+
+This refined onboarding/welcome page must work well on mobile.
+
+Important requirements:
+
+topic chips wrap cleanly
+
+CTAs remain easy to tap
+
+sponsor cards stack cleanly
+
+recommended sessions preview stacks well
+
+Continue button remains prominent
+
+21. Acceptance Criteria
+
+This correction is complete when:
+
+the attendee welcome page clearly functions as an onboarding step
+
+topic selections save persistently
+
+a clear Continue to My Dashboard / See My Recommendations CTA exists
+
+sponsor section feels recommendation-driven, not purely static
+
+sponsor order can respond to topic overlap
+
+sponsor cards can display relevance text where appropriate
+
+a Recommended Sessions preview block exists
+
+a View Full Agenda CTA exists
+
+returning attendees are routed to the dashboard rather than repeatedly seeing the registration-style welcome page
+
+the page still works cleanly on mobile
+
+22. Success Standard
+
+After this update, the attendee welcome page should feel like a true first-use onboarding screen that collects interests, immediately begins personalizing sponsors and sessions, and clearly moves the attendee into the broader Concierge experience. It should no longer feel like a static sponsor listing page with topic chips added on top.

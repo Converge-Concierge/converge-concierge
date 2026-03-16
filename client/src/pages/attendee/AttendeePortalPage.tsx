@@ -51,24 +51,45 @@ function formatTimeRange(s: string | null, e: string | null) {
 // ── Onboarding Steps ──────────────────────────────────────────────────────────
 
 function WelcomeStep({ me, onStart, onSkip, isSkipping }: { me: AttendeeMe; onStart: () => void; onSkip: () => void; isSkipping: boolean }) {
+  const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : null;
+  const startStr = fmtDate(me.event.startDate);
+  const endStr = fmtDate(me.event.endDate);
+  const dateString = startStr && endStr && startStr !== endStr ? `${startStr} – ${endStr}` : startStr;
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
-      <div className="w-full max-w-md text-center space-y-6">
-        <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-          <Star className="h-8 w-8 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-welcome-heading">
-            Welcome, {me.attendee.firstName || me.attendee.name}
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            You're registered for <span className="font-medium text-foreground">{me.event.name}</span>.
-            Let's personalise your experience.
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center space-y-4">
+          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+            <Star className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">You're registered</p>
+            <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-welcome-heading">
+              Welcome, {me.attendee.firstName || me.attendee.name}
+            </h1>
+            <p className="font-medium text-foreground mt-2">{me.event.name}</p>
+            {(dateString || me.event.location) && (
+              <div className="flex items-center justify-center gap-3 mt-1.5 flex-wrap">
+                {dateString && (
+                  <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <CalendarDays className="h-3.5 w-3.5" /> {dateString}
+                  </span>
+                )}
+                {me.event.location && (
+                  <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5" /> {me.event.location}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Let's personalise your experience so you get the most out of the event.
           </p>
         </div>
         <div className="space-y-3">
-          <Button className="w-full" size="lg" onClick={onStart} data-testid="button-get-started">
-            Get Started <ArrowRight className="h-4 w-4 ml-2" />
+          <Button className="w-full gap-2" size="lg" onClick={onStart} data-testid="button-get-started">
+            Select My Interests <ArrowRight className="h-4 w-4" />
           </Button>
           <Button variant="ghost" className="w-full text-muted-foreground" onClick={onSkip} disabled={isSkipping} data-testid="button-skip-onboarding">
             Skip for now
@@ -79,37 +100,206 @@ function WelcomeStep({ me, onStart, onSkip, isSkipping }: { me: AttendeeMe; onSt
   );
 }
 
-function TopicSelectionStep({ topics, currentSelections, onSave, onSkip, isSaving, isSkipping }: {
+function TopicSelectionStep({ topics, currentSelections, onSave, onSkip, isSaving, isSkipping, me, headers }: {
   topics: Topic[]; currentSelections: string[];
   onSave: (ids: string[]) => void; onSkip: () => void;
   isSaving: boolean; isSkipping: boolean;
+  me: AttendeeMe; headers: Record<string, string>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(currentSelections));
+  const topicMap = new Map(topics.map((t) => [t.id, t]));
+  const selectedTopicsList = [...selected].map((id) => topicMap.get(id)).filter(Boolean) as Topic[];
+  const hasSelections = selected.size > 0;
+
   const toggle = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const recSessionsQuery = useQuery<RecommendedSession[]>({
+    queryKey: ["/api/attendee-portal/recommended-sessions"],
+    queryFn: () => fetch("/api/attendee-portal/recommended-sessions", { headers }).then((r) => r.json()),
+  });
+
+  const recSponsorsQuery = useQuery<RecommendedSponsor[]>({
+    queryKey: ["/api/attendee-portal/recommended-sponsors"],
+    queryFn: () => fetch("/api/attendee-portal/recommended-sponsors", { headers }).then((r) => r.json()),
+  });
+
+  const recSessions = recSessionsQuery.data ?? [];
+  const recSponsors = recSponsorsQuery.data ?? [];
+
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
-      <div className="w-full max-w-lg space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-topic-heading">Select Your Interests</h1>
-          <p className="text-muted-foreground mt-1">We'll personalise your session and sponsor recommendations.</p>
+    <div className="min-h-screen bg-background">
+      {/* Sticky header */}
+      <div className="border-b border-border/60 bg-background/95 backdrop-blur-sm sticky top-0 z-10">
+        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Star className="h-4 w-4 text-primary" />
+            </div>
+            <span className="text-sm font-semibold text-foreground">Converge Concierge</span>
+          </div>
+          <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">Step 1 of 2</span>
         </div>
-        <div className="flex flex-wrap gap-2 justify-center" data-testid="topics-list">
-          {topics.map((t) => (
-            <button key={t.id} onClick={() => toggle(t.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${selected.has(t.id) ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-foreground hover:border-primary/50"}`}
-              data-testid={`button-topic-${t.id}`}>
-              {t.label}
-            </button>
-          ))}
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+
+        {/* Heading */}
+        <div>
+          <h1 className="text-2xl font-display font-bold text-foreground" data-testid="text-topic-heading">
+            Select Your Interests
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {me.event.name}{me.event.location ? ` · ${me.event.location}` : ""}
+          </p>
+          <p className="text-sm text-foreground/70 mt-2">
+            Select the topics most relevant to you to unlock personalised session and sponsor recommendations.
+          </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button className="flex-1" onClick={() => onSave([...selected])} disabled={isSaving} data-testid="button-save-interests">
-            {isSaving ? "Saving…" : `Save Interests (${selected.size})`}
+
+        {/* Topic chips */}
+        <div className="bg-card border border-border/60 rounded-2xl p-5">
+          {topics.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Loading topics…</p>
+          ) : (
+            <div className="flex flex-wrap gap-2" data-testid="topics-list">
+              {topics.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => toggle(t.id)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                    selected.has(t.id)
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
+                  }`}
+                  data-testid={`button-topic-${t.id}`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {selectedTopicsList.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Your selected interests
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedTopicsList.map((t) => (
+                  <Badge key={t.id} variant="secondary" className="rounded-full text-xs">{t.label}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Recommended Sessions preview */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-primary" /> Recommended Sessions
+            </h2>
+            <Link href="/attendee/agenda">
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1 h-7" data-testid="link-view-full-agenda-onboarding">
+                View Full Agenda <ArrowRight className="h-3 w-3" />
+              </Button>
+            </Link>
+          </div>
+          {!hasSelections ? (
+            <div className="bg-card border border-border/60 rounded-xl p-5 text-center">
+              <CalendarDays className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Select your interests above to see recommended sessions.</p>
+            </div>
+          ) : recSessions.length === 0 ? (
+            <div className="bg-card border border-border/60 rounded-xl p-5 text-center">
+              <p className="text-sm text-muted-foreground">Recommended sessions will appear as the agenda is updated.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recSessions.slice(0, 3).map((s) => (
+                <div key={s.id} className="bg-card border border-border/60 rounded-xl p-3">
+                  <div className="flex items-start gap-3">
+                    <CalendarDays className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground leading-snug">{s.title}</p>
+                      {(s.sessionTypeLabel || s.sessionDate) && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {[s.sessionTypeLabel, s.sessionDate ? formatDate(s.sessionDate) : null, (s.startTime && s.endTime) ? formatTimeRange(s.startTime, s.endTime) : null].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                      {(s.overlapTopicLabels ?? []).length > 0 && (
+                        <p className="text-xs text-primary/80 mt-0.5 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" /> Relevant to: {s.overlapTopicLabels.slice(0, 2).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recommended Sponsors preview */}
+        <div>
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+            <Users className="h-4 w-4 text-primary" />
+            {hasSelections ? "Sponsors You May Want to Meet" : "Sponsors Available for Meetings"}
+          </h2>
+          {!hasSelections ? (
+            <div className="bg-card border border-border/60 rounded-xl p-5 text-center">
+              <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Select your interests above to see personalised sponsor recommendations.</p>
+            </div>
+          ) : recSponsors.length === 0 ? (
+            <div className="bg-card border border-border/60 rounded-xl p-5 text-center">
+              <p className="text-sm text-muted-foreground">Sponsor recommendations will appear as sponsor profiles are completed.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recSponsors.slice(0, 3).map((s) => (
+                <div key={s.id} className="bg-card border border-border/60 rounded-xl p-3 flex items-center gap-3" data-testid={`card-onboarding-sponsor-${s.id}`}>
+                  {s.logoUrl
+                    ? <img src={s.logoUrl} alt={s.name} className="h-8 w-8 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-0.5" />
+                    : <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-4 w-4 text-primary" /></div>
+                  }
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{s.name}</p>
+                    {s.shortDescription && <p className="text-xs text-muted-foreground line-clamp-1">{s.shortDescription}</p>}
+                    {(s.overlapTopicLabels ?? []).length > 0 && (
+                      <p className="text-xs text-primary/80 flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" /> Relevant to: {s.overlapTopicLabels.slice(0, 2).join(", ")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* CTAs */}
+        <div className="space-y-3 pb-10">
+          <Button
+            className="w-full gap-2"
+            size="lg"
+            onClick={() => onSave([...selected])}
+            disabled={isSaving}
+            data-testid="button-save-interests"
+          >
+            {isSaving ? "Saving…" : "Continue to My Dashboard"}
+            {!isSaving && <ArrowRight className="h-4 w-4" />}
           </Button>
-          <Button variant="ghost" className="text-muted-foreground" onClick={onSkip} disabled={isSkipping} data-testid="button-skip-topics">
-            Skip
+          <Button
+            variant="ghost"
+            className="w-full text-muted-foreground"
+            onClick={onSkip}
+            disabled={isSkipping}
+            data-testid="button-skip-topics"
+          >
+            Skip for now
           </Button>
         </div>
+
       </div>
     </div>
   );
@@ -590,6 +780,8 @@ export default function AttendeePortalPage() {
         onSkip={() => skipMutation.mutate()}
         isSaving={saveTopicsMutation.isPending}
         isSkipping={skipMutation.isPending}
+        me={me}
+        headers={headers}
       />
     );
   }

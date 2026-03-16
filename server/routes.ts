@@ -3434,9 +3434,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
     const { tokenRecord } = validation;
 
-    const interestTopics = await storage.getEventInterestTopics(tokenRecord.eventId, { status: "APPROVED", isActive: true });
+    const allEventTopics = await storage.getEventInterestTopics(tokenRecord.eventId);
+    const interestTopics = allEventTopics.filter(t => t.status === "APPROVED" && t.isActive);
+    const pendingSuggestions = allEventTopics.filter(t =>
+      t.topicSource === "SPONSOR_SUGGESTED" &&
+      t.status === "PENDING" &&
+      t.suggestedBySponsorId === tokenRecord.sponsorId
+    );
+
     if (interestTopics.length > 0) {
-      return res.json({ topics: interestTopics.map(t => t.topicLabel), interestTopics, eventId: tokenRecord.eventId, sponsorId: tokenRecord.sponsorId });
+      return res.json({ topics: interestTopics.map(t => t.topicLabel), interestTopics, pendingSuggestions, eventId: tokenRecord.eventId, sponsorId: tokenRecord.sponsorId });
     }
 
     const allSponsors = await storage.getSponsors();
@@ -3451,7 +3458,36 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
       }
     }
-    res.json({ topics: Array.from(topicSet).sort(), interestTopics: [], eventId: tokenRecord.eventId, sponsorId: tokenRecord.sponsorId });
+    res.json({ topics: Array.from(topicSet).sort(), interestTopics: [], pendingSuggestions, eventId: tokenRecord.eventId, sponsorId: tokenRecord.sponsorId });
+  });
+
+  // GET /api/admin/sponsors/:sponsorId/topic-selections — admin view of sponsor's topic selections per event
+  app.get("/api/admin/sponsors/:sponsorId/topic-selections", requireAuth, async (req, res) => {
+    try {
+      const { sponsorId } = req.params;
+      const allSponsors = await storage.getSponsors();
+      const sponsor = allSponsors.find(s => s.id === sponsorId);
+      if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+
+      const eventIds = (sponsor.assignedEvents ?? []).map(ae => ae.eventId);
+      const results = await Promise.all(eventIds.map(async (eventId) => {
+        const [selections, allTopics] = await Promise.all([
+          storage.getSponsorTopics(sponsorId, eventId),
+          storage.getEventInterestTopics(eventId),
+        ]);
+        const selectedTopicIds = new Set(selections.map(s => s.topicId));
+        const selectedTopics = allTopics.filter(t => selectedTopicIds.has(t.id));
+        const pendingSuggestions = allTopics.filter(t =>
+          t.topicSource === "SPONSOR_SUGGESTED" &&
+          t.status === "PENDING" &&
+          t.suggestedBySponsorId === sponsorId
+        );
+        return { eventId, selectedTopics, pendingSuggestions };
+      }));
+      res.json(results);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
   });
 
   // ── Sponsor Dashboard: Agreement Deliverables (Phase 2) ───────────────────

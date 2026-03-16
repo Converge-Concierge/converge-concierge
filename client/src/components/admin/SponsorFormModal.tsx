@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sponsor, InsertSponsor, Event, EventSponsorLink, SPONSORSHIP_LEVELS, SponsorshipLevel } from "@shared/schema";
-import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem, CalendarDays, ChevronDown, ChevronUp, Send, Clock, Info } from "lucide-react";
+import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem, CalendarDays, ChevronDown, ChevronUp, Send, Clock, Info, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -57,6 +57,13 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
 
   const { data: sponsorUserData, refetch: refetchSponsorUser } = useQuery<{ user: { lastLoginAt: string | null } | null }>({
     queryKey: ["/api/admin/sponsors", sponsor?.id, "user"],
+    enabled: !!sponsor?.id && isOpen,
+    staleTime: 30000,
+  });
+
+  const { data: sponsorTopics } = useQuery<{ eventId: string; selectedTopics: { id: string; topicLabel: string }[]; pendingSuggestions: { id: string; topicLabel: string }[] }[]>({
+    queryKey: ["/api/admin/sponsors", sponsor?.id, "topic-selections"],
+    queryFn: () => fetch(`/api/admin/sponsors/${sponsor!.id}/topic-selections`).then(r => r.json()),
     enabled: !!sponsor?.id && isOpen,
     staleTime: 30000,
   });
@@ -693,6 +700,49 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                     </div>
                   );
                 })()}
+
+                {sponsorTopics && sponsorTopics.some(et => et.selectedTopics.length > 0 || et.pendingSuggestions.length > 0) && (
+                  <div className="mt-4 rounded-xl border border-border/60 overflow-hidden" data-testid="admin-sponsor-topics-section">
+                    <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/40">
+                      <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Interest Topics</span>
+                    </div>
+                    <div className="divide-y divide-border/30">
+                      {sponsorTopics.filter(et => et.selectedTopics.length > 0 || et.pendingSuggestions.length > 0).map(et => {
+                        const ev = events.find(e => e.id === et.eventId);
+                        return (
+                          <div key={et.eventId} className="px-4 py-3 space-y-2">
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{ev?.name ?? et.eventId}</p>
+                            {et.selectedTopics.length > 0 && (
+                              <div>
+                                <p className="text-[10px] text-muted-foreground mb-1">Selected Topics</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {et.selectedTopics.map(t => (
+                                    <span key={t.id} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[11px] font-medium" data-testid={`admin-selected-topic-${t.id}`}>
+                                      {t.topicLabel}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {et.pendingSuggestions.length > 0 && (
+                              <div>
+                                <p className="text-[10px] text-muted-foreground mb-1">Pending Suggestions</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {et.pendingSuggestions.map(t => (
+                                    <span key={t.id} className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-medium" data-testid={`admin-pending-topic-${t.id}`}>
+                                      {t.topicLabel} · Under Review
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </form>

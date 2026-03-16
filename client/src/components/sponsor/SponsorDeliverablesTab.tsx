@@ -5,7 +5,7 @@ import {
   ChevronUp, Plus, Trash2, Save, X, Users, Mic,
   Briefcase, CalendarDays, Megaphone, BarChart2, ShieldCheck,
   Upload, Download, RefreshCw, Info, ExternalLink, Copy,
-  Image, Link2, FileDown,
+  Image, Link2, FileDown, Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1579,6 +1579,230 @@ function ActionCard({
   );
 }
 
+function SponsorTopicSelectionSection({ token, canEdit }: { token: string; canEdit: boolean }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data: topicsData, isLoading: topicsLoading } = useQuery<{
+    interestTopics: EventInterestTopic[];
+    pendingSuggestions: EventInterestTopic[];
+    eventId?: string;
+  }>({
+    queryKey: ["/api/sponsor-dashboard/event-topics", token],
+    queryFn: () => fetch(`/api/sponsor-dashboard/event-topics?token=${token}`).then(r => r.json()),
+    enabled: !!token,
+  });
+
+  const interestTopics = topicsData?.interestTopics ?? [];
+  const pendingSuggestions = topicsData?.pendingSuggestions ?? [];
+
+  const { data: existingSelections } = useQuery<{ topicId: string }[]>({
+    queryKey: ["/api/sponsor-dashboard/topic-selections", token],
+    queryFn: () => fetch(`/api/sponsor-dashboard/topic-selections?token=${token}`).then(r => r.json()),
+    enabled: interestTopics.length > 0,
+  });
+
+  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
+  const [selectionsLoaded, setSelectionsLoaded] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [showSuggestBox, setShowSuggestBox] = useState(false);
+  const [suggestInput, setSuggestInput] = useState("");
+  const [suggestSubmitted, setSuggestSubmitted] = useState(false);
+
+  if (existingSelections && !selectionsLoaded) {
+    const ids = existingSelections.map(s => s.topicId);
+    setSelectedTopicIds(ids);
+    setSelectionsLoaded(true);
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/sponsor-dashboard/topic-selections?token=${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topicIds: selectedTopicIds }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/sponsor-dashboard/topic-selections", token] });
+      toast({ title: "Selections saved", description: "Your interest topic selections have been saved." });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    },
+    onError: () => toast({ title: "Error", description: "Could not save selections.", variant: "destructive" }),
+  });
+
+  const suggestMutation = useMutation({
+    mutationFn: async (label: string) => {
+      const res = await fetch(`/api/sponsor-dashboard/suggest-topic?token=${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topicLabel: label }),
+      });
+      if (res.status === 409) {
+        const data = await res.json();
+        throw new Error(data.message ?? "A similar topic already exists");
+      }
+      if (!res.ok) throw new Error("Failed to suggest topic");
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/sponsor-dashboard/event-topics", token] });
+      setSuggestInput("");
+      setShowSuggestBox(false);
+      setSuggestSubmitted(true);
+      setTimeout(() => setSuggestSubmitted(false), 8000);
+    },
+    onError: (err: any) => toast({ title: "Suggestion failed", description: err.message, variant: "destructive" }),
+  });
+
+  if (topicsLoading) return null;
+  if (interestTopics.length === 0) return null;
+
+  return (
+    <section className="border rounded-xl bg-card overflow-hidden" data-testid="sponsor-topic-selection-section">
+      <div className="px-5 py-4 border-b border-border/50 bg-muted/30 flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-primary shrink-0" />
+        <div className="flex-1">
+          <h2 className="text-sm font-semibold text-foreground">Areas Your Company Supports</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Select the areas most relevant to your company for this event. These selections help Converge Concierge recommend your company to attendees.
+          </p>
+        </div>
+      </div>
+
+      <div className="px-5 py-4 space-y-4">
+        {saved && (
+          <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs font-medium" data-testid="topics-saved-banner">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Selections saved successfully.
+          </div>
+        )}
+
+        {suggestSubmitted && (
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800" data-testid="suggest-submitted-banner">
+            <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span><span className="font-medium">Topic suggestion submitted for review.</span> Converge will review this suggestion before making it available for this event.</span>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2" data-testid="topic-chips-container">
+          {interestTopics.map(t => {
+            const selected = selectedTopicIds.includes(t.id);
+            return (
+              <button
+                key={t.id}
+                disabled={!canEdit}
+                onClick={() => setSelectedTopicIds(prev =>
+                  prev.includes(t.id) ? prev.filter(x => x !== t.id) : [...prev, t.id]
+                )}
+                data-testid={`topic-chip-${t.id}`}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
+                  selected
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : canEdit
+                      ? "bg-background text-muted-foreground border-border hover:bg-primary/10 hover:text-primary hover:border-primary/40 cursor-pointer"
+                      : "bg-background text-muted-foreground border-border cursor-default opacity-60"
+                )}
+              >
+                {t.topicLabel}
+              </button>
+            );
+          })}
+        </div>
+
+        {pendingSuggestions.length > 0 && (
+          <div className="space-y-1.5" data-testid="pending-suggestions-list">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Your Pending Suggestions</p>
+            <div className="flex flex-wrap gap-1.5">
+              {pendingSuggestions.map(t => (
+                <span
+                  key={t.id}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-amber-50 text-amber-800 border border-amber-200"
+                  data-testid={`pending-suggestion-${t.id}`}
+                >
+                  <Clock className="h-3 w-3 shrink-0" />
+                  {t.topicLabel}
+                  <span className="text-amber-500 font-medium">· Under Review</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {canEdit && (
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/40">
+            <div>
+              {!showSuggestBox ? (
+                <button
+                  onClick={() => setShowSuggestBox(true)}
+                  className="text-xs text-muted-foreground hover:text-primary hover:underline underline-offset-2 transition-colors"
+                  data-testid="btn-suggest-topic-link"
+                >
+                  + Suggest a Topic
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={suggestInput}
+                    onChange={e => setSuggestInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") { e.preventDefault(); if (suggestInput.trim()) suggestMutation.mutate(suggestInput.trim()); }
+                      if (e.key === "Escape") { setShowSuggestBox(false); setSuggestInput(""); }
+                    }}
+                    placeholder="Topic name…"
+                    className="h-7 text-xs w-44"
+                    autoFocus
+                    data-testid="input-suggest-topic"
+                  />
+                  <p className="text-[10px] text-muted-foreground max-w-[160px] leading-tight hidden sm:block">
+                    Suggest a topic for Converge to review.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() => { if (suggestInput.trim()) suggestMutation.mutate(suggestInput.trim()); }}
+                    disabled={!suggestInput.trim() || suggestMutation.isPending}
+                    data-testid="btn-submit-suggestion"
+                  >
+                    {suggestMutation.isPending ? "…" : "Submit"}
+                  </Button>
+                  <button
+                    onClick={() => { setShowSuggestBox(false); setSuggestInput(""); }}
+                    className="text-muted-foreground hover:text-foreground"
+                    data-testid="btn-cancel-suggestion"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs text-muted-foreground">{selectedTopicIds.length} selected</span>
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+                data-testid="btn-save-topic-selections"
+              >
+                <Save className="h-3 w-3 mr-1" />
+                {saveMutation.isPending ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {!canEdit && selectedTopicIds.length === 0 && pendingSuggestions.length === 0 && (
+          <p className="text-xs text-muted-foreground italic">No topics selected.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 interface Props {
   token: string;
   canEdit: boolean;
@@ -1615,18 +1839,20 @@ export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
     );
   }
 
-  const total = deliverables.length;
-  const delivered = deliverables.filter((d) => ["Delivered", "Approved", "Available After Event"].includes(d.status)).length;
-  const inProgress = deliverables.filter((d) => ["In Progress", "Scheduled", "Under Review", "Submitted", "Received"].includes(d.status)).length;
-  const awaitingInput = deliverables.filter((d) => ["Awaiting Sponsor Input", "Not Started", "Needed"].includes(d.status) && d.sponsorEditable).length;
-  const afterEvent = deliverables.filter((d) => d.status === "Available After Event").length;
+  const visibleDeliverables = deliverables.filter(d => detectStructuredType(d) !== "category_words");
+
+  const total = visibleDeliverables.length;
+  const delivered = visibleDeliverables.filter((d) => ["Delivered", "Approved", "Available After Event"].includes(d.status)).length;
+  const inProgress = visibleDeliverables.filter((d) => ["In Progress", "Scheduled", "Under Review", "Submitted", "Received"].includes(d.status)).length;
+  const awaitingInput = visibleDeliverables.filter((d) => ["Awaiting Sponsor Input", "Not Started", "Needed"].includes(d.status) && d.sponsorEditable).length;
+  const afterEvent = visibleDeliverables.filter((d) => d.status === "Available After Event").length;
 
   const pct = total > 0 ? Math.round(((delivered + inProgress) / total) * 100) : 0;
 
-  const actionItems = deliverables.filter(isActionRequired);
+  const actionItems = visibleDeliverables.filter(isActionRequired);
 
   const byCat = DELIVERABLE_CATEGORIES.reduce<Record<string, SponsorDeliverable[]>>((acc, cat) => {
-    acc[cat] = deliverables.filter((d) => d.category === cat);
+    acc[cat] = visibleDeliverables.filter((d) => d.category === cat);
     return acc;
   }, {} as Record<string, SponsorDeliverable[]>);
 
@@ -1677,6 +1903,8 @@ export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
           </div>
         )}
       </section>
+
+      <SponsorTopicSelectionSection token={token} canEdit={canEdit} />
 
       <section>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Action Required From You</h2>

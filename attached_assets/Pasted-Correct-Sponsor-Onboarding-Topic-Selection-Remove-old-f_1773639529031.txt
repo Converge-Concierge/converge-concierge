@@ -1,0 +1,291 @@
+Correct Sponsor Onboarding Topic Selection
+Remove old free-text “One-Word Company Categories” input and replace it with Event Interest Topics selection + sponsor suggestion workflow
+
+Sections 11 and 12 of the Event Interest Topics implementation were not implemented correctly.
+
+The screenshot shows the old sponsor deliverable/input method is still present:
+
+One-Word Company Categories
+
+with a manual free-text text box.
+
+That is the old behavior and it must be removed.
+
+We are no longer using sponsor-entered free-text company categories as the primary source of topics.
+
+The sponsor experience must now use the new Event Interest Topics system.
+
+1. Primary Correction
+
+Remove the old sponsor-facing free-text category input and replace it with the new controlled topic selection workflow.
+
+Current incorrect behavior
+
+Sponsors see:
+
+“One-Word Company Categories”
+
+a free-text box
+
+manual typed entries
+
+This is no longer valid.
+
+Required new behavior
+
+Sponsors should instead see:
+
+Areas Your Company Supports
+
+and be able to:
+
+select from approved Event Interest Topics
+
+optionally suggest a new topic for admin review
+
+2. Remove Old Free-Text UI
+
+Remove the old deliverable/input section currently labeled:
+
+One-Word Company Categories
+
+This includes:
+
+the old title
+
+the free-text textarea
+
+save/cancel flow tied to manual category text entry
+
+Do not leave this visible anywhere in the sponsor-facing onboarding/deliverables flow.
+
+If legacy data exists in the database, preserve it for reference only, but do not expose this old input to sponsors as the active workflow.
+
+3. Replace With New Sponsor Topic Selection Component
+
+Create a new sponsor-facing section in the sponsor dashboard/deliverables area.
+
+Recommended title:
+
+Areas Your Company Supports
+
+Optional helper text:
+
+Select the areas most relevant to your company for this event.
+These selections help Converge Concierge recommend your company to attendees.
+4. Sponsor Topic Selection UI
+
+The sponsor should see the approved, active Event Interest Topics for that event.
+
+Use a clean multi-select interface.
+
+Preferred UI patterns:
+
+selectable cards
+
+chips/tags with check state
+
+multi-select checklist if needed
+
+Do not use a raw textarea.
+
+Example options
+
+AI Risk Management
+
+Fraud Detection
+
+Real-Time Payments
+
+Core Modernization
+
+Vendor Risk
+
+Digital Banking
+
+Sponsors should be able to select multiple topics.
+
+5. Save Behavior
+
+When the sponsor saves their selections:
+
+store them in the new sponsor_interest_topic_selections link table
+
+tie the selections to:
+
+sponsor
+
+event
+
+approved topic ids
+
+Do not store the selected values as raw comma-separated text.
+
+This must use the new structured topic model.
+
+6. Add “Suggest a Topic” Function
+
+Sponsors should also be able to suggest a new topic if they do not see an appropriate option.
+
+Add a secondary action:
+
+Suggest a Topic
+
+This can open:
+
+a small modal
+
+an expandable inline form
+
+a side panel
+
+The sponsor should enter:
+
+suggested topic label
+
+Optional helper text:
+
+If you do not see the right topic, suggest one for Converge to review.
+Approved topics may be added to this event.
+7. Suggestion Save Behavior
+
+When a sponsor submits a suggested topic:
+
+create a pending topic suggestion record
+or
+
+create an event_interest_topics record with:
+
+topic_source = SPONSOR_SUGGESTED
+
+status = PENDING
+
+This suggestion must:
+
+be linked to the event
+
+be linked to the sponsor if possible
+
+not become active immediately
+
+not appear to attendees or other sponsors until admin approval
+
+8. Sponsor View After Suggestion Submitted
+
+After a sponsor submits a suggestion, show a clear confirmation.
+
+Example:
+
+Topic suggestion submitted for review.
+Converge will review this suggestion before making it available for this event.
+
+Do not automatically add it to their selected active topics unless approved.
+
+9. Update Deliverable / Completion Logic
+
+If this topic selection is part of sponsor onboarding or deliverable completion logic, update that logic accordingly.
+
+Required behavior
+
+The old free-text category completion state must be replaced with:
+
+completed when sponsor has selected at least one approved topic
+or
+
+completed when there is at least one selected topic and/or an acceptable pending suggestion, depending on the business rule you want
+
+Recommended simpler rule
+
+Mark complete when:
+
+at least one approved topic is selected
+
+If there is only a pending suggestion and no selected approved topic, keep it as incomplete until Converge decides otherwise.
+
+10. Update Section Labeling Everywhere
+
+Anywhere in sponsor-facing or admin-facing UI that still references:
+
+One-Word Company Categories
+
+should be updated or removed.
+
+Replace with language like:
+
+Areas Your Company Supports
+Interest Topics
+Selected Interest Topics
+
+Use consistent naming across:
+
+sponsor onboarding
+
+sponsor dashboard
+
+admin sponsor detail
+
+reporting if applicable
+
+11. Admin Visibility
+
+In the admin sponsor view/detail, show:
+
+selected approved event topics
+
+pending sponsor-suggested topics awaiting review
+
+This helps Converge manage sponsor onboarding and topic cleanup.
+
+Recommended display:
+
+Selected Topics
+AI Risk Management
+Fraud Detection
+
+Pending Suggestions
+Quantum-Safe Cryptography
+12. Review Existing Sponsor Data Migration
+
+If sponsors already entered old one-word categories in the legacy field, do not lose that data immediately.
+
+Required behavior
+
+preserve old field/data in backend temporarily if needed
+
+do not expose it as the active workflow
+
+optionally show legacy text in admin only during migration if helpful
+
+But the active sponsor UI must now use the new structured Event Interest Topics system.
+
+13. Remove Dependency on Legacy Free-Text for Recommendations
+
+Ensure recommendation logic and future matching do not continue using the old raw sponsor category field as the primary source.
+
+The authoritative source going forward should be:
+
+sponsor_interest_topic_selections
+
+for sponsor topics.
+
+14. Acceptance Criteria
+
+This correction is complete when:
+
+the old “One-Word Company Categories” free-text UI is removed from the sponsor-facing flow
+
+sponsors can select from approved active Event Interest Topics
+
+sponsors can suggest a new topic for admin review
+
+selected sponsor topics are stored in the structured topic selection table
+
+sponsor suggestions are stored as pending review, not immediately published
+
+deliverable/completion logic uses the new topic selection workflow
+
+legacy free-text values are no longer the active source of truth
+
+15. Success Standard
+
+After this correction, sponsors should no longer type arbitrary free-text categories. Instead, they should participate in a structured event-specific topic system controlled by Converge, with a clean fallback path for suggesting additions. This is required to make attendee and sponsor recommendations consistent and useful.

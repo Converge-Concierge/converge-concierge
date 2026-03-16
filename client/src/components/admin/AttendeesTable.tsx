@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Linkedin, Archive, RotateCcw, Eye, Send } from "lucide-react";
+import { Edit, Trash2, Linkedin, Archive, RotateCcw, Eye, Send, CalendarDays } from "lucide-react";
 import { categoryLabel, categoryBadgeClass } from "@/lib/categoryUtils";
 import { Attendee, Event } from "@shared/schema";
 import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
@@ -21,10 +21,12 @@ interface AttendeesTableProps {
   onDelete: (attendee: Attendee) => void;
   onSendSchedulingEmail?: (attendee: Attendee) => void;
   sendingEmailForId?: string | null;
+  savedSessionCounts?: Record<string, number>;
+  onViewAgenda?: (attendee: Attendee) => void;
 }
 
 
-export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete, onSendSchedulingEmail, sendingEmailForId }: AttendeesTableProps) {
+export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView, onArchive, onReactivate, onDelete, onSendSchedulingEmail, sendingEmailForId, savedSessionCounts, onViewAgenda }: AttendeesTableProps) {
   const { sort, toggle } = useSortState("added", "desc");
 
   const getEvent = (id: string) => events.find((e) => e.id === id);
@@ -111,6 +113,29 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
                       <Button variant="ghost" size="icon" title="View attendee details" onClick={() => onView(attendee)} data-testid={`view-attendee-${attendee.id}`}>
                         <Eye className="h-4 w-4" />
                       </Button>
+                      {onViewAgenda && (() => {
+                        const count = savedSessionCounts?.[attendee.id] ?? 0;
+                        return (
+                          <div className="relative inline-flex">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title={count > 0 ? `View My Agenda (${count} session${count !== 1 ? "s" : ""})` : "No saved sessions"}
+                              onClick={() => count > 0 && onViewAgenda(attendee)}
+                              disabled={count === 0}
+                              className={cn(count > 0 ? "text-accent hover:text-accent/80" : "text-muted-foreground/30 cursor-not-allowed")}
+                              data-testid={`view-agenda-${attendee.id}`}
+                            >
+                              <CalendarDays className="h-4 w-4" />
+                            </Button>
+                            {count > 0 && (
+                              <span className="absolute -top-1 -right-1 bg-accent text-white text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center leading-none" data-testid={`badge-session-count-${attendee.id}`}>
+                                {count > 9 ? "9+" : count}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                       <Button variant="ghost" size="icon" title="Edit attendee" onClick={() => onEdit(attendee)} data-testid={`edit-attendee-${attendee.id}`}>
                         <Edit className="h-4 w-4" />
                       </Button>

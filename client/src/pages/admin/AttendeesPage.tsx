@@ -12,6 +12,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { AttendeesTable } from "@/components/admin/AttendeesTable";
 import { AttendeeFormModal } from "@/components/admin/AttendeeFormModal";
 import { AttendeeDetailDrawer } from "@/components/admin/AttendeeDetailDrawer";
+import { AdminAttendeeAgendaSheet } from "@/components/admin/AdminAttendeeAgendaSheet";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
@@ -36,6 +37,7 @@ export default function AttendeesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAttendee, setEditingAttendee] = useState<Attendee | undefined>();
   const [viewingDetailAttendee, setViewingDetailAttendee] = useState<Attendee | null>(null);
+  const [viewingAgendaAttendee, setViewingAgendaAttendee] = useState<Attendee | null>(null);
   const [deletingAttendee, setDeletingAttendee] = useState<Attendee | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
@@ -43,6 +45,25 @@ export default function AttendeesPage() {
   const { data: attendees = [], isLoading } = useQuery<Attendee[]>({ queryKey: ["/api/attendees"] });
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: categoryDefs = [] } = useQuery<CategoryDef[]>({ queryKey: ["/api/admin/attendee-categories"] });
+
+  // Batch saved-session counts for the currently displayed attendees (only when a specific event is selected)
+  const displayedIdsForCounts = useMemo(
+    () => attendees.filter((a) => (a.archiveState ?? "active") === "active" && (selectedEventId === "all" || a.assignedEvent === selectedEventId)).map((a) => a.id),
+    [attendees, selectedEventId],
+  );
+  const { data: savedSessionCounts = {} } = useQuery<Record<string, number>>({
+    queryKey: ["/api/admin/attendees/saved-session-counts-batch", selectedEventId, displayedIdsForCounts.length],
+    queryFn: async () => {
+      if (displayedIdsForCounts.length === 0) return {};
+      const res = await apiRequest("POST", "/api/admin/attendees/saved-session-counts-batch", {
+        attendeeIds: displayedIdsForCounts,
+        eventId: selectedEventId !== "all" ? selectedEventId : undefined,
+      });
+      return res.json();
+    },
+    enabled: displayedIdsForCounts.length > 0,
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
     if (categoryDefs.length > 0) {
@@ -367,6 +388,8 @@ export default function AttendeesPage() {
           onDelete={setDeletingAttendee}
           onSendSchedulingEmail={(a) => schedulingEmailMutation.mutate(a.id)}
           sendingEmailForId={sendingEmailForId}
+          savedSessionCounts={savedSessionCounts}
+          onViewAgenda={setViewingAgendaAttendee}
         />
       )}
 
@@ -382,6 +405,12 @@ export default function AttendeesPage() {
         attendeeId={viewingDetailAttendee?.id || null}
         open={!!viewingDetailAttendee}
         onClose={() => setViewingDetailAttendee(null)}
+      />
+
+      <AdminAttendeeAgendaSheet
+        attendee={viewingAgendaAttendee}
+        open={!!viewingAgendaAttendee}
+        onClose={() => setViewingAgendaAttendee(null)}
       />
 
       <AlertDialog open={!!deletingAttendee} onOpenChange={(open) => !open && setDeletingAttendee(null)}>

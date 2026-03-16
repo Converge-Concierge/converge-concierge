@@ -7020,6 +7020,231 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     return res.json({ ok: true, token: tokenRecord.token, link });
   });
 
+  // Admin: check saved session count for an attendee
+  app.get("/api/admin/attendees/:id/saved-session-count", requireAuth, async (req, res) => {
+    const attendee = await storage.getAttendee(req.params.id);
+    if (!attendee) return res.status(404).json({ message: "Attendee not found" });
+    const eventId = attendee.assignedEvent;
+    if (!eventId) return res.json({ count: 0 });
+    const count = await storage.countAttendeeSavedSessions(attendee.id, eventId);
+    return res.json({ count });
+  });
+
+  // Admin: batch saved-session counts for multiple attendees (POST body: { attendeeIds[], eventId })
+  app.post("/api/admin/attendees/saved-session-counts-batch", requireAuth, async (req, res) => {
+    const { attendeeIds, eventId } = req.body as { attendeeIds: string[]; eventId?: string };
+    if (!Array.isArray(attendeeIds) || attendeeIds.length === 0) return res.json({});
+    const counts: Record<string, number> = {};
+    await Promise.all(
+      attendeeIds.map(async (id) => {
+        let eid = eventId;
+        if (!eid) {
+          const att = await storage.getAttendee(id);
+          eid = att?.assignedEvent ?? undefined;
+        }
+        counts[id] = eid ? await storage.countAttendeeSavedSessions(id, eid) : 0;
+      }),
+    );
+    return res.json(counts);
+  });
+
+  // Admin: view saved sessions for an attendee
+  app.get("/api/admin/attendees/:id/saved-sessions", requireAuth, async (req, res) => {
+    const attendee = await storage.getAttendee(req.params.id);
+    if (!attendee) return res.status(404).json({ message: "Attendee not found" });
+    const eventId = attendee.assignedEvent;
+    if (!eventId) return res.json([]);
+    const saved = await storage.getAttendeeSavedSessions(attendee.id, eventId);
+    const sessionTypes = await storage.getSessionTypes();
+    const typeMap = new Map(sessionTypes.map((t) => [t.key, t]));
+    const result = await Promise.all(
+      saved.map(async (s) => {
+        const session = await storage.getAgendaSession(s.sessionId);
+        if (!session) return null;
+        const speakers = await storage.getSessionSpeakers(session.id);
+        const typeInfo = session.sessionTypeKey ? typeMap.get(session.sessionTypeKey) : null;
+        return {
+          savedId: s.id,
+          savedAt: s.createdAt,
+          ...session,
+          speakers,
+          sessionTypeLabel: typeInfo?.label ?? session.sessionTypeKey ?? "Session",
+          speakerLabelPlural: typeInfo?.speakerLabelPlural ?? "Speakers",
+        };
+      }),
+    );
+    return res.json(result.filter(Boolean));
+  });
+
+  // ── Attendee Portal: Agenda (Phase B) ────────────────────────────────────
+
+  // Full event agenda — published + public sessions with speakers + session type
+  app.get("/api/attendee-portal/agenda", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const [allSessions, sessionTypes] = await Promise.all([
+      storage.getAgendaSessions(tokenRecord.eventId),
+      storage.getSessionTypes(),
+    ]);
+
+    const typeMap = new Map(sessionTypes.map((t) => [t.key, t]));
+    const publishedPublic = allSessions.filter((s) => s.status === "Published" && s.isPublic);
+
+    const sessions = await Promise.all(
+      publishedPublic.map(async (session) => {
+        const speakers = await storage.getSessionSpeakers(session.id);
+        const type = typeMap.get(session.sessionTypeKey);
+        return {
+          id: session.id,
+          title: session.title,
+          description: session.description,
+          sessionTypeKey: session.sessionTypeKey,
+          sessionTypeLabel: type?.label ?? session.sessionTypeKey,
+          speakerLabelPlural: type?.speakerLabelPlural ?? "Speakers",
+          sessionDate: session.sessionDate,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          timezone: session.timezone,
+          locationName: session.locationName,
+          locationDetails: session.locationDetails,
+          sponsorId: session.sponsorId,
+          sponsorName: session.sponsorNameSnapshot,
+          isFeatured: session.isFeatured,
+          speakers: speakers.map((sp) => ({ id: sp.id, name: sp.name, title: sp.title, company: sp.company, roleLabel: sp.roleLabel, speakerOrder: sp.speakerOrder })),
+        };
+      })
+    );
+
+    return res.json(sessions);
+  });
+
+  // Attendee saved sessions — with full session detail
+  app.get("/api/attendee-portal/saved-sessions", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const [saved, sessionTypes] = await Promise.all([
+      storage.getAttendeeSavedSessions(tokenRecord.attendeeId, tokenRecord.eventId),
+      storage.getSessionTypes(),
+    ]);
+    const typeMap = new Map(sessionTypes.map((t) => [t.key, t]));
+
+    const results = await Promise.all(
+      saved.map(async (s) => {
+        const session = await storage.getAgendaSession(s.sessionId);
+        if (!session) return null;
+        const speakers = await storage.getSessionSpeakers(session.id);
+        const type = typeMap.get(session.sessionTypeKey);
+        return {
+          savedId: s.id,
+          savedAt: s.savedAt,
+          id: session.id,
+          title: session.title,
+          description: session.description,
+          sessionTypeKey: session.sessionTypeKey,
+          sessionTypeLabel: type?.label ?? session.sessionTypeKey,
+          speakerLabelPlural: type?.speakerLabelPlural ?? "Speakers",
+          sessionDate: session.sessionDate,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          timezone: session.timezone,
+          locationName: session.locationName,
+          locationDetails: session.locationDetails,
+          sponsorId: session.sponsorId,
+          sponsorName: session.sponsorNameSnapshot,
+          speakers: speakers.map((sp) => ({ id: sp.id, name: sp.name, title: sp.title, company: sp.company, roleLabel: sp.roleLabel })),
+        };
+      })
+    );
+
+    return res.json(results.filter(Boolean));
+  });
+
+  // Save a session to My Agenda (idempotent)
+  app.post("/api/attendee-portal/saved-sessions", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const { sessionId } = req.body as { sessionId: string };
+    if (!sessionId) return res.status(400).json({ message: "sessionId required" });
+
+    const session = await storage.getAgendaSession(sessionId);
+    if (!session || session.eventId !== tokenRecord.eventId || session.status !== "Published") {
+      return res.status(404).json({ message: "Session not found or not available" });
+    }
+
+    // Idempotent — check if already saved
+    const existing = await storage.getAttendeeSavedSessions(tokenRecord.attendeeId, tokenRecord.eventId);
+    const alreadySaved = existing.find((s) => s.sessionId === sessionId);
+    if (alreadySaved) return res.json({ ok: true, savedId: alreadySaved.id, alreadyExisted: true });
+
+    const saved = await storage.createAttendeeSavedSession({
+      attendeeId: tokenRecord.attendeeId,
+      eventId: tokenRecord.eventId,
+      sessionId,
+    });
+    return res.json({ ok: true, savedId: saved.id, alreadyExisted: false });
+  });
+
+  // Remove a session from My Agenda by sessionId
+  app.delete("/api/attendee-portal/saved-sessions/:sessionId", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const existing = await storage.getAttendeeSavedSessions(tokenRecord.attendeeId, tokenRecord.eventId);
+    const record = existing.find((s) => s.sessionId === req.params.sessionId);
+    if (!record) return res.status(404).json({ message: "Session not in My Agenda" });
+
+    await storage.deleteAttendeeSavedSession(record.id);
+    return res.json({ ok: true });
+  });
+
+  // Download My Agenda as combined ICS
+  app.get("/api/attendee-portal/my-agenda/ics", async (req, res) => {
+    const token = getAttendeeToken(req);
+    if (!token) return res.status(401).json({ message: "Missing attendee token" });
+    const validation = await validateAttendeeToken(token);
+    if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
+    const { tokenRecord } = validation;
+
+    const saved = await storage.getAttendeeSavedSessions(tokenRecord.attendeeId, tokenRecord.eventId);
+    const formatDT = (date: string, time: string) => date.replace(/-/g, "") + "T" + time.replace(/:/g, "") + "00";
+
+    let ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Converge Concierge//My Agenda//EN\r\nCALSCALE:GREGORIAN\r\n";
+
+    for (const s of saved) {
+      const session = await storage.getAgendaSession(s.sessionId);
+      if (!session || session.status !== "Published") continue;
+      ics += "BEGIN:VEVENT\r\n";
+      ics += `DTSTART;TZID=${session.timezone}:${formatDT(session.sessionDate, session.startTime)}\r\n`;
+      ics += `DTEND;TZID=${session.timezone}:${formatDT(session.sessionDate, session.endTime)}\r\n`;
+      ics += `SUMMARY:${session.title.replace(/\n/g, "\\n")}\r\n`;
+      if (session.description) ics += `DESCRIPTION:${session.description.replace(/\n/g, "\\n").substring(0, 500)}\r\n`;
+      if (session.locationName) ics += `LOCATION:${session.locationName}${session.locationDetails ? " - " + session.locationDetails : ""}\r\n`;
+      ics += `UID:agenda-${session.id}@converge\r\n`;
+      ics += "END:VEVENT\r\n";
+    }
+
+    ics += "END:VCALENDAR\r\n";
+    const event = await storage.getEvent(tokenRecord.eventId);
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename=${event?.slug || "my-agenda"}-my-agenda.ics`);
+    res.send(ics);
+  });
+
   await refreshCategoryConfig();
 
   return httpServer;

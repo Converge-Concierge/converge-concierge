@@ -22,6 +22,9 @@ import HelpCenterPage from "@/pages/public/HelpCenterPage";
 import MeetingInvitationPage from "@/pages/public/MeetingInvitationPage";
 import AttendeeAccessPage from "@/pages/public/AttendeeAccessPage";
 import AttendeePortalPage from "@/pages/attendee/AttendeePortalPage";
+import AttendeeAgendaPage from "@/pages/attendee/AttendeeAgendaPage";
+import AttendeeMyAgendaPage from "@/pages/attendee/AttendeeMyAgendaPage";
+import AttendeeSponsorsPage from "@/pages/attendee/AttendeeSponsorsPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import AdminResetPasswordPage from "@/pages/AdminResetPasswordPage";
 import TermsPage from "@/pages/TermsPage";
@@ -74,6 +77,9 @@ function Router() {
       <Route path="/meeting-invitation/:token" component={MeetingInvitationPage} />
       <Route path="/sponsor-access/:token" component={SponsorAutoLoginPage} />
       <Route path="/attendee-access/:token" component={AttendeeAccessPage} />
+      <Route path="/attendee/agenda" component={AttendeeAgendaPage} />
+      <Route path="/attendee/my-agenda" component={AttendeeMyAgendaPage} />
+      <Route path="/attendee/sponsors" component={AttendeeSponsorsPage} />
       <Route path="/attendee" component={AttendeePortalPage} />
       <Route path="/event/:slug/book/:rest*">
         {(params) => <Redirect to={`/event/${params.slug}`} />}

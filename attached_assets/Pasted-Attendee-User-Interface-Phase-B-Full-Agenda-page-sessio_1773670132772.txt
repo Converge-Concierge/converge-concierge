@@ -1,0 +1,517 @@
+Attendee User Interface — Phase B
+Full Agenda page, session detail view, My Agenda, and Add to Calendar
+
+We are now moving to Attendee UI — Phase B.
+
+Phase A established:
+
+secure attendee access
+
+welcome / onboarding flow
+
+attendee topic selection
+
+basic attendee dashboard
+
+recommended sessions
+
+recommended sponsors
+
+Phase B now expands the attendee experience into a more useful event planning tool.
+
+The goal of this phase is to let attendees:
+
+browse the full event agenda
+
+open session details
+
+save sessions to My Agenda
+
+remove sessions from My Agenda
+
+add sessions to their personal calendar
+
+This phase should make Concierge feel much more valuable and practical to attendees.
+
+1. Phase B Goal
+
+Build the attendee-facing agenda experience so attendees can:
+
+browse the full agenda for their event
+
+view session details
+
+save sessions to My Agenda
+
+remove sessions from My Agenda
+
+add sessions to their calendar using ICS export
+
+see a simple My Agenda view
+
+This phase should work with the Agenda system that already exists.
+
+2. Navigation Update
+
+Add attendee-facing navigation so the experience is easier to explore.
+
+Minimum navigation for Phase B
+
+Add or expose these attendee navigation items:
+
+Home
+
+Agenda
+
+My Agenda
+
+Sponsors
+
+Meetings (can remain placeholder/light if not fully built yet)
+
+If a full nav system is not yet implemented, at minimum the attendee must be able to navigate between:
+
+Dashboard / Home
+
+Full Agenda
+
+My Agenda
+
+Keep the attendee UI simple and mobile-friendly.
+
+3. Build Attendee Full Agenda Page
+
+Create an attendee-facing page:
+
+Agenda
+
+This page should display all published/public sessions for the attendee’s event in chronological order.
+
+Do not show:
+
+draft sessions
+
+cancelled sessions unless there is a good attendee-facing reason
+
+internal/non-public sessions
+
+Only show sessions that are appropriate for the attendee to see.
+
+4. Full Agenda Page Content
+
+Each session card/row should show:
+
+Session Title
+
+Session Type
+
+Date
+
+Start Time
+
+End Time
+
+Location if available
+
+Short Description snippet if helpful
+
+Speaker section only if speakers are assigned
+
+Sponsor if relevant and available
+
+Important rules
+
+If location is blank, do not show location at all
+
+If speakers are blank, do not show a speaker section
+
+If sponsor is blank, do not show sponsor
+
+Do not show placeholders like:
+
+TBD
+
+Not assigned
+
+Coming soon
+
+Hide missing fields cleanly.
+
+5. Sort and Group Agenda Properly
+
+The agenda should be easy to scan.
+
+Required behavior
+
+Display sessions in chronological order.
+
+Preferred grouping:
+
+grouped by date/day
+
+within each day, sorted by start time
+
+This is the most useful attendee view.
+
+6. Agenda Filters (Lightweight)
+
+Add lightweight attendee-facing filters if practical.
+
+Recommended filters:
+
+Day / Date
+
+Session Type
+
+Do not overcomplicate the filter system in Phase B.
+
+Search is optional if already easy to support, but not required for first delivery.
+
+7. Build Session Detail View
+
+Each session on the agenda should support a View Session action or open directly into a detail view.
+
+This can be:
+
+full page
+
+modal
+
+slide-over panel
+
+Use the pattern that best matches the current attendee UI.
+
+Required content in session detail
+
+Show:
+
+full title
+
+full description
+
+session type
+
+date
+
+start time
+
+end time
+
+location if available
+
+speakers if assigned
+
+sponsor if relevant
+
+related interest topics if useful later
+
+Speaker label rules
+
+Use the session-type-specific labels:
+
+Panelists
+
+Discussion Leaders
+
+Speakers
+
+etc.
+
+If no speakers exist:
+
+omit the speaker section entirely
+
+8. Add “Save to My Agenda” Action
+
+From:
+
+agenda list
+
+session detail view
+
+allow the attendee to click:
+
+Save to My Agenda
+Required behavior
+
+Saving a session should create a record in:
+
+attendee_saved_sessions
+
+Tie it to:
+
+attendee
+
+event
+
+session
+
+If the attendee already saved the session, do not duplicate it.
+
+Instead show:
+
+Saved
+
+or:
+
+Remove from My Agenda
+9. Add “Remove from My Agenda” Action
+
+Attendees must be able to remove a saved session.
+
+Allow this from:
+
+full agenda view
+
+session detail view
+
+My Agenda page
+
+This should delete or deactivate the relevant attendee_saved_sessions record cleanly.
+
+10. Build My Agenda Page
+
+Create a dedicated attendee page:
+
+My Agenda
+
+This page should show the attendee’s saved sessions only.
+
+Required behavior
+
+Display saved sessions in chronological order.
+
+Preferred grouping:
+
+grouped by date/day
+
+sorted by time within day
+
+This page should be clean and easy to scan.
+
+11. My Agenda Page Content
+
+Each saved session should show:
+
+Session Title
+
+Session Type
+
+Date
+
+Start / End Time
+
+Location if available
+
+brief description if useful
+
+Add to Calendar
+
+Remove from My Agenda
+
+View Session
+
+This page should help the attendee plan their event.
+
+12. Add to Calendar — Per Session
+
+Every session should support:
+
+Add to Calendar
+
+This should generate an ICS file for that single session.
+
+ICS content should include
+
+title
+
+description
+
+start time
+
+end time
+
+timezone
+
+location if available
+
+Important rules
+
+if location is blank, omit LOCATION entirely
+
+do not generate broken ICS files
+
+use the event/session timezone correctly
+
+This should work from:
+
+full agenda
+
+session detail
+
+My Agenda
+
+13. Optional: Download My Agenda as Combined Calendar
+
+If practical in Phase B, add:
+
+Download My Agenda
+
+This should generate a single ICS file containing all saved sessions.
+
+If this is too much for Phase B, it can be deferred, but the architecture should make it easy later.
+
+14. Saved State in Agenda UI
+
+When browsing the full agenda, attendees should be able to tell which sessions they have already saved.
+
+Required behavior
+
+Saved sessions should display a clear state such as:
+
+Saved
+
+In My Agenda
+
+Remove from My Agenda
+
+This avoids confusion and makes the agenda feel interactive.
+
+15. Dashboard Integration
+
+If the attendee dashboard from Phase A includes Recommended Sessions, those recommended sessions should now support the same actions:
+
+View Session
+
+Save to My Agenda
+
+Add to Calendar if appropriate
+
+At minimum, clicking a recommended session should take the attendee to the session detail.
+
+16. Graceful Empty States
+
+Handle empty states cleanly.
+
+If agenda has no published sessions yet
+
+Show:
+
+The agenda will appear here once sessions are published.
+If My Agenda is empty
+
+Show:
+
+You have not saved any sessions yet.
+Browse the agenda to build your schedule.
+
+Add a button:
+
+Browse Agenda
+17. Mobile-Friendly Design
+
+This phase must work well on mobile.
+
+Important requirements:
+
+session cards stack cleanly
+
+CTA buttons are easy to tap
+
+My Agenda is easy to scan vertically
+
+add-to-calendar works from mobile browsers
+
+long titles wrap cleanly
+
+Do not assume desktop-only use.
+
+18. Use Only Published/Public Sessions
+
+Attendee-facing agenda pages must only show sessions that are:
+
+published
+
+public
+
+appropriate for attendee visibility
+
+Do not expose internal draft content.
+
+Use the existing Agenda status/public controls if already present.
+
+19. Prepare for Future Recommendation and Conflict Features
+
+This phase does not need to build conflict detection yet, but the structure should support it later.
+
+Future features may include:
+
+meeting/session conflict warnings
+
+recommended sessions
+
+related sponsor suggestions
+
+“people interested in this topic” features
+
+Do not block those future workflows in the way the agenda UI is built.
+
+20. Admin Visibility Into My Agenda
+
+This phase should also connect to the previously planned admin visibility into attendee My Agenda.
+
+Required behavior
+
+In the admin Attendees area:
+
+the View My Agenda link/button should become meaningful once saved sessions exist
+
+if the attendee has saved sessions, the admin can launch/view that attendee’s My Agenda
+
+if the attendee has not saved sessions, keep the link greyed out / disabled
+
+This gives Converge visibility into attendee engagement.
+
+21. Analytics / Tracking Readiness
+
+Prepare the system so future analytics can track:
+
+session detail views
+
+session saves
+
+add-to-calendar clicks
+
+My Agenda completion
+
+You do not need to build the analytics UI now, but do not make this impossible later.
+
+22. Acceptance Criteria
+
+Phase B is complete when:
+
+attendees can browse the full agenda for their event
+
+sessions are shown in chronological order
+
+session detail views exist
+
+sessions can be saved to My Agenda
+
+sessions can be removed from My Agenda
+
+My Agenda page exists and shows saved sessions
+
+attendees can add individual sessions to their calendar
+
+saved state is reflected in the UI
+
+missing location/speaker fields are hidden cleanly
+
+attendee-facing pages only show published/public sessions
+
+admin can view an attendee’s My Agenda once saved sessions exist
+
+23. Success Standard
+
+After Phase B, Concierge should feel like a useful event planning tool. An attendee should be able to browse sessions, save the ones they care about, and build a practical schedule for the event without friction. That is the standard this phase should meet.

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Plus, Search, Users as UsersIcon, RefreshCw } from "lucide-react";
+import { Plus, Search, Users as UsersIcon, RefreshCw, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { categoryLabel as getCategoryLabel, categoryChartColor, setCategoryLabelCache } from "@/lib/categoryUtils";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Attendee, InsertAttendee, Event } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { AttendeesTable } from "@/components/admin/AttendeesTable";
+import { PendingProfilesTable } from "@/components/admin/PendingProfilesTable";
 import { AttendeeFormModal } from "@/components/admin/AttendeeFormModal";
 import { AttendeeDetailDrawer } from "@/components/admin/AttendeeDetailDrawer";
 import { AdminAttendeeAgendaSheet } from "@/components/admin/AdminAttendeeAgendaSheet";
@@ -31,7 +32,7 @@ interface CategoryDef { id: string; key: string; label: string; isActive: boolea
 
 export default function AttendeesPage() {
   const { isAdmin } = useAuth();
-  const [tab, setTab] = useState<"active" | "archived">("active");
+  const [tab, setTab] = useState<"active" | "archived" | "pending">("active");
   const [selectedEventId, setSelectedEventId] = useState("all");
   const hasAutoSelected = useRef(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -262,7 +263,8 @@ export default function AttendeesPage() {
         </div>
       </div>
 
-      {sortedEventsForSelector.length > 0 && (
+      {/* Event filter — hidden on Pending Profiles tab */}
+      {tab !== "pending" && sortedEventsForSelector.length > 0 && (
         <div className="overflow-x-auto pb-1">
           <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
             {sortedEventsForSelector.map((event) => {
@@ -298,17 +300,19 @@ export default function AttendeesPage() {
       )}
 
       <div className="flex flex-col sm:flex-row items-center gap-4 bg-card p-4 rounded-xl shadow-sm border border-border/50">
-        <div className="relative w-full flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, company, or email…"
-            className="pl-9 bg-muted/50 border-transparent focus-visible:ring-accent/20"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            data-testid="input-search-attendees"
-          />
-        </div>
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "active" | "archived")} className="w-full sm:w-auto">
+        {tab !== "pending" && (
+          <div className="relative w-full flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, company, or email…"
+              className="pl-9 bg-muted/50 border-transparent focus-visible:ring-accent/20"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-testid="input-search-attendees"
+            />
+          </div>
+        )}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "active" | "archived" | "pending")} className="w-full sm:w-auto">
           <TabsList className="w-full sm:w-auto">
             <TabsTrigger value="active" className="flex-1 sm:flex-none" data-testid="tab-attendees-active">
               Active <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{eventFilteredActive.length}</span>
@@ -316,11 +320,18 @@ export default function AttendeesPage() {
             <TabsTrigger value="archived" className="flex-1 sm:flex-none" data-testid="tab-attendees-archived">
               Archived <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{attendees.filter((a) => a.archiveState === "archived").length}</span>
             </TabsTrigger>
+            <TabsTrigger value="pending" className="flex-1 sm:flex-none gap-1.5" data-testid="tab-attendees-pending">
+              <Clock className="h-3.5 w-3.5" /> Pending Profiles
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
-      {tab === "active" && totalForChart > 0 && (
+      {tab === "pending" && (
+        <PendingProfilesTable events={events} />
+      )}
+
+      {tab !== "pending" && tab === "active" && totalForChart > 0 && (
         <div className="bg-card rounded-xl border border-border/50 shadow-sm p-5" data-testid="attendee-category-chart">
           <div className="flex items-center gap-2 mb-4">
             <UsersIcon className="h-4 w-4 text-accent" />
@@ -371,7 +382,7 @@ export default function AttendeesPage() {
         </div>
       )}
 
-      {isLoading ? (
+      {tab !== "pending" && (isLoading ? (
         <div className="h-64 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
         </div>
@@ -379,7 +390,7 @@ export default function AttendeesPage() {
         <AttendeesTable
           attendees={displayedAttendees}
           events={events}
-          tab={tab}
+          tab={tab as "active" | "archived"}
           isAdmin={isAdmin}
           onEdit={(a) => { setEditingAttendee(a); setIsModalOpen(true); }}
           onView={setViewingDetailAttendee}
@@ -391,7 +402,7 @@ export default function AttendeesPage() {
           savedSessionCounts={savedSessionCounts}
           onViewAgenda={setViewingAgendaAttendee}
         />
-      )}
+      ))}
 
       <AttendeeFormModal
         isOpen={isModalOpen}

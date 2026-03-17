@@ -183,7 +183,7 @@ export default function InterestTopicsPage() {
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-7xl mx-auto p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Interest Topics</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Agenda Topics</h1>
             <p className="text-sm text-muted-foreground mt-1">Manage event-specific topics for attendees, sponsors, and sessions</p>
           </div>
           <div className="flex items-center gap-2">

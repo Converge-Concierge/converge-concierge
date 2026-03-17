@@ -1,0 +1,273 @@
+Normalize Attendees Rows, Move Pending Profiles Into Attendees, and Rename Interest Topics
+Make attendee row actions consistent across events, replace Concierge Tools with a Pending Profiles tab, and rename Interest Topics to Agenda Topics
+
+We need three admin UI corrections.
+
+1. Normalize Attendee Data Rows Across All Event Views
+
+Right now the attendee rows shown for:
+
+FRC2026
+
+All Events
+
+do not match the attendee rows shown for:
+
+USBT2026
+
+TLS2026
+
+The USBT2026 and TLS2026 row layout/action treatment is the correct one.
+We want all attendee data rows to match that version.
+
+Required behavior
+
+Make the attendee row structure, icon layout, spacing, and action treatment consistent across:
+
+FRC2026
+
+TLS2026
+
+USBT2026
+
+CUGI2027
+
+All Events
+
+Use as the reference
+
+Use the USBT2026 / TLS2026 attendee row implementation as the source-of-truth UI pattern.
+
+That means:
+
+same row height
+
+same action icon spacing
+
+same icon order
+
+same alignment
+
+same disabled/enabled treatment
+
+same badge styling/placement
+
+same action behavior
+
+Do not leave FRC2026 and All Events using an older or different row component.
+
+Likely cause
+
+This appears to be a case where different event views are rendering different table row components or using conditional rendering paths.
+
+Required action
+
+Audit the Attendees table rendering and make sure all event filters use the same row component and same action cell rendering logic.
+
+2. Replace “Concierge Tools” With “Pending Profiles”
+
+The current left-nav item:
+
+Concierge Tools
+
+should be renamed and restructured.
+
+New name
+
+Rename it to:
+
+Pending Profiles
+
+However, this should not remain as a standalone left-nav item.
+
+3. Move Pending Profiles Into Attendees as a Tab
+
+Instead of a separate nav item, Pending Profiles should live inside the Attendees section as another top tab/view.
+
+Required Attendees tabs/views
+
+Inside Attendees, support the current event tabs and also add an internal attendee-data tab/view structure if needed.
+
+At minimum, Attendees should include a way to toggle between:
+
+Registered Attendees
+
+Pending Profiles
+
+If the current Attendees page already uses a tab/sub-tab pattern, place Pending Profiles there.
+
+Goal
+
+Pending profiles should feel like part of attendee management, because they are effectively incomplete attendee records / pre-matched Concierge identities.
+
+They should not live in a separate tools area.
+
+4. Pending Profiles Must Show a Full List, Not Email-by-Email Search Only
+
+Right now it sounds like pending profiles can only be found by searching one email at a time.
+
+That is not sufficient.
+
+Required behavior
+
+The new Pending Profiles tab must display a full list/table of all outstanding pending profiles.
+
+This should behave like a proper admin management table.
+
+Table should include columns such as:
+
+Email
+
+Event
+
+Current Step / Progress
+
+Completed? Yes/No
+
+Matched to Attendee? Yes/No
+
+Token Present? Yes/No
+
+Created
+
+Updated
+
+Actions
+
+If all those fields are not yet available, show the most useful subset, but it must be a real list.
+
+5. Pending Profiles Filtering / Search
+
+The Pending Profiles tab should support:
+
+search by email
+
+filter by event
+
+filter by matched/unmatched
+
+filter by completed/incomplete if useful
+
+This makes it practical for support and QA.
+
+6. Pending Profiles Actions
+
+In the Pending Profiles tab, provide the relevant support/testing actions such as:
+
+View
+
+Reset Progress
+
+Clear Token
+
+Regenerate Token if supported
+
+Match / Link if there is manual linking behavior
+
+Delete only if safe and appropriate
+
+At minimum, the actions already available through the current Concierge Tools flow should remain accessible here.
+
+Do not lose functionality during the move.
+
+7. Keep Pending Profiles Event-Specific
+
+Because pending onboarding is event-specific, the Pending Profiles list should clearly show the event and support filtering by it.
+
+If the same email exists in multiple events, those should appear as separate rows where appropriate.
+
+8. Rename “Interest Topics” to “Agenda Topics”
+
+The left-nav item currently labeled:
+
+Interest Topics
+
+should be renamed to:
+
+Agenda Topics
+
+This rename should be applied consistently across the admin UI.
+
+Required rename scope
+
+Update:
+
+left navigation label
+
+page title
+
+relevant internal section headings
+
+any admin-facing references that still say “Interest Topics”
+
+Do not rename attendee-facing copy like “Select your interests” unless that is a separate product decision. This instruction is about the admin management module name.
+
+9. Preserve Existing Functionality Behind the Renamed Agenda Topics Module
+
+This is primarily a rename, not a rebuild.
+
+The existing module functionality should remain intact:
+
+event-specific topic management
+
+sponsor topic selection support
+
+session topic tagging support
+
+suggestion review support if already present
+
+Just rename the admin module so it more clearly reflects its purpose.
+
+10. Attendees Page Consistency Check
+
+After these changes, verify that the Attendees section feels coherent:
+
+Expected structure
+
+same row UI across all event views
+
+same actions across event filters
+
+Pending Profiles accessible inside Attendees
+
+no need to leave Attendees just to manage incomplete attendee/pending concierge states
+
+This should make the admin attendee workflow much easier to understand.
+
+11. Navigation Cleanup
+
+After moving Pending Profiles into Attendees and renaming Interest Topics:
+
+Left nav should be updated
+
+remove standalone Concierge Tools
+
+add Pending Profiles as part of Attendees, not main nav
+
+rename Interest Topics to Agenda Topics
+
+This should make the nav clearer and less fragmented.
+
+12. Acceptance Criteria
+
+This work is complete when:
+
+FRC2026 attendee rows match the USBT2026/TLS2026 attendee row layout
+
+All Events attendee rows also match that same layout
+
+all attendee event views use the same row component/behavior
+
+Concierge Tools is removed as a standalone nav item
+
+Pending Profiles exists as a tab/view inside Attendees
+
+Pending Profiles shows a full list of outstanding pending profiles
+
+admins no longer need to search by one email at a time to find pending records
+
+Interest Topics is renamed to Agenda Topics across the admin UI
+
+13. Success Standard
+
+After this update, the Attendees area should feel unified and consistent. All event tables should render the same row structure, pending concierge records should be managed naturally inside Attendees, and the topic-management module should be labeled Agenda Topics to better reflect its role in session/recommendation logic.

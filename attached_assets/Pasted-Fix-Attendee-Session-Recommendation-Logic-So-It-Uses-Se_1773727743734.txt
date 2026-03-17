@@ -1,0 +1,323 @@
+Fix Attendee Session Recommendation Logic So It Uses Session Topic Tags From Agenda Setup
+Card 2 and Card 3 must narrow session recommendations based on the event topics selected by the attendee
+
+I believe the attendee recommendation flow is not correctly referencing the topic tags assigned to each session in Admin → Agenda.
+
+Right now, no matter how many or how few topics of interest I select, the attendee flow still shows 12 recommended sessions. That indicates the recommendation logic is likely falling back to all published sessions rather than properly filtering and ranking by the selected session topic tags.
+
+This needs to be corrected.
+
+1. Primary Goal
+
+Fix the attendee recommendation flow so that session recommendations are driven by the topic tags assigned to each session in Admin → Agenda.
+
+Specifically:
+
+Card 2 match counts must reflect real topic-based matches
+
+Card 3 recommended sessions must only show sessions correlated to the attendee’s selected topics
+
+selecting fewer topics should narrow recommendations
+
+selecting different topics should change the recommended sessions
+
+Right now that is not happening.
+
+2. Problem to Solve
+
+Current behavior suggests the attendee flow is not actually using the session topic assignments from agenda setup.
+
+Evidence
+
+sessions in Admin → Agenda clearly have topic tags assigned
+
+attendee selects one or more topics
+
+Card 2 still shows the same session count
+
+Card 3 still shows the same set/count of sessions
+
+That should not happen.
+
+3. Source of Truth
+
+The source of truth for session recommendation relevance must be the session topic tags assigned in:
+
+Admin → Agenda
+
+using the session topic/tag selector currently shown in the session edit form.
+
+If that module is now named Agenda Topics in admin, use that exact underlying mapping/source.
+
+Do not use:
+
+hard-coded session counts
+
+all published sessions
+
+text-only title/description fallback as the primary logic
+
+legacy free-text category logic
+
+The proper source is:
+
+attendee selected topics
+
+session assigned topics
+
+4. Required Recommendation Logic
+
+For each attendee:
+
+get the attendee’s selected topics for the current event
+
+get each published/public session’s assigned topic tags for the same event
+
+compare overlap
+
+only count a session as a recommendation if there is topic overlap
+
+rank matched sessions by overlap strength if needed
+
+Minimum rule
+
+A session should only be considered a recommended session if:
+
+attendee_selected_topics ∩ session_topic_tags ≠ empty
+
+If there is no overlap, that session should not be included in recommended session counts on Card 2 or the recommended session list on Card 3.
+
+5. Card 2 Must Show Real Match Counts
+
+Card 2 currently appears to show a static or too-broad session count.
+
+Required behavior
+
+The session count on Card 2 must be the number of sessions that actually match the attendee’s selected topics.
+
+Example:
+
+If attendee selects:
+
+Fair Lending
+
+Consumer Protection
+
+Card 2 should only count sessions tagged with:
+
+Fair Lending
+
+Consumer Protection
+
+or both.
+
+It should not count unrelated sessions.
+
+6. Card 3 Must Show Only Matched Sessions
+
+Card 3 should not show all sessions.
+
+Required behavior
+
+Card 3 must only show sessions that match the attendee’s selected topics based on session topic tags.
+
+This means:
+
+selecting 1 topic may yield a small set
+
+selecting 3 topics may yield a larger set
+
+selecting different topics should change which sessions are shown
+
+If no session topics match, Card 3 should not fall back to showing all sessions without explanation.
+
+Instead show a graceful message.
+
+Example:
+
+We are still refining recommendations for your selected topics.
+Browse the full agenda to explore more sessions.
+7. Use the Session Topic Tags Already Assigned in Agenda Setup
+
+The admin session edit view clearly shows topic chips selected per session.
+
+Those selected tags must be the same data used by the attendee recommendation logic.
+
+Required action
+
+Audit the data flow and verify:
+
+where session topic selections are stored
+
+how they are fetched for attendee recommendation logic
+
+whether Card 2 and Card 3 are actually reading that mapping
+
+whether event scoping is correct
+
+This likely means auditing the API endpoint or recommendation query currently used by the attendee flow.
+
+8. Ensure Event Scoping Is Correct
+
+Make sure recommendation logic is event-specific.
+
+For the current event:
+
+only use attendee selections from that event
+
+only use session tags from that event
+
+only use sessions from that event
+
+Do not let:
+
+tags from other events
+
+global topic sets
+
+unscoped session mappings
+
+pollute the recommendation results.
+
+9. Debug Likely Failure Points
+
+Please audit these likely causes:
+
+Possible issue A
+
+The attendee flow is counting all published sessions instead of matched sessions.
+
+Possible issue B
+
+The session topic mapping table is not being joined/read correctly.
+
+Possible issue C
+
+The attendee selected topic IDs do not match the session topic IDs because of event/topic mapping differences.
+
+Possible issue D
+
+The logic is falling back to “all published sessions” whenever any match exists.
+
+Possible issue E
+
+The attendee flow is using topic labels while session mappings are stored by ids, or vice versa, causing mismatches.
+
+Find the real cause and correct it.
+
+10. Preserve Ranking, But Only After Filtering
+
+If you already have ranking/scoring logic, that is fine.
+
+But the correct sequence should be:
+
+filter to sessions with at least one topic overlap
+
+then rank those sessions by overlap count or score
+
+return the matched set
+
+Do not rank all sessions and then just show the top 12 if most of them are unrelated.
+
+11. Support Multiple Topic Matches
+
+A session can be tagged with multiple topics.
+
+An attendee can also select multiple topics.
+
+Recommended behavior
+
+If a session matches multiple attendee-selected topics, it should rank higher.
+
+Example:
+
+Attendee selects:
+
+Fair Lending
+
+Consumer Protection
+
+Compliance Strategy
+
+Session tagged with:
+
+Fair Lending
+
+Consumer Protection
+
+This session should rank above a session that only matches one topic.
+
+12. Add Recommendation Reason Text
+
+Where practical, Card 3 should show why a session is being recommended.
+
+Example:
+
+Relevant to your interests:
+Fair Lending, Consumer Protection
+
+This helps validate that the recommendation logic is working and makes the attendee experience feel more intelligent.
+
+13. Handle No-Match Cases Gracefully
+
+If an attendee selects a topic that currently has no tagged sessions, do not silently show all sessions.
+
+Instead:
+
+show zero or low match count on Card 2
+
+show a message on Card 3
+
+optionally provide a CTA to browse the full agenda
+
+This is better than pretending everything is a recommendation.
+
+14. QA Requirements
+
+Please test with multiple cases.
+
+Test case 1
+
+Select one highly specific topic:
+
+expect a small number of matched sessions
+
+Test case 2
+
+Select two related topics:
+
+expect a slightly larger set
+
+Test case 3
+
+Select a topic with no tagged sessions:
+
+expect zero or very few matches, not all sessions
+
+Test case 4
+
+Change selections:
+
+expect Card 2 count and Card 3 session list to update accordingly
+
+This issue should be verified with real session-tagged data.
+
+15. Acceptance Criteria
+
+This fix is complete when:
+
+Card 2 session match count changes based on the attendee’s selected topics
+
+Card 3 only shows sessions that match the attendee’s selected topics
+
+session recommendations are driven by the topic tags assigned in Admin → Agenda
+
+different topic selections produce different recommendation results
+
+selecting a smaller number of topics narrows the recommendations appropriately
+
+unrelated sessions are no longer shown as recommended by default
+
+16. Success Standard
+
+After this fix, the attendee should feel that session recommendations are truly personalized. If they select one or two specific topics, the system should clearly narrow the sessions shown on Card 2 and Card 3 based on the topic tags assigned to sessions in the Agenda admin setup.

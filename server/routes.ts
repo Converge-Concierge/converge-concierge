@@ -2220,13 +2220,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // GET /api/public/welcome/:slug/sessions — sessions for card 3
+  // GET /api/public/welcome/:slug/sessions — sessions with topicIds for card 3 recommendation logic
   app.get("/api/public/welcome/:slug/sessions", async (req, res) => {
     try {
       const event = await storage.getEventBySlug(req.params.slug);
       if (!event) return res.status(404).json({ error: "Event not found" });
-      const sessions = await storage.getAgendaSessions(event.id);
-      return res.json(sessions);
+      const [sessions, topicMappings] = await Promise.all([
+        storage.getAgendaSessions(event.id),
+        storage.getSessionTopicsForEvent(event.id),
+      ]);
+      // Build topicIds map keyed by sessionId in one pass
+      const topicsBySession = new Map<string, string[]>();
+      for (const { sessionId, topicId } of topicMappings) {
+        const list = topicsBySession.get(sessionId) ?? [];
+        list.push(topicId);
+        topicsBySession.set(sessionId, list);
+      }
+      const sessionsWithTopics = sessions.map((s) => ({ ...s, topicIds: topicsBySession.get(s.id) ?? [] }));
+      return res.json(sessionsWithTopics);
     } catch (e) {
       return res.status(500).json({ error: "Internal error" });
     }
@@ -2368,23 +2379,33 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // GET /api/public/welcome/:slug/recommended-sessions/:profileId — topic-matched sessions for card 2 preview
+  // GET /api/public/welcome/:slug/recommended-sessions/:profileId — topic-matched sessions scored by overlap
   app.get("/api/public/welcome/:slug/recommended-sessions/:profileId", async (req, res) => {
     try {
       const event = await storage.getEventBySlug(req.params.slug);
       if (!event) return res.status(404).json({ error: "Event not found" });
       const profile = await storage.getPendingConciergeProfile(req.params.profileId);
       if (!profile) return res.status(404).json({ error: "Profile not found" });
-      const profileTopics = await storage.getPendingConciergeTopics(profile.id);
-      const topicIds = new Set(profileTopics.map((t) => t.topicId));
-      const sessions = await storage.getAgendaSessions(event.id);
-      // Score by how many topic tags match
-      const scored = sessions.map((s) => {
-        const tags: string[] = (s as any).topicTags ?? [];
-        const score = tags.filter((t) => topicIds.has(t)).length;
-        return { ...s, matchScore: score };
+      const [profileTopicRows, sessions, topicMappings] = await Promise.all([
+        storage.getPendingConciergeTopics(profile.id),
+        storage.getAgendaSessions(event.id),
+        storage.getSessionTopicsForEvent(event.id),
+      ]);
+      const attendeeTopicSet = new Set(profileTopicRows.map((t) => t.topicId));
+      // Build topicIds map keyed by sessionId
+      const topicsBySession = new Map<string, string[]>();
+      for (const { sessionId, topicId } of topicMappings) {
+        const list = topicsBySession.get(sessionId) ?? [];
+        list.push(topicId);
+        topicsBySession.set(sessionId, list);
+      }
+      const published = sessions.filter((s) => s.status === "Published" && s.isPublic);
+      const scored = published.map((s) => {
+        const sessionTopics = topicsBySession.get(s.id) ?? [];
+        const matchedTopics = sessionTopics.filter((t) => attendeeTopicSet.has(t));
+        return { ...s, topicIds: sessionTopics, matchScore: matchedTopics.length };
       }).filter((s) => s.matchScore > 0).sort((a, b) => b.matchScore - a.matchScore);
-      return res.json(scored.slice(0, 6));
+      return res.json(scored);
     } catch (e) {
       return res.status(500).json({ error: "Internal error" });
     }

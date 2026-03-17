@@ -1438,6 +1438,14 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(sessionInterestTopicSelections).where(eq(sessionInterestTopicSelections.sessionId, sessionId));
   }
 
+  async getSessionTopicsForEvent(eventId: string): Promise<{ sessionId: string; topicId: string }[]> {
+    const rows = await db
+      .select({ sessionId: sessionInterestTopicSelections.sessionId, topicId: sessionInterestTopicSelections.topicId })
+      .from(sessionInterestTopicSelections)
+      .where(eq(sessionInterestTopicSelections.eventId, eventId));
+    return rows;
+  }
+
   async countTopicUsage(topicId: string): Promise<{ attendees: number; sponsors: number; sessions: number }> {
     const [a] = await db.select({ count: sql<number>`count(*)::int` }).from(attendeeInterestTopicSelections).where(eq(attendeeInterestTopicSelections.topicId, topicId));
     const [s] = await db.select({ count: sql<number>`count(*)::int` }).from(sponsorInterestTopicSelections).where(eq(sponsorInterestTopicSelections.topicId, topicId));

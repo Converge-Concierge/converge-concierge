@@ -338,7 +338,10 @@ function EmailCard({ profileId, allSessions, sponsors, selectedTopicIds, onNext,
 
   const topicSet = new Set(selectedTopicIds);
   const publishedSessions = allSessions.filter((s) => s.status === "Published" && s.isPublic);
-  const matchedSessionCount = publishedSessions.length;
+  // Use real topic-matched count from the topicIds now included on each session
+  const matchedSessionCount = selectedTopicIds.length > 0
+    ? publishedSessions.filter((s) => ((s as any).topicIds ?? []).some((t: string) => topicSet.has(t))).length
+    : publishedSessions.length;
   const matchedSponsorCount = selectedTopicIds.length > 0
     ? sponsors.filter((s) => (s.topicIds ?? []).some((t) => topicSet.has(t))).length
     : sponsors.length;
@@ -427,9 +430,10 @@ function EmailCard({ profileId, allSessions, sponsors, selectedTopicIds, onNext,
 
 // ── Card 3: Sessions ──────────────────────────────────────────────────────────
 
-function SessionsCard({ sessions, selectedTopicIds, savedIds, onToggle, onNext, onBack, loading, accentColor }: {
+function SessionsCard({ sessions, selectedTopicIds, allTopics, savedIds, onToggle, onNext, onBack, loading, accentColor }: {
   sessions: AgendaSession[];
   selectedTopicIds: string[];
+  allTopics: EventInterestTopic[];
   savedIds: string[];
   onToggle: (id: string, saved: boolean) => Promise<void>;
   onNext: () => void;
@@ -440,20 +444,31 @@ function SessionsCard({ sessions, selectedTopicIds, savedIds, onToggle, onNext, 
   const [toggling, setToggling] = useState<Record<string, boolean>>({});
 
   const topicSet = new Set(selectedTopicIds);
+  const topicLabelMap = new Map(allTopics.map((t) => [t.id, t.topicLabel]));
   const published = sessions.filter((s) => s.status === "Published" && s.isPublic);
-  // Show only sessions matching selected topics; if no topics selected, show all
-  const recommended = selectedTopicIds.length > 0
-    ? published.filter((s) => {
-        const tags: string[] = (s as any).topicTags ?? [];
-        return tags.some((t) => topicSet.has(t));
-      })
-    : published;
-  // If topic filtering yields nothing (sessions have no topicTags data), fall back to all
-  const displaySessions = recommended.length > 0 ? recommended : published;
-  const isFiltered = selectedTopicIds.length > 0 && recommended.length > 0;
 
-  const byDate: Record<string, AgendaSession[]> = {};
-  for (const s of displaySessions) { (byDate[s.sessionDate] ??= []).push(s); }
+  // Filter to sessions with at least one topic overlap; use topicIds injected by the server
+  const recommended = selectedTopicIds.length > 0
+    ? published
+        .map((s) => {
+          const sTopicIds: string[] = (s as any).topicIds ?? [];
+          const matchedTopics = sTopicIds.filter((t) => topicSet.has(t));
+          return { session: s, matchedTopics, score: matchedTopics.length };
+        })
+        .filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+    : published.map((s) => ({ session: s, matchedTopics: [] as string[], score: 0 }));
+
+  const hasTopics = selectedTopicIds.length > 0;
+  const hasMatches = recommended.length > 0;
+  // When topics were selected but nothing matched, show a graceful empty state
+  const noMatchState = hasTopics && !hasMatches;
+
+  const displayItems = recommended;
+  const byDate: Record<string, typeof recommended> = {};
+  for (const item of displayItems) {
+    (byDate[item.session.sessionDate] ??= []).push(item);
+  }
   const dates = Object.keys(byDate).sort();
 
   async function handleToggle(id: string) {
@@ -468,10 +483,10 @@ function SessionsCard({ sessions, selectedTopicIds, savedIds, onToggle, onNext, 
       <div className="flex items-start justify-between mb-2">
         <div>
           <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-1">
-            {isFiltered ? "Your Recommended Sessions" : "Sessions"}
+            {hasTopics ? "Your Recommended Sessions" : "Sessions"}
           </h2>
           <p className="text-muted-foreground text-sm">
-            {isFiltered
+            {hasTopics
               ? "Based on your interests, we recommend these sessions. All of our sessions are great — but you shouldn't miss these."
               : "Bookmark sessions to add them to your personalised event plan."}
           </p>
@@ -486,26 +501,49 @@ function SessionsCard({ sessions, selectedTopicIds, savedIds, onToggle, onNext, 
         )}
       </div>
 
-      {isFiltered && (
+      {hasTopics && hasMatches && (
         <div className="flex items-center gap-1.5 mb-4 px-3 py-2 rounded-lg bg-muted/30 border border-border/40 w-fit">
           <Sparkles className="w-3.5 h-3.5 flex-shrink-0" style={accentColor ? { color: accentColor } : undefined} />
-          <span className="text-xs text-muted-foreground font-medium">{displaySessions.length} session{displaySessions.length !== 1 ? "s" : ""} matched to your interests</span>
+          <span className="text-xs text-muted-foreground font-medium">
+            {displayItems.length} session{displayItems.length !== 1 ? "s" : ""} matched to your interests
+          </span>
         </div>
       )}
 
-      {displaySessions.length === 0 ? (
+      {noMatchState ? (
+        <div className="py-10 text-center space-y-3">
+          <Sparkles className="h-10 w-10 mx-auto opacity-20" />
+          <p className="text-sm font-semibold text-foreground">We are still refining recommendations for your selected topics.</p>
+          <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+            Browse the full agenda to explore more sessions — all published sessions are available below.
+          </p>
+          <div className="space-y-2 text-left mt-4">
+            {published.slice(0, 5).map((s) => (
+              <div key={s.id} className="flex items-start gap-3 p-3 rounded-xl border border-border/60 bg-muted/20">
+                <Calendar className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground leading-snug">{s.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{formatTime(s.startTime)}–{formatTime(s.endTime)}{s.locationName ? ` · ${s.locationName}` : ""}</p>
+                </div>
+              </div>
+            ))}
+            {published.length > 5 && <p className="text-xs text-muted-foreground text-center pt-1">+ {published.length - 5} more sessions</p>}
+          </div>
+        </div>
+      ) : displayItems.length === 0 ? (
         <p className="text-sm text-muted-foreground italic py-8 text-center">No sessions published yet — check back soon.</p>
       ) : (
-        <div className="space-y-6 max-h-[500px] overflow-y-auto pr-1 -mr-1 mb-6 mt-3">
+        <div className="space-y-6 max-h-[520px] overflow-y-auto pr-1 -mr-1 mb-6 mt-3">
           {dates.map((date) => (
             <div key={date}>
               <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 sticky top-0 bg-white py-1">
                 {format(parseISO(date), "EEEE, MMMM d")}
               </p>
               <div className="space-y-2">
-                {(byDate[date] ?? []).sort((a, b) => a.startTime.localeCompare(b.startTime)).map((s) => {
+                {(byDate[date] ?? []).sort((a, b) => a.session.startTime.localeCompare(b.session.startTime)).map(({ session: s, matchedTopics }) => {
                   const saved = savedIds.includes(s.id);
                   const busy = toggling[s.id];
+                  const matchedLabels = matchedTopics.map((tid) => topicLabelMap.get(tid)).filter(Boolean) as string[];
                   return (
                     <div
                       key={s.id}
@@ -523,6 +561,12 @@ function SessionsCard({ sessions, selectedTopicIds, savedIds, onToggle, onNext, 
                           {formatTime(s.startTime)}–{formatTime(s.endTime)}
                           {s.locationName ? ` · ${s.locationName}` : ""}
                         </p>
+                        {matchedLabels.length > 0 && (
+                          <p className="text-[10px] mt-1.5 flex items-center gap-1 font-medium" style={accentColor ? { color: accentColor } : { color: "hsl(var(--accent))" }}>
+                            <Sparkles className="w-2.5 h-2.5 flex-shrink-0" />
+                            Relevant to: {matchedLabels.slice(0, 3).join(", ")}
+                          </p>
+                        )}
                       </div>
                       <div
                         className={cn("flex-shrink-0 p-1.5 rounded-lg transition-all mt-0.5", !accentColor && (saved ? "text-accent bg-accent/10" : "text-muted-foreground/40"), busy && "opacity-40")}
@@ -539,7 +583,7 @@ function SessionsCard({ sessions, selectedTopicIds, savedIds, onToggle, onNext, 
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 mt-2">
         <Button variant="outline" onClick={onBack} className="gap-1.5" data-testid="button-back-email">
           <ChevronLeft className="w-4 h-4" /> Back
         </Button>
@@ -1062,6 +1106,7 @@ export default function WelcomePage() {
           <SessionsCard
             sessions={sessions}
             selectedTopicIds={topicIds}
+            allTopics={topics}
             savedIds={sessionIds}
             onToggle={handleSessionToggle}
             onNext={() => setStep("sponsors")}

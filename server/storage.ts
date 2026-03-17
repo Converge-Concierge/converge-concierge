@@ -242,6 +242,7 @@ export interface IStorage {
   getSponsorTopics(sponsorId: string, eventId: string): Promise<import("@shared/schema").SponsorInterestTopicSelection[]>;
   upsertSessionTopics(sessionId: string, eventId: string, topicIds: string[]): Promise<void>;
   getSessionTopics(sessionId: string): Promise<import("@shared/schema").SessionInterestTopicSelection[]>;
+  getSessionTopicsForEvent(eventId: string): Promise<{ sessionId: string; topicId: string }[]>;
   countTopicUsage(topicId: string): Promise<{ attendees: number; sponsors: number; sessions: number }>;
   countSessionTopicsForEvent(eventId: string): Promise<{ sessionId: string; count: number }[]>;
   bulkCountTopicUsage(topicIds: string[]): Promise<Map<string, { attendees: number; sponsors: number; sessions: number }>>;
@@ -1047,6 +1048,7 @@ export class MemStorage implements IStorage {
   async upsertSessionTopics(_sessionId: string, _eventId: string, _topicIds: string[]): Promise<void> {}
   async getSessionTopics(_sessionId: string): Promise<any[]> { return []; }
   async countTopicUsage(_topicId: string): Promise<{ attendees: number; sponsors: number; sessions: number }> { return { attendees: 0, sponsors: 0, sessions: 0 }; }
+  async getSessionTopicsForEvent(_eventId: string): Promise<{ sessionId: string; topicId: string }[]> { return []; }
   async countSessionTopicsForEvent(_eventId: string): Promise<{ sessionId: string; count: number }[]> { return []; }
   async bulkCountTopicUsage(_topicIds: string[]): Promise<Map<string, { attendees: number; sponsors: number; sessions: number }>> { return new Map(); }
 

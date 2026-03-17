@@ -1,0 +1,307 @@
+Add “ChatGPT Inquiry” Button to Agenda
+Generate a copyable plain-text prompt using the selected event’s session titles and descriptions
+
+We need to streamline the agenda categorization process for Converge.
+
+Add a new button at the top of the Agenda section, next to Session Types.
+
+The button should be titled:
+
+ChatGPT Inquiry
+
+This button should open a popup/modal containing a plain-text field and a Copy button so the entire text can easily be copied and pasted into ChatGPT for analysis.
+
+The purpose is to help Converge quickly generate:
+
+Agenda Topics
+
+Session Topic Mapping
+
+using a structured ChatGPT prompt built from the selected event’s agenda data.
+
+1. Primary Goal
+
+Add a ChatGPT Inquiry utility inside the Agenda admin page that:
+
+generates a plain-text ChatGPT-ready prompt
+
+includes the required fixed instructions exactly
+
+appends the selected event’s agenda content
+
+allows one-click copy to clipboard
+
+This should be fast, simple, and admin-friendly.
+
+2. Button Placement
+
+Add the new button at the top of the Agenda section.
+
+Required location
+
+Place it next to:
+
+Session Types
+
+in the top action/button area.
+
+It should visually align with the other Agenda utility buttons.
+
+3. Button Label
+
+The button label must be:
+
+ChatGPT Inquiry
+
+Do not rename it.
+
+4. Popup / Modal Behavior
+
+When the user clicks ChatGPT Inquiry, open a popup/modal.
+
+The popup should contain:
+
+a large plain-text field / text area containing the generated text
+
+a Copy button
+
+optional close button
+
+This is meant to be a utility modal, not a complex workflow.
+
+5. Text Field Requirements
+
+The text field must contain a single plain-text block that the admin can copy and paste directly into ChatGPT.
+
+Required behavior
+
+text must be plain text only
+
+no HTML formatting
+
+no markdown formatting required beyond plain line breaks
+
+easy to copy in one action
+
+6. Copy Button
+
+Add a button such as:
+
+Copy
+Required behavior
+
+Clicking Copy should copy the entire contents of the text field to the clipboard.
+
+Optional success message:
+
+Copied to clipboard
+
+This should be quick and reliable.
+
+7. Prompt Content — Use This Exact Base Prompt
+
+The generated text must begin with the following exact content:
+
+Analyze the following conference agenda and session descriptions. Your task has two outputs only.
+
+Output 1 – Agenda Topics
+Identify the top 15 Agenda Topics discussed across the sessions.
+
+Rules:
+Topics must be 1–2 words only
+Topics must represent the core concepts discussed across sessions
+Topics must be ordered from most relevant to least relevant
+
+Do not number the list
+Display one topic per row
+Avoid duplicates or overlapping topics
+
+Output 2 – Session Topic Mapping
+For each session in the agenda:
+List the session title
+Identify the Agenda Topic(s) associated with that session
+
+Rules:
+Only use the Agenda Topics identified in Output 1
+A session may have multiple Agenda Topics
+Exclude networking sessions, breaks, and meals
+
+Do not create new topics
+Format:
+Session Title
+Agenda Topics: Topic A, Topic B
+
+Industry Context (Important)
+
+When identifying Agenda Topics, prioritize terminology commonly used in these industries:
+Banking, Credit Unions, Governance, Risk, Compliance, Treasury Management, Banking Technology
+
+Topics should reflect language typically used by executives and practitioners in these industries.
+
+Prefer industry-standard terminology when defining Agenda Topics rather than generic phrasing.
+For example:
+Use Third-Party Risk instead of Vendor Monitoring
+Use Financial Crime instead of Fraud Prevention
+Use AI Governance instead of AI Oversight
+
+Agenda to Analyze
+
+Use this text exactly as the fixed instruction block.
+
+Do not shorten or paraphrase it.
+
+8. Append Event Agenda Data After the Prompt
+
+After the fixed prompt text above, append the selected event’s agenda information.
+
+The next section should contain agenda session data for the currently selected event.
+
+Required format
+
+For each session, include:
+
+Session Title
+Session Description
+
+That is it.
+
+Do not include extra metadata unless necessary.
+
+9. Agenda Data Format
+
+For each applicable session, format the appended content like this:
+
+Session Title: [title]
+Session Description: [description]
+
+Then a blank line before the next session.
+
+Example:
+
+Session Title: The Future of Treasury Technology
+Session Description: A discussion on the changing treasury technology landscape, including automation, connectivity, and risk considerations.
+
+Session Title: Real-Time Payments and Liquidity
+Session Description: A session exploring the operational and strategic implications of faster payments and liquidity management.
+
+Keep it simple and consistent.
+
+10. Use Only the Selected Event’s Agenda
+
+The ChatGPT Inquiry modal should generate content using the agenda for the currently selected event in the Agenda page.
+
+If the user is on:
+
+FRC2026 → use FRC2026 agenda
+
+TLS2026 → use TLS2026 agenda
+
+USBT2026 → use USBT2026 agenda
+
+Do not combine multiple events.
+
+11. Exclude Non-Content Sessions If Practical
+
+If the agenda data clearly distinguishes non-content sessions such as:
+
+networking
+
+breaks
+
+meals
+
+then exclude those from the generated agenda content section where practical.
+
+This aligns with the instructions in the prompt.
+
+If exclusion logic is not already available, still generate the content from published sessions, but prefer to exclude obvious non-content sessions if the data model supports that cleanly.
+
+12. Include Session Description Only If Present
+
+If a session does not have a description, still include the title.
+
+Format:
+
+Session Title: [title]
+Session Description:
+
+or omit description line only if that is cleaner.
+
+But the preferred behavior is to include both fields when possible.
+
+13. Modal Title
+
+Use a clear title such as:
+
+ChatGPT Agenda Inquiry
+
+or
+
+ChatGPT Inquiry
+
+Either is fine, but the button label itself must remain exactly:
+
+ChatGPT Inquiry
+14. Text Area Behavior
+
+The text area should:
+
+be scrollable
+
+support selecting all text
+
+be read-only by default unless editing is intentionally allowed
+
+preserve line breaks exactly
+
+This is a generated utility output, not a form the user needs to edit.
+
+15. Empty State Handling
+
+If the selected event has no agenda sessions, the modal should still open, but show a clear message in the text area such as:
+
+No agenda sessions found for this event.
+
+Or disable the button until session data exists.
+
+Either is acceptable, but do not generate a broken blank experience.
+
+16. Keep This as a Lightweight Utility
+
+This is not an AI integration inside Concierge.
+
+Do not add:
+
+direct OpenAI API calls
+
+automatic topic generation
+
+AI response parsing
+
+This feature is only meant to:
+
+generate a structured prompt
+
+allow copy/paste into ChatGPT manually
+
+Keep it lightweight and reliable.
+
+17. Acceptance Criteria
+
+This work is complete when:
+
+a ChatGPT Inquiry button exists in the Agenda page next to Session Types
+
+clicking it opens a popup/modal
+
+the modal contains a plain-text prompt
+
+the prompt starts with the exact required instruction block
+
+the prompt appends the selected event’s session titles and descriptions
+
+a Copy button copies the full text to the clipboard
+
+18. Success Standard
+
+After this update, Converge should be able to click ChatGPT Inquiry, copy the generated text, paste it into ChatGPT, and immediately receive structured Agenda Topics and Session Topic Mapping recommendations for the selected event.

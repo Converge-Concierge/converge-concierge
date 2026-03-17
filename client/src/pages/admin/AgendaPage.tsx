@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label";
 import {
   Plus, Upload, Download, Edit, Trash2, Search, CalendarDays,
-  Clock, MapPin, Users, Mic2, FileText, AlertCircle, Sparkles,
+  Clock, MapPin, Users, Mic2, FileText, AlertCircle, Sparkles, Bot, Copy, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Event, AgendaSession, AgendaSessionSpeaker, SessionType, Sponsor } from "@shared/schema";
@@ -30,6 +30,7 @@ export default function AgendaPage() {
   const [csvText, setCsvText] = useState("");
   const [importResult, setImportResult] = useState<any>(null);
   const [sessionTypeDialogOpen, setSessionTypeDialogOpen] = useState(false);
+  const [chatGptDialogOpen, setChatGptDialogOpen] = useState(false);
 
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
   const { data: sponsors = [] } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
@@ -141,6 +142,9 @@ export default function AgendaPage() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setSessionTypeDialogOpen(true)} data-testid="button-manage-session-types">
             <Mic2 className="h-4 w-4 mr-1" /> Session Types
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setChatGptDialogOpen(true)} data-testid="button-chatgpt-inquiry">
+            <Bot className="h-4 w-4 mr-1" /> ChatGPT Inquiry
           </Button>
           <Button variant="outline" size="sm" asChild data-testid="button-download-template">
             <a href="/api/admin/agenda-csv-template" download>
@@ -393,6 +397,13 @@ export default function AgendaPage() {
         onClose={() => setSessionTypeDialogOpen(false)}
         sessionTypes={sessionTypes}
       />
+
+      <ChatGptInquiryModal
+        open={chatGptDialogOpen}
+        onClose={() => setChatGptDialogOpen(false)}
+        sessions={sessions}
+        eventName={effectiveEventId !== "all" ? (events.find(e => e.id === effectiveEventId)?.name ?? "") : ""}
+      />
     </motion.div>
   );
 }
@@ -493,6 +504,123 @@ function SessionTypeManager({ open, onClose, sessionTypes }: { open: boolean; on
           <Button className="mt-2" size="sm" disabled={!form.key || !form.label || createMutation.isPending} onClick={() => createMutation.mutate(form)} data-testid="button-create-session-type">
             Add Session Type
           </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const CHATGPT_FIXED_PROMPT = `Analyze the following conference agenda and session descriptions. Your task has two outputs only.
+
+Output 1 – Agenda Topics
+Identify the top 15 Agenda Topics discussed across the sessions.
+
+Rules:
+Topics must be 1–2 words only
+Topics must represent the core concepts discussed across sessions
+Topics must be ordered from most relevant to least relevant
+
+Do not number the list
+Display one topic per row
+Avoid duplicates or overlapping topics
+
+Output 2 – Session Topic Mapping
+For each session in the agenda:
+List the session title
+Identify the Agenda Topic(s) associated with that session
+
+Rules:
+Only use the Agenda Topics identified in Output 1
+A session may have multiple Agenda Topics
+Exclude networking sessions, breaks, and meals
+
+Do not create new topics
+Format:
+Session Title
+Agenda Topics: Topic A, Topic B
+
+Industry Context (Important)
+
+When identifying Agenda Topics, prioritize terminology commonly used in these industries:
+Banking, Credit Unions, Governance, Risk, Compliance, Treasury Management, Banking Technology
+
+Topics should reflect language typically used by executives and practitioners in these industries.
+
+Prefer industry-standard terminology when defining Agenda Topics rather than generic phrasing.
+For example:
+Use Third-Party Risk instead of Vendor Monitoring
+Use Financial Crime instead of Fraud Prevention
+Use AI Governance instead of AI Oversight
+
+Agenda to Analyze`;
+
+function buildChatGptPrompt(sessions: SessionWithSpeakers[]): string {
+  if (sessions.length === 0) {
+    return `${CHATGPT_FIXED_PROMPT}\n\nNo agenda sessions found for this event.`;
+  }
+  const agendaLines = sessions.map(s => {
+    const titleLine = `Session Title: ${s.title}`;
+    const descLine = `Session Description: ${s.description?.trim() || ""}`;
+    return `${titleLine}\n${descLine}`;
+  }).join("\n\n");
+  return `${CHATGPT_FIXED_PROMPT}\n\n${agendaLines}`;
+}
+
+function ChatGptInquiryModal({ open, onClose, sessions, eventName }: {
+  open: boolean;
+  onClose: () => void;
+  sessions: SessionWithSpeakers[];
+  eventName: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const prompt = buildChatGptPrompt(sessions);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(prompt).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl w-full flex flex-col gap-0 p-0 overflow-hidden max-h-[90vh]">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/60 shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5 text-accent" /> ChatGPT Agenda Inquiry
+          </DialogTitle>
+          <DialogDescription>
+            {eventName
+              ? `Copy this prompt and paste it into ChatGPT to generate Agenda Topics and Session Topic Mapping for ${eventName}.`
+              : "Select a specific event to generate a focused prompt. Copy and paste into ChatGPT."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-hidden px-6 py-4 flex flex-col gap-3 min-h-0">
+          <textarea
+            readOnly
+            data-testid="textarea-chatgpt-prompt"
+            value={prompt}
+            className="flex-1 w-full min-h-[380px] rounded-lg border border-border/60 bg-muted/40 p-4 text-sm font-mono leading-relaxed text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-accent/40 overflow-y-auto"
+          />
+        </div>
+
+        <div className="px-6 pb-5 flex justify-between items-center shrink-0 border-t border-border/60 pt-4">
+          <p className="text-xs text-muted-foreground">
+            {sessions.length === 0 ? "No sessions in this event" : `${sessions.length} session${sessions.length !== 1 ? "s" : ""} included`}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onClose} data-testid="button-chatgpt-close">
+              Close
+            </Button>
+            <Button size="sm" onClick={handleCopy} data-testid="button-chatgpt-copy" className="min-w-[110px]">
+              {copied ? (
+                <><Check className="h-4 w-4 mr-1.5" /> Copied!</>
+              ) : (
+                <><Copy className="h-4 w-4 mr-1.5" /> Copy</>
+              )}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

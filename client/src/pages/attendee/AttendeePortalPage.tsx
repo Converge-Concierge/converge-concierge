@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Star, Tag, ChevronRight, Pencil, CheckCircle2,
+  Star, Tag, ChevronRight, Pencil, CheckCircle2, Hexagon,
   CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail, Bell,
   Lightbulb, Sparkles, MapPin, Clock, UserCheck, AlertCircle, X,
 } from "lucide-react";
@@ -573,7 +573,7 @@ function Dashboard({
   me, topics, selections, sessions, sponsors, suggestedMeetings, savedSessionIds,
   onEditInterests, onSaveSession, onUnsaveSession, isSavingSession,
   sponsorInteractions, onRequestMeeting, onRequestInfo, isActingOnSponsor, invitationCount,
-  registrationUrl, websiteUrl,
+  registrationUrl, websiteUrl, meetingsScheduledCount,
 }: {
   me: AttendeeMe; topics: Topic[]; selections: TopicSelection[];
   sessions: RecommendedSession[]; sponsors: RecommendedSponsor[];
@@ -589,72 +589,95 @@ function Dashboard({
   invitationCount: number;
   registrationUrl: string | null;
   websiteUrl: string | null;
+  meetingsScheduledCount: number;
 }) {
   const topicMap = new Map(topics.map((t) => [t.id, t]));
   const selectedTopics = selections.map((s) => topicMap.get(s.topicId)).filter(Boolean) as Topic[];
   const [detailSession, setDetailSession] = useState<AgendaSessionDetail | null>(null);
 
   const hasInterests = selections.length > 0;
-  const hasSavedSessions = savedSessionIds.size > 0;
-  const hasMeetings = Object.keys(sponsorInteractions.meetings).length > 0;
   const hasSuggestedMeetings = suggestedMeetings.length > 0;
-
-  const prompts: { key: string; icon: React.ReactNode; text: string; cta: string; href?: string; action?: () => void }[] = [];
-  if (!hasInterests) {
-    prompts.push({ key: "no-interests", icon: <Tag className="h-4 w-4" />, text: "Select your interests to unlock personalised session and sponsor recommendations.", cta: "Add Interests", action: onEditInterests });
-  }
-  if (hasInterests && !hasSavedSessions && sessions.length > 0) {
-    prompts.push({ key: "no-saved", icon: <Bookmark className="h-4 w-4" />, text: "Save sessions to build your personal agenda for the event.", cta: "Browse Sessions", href: "/attendee/agenda" });
-  }
-  if (hasInterests && !hasMeetings && hasSuggestedMeetings) {
-    prompts.push({ key: "no-meetings", icon: <UserCheck className="h-4 w-4" />, text: `${suggestedMeetings.length} sponsor${suggestedMeetings.length !== 1 ? "s" : ""} align with your interests. Request a meeting to connect.`, cta: "View Sponsors", href: "/attendee/sponsors" });
-  }
-
   const teamUrl = registrationUrl || websiteUrl;
 
-  const fmtDateShort = (d: string | null) => d ? new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;
+  const parseDateOnly = (d: string | null) => {
+    if (!d) return null;
+    const part = d.split("T")[0];
+    const [y, mo, day] = part.split("-").map(Number);
+    return new Date(y, mo - 1, day);
+  };
+  const fmtDateShort = (d: string | null) => {
+    const dt = parseDateOnly(d);
+    if (!dt) return null;
+    return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
   const startStr = fmtDateShort(me.event.startDate);
   const endStr = fmtDateShort(me.event.endDate);
   const eventDateStr = startStr && endStr && startStr !== endStr ? `${startStr} – ${endStr}` : (startStr ?? null);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
 
-      {/* Greeting */}
-      <div className="space-y-1">
-        <p className="text-xs font-semibold text-primary uppercase tracking-wider" data-testid="text-event-name">{me.event.name}</p>
-        <h1 className="text-2xl font-display font-bold text-foreground tracking-tight" data-testid="text-greeting">
-          Hello, {me.attendee.firstName || me.attendee.name}
-        </h1>
-        {(eventDateStr || me.event.location) && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1">
+      {/* ── Event Hero Card ─────────────────────────────────────────────── */}
+      <div className="bg-card border border-border/60 rounded-2xl overflow-hidden shadow-sm" data-testid="section-event-hero">
+        {/* Branded top band */}
+        <div className="bg-primary/5 border-b border-border/40 px-6 pt-6 pb-5">
+          <div className="flex items-center gap-4 mb-3">
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Hexagon className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5">Concierge Dashboard</p>
+              <p className="font-display font-bold text-lg text-foreground leading-tight truncate" data-testid="text-event-name">{me.event.name}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             {eventDateStr && (
-              <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <CalendarDays className="h-3.5 w-3.5 shrink-0" /> {eventDateStr}
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <CalendarDays className="h-3.5 w-3.5 shrink-0 text-primary/60" />{eventDateStr}
               </span>
             )}
             {me.event.location && (
-              <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5 shrink-0" /> {me.event.location}
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-primary/60" />{me.event.location}
               </span>
             )}
           </div>
-        )}
+        </div>
+
+        {/* Greeting + Stats */}
+        <div className="px-6 py-5">
+          <p className="text-sm text-muted-foreground mb-5" data-testid="text-greeting">
+            Welcome back, <span className="font-semibold text-foreground">{me.attendee.firstName || me.attendee.name}</span>.{" "}
+            Your personalised event dashboard is ready.
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { value: savedSessionIds.size, label: "Sessions Saved", testId: "stat-sessions-saved" },
+              { value: sponsors.length, label: "Sponsors Matched", testId: "stat-sponsors-matched" },
+              { value: meetingsScheduledCount, label: "Meetings Scheduled", testId: "stat-meetings-scheduled" },
+            ].map(({ value, label, testId }) => (
+              <div key={label} className="bg-background border border-border/60 rounded-xl p-3 text-center" data-testid={testId}>
+                <p className="text-2xl font-display font-bold text-primary leading-none mb-1">{value}</p>
+                <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Meeting invitation banner */}
+      {/* ── Meeting Invitation Banner ──────────────────────────────────── */}
       {invitationCount > 0 && (
         <Link href="/attendee/meetings">
-          <div className="flex items-center gap-3 bg-primary/5 border border-primary/25 rounded-xl px-4 py-3.5 cursor-pointer hover:bg-primary/10 transition-colors" data-testid="banner-meeting-invitations">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Bell className="h-4.5 w-4.5 text-primary" />
+          <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-2xl px-5 py-4 cursor-pointer hover:bg-primary/10 transition-colors" data-testid="banner-meeting-invitations">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Bell className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground">
-                Meeting Invitation{invitationCount !== 1 ? "s" : ""} ({invitationCount})
+                {invitationCount} Meeting Invitation{invitationCount !== 1 ? "s" : ""}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {invitationCount === 1 ? "You have 1 meeting invitation" : `You have ${invitationCount} meeting invitations`} waiting for your response
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Tap to review and respond to your pending invitations
               </p>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -662,31 +685,88 @@ function Dashboard({
         </Link>
       )}
 
-      {/* Smart prompts */}
-      {prompts.length > 0 && (
-        <div className="space-y-2" data-testid="smart-prompts">
-          {prompts.map((p) => (
-            <div key={p.key} className="flex items-center gap-3 bg-card border border-border/60 rounded-xl px-4 py-3.5 shadow-sm" data-testid={`prompt-${p.key}`}>
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                {p.icon}
-              </div>
-              <p className="flex-1 text-sm text-foreground">{p.text}</p>
-              {p.href ? (
-                <Link href={p.href}>
-                  <Button variant="outline" size="sm" className="h-7 text-xs shrink-0 font-medium">{p.cta}</Button>
-                </Link>
-              ) : (
-                <Button variant="outline" size="sm" className="h-7 text-xs shrink-0 font-medium" onClick={p.action}>{p.cta}</Button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* ── Action Cards ───────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" data-testid="section-action-cards">
 
-      {/* Recommended Sessions */}
+        {/* Build Your Agenda */}
+        <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <CalendarDays className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <p className="font-semibold text-foreground text-sm">Build Your Agenda</p>
+            {sessions.length > 0 ? (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <span className="font-semibold text-foreground">{sessions.length}</span> session{sessions.length !== 1 ? "s" : ""} recommended based on your interests.
+              </p>
+            ) : !hasInterests ? (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <button className="text-primary underline font-medium" onClick={onEditInterests}>Select your interests</button> to unlock personalised session picks.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground leading-relaxed">Browse the full agenda and save sessions to build your schedule.</p>
+            )}
+          </div>
+          <Link href="/attendee/agenda">
+            <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs font-medium" data-testid="button-build-agenda">
+              Browse Sessions <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Meet Relevant Sponsors */}
+        <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Building2 className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <p className="font-semibold text-foreground text-sm">Meet Relevant Sponsors</p>
+            {sponsors.length > 0 ? (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <span className="font-semibold text-foreground">{sponsors.length}</span> sponsor{sponsors.length !== 1 ? "s" : ""} align with your selected interests.
+              </p>
+            ) : !hasInterests ? (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <button className="text-primary underline font-medium" onClick={onEditInterests}>Add interests</button> to unlock personalised sponsor recommendations.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground leading-relaxed">Browse all sponsors and request meetings or information packs.</p>
+            )}
+          </div>
+          <Link href="/attendee/sponsors">
+            <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs font-medium" data-testid="button-view-sponsors">
+              View Sponsors <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Bring a Team */}
+        <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4" data-testid="section-bring-a-team">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Users className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <p className="font-semibold text-foreground text-sm">Bring a Team</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Conferences are more valuable when your team attends together. Divide sessions, meet sponsors, and compare insights.
+            </p>
+          </div>
+          {teamUrl ? (
+            <a href={teamUrl} target="_blank" rel="noopener noreferrer" data-testid="link-bring-a-team">
+              <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs font-medium" data-testid="button-register-team-member">
+                Register a Colleague <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            </a>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">Contact the organiser for registration details.</p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Recommended Sessions ──────────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-primary" /> Recommended Sessions
           </h2>
           <Link href="/attendee/agenda">
@@ -696,14 +776,12 @@ function Dashboard({
           </Link>
         </div>
         {sessions.length === 0 ? (
-          <div className="bg-card border border-border/60 rounded-2xl p-8 text-center">
+          <div className="bg-card border border-border/60 rounded-2xl p-8 text-center space-y-2">
+            <CalendarDays className="h-8 w-8 text-muted-foreground/30 mx-auto" />
             {!hasInterests ? (
-              <div className="space-y-2">
-                <CalendarDays className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-                <p className="text-sm text-muted-foreground">
-                  <button className="text-primary underline" onClick={onEditInterests}>Select your interests</button> to unlock personalised session recommendations.
-                </p>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                <button className="text-primary underline" onClick={onEditInterests}>Select your interests</button> to unlock personalised session recommendations.
+              </p>
             ) : (
               <p className="text-sm text-muted-foreground">
                 No recommendations yet — <Link href="/attendee/agenda"><span className="text-primary underline cursor-pointer">browse the full agenda</span></Link>.
@@ -715,42 +793,57 @@ function Dashboard({
             {sessions.map((session) => {
               const saved = savedSessionIds.has(session.id);
               return (
-                <div key={session.id} className="bg-card border border-border/60 rounded-xl p-4" data-testid={`card-session-${session.id}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                        {session.isFeatured && <Badge variant="secondary" className="rounded-full text-xs px-2 py-0 h-5">Featured</Badge>}
-                        {session.sessionTypeLabel && <span className="text-xs text-muted-foreground">{session.sessionTypeLabel}</span>}
-                      </div>
-                      <button className="font-medium text-foreground text-sm leading-snug text-left hover:text-primary transition-colors" onClick={() => setDetailSession(session as AgendaSessionDetail)}>
+                <div key={session.id} className="bg-card border border-border/60 rounded-2xl p-5 hover:border-border transition-colors" data-testid={`card-session-${session.id}`}>
+                  <div className="flex items-start gap-4">
+                    {/* Left accent */}
+                    <div className="w-1 self-stretch rounded-full bg-primary/25 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      {(session.isFeatured || session.sessionTypeLabel) && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {session.isFeatured && (
+                            <Badge variant="secondary" className="rounded-full text-[10px] px-2 py-0 h-4.5 font-semibold">
+                              <Star className="h-2.5 w-2.5 mr-1 fill-current" />Featured
+                            </Badge>
+                          )}
+                          {session.sessionTypeLabel && (
+                            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{session.sessionTypeLabel}</span>
+                          )}
+                        </div>
+                      )}
+                      <button
+                        className="font-semibold text-foreground text-sm leading-snug text-left hover:text-primary transition-colors"
+                        onClick={() => setDetailSession(session as AgendaSessionDetail)}
+                      >
                         {session.title}
                       </button>
                       {(session.sessionDate || session.locationName) && (
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5">
                           {session.sessionDate && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <Clock className="h-3 w-3" />
                               {formatDate(session.sessionDate)}{session.startTime ? ` · ${formatTimeRange(session.startTime, session.endTime)}` : ""}
-                            </p>
+                            </span>
                           )}
                           {session.locationName && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <MapPin className="h-3 w-3" />{session.locationName}
-                            </p>
+                            </span>
                           )}
                         </div>
                       )}
                       <RelevanceLabel labels={session.overlapTopicLabels} />
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button variant={saved ? "secondary" : "outline"} size="sm" className="h-7 text-xs gap-1"
-                        data-testid={`button-save-session-${session.id}`}
-                        disabled={isSavingSession}
-                        onClick={() => saved ? onUnsaveSession(session.id) : onSaveSession(session.id)}>
-                        <Bookmark className={`h-3 w-3 ${saved ? "fill-current" : ""}`} />
-                        {saved ? "Saved" : "Save"}
-                      </Button>
-                    </div>
+                    <Button
+                      variant={saved ? "secondary" : "outline"}
+                      size="sm"
+                      className="h-8 px-3 text-xs gap-1.5 shrink-0 font-medium"
+                      data-testid={`button-save-session-${session.id}`}
+                      disabled={isSavingSession}
+                      onClick={() => saved ? onUnsaveSession(session.id) : onSaveSession(session.id)}
+                    >
+                      <Bookmark className={`h-3.5 w-3.5 ${saved ? "fill-current" : ""}`} />
+                      {saved ? "Saved" : "Save"}
+                    </Button>
                   </div>
                 </div>
               );
@@ -759,11 +852,11 @@ function Dashboard({
         )}
       </div>
 
-      {/* Suggested Meetings */}
+      {/* ── Suggested Meetings ────────────────────────────────────────── */}
       {(hasInterests && hasSuggestedMeetings) && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <UserCheck className="h-4 w-4 text-primary" /> Suggested Meetings
             </h2>
             <Link href="/attendee/sponsors">
@@ -777,13 +870,13 @@ function Dashboard({
               const acting = isActingOnSponsor === s.id;
               const hasMeeting = !!sponsorInteractions.meetings[s.id];
               return (
-                <div key={s.id} className="flex items-center gap-3 px-4 py-3" data-testid={`card-suggested-meeting-${s.id}`}>
+                <div key={s.id} className="flex items-center gap-3 px-5 py-3.5" data-testid={`card-suggested-meeting-${s.id}`}>
                   {s.logoUrl
                     ? <img src={s.logoUrl} alt={s.name} className="h-8 w-8 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-0.5" />
                     : <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-4 w-4 text-primary" /></div>
                   }
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{s.name}</p>
+                    <p className="text-sm font-semibold text-foreground">{s.name}</p>
                     <RelevanceLabel labels={s.overlapTopicLabels} />
                   </div>
                   {hasMeeting ? (
@@ -791,9 +884,9 @@ function Dashboard({
                       <CheckCircle2 className="h-3.5 w-3.5" /> Requested
                     </span>
                   ) : (
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1 shrink-0" disabled={acting}
+                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0 font-medium" disabled={acting}
                       onClick={() => onRequestMeeting(s.id)} data-testid={`button-request-meeting-suggested-${s.id}`}>
-                      <Calendar className="h-3 w-3" /> Request
+                      <Calendar className="h-3.5 w-3.5" /> Request
                     </Button>
                   )}
                 </div>
@@ -803,11 +896,11 @@ function Dashboard({
         </div>
       )}
 
-      {/* Recommended Sponsors */}
+      {/* ── Recommended Sponsors ──────────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" /> Recommended Sponsors
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-primary" /> Recommended Sponsors
           </h2>
           <Link href="/attendee/sponsors">
             <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
@@ -816,7 +909,8 @@ function Dashboard({
           </Link>
         </div>
         {sponsors.length === 0 ? (
-          <div className="bg-card border border-border/60 rounded-2xl p-8 text-center">
+          <div className="bg-card border border-border/60 rounded-2xl p-8 text-center space-y-2">
+            <Building2 className="h-8 w-8 text-muted-foreground/30 mx-auto" />
             {!hasInterests ? (
               <p className="text-sm text-muted-foreground">
                 <button className="text-primary underline" onClick={onEditInterests}>Add interests</button> to see sponsor recommendations.
@@ -832,35 +926,35 @@ function Dashboard({
               const hasInfo = !!sponsorInteractions.infoRequests[sponsor.id];
               const acting = isActingOnSponsor === sponsor.id;
               return (
-                <div key={sponsor.id} className="bg-card border border-border/60 rounded-xl p-4 flex flex-col gap-2.5" data-testid={`card-sponsor-${sponsor.id}`}>
+                <div key={sponsor.id} className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-3" data-testid={`card-sponsor-${sponsor.id}`}>
                   <div className="flex items-start gap-3">
                     {sponsor.logoUrl
-                      ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-9 w-9 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-0.5" />
-                      : <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-4 w-4 text-primary" /></div>
+                      ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-10 w-10 rounded-xl object-contain shrink-0 border border-border/40 bg-white p-1" />
+                      : <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-5 w-5 text-primary" /></div>
                     }
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm text-foreground truncate">{sponsor.name}</p>
+                      <p className="font-semibold text-sm text-foreground truncate">{sponsor.name}</p>
                       {sponsor.category && <p className="text-xs text-muted-foreground">{sponsor.category}</p>}
-                      {sponsor.shortDescription && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{sponsor.shortDescription}</p>}
+                      {sponsor.shortDescription && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{sponsor.shortDescription}</p>}
                       <RelevanceLabel labels={sponsor.overlapTopicLabels} />
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-border/40">
                     <Link href="/attendee/sponsors">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 px-2" data-testid={`button-view-sponsor-${sponsor.id}`}>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 px-2 text-muted-foreground" data-testid={`button-view-sponsor-${sponsor.id}`}>
                         View <ChevronRight className="h-3 w-3" />
                       </Button>
                     </Link>
                     {hasMeeting ? (
                       <span className="flex items-center gap-1 text-xs text-primary font-medium" data-testid={`status-meeting-${sponsor.id}`}>
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Requested
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Meeting Requested
                       </span>
                     ) : (
-                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={acting} onClick={() => onRequestMeeting(sponsor.id)} data-testid={`button-request-meeting-${sponsor.id}`}>
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1 font-medium" disabled={acting} onClick={() => onRequestMeeting(sponsor.id)} data-testid={`button-request-meeting-${sponsor.id}`}>
                         <Calendar className="h-3 w-3" /> Meeting
                       </Button>
                     )}
-                    {hasInfo ? (
+                    {!hasMeeting && (hasInfo ? (
                       <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium" data-testid={`status-info-${sponsor.id}`}>
                         <CheckCircle2 className="h-3.5 w-3.5" /> Info Sent
                       </span>
@@ -868,7 +962,7 @@ function Dashboard({
                       <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" disabled={acting} onClick={() => onRequestInfo(sponsor.id)} data-testid={`button-request-info-${sponsor.id}`}>
                         <Mail className="h-3 w-3" /> Info
                       </Button>
-                    )}
+                    ))}
                   </div>
                 </div>
               );
@@ -877,7 +971,7 @@ function Dashboard({
         )}
       </div>
 
-      {/* Your Interests */}
+      {/* ── Your Interests ────────────────────────────────────────────── */}
       <div className="bg-card border border-border/60 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -893,30 +987,6 @@ function Dashboard({
               {selectedTopics.map((t) => <Badge key={t.id} variant="secondary" className="rounded-full" data-testid={`badge-topic-${t.id}`}>{t.label}</Badge>)}
             </div>
         }
-      </div>
-
-      {/* Bring a Team */}
-      <div className="bg-card border border-border/60 rounded-2xl p-5" data-testid="section-bring-a-team">
-        <div className="flex items-start gap-4">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Users className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-semibold text-foreground mb-1">Bring a Team</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Conferences are more valuable when your team attends together. Invite colleagues to divide sessions, meet sponsors, and compare insights.
-            </p>
-            {teamUrl ? (
-              <a href={teamUrl} target="_blank" rel="noopener noreferrer" data-testid="link-bring-a-team">
-                <Button variant="outline" size="sm" className="mt-3 gap-1.5 font-medium" data-testid="button-register-team-member">
-                  <ExternalLink className="h-3.5 w-3.5" /> Register a Team Member
-                </Button>
-              </a>
-            ) : (
-              <p className="text-xs text-muted-foreground mt-2 italic">Contact the event organiser for registration details.</p>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Session detail sheet */}
@@ -1080,6 +1150,7 @@ export default function AttendeePortalPage() {
   const savedSessionIds = new Set((savedQuery.data ?? []).map((s) => s.id));
   const interactions = interactionsQuery.data ?? { meetings: {}, infoRequests: {} };
   const invitationCount = (meetingsQuery.data ?? []).filter((m) => m.source === "admin" && m.status === "Scheduled").length;
+  const meetingsScheduledCount = (meetingsQuery.data ?? []).filter((m) => m.status === "Scheduled").length;
   const isSavingSession = saveSessionMutation.isPending || unsaveSessionMutation.isPending;
 
   // ── Wizard Card 2: session detail sheet ───────────────────────────────────
@@ -1191,6 +1262,7 @@ export default function AttendeePortalPage() {
         invitationCount={invitationCount}
         registrationUrl={me.event.registrationUrl}
         websiteUrl={me.event.websiteUrl}
+        meetingsScheduledCount={meetingsScheduledCount}
       />
     </AttendeeShell>
   );

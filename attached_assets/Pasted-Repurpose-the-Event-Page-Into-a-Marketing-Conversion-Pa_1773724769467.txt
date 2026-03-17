@@ -1,0 +1,369 @@
+Repurpose the Event Page Into a Marketing + Conversion Page
+Make the event page a public showcase for the event and sponsors, and move all interactive functionality into Concierge
+
+We are changing the role of the public event page.
+
+The event page should no longer function as the main scheduling tool.
+
+Instead, it should become a marketing + conversion page that promotes:
+
+the event
+
+featured sponsors
+
+agenda highlights
+
+the Concierge experience
+
+Then, after registration, Concierge becomes the interaction engine.
+
+This is a strategic architecture change.
+
+1. Primary Goal
+
+Change the public event page so that:
+
+it acts as a polished marketing/discovery page for the event
+
+it showcases sponsors and agenda highlights
+
+it explains the value of Concierge
+
+it drives registration and post-registration Concierge activation
+
+it no longer serves as the primary meeting scheduling interface
+
+The new model should be:
+
+Event Page = Sell the experience
+Concierge = Deliver the experience
+2. Product Decision
+Old model
+
+Public event page includes sponsor interaction and scheduling behavior.
+
+New model
+
+Public event page becomes:
+
+event marketing page
+
+sponsor showcase
+
+agenda highlight page
+
+Concierge teaser / conversion page
+
+Interactive attendee tools move to Concierge after registration.
+
+3. Scope of the Event Page After This Change
+
+The public event page should answer these questions:
+
+Why attend this event?
+
+What topics will be discussed?
+
+Which sponsors are participating?
+
+What makes this event different?
+
+What does Concierge do after registration?
+
+It should not feel like the attendee tool itself.
+
+4. Remove Public Scheduling Behavior From the Event Page
+
+The event page should no longer be the main place where attendees:
+
+schedule onsite meetings
+
+schedule online meetings
+
+request sponsor information
+
+use the full sponsor interaction engine
+
+These interactions should be removed from the public event page and reserved for Concierge.
+
+Important
+
+Do not remove the underlying scheduling system from Concierge.
+This instruction applies to the public event page.
+
+5. Replace Sponsor Action Buttons With Marketing-Focused CTAs
+
+On the public event page sponsor cards, remove interactive scheduling buttons like:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+Replace them with lighter marketing-oriented actions such as:
+
+Learn More
+
+View Profile
+
+If needed, the sponsor card can also include a non-interactive note such as:
+
+Meet this sponsor inside Concierge after registration.
+
+The point is to preserve sponsor visibility without exposing the full interaction flow publicly.
+
+6. Keep Sponsors Visible as a Showcase
+
+The event page should still include sponsors prominently.
+
+Sponsor card content should include:
+
+logo
+
+sponsor name
+
+sponsorship level badge if useful
+
+short description / positioning line
+
+Learn More / View Profile action
+
+This should feel like:
+
+sponsor showcase
+
+discovery layer
+not
+
+scheduling tool
+
+7. Add Concierge Messaging to the Sponsor Section
+
+The sponsor section should clearly communicate that personalized sponsor matching happens inside Concierge.
+
+Recommended supporting text
+
+Use messaging such as:
+
+Meet the right sponsors based on your interests inside Converge Concierge.
+
+This helps attendees understand that the public page is only the first step.
+
+8. Add Agenda Highlights Section
+
+The public event page should include an agenda/content section, but this should be a highlighted/curated view, not necessarily the full attendee agenda tool.
+
+Show:
+
+featured topics
+
+key sessions
+
+agenda highlights
+
+themes that matter
+
+This should help visitors understand the value of attending.
+
+9. Add Concierge Explanation Section
+
+We need a dedicated section on the public event page that explains what happens after registration.
+
+Add a section such as:
+How Converge Concierge Works
+Example 4-step explanation
+
+Select your interests
+
+See recommended sessions
+
+Discover relevant sponsors
+
+Schedule meetings and build your event plan
+
+This section is critical because it bridges:
+
+public marketing page
+
+post-registration personalized experience
+
+10. Add Strong CTA to Activate Concierge Through Registration
+
+The event page should include clear calls to action such as:
+
+Register & Activate Your Concierge
+
+Register to Unlock Your Personalized Event Experience
+
+These CTAs should route to the normal registration flow.
+
+The idea is:
+
+Register
+→ Eventzilla
+→ Concierge welcome flow
+11. Keep Event Hero Section Strong
+
+The top of the page should remain a polished event marketing hero.
+
+Include:
+
+event logo
+
+event title
+
+short positioning line
+
+event dates/location
+
+registration CTA
+
+This should be polished and conversion-oriented.
+
+12. Add “What Makes This Event Different” Section
+
+This section should reinforce the event model and the Concierge experience.
+
+Example themes
+
+executive-level discussions
+
+curated conversations
+
+sponsor discovery based on your priorities
+
+personalized event planning through Concierge
+
+This helps differentiate Converge events from typical conferences.
+
+13. Add a Soft Concierge Preview (Recommended)
+
+Add a lightweight teaser to help visitors understand personalization before registering.
+
+Example idea
+
+A section like:
+
+See How Concierge Works
+
+with sample logic such as:
+
+Select your interests:
+AI Governance
+Third-Party Risk
+Financial Crime
+
+Concierge helps match you with sessions and sponsors based on these priorities.
+
+This should be a preview/teaser, not a full live tool.
+
+Do not overbuild this if it slows implementation, but if feasible it will help conversion.
+
+14. Preserve Event Page SEO / Marketing Value
+
+This event page should continue to serve as a public-facing marketing page.
+
+That means:
+
+maintain indexable content
+
+preserve event-specific copy
+
+highlight sponsors and agenda themes
+
+keep the page useful for sharing and search
+
+Do not turn it into a thin redirect page.
+
+15. Do Not Break Existing Event Data Usage
+
+The event page should continue using real event data where possible:
+
+event branding
+
+sponsor list
+
+agenda highlights
+
+event details
+
+This is a repurposing of the page, not a hard-coded replacement.
+
+16. Keep Concierge as the Private/Interactive Layer
+
+After registration, the user should enter Concierge for:
+
+topic selection
+
+personalized sessions
+
+sponsor recommendations
+
+My Concierge Page
+
+meeting scheduling
+
+saved agenda
+
+information requests
+
+Do not duplicate these interactive tools back onto the public event page.
+
+17. Update Routing / Messaging Where Needed
+
+If the public event page currently implies:
+
+schedule here
+
+meet sponsors here
+
+use attendee tools directly
+
+update that messaging.
+
+Use language like:
+
+Register to unlock your personalized Concierge experience
+
+Meet sponsors inside Concierge
+
+Build your event plan after registration
+
+This needs to be clear.
+
+18. Optional “Powered by Converge Concierge” Branding
+
+Consider adding:
+
+Powered by Converge Concierge
+
+or
+
+Personalized Event Experience Powered by Converge Concierge
+
+on the public event page.
+
+This helps establish the product brand while keeping the page event-focused.
+
+19. Acceptance Criteria
+
+This implementation is complete when:
+
+the public event page no longer functions as the main scheduling interface
+
+sponsor cards on the event page become showcase/marketing cards rather than scheduling tools
+
+agenda highlights are visible on the event page
+
+the page explains how Concierge works after registration
+
+the page includes strong registration / Concierge activation messaging
+
+the event page feels like a marketing/discovery page rather than a tool
+
+Concierge remains the place where interactive attendee functionality happens
+
+20. Success Standard
+
+After this update, the event page should function as a polished public marketing page that sells the value of the event and the Concierge experience. Visitors should understand the event, see the sponsors and agenda themes, and be guided to register so they can unlock the personalized Concierge interaction layer.

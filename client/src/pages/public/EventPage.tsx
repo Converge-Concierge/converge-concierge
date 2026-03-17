@@ -7,7 +7,7 @@ import { Event, Sponsor, Meeting, AppBranding, EventSponsorLink } from "@shared/
 import {
   Hexagon, Calendar, MapPin, ArrowLeft, Building2, CheckCircle,
   AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Clock, User, Video, Download, ExternalLink,
-  Filter, X, Gem, Linkedin, MonitorPlay, UserCheck, Info,
+  Gem, Linkedin, MonitorPlay, UserCheck, FileText,
 } from "lucide-react";
 import { SiZoom, SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 import { downloadICS, googleCalendarUrl } from "@/lib/ics";
 import PublicFooter from "@/components/PublicFooter";
 import LegalAcknowledgment from "@/components/LegalAcknowledgment";
-import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { useAttendeePrefill } from "@/hooks/use-attendee-prefill";
 
 // ── Event domain mapping ─────────────────────────────────────────────────────
@@ -314,6 +313,15 @@ export default function EventPage() {
   const { data: events   = [], isLoading: evL } = useQuery<Event[]>  ({ queryKey: ["/api/events"]   });
   const { data: sponsors = [], isLoading: spL } = useQuery<Sponsor[]>({ queryKey: ["/api/sponsors"] });
   const { data: meetings = [] }                 = useQuery<Meeting[]>({ queryKey: ["/api/meetings"] });
+  const { data: publicSessions = [] }           = useQuery<any[]>({
+    queryKey: ["/api/public/welcome", slug, "sessions"],
+    queryFn: async () => {
+      const r = await fetch(`/api/public/welcome/${slug}/sessions`);
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !!slug,
+  });
 
   // step 0=sponsor, 1=date, 2=time
   // onsite:  3=info, 4=confirm
@@ -342,7 +350,6 @@ export default function EventPage() {
   const [agreeToTerms,  setAgreeToTerms]  = useState(false);
   const [showLinkedIn,  setShowLinkedIn]  = useState(false);
   const [createdMeetingId, setCreatedMeetingId] = useState<string | null>(null);
-  const [requestInfoSponsor, setRequestInfoSponsor] = useState<Sponsor | null>(null);
 
   // ── Persist topic filters in sessionStorage (event-specific) ────────────
   useEffect(() => {
@@ -366,13 +373,9 @@ export default function EventPage() {
     const found = sponsors.find((s) => s.id === sponsorParam);
     if (!found) return;
     hasAppliedDeepLink.current = true;
-    if (modeParam === "info") {
-      setRequestInfoSponsor(found);
-    } else {
-      setSelectedSponsor(found);
-      setMeetingMode(modeParam === "online" ? "online" : "onsite");
-      setStep(1);
-    }
+    setSelectedSponsor(found);
+    setMeetingMode(modeParam === "online" ? "online" : "onsite");
+    setStep(1);
   }, [sponsors]);
 
   // ── Prefill email from welcome flow (?prefillEmail=) ─────────────────────
@@ -835,25 +838,29 @@ export default function EventPage() {
     );
   }
 
-  // ── STEP 0: SPONSOR SELECTION ─────────────────────────────────────────────
+  // ── STEP 0: MARKETING / DISCOVERY PAGE ───────────────────────────────────
   if (step === 0) {
+    const welcomeUrl = `/event/${event.slug}/welcome`;
+    const eventWebsite = getEventWebsite(event.slug, event.websiteUrl);
+    const agendaHighlights = publicSessions.slice(0, 6);
+    const CONCIERGE_STEPS = [
+      { icon: "1", title: "Select Your Interests", desc: "Tell us what topics matter most — AI, risk, compliance, treasury, and more." },
+      { icon: "2", title: "See Recommended Sessions", desc: "Get a curated view of sessions matched to your priorities." },
+      { icon: "3", title: "Discover Relevant Sponsors", desc: "Find the sponsors best aligned with your goals and agenda." },
+      { icon: "4", title: "Build Your Event Plan", desc: "Schedule meetings, save sessions, and arrive ready to make every conversation count." },
+    ];
+
     return (
-      <>
       <Shell style={eventColorStyle}>
-        <motion.div {...slide} className="w-full max-w-5xl mx-auto px-6 pt-2 pb-8">
-          {/* Event hero header — Welcome page style */}
-          <div className="bg-white border border-border/60 rounded-2xl shadow-sm overflow-hidden mb-5">
-            <div className="px-5 py-5 sm:py-6 flex items-center gap-6 sm:gap-8">
+        <div className="w-full max-w-5xl mx-auto px-6 pt-2 pb-16 space-y-10">
+
+          {/* ── HERO ─────────────────────────────────────────────────────── */}
+          <div className="bg-white border border-border/60 rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-6 py-7 sm:py-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
               {event.logoUrl ? (
-                <div
-                  className="flex-shrink-0 bg-white rounded-lg p-3 border border-border/60 shadow-sm"
-                  data-testid="img-event-logo"
-                >
-                  <img
-                    src={event.logoUrl} alt={event.name}
-                    className="h-28 sm:h-32 max-w-[260px] object-contain"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
+                <div className="flex-shrink-0 bg-white rounded-xl p-3 border border-border/60 shadow-sm" data-testid="img-event-logo">
+                  <img src={event.logoUrl} alt={event.name} className="h-24 sm:h-28 max-w-[220px] object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                 </div>
               ) : (
                 <div className="flex-shrink-0 h-20 w-20 rounded-xl bg-muted flex items-center justify-center" data-testid="img-event-logo">
@@ -861,21 +868,15 @@ export default function EventPage() {
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <div
-                  className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 text-sm font-semibold px-4 py-1.5 rounded-full mb-3"
-                  data-testid="badge-meeting-scheduling"
-                >
-                  <Calendar className="h-4 w-4 flex-shrink-0" />
-                  Meeting Scheduling
+                <div className="inline-flex items-center gap-2 bg-accent/10 text-accent border border-accent/20 text-xs font-bold px-3 py-1 rounded-full mb-3 uppercase tracking-wider"
+                  data-testid="badge-event-label">
+                  <Calendar className="h-3.5 w-3.5 flex-shrink-0" style={evAccent ? { color: evAccent } : undefined} />
+                  Executive Fintech Event
                 </div>
-                <h1
-                  className="text-2xl sm:text-3xl font-display font-bold text-foreground leading-tight mb-2"
-                  data-testid="heading-event-name"
-                >
-                  Browse Sponsors and Schedule Meetings for{" "}
-                  <span>{event.name}</span>
+                <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground leading-tight mb-3" data-testid="heading-event-name">
+                  {event.name}
                 </h1>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-2">
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-5">
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-accent" style={evAccent ? { color: evAccent } : undefined} />
                     {format(parseISO(event.startDate as unknown as string), "MMMM d")}
@@ -886,14 +887,26 @@ export default function EventPage() {
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground/70" />
                     {event.location}
                   </span>
-                  {getEventWebsite(event.slug, event.websiteUrl) && (
-                    <a
-                      href={getEventWebsite(event.slug, event.websiteUrl)!}
-                      target="_blank" rel="noopener noreferrer"
+                  {eventWebsite && (
+                    <a href={eventWebsite} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-1.5 text-accent hover:opacity-80 transition-opacity font-medium"
-                      data-testid="link-event-website"
-                    >
+                      data-testid="link-event-website">
                       <ExternalLink className="h-3.5 w-3.5" /> Event Website
+                    </a>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Link href={welcomeUrl}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm hover:opacity-90 active:scale-[0.98] transition-all"
+                    style={{ backgroundColor: evButton ?? evAccent ?? "#0D9488" }}
+                    data-testid="cta-register-concierge">
+                    <UserCheck className="h-4 w-4" /> Register &amp; Activate Your Concierge
+                  </Link>
+                  {eventWebsite && (
+                    <a href={eventWebsite} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border border-border hover:bg-muted/50 transition-all"
+                      data-testid="link-learn-more-hero">
+                      <ExternalLink className="h-4 w-4" /> Learn More
                     </a>
                   )}
                 </div>
@@ -901,327 +914,213 @@ export default function EventPage() {
             </div>
           </div>
 
-          {showExternalHandoff && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 mb-5" data-testid="banner-external-scheduling">
-              <div className="flex items-start gap-3 mb-3">
-                <AlertCircle className="h-4 w-4 shrink-0 text-blue-600 mt-0.5" />
-                <p className="text-sm font-medium text-blue-800">
-                  {event?.externalSchedulingMessage || "Meeting scheduling for this event has moved to the event app."}
+          {/* ── HOW CONCIERGE WORKS ──────────────────────────────────────── */}
+          <div className="space-y-5">
+            <div className="text-center">
+              <p className="text-xs font-black uppercase tracking-widest text-accent mb-1"
+                style={evAccent ? { color: evAccent } : undefined}>Powered by Converge Concierge</p>
+              <h2 className="text-2xl font-display font-bold text-foreground">How Converge Concierge Works</h2>
+              <p className="text-muted-foreground text-sm mt-1 max-w-xl mx-auto">
+                After registration, your personalized Concierge experience helps you prepare for every conversation at {event.name}.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {CONCIERGE_STEPS.map((s, i) => (
+                <div key={i} className="bg-card border border-border/60 rounded-xl p-5 shadow-sm flex flex-col gap-2"
+                  data-testid={`concierge-step-${i + 1}`}>
+                  <div className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm mb-1"
+                    style={{ backgroundColor: evButton ?? evAccent ?? "#0D9488" }}>
+                    {s.icon}
+                  </div>
+                  <h3 className="text-sm font-display font-bold text-foreground">{s.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{s.desc}</p>
+                </div>
+              ))}
+            </div>
+            <div className="text-center pt-1">
+              <Link href={welcomeUrl}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-90 active:scale-[0.98] transition-all"
+                style={{ backgroundColor: evButton ?? evAccent ?? "#0D9488" }}
+                data-testid="cta-activate-concierge">
+                <UserCheck className="h-4 w-4" /> Register to Unlock Your Personalized Experience
+              </Link>
+            </div>
+          </div>
+
+          {/* ── SPONSOR SHOWCASE ─────────────────────────────────────────── */}
+          <div className="space-y-5">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-accent mb-1"
+                style={evAccent ? { color: evAccent } : undefined}>Sponsors</p>
+              <h2 className="text-2xl font-display font-bold text-foreground">Event Sponsors</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Meet the right sponsors based on your interests inside Converge Concierge after registration.
+              </p>
+            </div>
+            {eventSponsors.length === 0 ? (
+              <div className="flex flex-col items-center py-12 text-muted-foreground gap-3">
+                <Building2 className="h-12 w-12 opacity-20" />
+                <p className="text-sm">Sponsors will be announced soon.</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {eventSponsors.map((sponsor, i) => (
+                    <motion.div key={sponsor.id}
+                      initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.4) }}
+                      className={cn(
+                        "flex flex-col rounded-xl border-2 shadow-sm overflow-hidden",
+                        "hover:shadow-md hover:-translate-y-0.5 transition-all duration-200",
+                        levelBorder[getSponsorEventLevel(sponsor, event.id)] || "border-border bg-card",
+                      )}
+                      data-testid={`sponsor-card-${sponsor.id}`}>
+                      <div className="flex-1 p-3">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="h-8 flex items-center shrink-0">
+                            {sponsor.logoUrl ? (
+                              <img src={sponsor.logoUrl} alt={sponsor.name} className="h-8 max-w-[90px] object-contain" />
+                            ) : (
+                              <div className="h-8 w-8 rounded-lg bg-white border border-black/10 shadow-sm flex items-center justify-center">
+                                <Building2 className="h-4 w-4 text-muted-foreground/60" />
+                              </div>
+                            )}
+                          </div>
+                          {getSponsorEventLevel(sponsor, event.id) && (
+                            <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 inline-flex items-center gap-0.5", levelBadge[getSponsorEventLevel(sponsor, event.id)] || "bg-muted text-muted-foreground")}>
+                              {getSponsorEventLevel(sponsor, event.id) === "Platinum" && <Gem className="h-2.5 w-2.5" />}
+                              {getSponsorEventLevel(sponsor, event.id)}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-display font-bold text-foreground leading-tight mb-1">{sponsor.name}</h3>
+                        {sponsor.shortDescription && (
+                          <p className="text-[11px] text-muted-foreground leading-snug line-clamp-3 mb-2">{sponsor.shortDescription}</p>
+                        )}
+                        <Link href={`/event/${event.slug}/sponsor/${sponsor.id}`}
+                          className="text-[11px] text-accent hover:opacity-80 transition-opacity flex items-center gap-1"
+                          data-testid={`link-sponsor-profile-${sponsor.id}`}
+                          onClick={(e) => e.stopPropagation()}>
+                          <ExternalLink className="h-2.5 w-2.5" /> View Profile
+                        </Link>
+                      </div>
+                      <div className="px-3 pb-3">
+                        <div className="w-full py-1.5 rounded-lg text-center text-[11px] font-medium text-muted-foreground border border-border/50 bg-muted/30"
+                          data-testid={`concierge-note-${sponsor.id}`}>
+                          Meet inside Concierge after registration
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+                <div className="text-center pt-2">
+                  <Link href={welcomeUrl}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all"
+                    style={{ backgroundColor: evButton ?? evAccent ?? "#0D9488" }}
+                    data-testid="cta-sponsors-concierge">
+                    <UserCheck className="h-4 w-4" /> Meet Sponsors in Your Concierge
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── AGENDA HIGHLIGHTS ────────────────────────────────────────── */}
+          {agendaHighlights.length > 0 && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-accent mb-1"
+                  style={evAccent ? { color: evAccent } : undefined}>Agenda</p>
+                <h2 className="text-2xl font-display font-bold text-foreground">Agenda Highlights</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  A preview of featured sessions at {event.name}. Get personalized session recommendations inside Concierge.
                 </p>
               </div>
-              <a
-                href={event?.externalSchedulingUrl ?? "#"} target="_blank" rel="noopener noreferrer"
-                data-testid="btn-open-event-app"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                {event?.externalSchedulingLabel || "Open Event App"}
-              </a>
-            </div>
-          )}
-
-          {showSchedulingClosed && !showExternalHandoff && (
-            <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 mb-5 text-amber-800" data-testid="banner-scheduling-closed">
-              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-              <p className="text-sm font-medium">Meeting scheduling is no longer available for this event.</p>
-            </div>
-          )}
-
-          {/* Section header — only when event ended, disabled, or external handoff */}
-          {(eventEnded || schedulingDisabled || showExternalHandoff) && (
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
-              <div>
-                <h2 className="text-2xl font-display font-semibold text-foreground mb-1">
-                  Event Sponsors
-                </h2>
-                {eventEnded && (
-                  <p className="text-muted-foreground text-sm">This event has concluded. Browse the sponsors who participated.</p>
-                )}
-                {!eventEnded && schedulingDisabled && (
-                  <p className="text-muted-foreground text-sm">Concierge scheduling is currently unavailable for this event.</p>
-                )}
-                {showExternalHandoff && !eventEnded && !schedulingDisabled && (
-                  <p className="text-muted-foreground text-sm">Browse the sponsors participating in this event.</p>
-                )}
-              </div>
-              {eventSponsors.length > 0 && (
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {filteredSponsors.length} of {eventSponsors.length} sponsor{eventSponsors.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* NEXT STEP — topic selection (active scheduling only) */}
-          {!eventEnded && !schedulingDisabled && !showExternalHandoff && attributesInUse.length > 0 && (() => {
-            const allOptions = attributesInUse;
-            const SHOW_LIMIT = 7;
-            const visibleOptions = showAllFilters ? allOptions : allOptions.slice(0, SHOW_LIMIT);
-            const hasMore = allOptions.length > SHOW_LIMIT;
-            return (
-              <div className="border border-border/60 rounded-2xl bg-muted/20 overflow-hidden mb-5">
-                <div className="px-5 py-5 sm:py-6 space-y-3">
-                  <p className="text-xs font-black uppercase tracking-widest text-accent">
-                    Next Step
-                  </p>
-                  <p className="text-xl sm:text-2xl font-display font-bold text-foreground">
-                    Make the most of your time at the conference. What topics interest you?
-                  </p>
-                  <div className="flex flex-wrap gap-2 items-center pt-1">
-                    {visibleOptions.map((attr) => {
-                      const active = activeFilters.some((f) => f.toLowerCase() === attr.toLowerCase());
-                      return (
-                        <button
-                          key={attr}
-                          onClick={() => setActiveFilters((prev) =>
-                            active ? prev.filter((f) => f.toLowerCase() !== attr.toLowerCase()) : [...prev, attr]
-                          )}
-                          data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
-                          className={cn(
-                            "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
-                            active
-                              ? "bg-accent text-white border-accent shadow-sm"
-                              : "bg-white text-foreground/70 border-border hover:border-accent/60 hover:text-foreground hover:bg-accent/5",
-                          )}
-                          style={(active && evAccent) ? { backgroundColor: evAccent, color: "#fff", borderColor: evAccent } : undefined}
-                        >
-                          {attr}
-                        </button>
-                      );
-                    })}
-                    {hasMore && (
-                      <button
-                        onClick={() => setShowAllFilters((v) => !v)}
-                        className="px-3 py-1.5 rounded-full text-sm font-medium text-accent border border-accent/40 hover:bg-accent/10 transition-all"
-                        data-testid="filter-show-more"
-                      >
-                        {showAllFilters ? "Show Less" : `+${allOptions.length - SHOW_LIMIT} More`}
-                      </button>
-                    )}
-                    {activeFilters.length > 0 && (
-                      <button
-                        onClick={() => setActiveFilters([])}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm text-muted-foreground hover:text-destructive transition-colors"
-                        data-testid="filter-clear"
-                      >
-                        <X className="h-3.5 w-3.5" /> Clear
-                      </button>
-                    )}
-                  </div>
-                  {activeFilters.length > 0 && (
-                    <button
-                      onClick={() => setActiveFilters([])}
-                      className="text-xs text-accent hover:underline underline-offset-2 transition-colors"
-                      data-testid="filter-show-all"
-                    >
-                      Show All Sponsors
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Plain filter chips when scheduling is disabled/ended */}
-          {(eventEnded || schedulingDisabled || showExternalHandoff) && attributesInUse.length > 0 && (() => {
-            const allOptions = attributesInUse;
-            const SHOW_LIMIT = 7;
-            const visibleOptions = showAllFilters ? allOptions : allOptions.slice(0, SHOW_LIMIT);
-            const hasMore = allOptions.length > SHOW_LIMIT;
-            return (
-              <div className="mb-4">
-                <div className="flex flex-wrap gap-1.5 items-center">
-                  {visibleOptions.map((attr) => {
-                    const active = activeFilters.some((f) => f.toLowerCase() === attr.toLowerCase());
-                    return (
-                      <button
-                        key={attr}
-                        onClick={() => setActiveFilters((prev) =>
-                          active ? prev.filter((f) => f.toLowerCase() !== attr.toLowerCase()) : [...prev, attr]
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {agendaHighlights.map((session: any, i: number) => (
+                  <motion.div key={session.id ?? i}
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: Math.min(i * 0.06, 0.4) }}
+                    className="bg-card border border-border/60 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                    data-testid={`session-highlight-${session.id ?? i}`}>
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 shrink-0 h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center"
+                        style={evAccent ? { backgroundColor: evAccent + "1A" } : undefined}>
+                        <FileText className="h-3.5 w-3.5 text-accent" style={evAccent ? { color: evAccent } : undefined} />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-foreground leading-snug mb-1">{session.title}</h3>
+                        {session.description && (
+                          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{session.description}</p>
                         )}
-                        data-testid={`filter-${attr.toLowerCase().replace(/\s+/g, "-")}`}
-                        className={cn(
-                          "px-3 py-1.5 rounded-full text-sm font-medium border transition-all",
-                          active
-                            ? "bg-accent text-white border-accent shadow-sm"
-                            : "bg-card text-foreground/70 border-border hover:border-accent/60 hover:text-foreground hover:bg-accent/5",
-                        )}
-                        style={(active && evAccent) ? { backgroundColor: evAccent, color: "#fff", borderColor: evAccent } : undefined}
-                      >
-                        {attr}
-                      </button>
-                    );
-                  })}
-                  {hasMore && (
-                    <button
-                      onClick={() => setShowAllFilters((v) => !v)}
-                      className="px-3 py-1.5 rounded-full text-sm font-medium text-accent border border-accent/40 hover:bg-accent/10 transition-all"
-                      data-testid="filter-show-more"
-                    >
-                      {showAllFilters ? "Show Less" : `+${allOptions.length - SHOW_LIMIT} More`}
-                    </button>
-                  )}
-                  {activeFilters.length > 0 && (
-                    <button
-                      onClick={() => setActiveFilters([])}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm text-muted-foreground hover:text-destructive transition-colors"
-                      data-testid="filter-clear"
-                    >
-                      <X className="h-3.5 w-3.5" /> Clear
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-
-          {eventSponsors.length === 0 ? (
-            <div className="flex flex-col items-center py-16 text-muted-foreground gap-3">
-              <Building2 className="h-12 w-12 opacity-20" />
-              <p className="text-sm">No sponsors are available for this event yet.</p>
-            </div>
-          ) : filteredSponsors.length === 0 ? (
-            <div className="flex flex-col items-center py-12 text-muted-foreground gap-3">
-              <Filter className="h-10 w-10 opacity-20" />
-              <p className="text-sm">No sponsors match the selected filters.</p>
-              <button onClick={() => setActiveFilters([])} className="text-xs text-accent underline underline-offset-2">Clear filters</button>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-end justify-between mb-2">
-                <h3
-                  className="text-xl font-display font-semibold text-foreground"
-                  data-testid="text-sponsor-results-label"
-                >
-                  {activeFilters.length > 0 ? "Sponsors Matching Your Interests" : "Sponsors Available for Meetings"}
-                </h3>
-                {eventSponsors.length > 0 && (
-                  <span className="text-xs text-muted-foreground shrink-0 ml-3">
-                    {filteredSponsors.length} of {eventSponsors.length} sponsor{eventSponsors.length !== 1 ? "s" : ""}
-                  </span>
-                )}
-              </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {filteredSponsors.map((sponsor, i) => (
-                <motion.div
-                  key={sponsor.id}
-                  initial={{ opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.4) }}
-                  className={cn(
-                    "flex flex-col rounded-xl border-2 shadow-sm overflow-hidden",
-                    "hover:shadow-md hover:-translate-y-0.5 transition-all duration-200",
-                    levelBorder[getSponsorEventLevel(sponsor, event.id)] || "border-border bg-card",
-                  )}
-                  data-testid={`sponsor-card-${sponsor.id}`}
-                >
-                  <div className="flex-1 p-3">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="h-8 flex items-center shrink-0">
-                        {sponsor.logoUrl ? (
-                          <img src={sponsor.logoUrl} alt={sponsor.name} className="h-8 max-w-[90px] object-contain" />
-                        ) : (
-                          <div className="h-8 w-8 rounded-lg bg-white border border-black/10 shadow-sm flex items-center justify-center">
-                            <Building2 className="h-4 w-4 text-muted-foreground/60" />
+                        {(session.sessionDate || session.startTime) && (
+                          <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground/70">
+                            {session.sessionDate && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{session.sessionDate}</span>}
+                            {session.startTime && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{fmt12(session.startTime)}</span>}
                           </div>
                         )}
                       </div>
-                      {getSponsorEventLevel(sponsor, event.id) && (
-                        <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 inline-flex items-center gap-0.5", levelBadge[getSponsorEventLevel(sponsor, event.id)] || "bg-muted text-muted-foreground")}>
-                          {getSponsorEventLevel(sponsor, event.id) === "Platinum" && <Gem className="h-2.5 w-2.5" />}
-                          {getSponsorEventLevel(sponsor, event.id)}
-                        </span>
-                      )}
                     </div>
-                    <h3 className="text-sm font-display font-bold text-foreground leading-tight mb-1">{sponsor.name}</h3>
-                    {sponsor.shortDescription && (
-                      <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2 mb-1">{sponsor.shortDescription}</p>
-                    )}
-                    <Link
-                      href={`/event/${event.slug}/sponsor/${sponsor.id}`}
-                      className="text-[11px] text-accent hover:opacity-80 transition-opacity flex items-center gap-1"
-                      data-testid={`link-sponsor-profile-${sponsor.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <ExternalLink className="h-2.5 w-2.5" /> View Profile
-                    </Link>
-                  </div>
-                  <div className="px-3 pb-3 space-y-1">
-                    {(() => {
-                      const link = getSponsorEventLink(sponsor, event.id);
-                      const onsiteEnabled = link?.onsiteMeetingEnabled ?? true;
-                      const onlineEnabled = link?.onlineMeetingEnabled ?? sponsor.allowOnlineMeetings;
-                      const infoEnabled = link?.informationRequestEnabled ?? true;
+                  </motion.div>
+                ))}
+              </div>
+              <div className="text-center pt-2">
+                <Link href={welcomeUrl}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all"
+                  style={{ backgroundColor: evButton ?? evAccent ?? "#0D9488" }}
+                  data-testid="cta-agenda-concierge">
+                  <UserCheck className="h-4 w-4" /> Get My Personalized Session Plan
+                </Link>
+              </div>
+            </div>
+          )}
 
-                      return (
-                        <>
-                          {(eventEnded || schedulingDisabled) ? (
-                            <div className="w-full py-2 rounded-lg bg-muted text-muted-foreground text-xs font-medium text-center border border-border/60" data-testid={`text-scheduling-closed-${sponsor.id}`}>
-                              Scheduling Closed
-                            </div>
-                          ) : (
-                            <>
-                              {onsiteEnabled && (
-                                <button
-                                  onClick={() => pickSponsor(sponsor)}
-                                  data-testid={`btn-meet-${sponsor.id}`}
-                                  className={cn(
-                                    "w-full py-1.5 rounded-lg text-white text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
-                                    levelAccent[getSponsorEventLevel(sponsor, event.id)] || "bg-primary hover:bg-primary/90",
-                                  )}
-                                >
-                                  Schedule Onsite Meeting
-                                </button>
-                              )}
-                              {onlineEnabled && (
-                                <button
-                                  onClick={() => pickOnlineMeeting(sponsor)}
-                                  data-testid={`btn-online-${sponsor.id}`}
-                                  className={cn(
-                                    "w-full py-1 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5",
-                                    levelAccentSecondary[getSponsorEventLevel(sponsor, event.id)] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
-                                  )}
-                                >
-                                  <Video className="h-3 w-3" /> Online Meeting
-                                </button>
-                              )}
-                            </>
-                          )}
-                          {infoEnabled && (
-                            <button
-                              onClick={() => setRequestInfoSponsor(sponsor)}
-                              data-testid={`btn-request-info-${sponsor.id}`}
-                              className="w-full py-1 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground bg-transparent hover:bg-muted/50 transition-all duration-150 active:scale-[0.98]"
-                            >
-                              Request Information
-                            </button>
-                          )}
-                        </>
-                      );
-                    })()}
+          {/* ── WHAT MAKES THIS EVENT DIFFERENT ──────────────────────────── */}
+          <div className="bg-gradient-to-br from-primary/5 via-muted/20 to-accent/5 border border-border/60 rounded-2xl p-7 sm:p-9">
+            <p className="text-xs font-black uppercase tracking-widest text-accent mb-2"
+              style={evAccent ? { color: evAccent } : undefined}>Why Converge</p>
+            <h2 className="text-2xl font-display font-bold text-foreground mb-2">What Makes This Event Different</h2>
+            <p className="text-sm text-muted-foreground mb-7 max-w-2xl">
+              Converge events are designed for senior practitioners who value focused conversations over crowded exhibit halls.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+              {[
+                { title: "Executive-Level Discussions", desc: "Every session is designed for decision-makers — no vendor pitches, just substantive content." },
+                { title: "Curated Conversations", desc: "Concierge matches you with sponsors and sessions based on what you actually care about." },
+                { title: "Sponsor Discovery Your Way", desc: "Discover sponsors relevant to your priorities — AI, risk, compliance, treasury, and more." },
+                { title: "Personalized Event Planning", desc: "Your Concierge plan is built around your interests so you arrive prepared, not overwhelmed." },
+              ].map((item, i) => (
+                <div key={i} className="flex gap-3" data-testid={`differentiator-${i + 1}`}>
+                  <div className="mt-1 shrink-0 h-5 w-5 rounded-full flex items-center justify-center bg-accent/20"
+                    style={evAccent ? { backgroundColor: evAccent + "33" } : undefined}>
+                    <CheckCircle className="h-3 w-3 text-accent" style={evAccent ? { color: evAccent } : undefined} />
                   </div>
-                </motion.div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-0.5">{item.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
               ))}
             </div>
-            </>
-          )}
-        </motion.div>
+            <div className="flex flex-wrap gap-3">
+              <Link href={welcomeUrl}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-90 active:scale-[0.98] transition-all"
+                style={{ backgroundColor: evButton ?? evAccent ?? "#0D9488" }}
+                data-testid="cta-bottom-register">
+                <UserCheck className="h-4 w-4" /> Register &amp; Activate Your Concierge
+              </Link>
+              {eventWebsite && (
+                <a href={eventWebsite} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold border border-border hover:bg-background/60 transition-all"
+                  data-testid="link-event-site-bottom">
+                  <ExternalLink className="h-4 w-4" /> Event Website
+                </a>
+              )}
+            </div>
+          </div>
+
+        </div>
       </Shell>
-      <RequestInfoModal
-        open={!!requestInfoSponsor}
-        onClose={() => setRequestInfoSponsor(null)}
-        sponsorId={requestInfoSponsor?.id ?? ""}
-        sponsorName={requestInfoSponsor?.name ?? ""}
-        eventId={event.id}
-        prefill={{
-          firstName: attendee.firstName,
-          lastName: attendee.lastName,
-          email: attendee.email,
-          company: attendee.company,
-          title: attendee.title,
-        }}
-      />
-      </>
     );
   }
 

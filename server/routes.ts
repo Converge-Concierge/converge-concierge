@@ -7177,7 +7177,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!attendee || !event) return res.status(404).json({ message: "Attendee or event not found" });
     return res.json({
       attendee: { id: attendee.id, firstName: attendee.firstName, lastName: attendee.lastName, name: attendee.name, company: attendee.company, title: attendee.title, email: attendee.email },
-      event: { id: event.id, name: event.name, startDate: event.startDate, endDate: event.endDate, location: event.location, registrationUrl: event.registrationUrl ?? null, websiteUrl: event.websiteUrl ?? null },
+      event: { id: event.id, name: event.name, startDate: event.startDate, endDate: event.endDate, location: event.location, registrationUrl: event.registrationUrl ?? null, websiteUrl: event.websiteUrl ?? null, buttonColor: event.buttonColor ?? null, accentColor: event.accentColor ?? null },
       onboarding: {
         completedAt: tokenRecord.onboardingCompletedAt,
         skippedAt: tokenRecord.onboardingSkippedAt,

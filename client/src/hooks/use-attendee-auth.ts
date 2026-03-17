@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 export interface AttendeeMe {
   attendee: { id: string; firstName: string; lastName: string; name: string; company: string; title: string; email: string };
-  event: { id: string; name: string; startDate: string | null; endDate: string | null; location: string | null; registrationUrl: string | null; websiteUrl: string | null };
+  event: { id: string; name: string; startDate: string | null; endDate: string | null; location: string | null; registrationUrl: string | null; websiteUrl: string | null; buttonColor: string | null; accentColor: string | null };
   onboarding: { completedAt: string | null; skippedAt: string | null; isDone: boolean };
 }
 

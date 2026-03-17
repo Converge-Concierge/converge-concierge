@@ -573,7 +573,7 @@ function Dashboard({
   me, topics, selections, sessions, sponsors, suggestedMeetings, savedSessionIds,
   onEditInterests, onSaveSession, onUnsaveSession, isSavingSession,
   sponsorInteractions, onRequestMeeting, onRequestInfo, isActingOnSponsor, invitationCount,
-  registrationUrl, websiteUrl, meetingsScheduledCount,
+  registrationUrl, websiteUrl, meetingsScheduledCount, accentColor,
 }: {
   me: AttendeeMe; topics: Topic[]; selections: TopicSelection[];
   sessions: RecommendedSession[]; sponsors: RecommendedSponsor[];
@@ -590,6 +590,7 @@ function Dashboard({
   registrationUrl: string | null;
   websiteUrl: string | null;
   meetingsScheduledCount: number;
+  accentColor: string | null;
 }) {
   const topicMap = new Map(topics.map((t) => [t.id, t]));
   const selectedTopics = selections.map((s) => topicMap.get(s.topicId)).filter(Boolean) as Topic[];
@@ -598,6 +599,12 @@ function Dashboard({
   const hasInterests = selections.length > 0;
   const hasSuggestedMeetings = suggestedMeetings.length > 0;
   const teamUrl = registrationUrl || websiteUrl;
+  const ac = accentColor;
+  const acBg  = ac ? { backgroundColor: `${ac}18` } : undefined;
+  const acBgXl = ac ? { backgroundColor: `${ac}0D` } : undefined;
+  const acColor = ac ? { color: ac } : undefined;
+  const acBannerBg = ac ? { backgroundColor: `${ac}0D`, borderColor: `${ac}35` } : undefined;
+  const acBarBg = ac ? { backgroundColor: `${ac}45` } : undefined;
 
   const parseDateOnly = (d: string | null) => {
     if (!d) return null;
@@ -620,25 +627,25 @@ function Dashboard({
       {/* ── Event Hero Card ─────────────────────────────────────────────── */}
       <div className="bg-card border border-border/60 rounded-2xl overflow-hidden shadow-sm" data-testid="section-event-hero">
         {/* Branded top band */}
-        <div className="bg-primary/5 border-b border-border/40 px-6 pt-6 pb-5">
+        <div className="border-b border-border/40 px-6 pt-6 pb-5 bg-primary/5" style={acBgXl}>
           <div className="flex items-center gap-4 mb-3">
-            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Hexagon className="h-6 w-6 text-primary" />
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0" style={acBg}>
+              <Hexagon className="h-6 w-6 text-primary" style={acColor} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5">Concierge Dashboard</p>
+              <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5" style={acColor}>Concierge Dashboard</p>
               <p className="font-display font-bold text-lg text-foreground leading-tight truncate" data-testid="text-event-name">{me.event.name}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             {eventDateStr && (
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <CalendarDays className="h-3.5 w-3.5 shrink-0 text-primary/60" />{eventDateStr}
+                <CalendarDays className="h-3.5 w-3.5 shrink-0 text-primary/60" style={ac ? { color: `${ac}99` } : undefined} />{eventDateStr}
               </span>
             )}
             {me.event.location && (
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-primary/60" />{me.event.location}
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-primary/60" style={ac ? { color: `${ac}99` } : undefined} />{me.event.location}
               </span>
             )}
           </div>
@@ -657,7 +664,7 @@ function Dashboard({
               { value: meetingsScheduledCount, label: "Meetings Scheduled", testId: "stat-meetings-scheduled" },
             ].map(({ value, label, testId }) => (
               <div key={label} className="bg-background border border-border/60 rounded-xl p-3 text-center" data-testid={testId}>
-                <p className="text-2xl font-display font-bold text-primary leading-none mb-1">{value}</p>
+                <p className="text-2xl font-display font-bold text-primary leading-none mb-1" style={acColor}>{value}</p>
                 <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
               </div>
             ))}
@@ -668,9 +675,9 @@ function Dashboard({
       {/* ── Meeting Invitation Banner ──────────────────────────────────── */}
       {invitationCount > 0 && (
         <Link href="/attendee/meetings">
-          <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-2xl px-5 py-4 cursor-pointer hover:bg-primary/10 transition-colors" data-testid="banner-meeting-invitations">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Bell className="h-5 w-5 text-primary" />
+          <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-2xl px-5 py-4 cursor-pointer hover:bg-primary/10 transition-colors" style={acBannerBg} data-testid="banner-meeting-invitations">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0" style={acBg}>
+              <Bell className="h-5 w-5 text-primary" style={acColor} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground">
@@ -690,8 +697,8 @@ function Dashboard({
 
         {/* Build Your Agenda */}
         <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <CalendarDays className="h-5 w-5 text-primary" />
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center" style={acBg}>
+            <CalendarDays className="h-5 w-5 text-primary" style={acColor} />
           </div>
           <div className="flex-1 space-y-1">
             <p className="font-semibold text-foreground text-sm">Build Your Agenda</p>
@@ -716,8 +723,8 @@ function Dashboard({
 
         {/* Meet Relevant Sponsors */}
         <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Building2 className="h-5 w-5 text-primary" />
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center" style={acBg}>
+            <Building2 className="h-5 w-5 text-primary" style={acColor} />
           </div>
           <div className="flex-1 space-y-1">
             <p className="font-semibold text-foreground text-sm">Meet Relevant Sponsors</p>
@@ -742,8 +749,8 @@ function Dashboard({
 
         {/* Bring a Team */}
         <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4" data-testid="section-bring-a-team">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Users className="h-5 w-5 text-primary" />
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center" style={acBg}>
+            <Users className="h-5 w-5 text-primary" style={acColor} />
           </div>
           <div className="flex-1 space-y-1">
             <p className="font-semibold text-foreground text-sm">Bring a Team</p>
@@ -767,7 +774,7 @@ function Dashboard({
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-primary" /> Recommended Sessions
+            <CalendarDays className="h-4 w-4 text-primary" style={acColor} /> Recommended Sessions
           </h2>
           <Link href="/attendee/agenda">
             <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" data-testid="link-view-full-agenda">
@@ -796,7 +803,7 @@ function Dashboard({
                 <div key={session.id} className="bg-card border border-border/60 rounded-2xl p-5 hover:border-border transition-colors" data-testid={`card-session-${session.id}`}>
                   <div className="flex items-start gap-4">
                     {/* Left accent */}
-                    <div className="w-1 self-stretch rounded-full bg-primary/25 shrink-0 mt-0.5" />
+                    <div className="w-1 self-stretch rounded-full bg-primary/25 shrink-0 mt-0.5" style={acBarBg} />
                     <div className="flex-1 min-w-0 space-y-1.5">
                       {(session.isFeatured || session.sessionTypeLabel) && (
                         <div className="flex items-center gap-2 flex-wrap">
@@ -857,7 +864,7 @@ function Dashboard({
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-primary" /> Suggested Meetings
+              <UserCheck className="h-4 w-4 text-primary" style={acColor} /> Suggested Meetings
             </h2>
             <Link href="/attendee/sponsors">
               <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" data-testid="link-view-all-sponsors-meetings">
@@ -873,14 +880,14 @@ function Dashboard({
                 <div key={s.id} className="flex items-center gap-3 px-5 py-3.5" data-testid={`card-suggested-meeting-${s.id}`}>
                   {s.logoUrl
                     ? <img src={s.logoUrl} alt={s.name} className="h-8 w-8 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-0.5" />
-                    : <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-4 w-4 text-primary" /></div>
+                    : <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0" style={acBg}><Building2 className="h-4 w-4 text-primary" style={acColor} /></div>
                   }
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground">{s.name}</p>
                     <RelevanceLabel labels={s.overlapTopicLabels} />
                   </div>
                   {hasMeeting ? (
-                    <span className="flex items-center gap-1 text-xs text-primary font-medium shrink-0" data-testid={`status-suggested-meeting-${s.id}`}>
+                    <span className="flex items-center gap-1 text-xs text-primary font-medium shrink-0" style={acColor} data-testid={`status-suggested-meeting-${s.id}`}>
                       <CheckCircle2 className="h-3.5 w-3.5" /> Requested
                     </span>
                   ) : (
@@ -900,7 +907,7 @@ function Dashboard({
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-primary" /> Recommended Sponsors
+            <Building2 className="h-4 w-4 text-primary" style={acColor} /> Recommended Sponsors
           </h2>
           <Link href="/attendee/sponsors">
             <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
@@ -930,7 +937,7 @@ function Dashboard({
                   <div className="flex items-start gap-3">
                     {sponsor.logoUrl
                       ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-10 w-10 rounded-xl object-contain shrink-0 border border-border/40 bg-white p-1" />
-                      : <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-5 w-5 text-primary" /></div>
+                      : <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0" style={acBg}><Building2 className="h-5 w-5 text-primary" style={acColor} /></div>
                     }
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm text-foreground truncate">{sponsor.name}</p>
@@ -946,7 +953,7 @@ function Dashboard({
                       </Button>
                     </Link>
                     {hasMeeting ? (
-                      <span className="flex items-center gap-1 text-xs text-primary font-medium" data-testid={`status-meeting-${sponsor.id}`}>
+                      <span className="flex items-center gap-1 text-xs text-primary font-medium" style={acColor} data-testid={`status-meeting-${sponsor.id}`}>
                         <CheckCircle2 className="h-3.5 w-3.5" /> Meeting Requested
                       </span>
                     ) : (
@@ -975,7 +982,7 @@ function Dashboard({
       <div className="bg-card border border-border/60 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Tag className="h-4 w-4 text-primary" /> Your Interests
+            <Tag className="h-4 w-4 text-primary" style={acColor} /> Your Interests
           </h2>
           <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" data-testid="button-edit-interests" onClick={onEditInterests}>
             <Pencil className="h-3 w-3" /> Edit
@@ -1263,6 +1270,7 @@ export default function AttendeePortalPage() {
         registrationUrl={me.event.registrationUrl}
         websiteUrl={me.event.websiteUrl}
         meetingsScheduledCount={meetingsScheduledCount}
+        accentColor={me.event.buttonColor || me.event.accentColor || null}
       />
     </AttendeeShell>
   );

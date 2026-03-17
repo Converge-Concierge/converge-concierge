@@ -8,6 +8,9 @@ import {
   backupJobs, fileAssets, passwordResetTokens, sponsorUsers,
   sponsorLoginTokens, dataExchangeLogs, userPermissions, permissionAuditLogs,
   agreementPackageTemplates, agreementDeliverableTemplateItems, emailTemplates,
+  eventInterestTopics, agendaSessions,
+  sponsorInterestTopicSelections, attendeeInterestTopicSelections, sessionInterestTopicSelections,
+  pendingConciergeProfiles, pendingConciergeTopics, pendingConciergeSessions, pendingConciergeMeetingRequests,
 } from "../shared/schema";
 import type {
   MeetingLocation, MeetingTimeBlock, EventSponsorLink,
@@ -407,7 +410,219 @@ const TLS_ATTENDEES: AttendeeDef[] = [
 const ALL_ATTENDEES = [...FRC_ATTENDEES, ...USBT_ATTENDEES, ...TLS_ATTENDEES];
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 4. DELIVERABLE TEMPLATE ITEMS (for seeding per-sponsor deliverables)
+// 4. AGENDA TOPICS — one shared list per event slug
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const EVENT_TOPICS: Record<string, string[]> = {
+  DEMOFRC2026: ["AI", "Compliance", "Regulatory", "Fraud", "Risk", "Cybersecurity", "Payments"],
+  DEMOUSBT2026: ["Core Modernization", "AI", "Digital Banking", "CX", "Payments", "Cloud", "Cybersecurity", "RegTech"],
+  DEMOTLS2026: ["Treasury", "Cash Management", "Risk", "Liquidity", "Automation", "Payments", "Finance Operations"],
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 5. AGENDA SESSIONS — 7 sessions per event, each tagged with 1–3 topics
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface SessionDef {
+  title: string;
+  description: string;
+  sessionType: string;
+  dayOffset: number;
+  start: string;
+  end: string;
+  topics: string[];
+  isFeatured?: boolean;
+}
+
+const FRC_SESSIONS: SessionDef[] = [
+  {
+    title: "AI-Driven Fraud Detection: The Next Frontier",
+    description: "Explore how financial institutions are deploying real-time machine learning to detect synthetic identity fraud, account takeover, and emerging payment fraud patterns at scale.",
+    sessionType: "keynote",
+    dayOffset: 0, start: "09:00", end: "09:50",
+    topics: ["AI", "Fraud"],
+    isFeatured: true,
+  },
+  {
+    title: "Regulatory Landscape 2026: What's Coming and How to Prepare",
+    description: "A deep-dive into upcoming regulatory changes from CFPB, OCC, and FinCEN — and what banks need to do now to stay ahead of compliance requirements.",
+    sessionType: "general",
+    dayOffset: 0, start: "10:15", end: "11:00",
+    topics: ["Regulatory", "Compliance"],
+  },
+  {
+    title: "Managing Credit Risk in a Volatile Interest Rate Environment",
+    description: "Practical frameworks for stress-testing loan portfolios, managing concentration risk, and adapting credit underwriting models when economic signals conflict.",
+    sessionType: "general",
+    dayOffset: 0, start: "11:15", end: "12:00",
+    topics: ["Risk"],
+  },
+  {
+    title: "Cybersecurity Incident Response for Community Banks",
+    description: "Real-world playbooks for responding to ransomware, third-party breaches, and DDoS attacks — with case studies from institutions similar to yours.",
+    sessionType: "workshop",
+    dayOffset: 1, start: "09:30", end: "10:30",
+    topics: ["Cybersecurity", "Risk"],
+  },
+  {
+    title: "Real-Time Payments: Opportunities, Risks, and Fraud Exposure",
+    description: "FedNow and RTP are live — but so are new fraud vectors. This session walks through the risk and compliance implications of real-time payment adoption.",
+    sessionType: "general",
+    dayOffset: 1, start: "10:45", end: "11:30",
+    topics: ["Payments", "Fraud", "Risk"],
+  },
+  {
+    title: "Compliance Automation: From Manual Processes to Machine Efficiency",
+    description: "How leading institutions are using AI and workflow automation to reduce compliance overhead while improving accuracy and audit readiness.",
+    sessionType: "general",
+    dayOffset: 1, start: "13:30", end: "14:15",
+    topics: ["Compliance", "AI"],
+    isFeatured: true,
+  },
+  {
+    title: "BSA/AML Modernization: Smarter Monitoring, Fewer False Positives",
+    description: "Strategies for modernizing BSA and AML programs with intelligent transaction monitoring, typology tuning, and regulatory-grade explainability.",
+    sessionType: "general",
+    dayOffset: 2, start: "09:00", end: "09:45",
+    topics: ["Regulatory", "Fraud", "Compliance"],
+  },
+];
+
+const USBT_SESSIONS: SessionDef[] = [
+  {
+    title: "Cloud-First Core Migration: A Practical Playbook",
+    description: "Lessons learned from banks that have completed or are mid-way through core system migrations to cloud-native platforms — covering vendor selection, data migration, and risk management.",
+    sessionType: "keynote",
+    dayOffset: 0, start: "09:00", end: "09:50",
+    topics: ["Cloud", "Core Modernization"],
+    isFeatured: true,
+  },
+  {
+    title: "AI in Banking: Separating Hype from Production-Ready Wins",
+    description: "A frank look at where AI is actually delivering ROI in banking today — from credit decisioning to fraud to marketing personalization — and where the hype still outpaces reality.",
+    sessionType: "general",
+    dayOffset: 0, start: "10:15", end: "11:00",
+    topics: ["AI", "Digital Banking"],
+  },
+  {
+    title: "Winning the Digital Wallet Wars",
+    description: "How banks and credit unions can compete with fintechs for wallet share — covering embedded finance, card controls, loyalty integration, and instant payment rails.",
+    sessionType: "general",
+    dayOffset: 0, start: "11:15", end: "12:00",
+    topics: ["Payments", "Digital Banking"],
+  },
+  {
+    title: "Next-Gen Customer Experience: Personalization at Scale",
+    description: "Designing digital journeys that feel human: how to apply behavioral data, AI-driven nudges, and omnichannel orchestration to improve member retention and cross-sell.",
+    sessionType: "workshop",
+    dayOffset: 1, start: "09:30", end: "10:30",
+    topics: ["CX", "AI"],
+  },
+  {
+    title: "RegTech Innovations for 2026 Compliance Programs",
+    description: "Emerging technology solutions for regulatory reporting, model risk management, and stress-testing that are reducing compliance cost and improving accuracy.",
+    sessionType: "general",
+    dayOffset: 1, start: "10:45", end: "11:30",
+    topics: ["RegTech"],
+  },
+  {
+    title: "API-First Architecture: Building the Modern Banking Platform",
+    description: "How to design a composable banking stack with open APIs, microservices, and third-party fintech integrations — without sacrificing reliability or security.",
+    sessionType: "general",
+    dayOffset: 1, start: "13:30", end: "14:15",
+    topics: ["Core Modernization", "Cloud"],
+    isFeatured: true,
+  },
+  {
+    title: "The Digital Branch: Reimagining In-Person + Digital Banking",
+    description: "Designing physical branch experiences that complement digital channels, improve staff productivity, and meet the expectations of both digital-native and traditional banking customers.",
+    sessionType: "general",
+    dayOffset: 2, start: "09:00", end: "09:45",
+    topics: ["Digital Banking", "CX"],
+  },
+];
+
+const TLS_SESSIONS: SessionDef[] = [
+  {
+    title: "Real-Time Cash Visibility: What Best-in-Class Looks Like in 2026",
+    description: "A benchmark study of how leading treasury teams are achieving intraday cash visibility across hundreds of bank accounts — and the technology stacks powering it.",
+    sessionType: "keynote",
+    dayOffset: 0, start: "09:00", end: "09:50",
+    topics: ["Cash Management", "Treasury"],
+    isFeatured: true,
+  },
+  {
+    title: "Automation Strategies for the Treasury Back-Office",
+    description: "Eliminating manual processes from payment execution, cash positioning, and reconciliation — with practical implementation guidance from treasury teams that have done it.",
+    sessionType: "general",
+    dayOffset: 0, start: "10:15", end: "11:00",
+    topics: ["Automation", "Finance Operations"],
+  },
+  {
+    title: "Liquidity Management in Uncertain Markets",
+    description: "How treasury functions are rethinking liquidity buffers, credit facility management, and intraday exposure in a higher-rate, higher-volatility environment.",
+    sessionType: "general",
+    dayOffset: 0, start: "11:15", end: "12:00",
+    topics: ["Liquidity", "Risk", "Treasury"],
+  },
+  {
+    title: "Cross-Border Payments: Speed, Cost, and Compliance Tradeoffs",
+    description: "Evaluating correspondent banking, SWIFT gpi, and alternative payment rails for cross-border treasury flows — including the compliance and FX risk implications.",
+    sessionType: "workshop",
+    dayOffset: 1, start: "09:30", end: "10:30",
+    topics: ["Payments", "Treasury"],
+  },
+  {
+    title: "AI-Powered Cash Forecasting: Moving Beyond Spreadsheets",
+    description: "Machine learning approaches to cash flow forecasting — from model selection to data architecture to explainability for CFO and board-level reporting.",
+    sessionType: "general",
+    dayOffset: 1, start: "10:45", end: "11:30",
+    topics: ["Automation", "Cash Management"],
+  },
+  {
+    title: "Financial Close Automation: Closing Faster Without More Headcount",
+    description: "How treasury and accounting teams are automating bank reconciliation, intercompany netting, and variance analysis to achieve continuous or near-continuous close.",
+    sessionType: "general",
+    dayOffset: 1, start: "13:30", end: "14:15",
+    topics: ["Automation", "Finance Operations"],
+    isFeatured: true,
+  },
+  {
+    title: "Strategic Liquidity Planning: Stress Testing for 2026 Scenarios",
+    description: "Practical stress-testing frameworks for treasury teams covering rate shocks, credit events, and operational disruptions — aligned with regulatory expectations.",
+    sessionType: "general",
+    dayOffset: 2, start: "09:00", end: "09:45",
+    topics: ["Liquidity", "Risk"],
+  },
+];
+
+const EVENT_SESSIONS: Record<string, SessionDef[]> = {
+  DEMOFRC2026: FRC_SESSIONS,
+  DEMOUSBT2026: USBT_SESSIONS,
+  DEMOTLS2026: TLS_SESSIONS,
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 6. SPONSOR ↔ TOPIC MAPPINGS (correlated agenda topics per event)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SPONSOR_TOPIC_MAP: Record<string, Record<string, string[]>> = {
+  RiskPilot:            { DEMOFRC2026: ["Risk", "Fraud", "AI", "Compliance"] },
+  "Summit RegTech":     { DEMOFRC2026: ["Regulatory", "Compliance"] },
+  FuturePay:            { DEMOFRC2026: ["Payments"], DEMOUSBT2026: ["Payments", "Digital Banking"] },
+  BankGuard:            { DEMOFRC2026: ["Cybersecurity", "Fraud"] },
+  CoreNova:             { DEMOUSBT2026: ["Core Modernization", "Cloud", "AI"] },
+  EngageCX:             { DEMOUSBT2026: ["CX", "Digital Banking", "AI"] },
+  "OpenCore Systems":   { DEMOUSBT2026: ["Core Modernization"] },
+  "Acme AI":            { DEMOUSBT2026: ["AI"] },
+  CloudTreasury:        { DEMOTLS2026: ["Treasury", "Cash Management", "Liquidity"], DEMOFRC2026: ["Payments", "Risk"] },
+  LedgerFlow:           { DEMOTLS2026: ["Treasury", "Finance Operations", "Cash Management"] },
+  "FinOps Insight":     { DEMOTLS2026: ["Finance Operations", "Automation"] },
+  "Horizon Automation": { DEMOTLS2026: ["Automation", "Treasury"] },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 7. DELIVERABLE TEMPLATE ITEMS (for seeding per-sponsor deliverables)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const DELIVERABLE_DEFS = [
@@ -452,6 +667,15 @@ function sanitizeEmail(name: string): string {
 
 async function clearAllData() {
   console.log("[SEED] Clearing existing data...");
+  await db.delete(pendingConciergeMeetingRequests);
+  await db.delete(pendingConciergeSessions);
+  await db.delete(pendingConciergeTopics);
+  await db.delete(pendingConciergeProfiles);
+  await db.delete(sessionInterestTopicSelections);
+  await db.delete(sponsorInterestTopicSelections);
+  await db.delete(attendeeInterestTopicSelections);
+  await db.delete(agendaSessions);
+  await db.delete(eventInterestTopics);
   await db.delete(agreementDeliverableReminders);
   await db.delete(deliverableSocialEntries);
   await db.delete(deliverableLinks);
@@ -839,6 +1063,168 @@ async function seedBackupJobs(slugToId: Map<string, string>) {
   console.log("[SEED] Created 4 backup job records.");
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// seedInterestTopics — creates event_interest_topics rows, returns a nested map
+// slugToId → { topicLabel → topicId }
+// ─────────────────────────────────────────────────────────────────────────────
+async function seedInterestTopics(
+  slugToId: Map<string, string>,
+): Promise<Map<string, Map<string, string>>> {
+  console.log("[SEED] Creating event interest topics...");
+  // topicMap[eventId] = Map<topicLabel, topicId>
+  const topicMap = new Map<string, Map<string, string>>();
+  let total = 0;
+
+  for (const [slug, labels] of Object.entries(EVENT_TOPICS)) {
+    const eventId = slugToId.get(slug);
+    if (!eventId) continue;
+    const labelToId = new Map<string, string>();
+    for (let i = 0; i < labels.length; i++) {
+      const label = labels[i];
+      const key = label.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+      const [row] = await db.insert(eventInterestTopics).values({
+        eventId,
+        topicKey: key,
+        topicLabel: label,
+        topicSource: "ADMIN_DEFINED",
+        status: "APPROVED",
+        displayOrder: i,
+        isActive: true,
+        createdByUserId: null,
+        suggestedBySponsorId: null,
+      }).returning();
+      labelToId.set(label, row.id);
+      total++;
+    }
+    topicMap.set(eventId, labelToId);
+  }
+
+  console.log(`[SEED] Created ${total} interest topics.`);
+  return topicMap;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// seedSessions — creates agenda_sessions and session_interest_topic_selections
+// ─────────────────────────────────────────────────────────────────────────────
+async function seedSessions(
+  slugToId: Map<string, string>,
+  topicMap: Map<string, Map<string, string>>,
+): Promise<void> {
+  console.log("[SEED] Creating agenda sessions...");
+  let sessionCount = 0;
+  let tagCount = 0;
+
+  for (const [slug, sessionDefs] of Object.entries(EVENT_SESSIONS)) {
+    const eventId = slugToId.get(slug);
+    if (!eventId) continue;
+    const labelToId = topicMap.get(eventId) ?? new Map<string, string>();
+    const eventStart = DEMO_EVENTS.find(e => e.slug === slug)!.start;
+
+    for (let i = 0; i < sessionDefs.length; i++) {
+      const def = sessionDefs[i];
+      const d = new Date(eventStart);
+      d.setDate(d.getDate() + def.dayOffset);
+      const sessionDate = d.toISOString().slice(0, 10);
+
+      const [session] = await db.insert(agendaSessions).values({
+        eventId,
+        title: def.title,
+        description: def.description,
+        sessionTypeKey: def.sessionType,
+        sessionDate,
+        startTime: def.start,
+        endTime: def.end,
+        timezone: "America/Chicago",
+        status: "Published",
+        displayOrder: i,
+        isFeatured: def.isFeatured ?? false,
+        isPublic: true,
+      }).returning();
+
+      for (const topicLabel of def.topics) {
+        const topicId = labelToId.get(topicLabel);
+        if (!topicId) continue;
+        await db.insert(sessionInterestTopicSelections).values({
+          sessionId: session.id,
+          eventId,
+          topicId,
+        });
+        tagCount++;
+      }
+      sessionCount++;
+    }
+  }
+
+  console.log(`[SEED] Created ${sessionCount} sessions with ${tagCount} topic tags.`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// seedSponsorTopics — maps sponsors to their Correlated Agenda Topics
+// ─────────────────────────────────────────────────────────────────────────────
+async function seedSponsorTopics(
+  slugToId: Map<string, string>,
+  sponsorMap: Map<string, { id: string; def: SponsorDef }>,
+  topicMap: Map<string, Map<string, string>>,
+): Promise<void> {
+  console.log("[SEED] Creating sponsor topic mappings...");
+  let count = 0;
+
+  for (const [sponsorName, eventTopics] of Object.entries(SPONSOR_TOPIC_MAP)) {
+    const entry = sponsorMap.get(sponsorName);
+    if (!entry) continue;
+
+    for (const [slug, topicLabels] of Object.entries(eventTopics)) {
+      const eventId = slugToId.get(slug);
+      if (!eventId) continue;
+      const labelToId = topicMap.get(eventId) ?? new Map<string, string>();
+
+      for (const label of topicLabels) {
+        const topicId = labelToId.get(label);
+        if (!topicId) continue;
+        await db.insert(sponsorInterestTopicSelections).values({
+          sponsorId: entry.id,
+          eventId,
+          topicId,
+        });
+        count++;
+      }
+    }
+  }
+
+  console.log(`[SEED] Created ${count} sponsor topic mappings.`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// seedAttendeeTopics — maps attendees to topics matching their interests array
+// ─────────────────────────────────────────────────────────────────────────────
+async function seedAttendeeTopics(
+  slugToId: Map<string, string>,
+  attendeeMap: Map<string, { id: string; def: AttendeeDef }>,
+  topicMap: Map<string, Map<string, string>>,
+): Promise<void> {
+  console.log("[SEED] Creating attendee topic selections...");
+  let count = 0;
+
+  for (const [, { id: attendeeId, def }] of attendeeMap) {
+    const eventId = slugToId.get(def.event);
+    if (!eventId) continue;
+    const labelToId = topicMap.get(eventId) ?? new Map<string, string>();
+
+    for (const interest of def.interests) {
+      const topicId = labelToId.get(interest);
+      if (!topicId) continue;
+      await db.insert(attendeeInterestTopicSelections).values({
+        attendeeId,
+        eventId,
+        topicId,
+      });
+      count++;
+    }
+  }
+
+  console.log(`[SEED] Created ${count} attendee topic selections.`);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -856,11 +1242,20 @@ async function main() {
   const sponsorMap = await seedSponsors(slugToId);
   await seedSponsorUsers(sponsorMap);
   const attendeeMap = await seedAttendees(slugToId);
+
+  const topicMap = await seedInterestTopics(slugToId);
+  await seedSessions(slugToId, topicMap);
+  await seedSponsorTopics(slugToId, sponsorMap, topicMap);
+  await seedAttendeeTopics(slugToId, attendeeMap, topicMap);
+
   await seedMeetings(slugToId, sponsorMap, attendeeMap);
   await seedInfoRequests(slugToId, sponsorMap, attendeeMap);
   await seedDeliverables(slugToId, sponsorMap);
   await seedEmailLogs(slugToId, sponsorMap);
   await seedBackupJobs(slugToId);
+
+  const topicTotal = Object.values(EVENT_TOPICS).reduce((s, arr) => s + arr.length, 0);
+  const sessionTotal = Object.values(EVENT_SESSIONS).reduce((s, arr) => s + arr.length, 0);
 
   const elapsed = ((Date.now() - start) / 1000).toFixed(1);
   console.log("═══════════════════════════════════════════════════════");
@@ -868,6 +1263,8 @@ async function main() {
   console.log(`  Events: ${DEMO_EVENTS.length}`);
   console.log(`  Sponsors: ${DEMO_SPONSORS.length}`);
   console.log(`  Attendees: ${ALL_ATTENDEES.length}`);
+  console.log(`  Agenda Topics: ${topicTotal}`);
+  console.log(`  Sessions: ${sessionTotal}`);
   console.log("═══════════════════════════════════════════════════════");
 }
 

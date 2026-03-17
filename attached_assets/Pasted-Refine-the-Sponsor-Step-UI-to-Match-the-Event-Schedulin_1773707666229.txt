@@ -1,0 +1,251 @@
+Refine the Sponsor Step UI to Match the Event Scheduling Experience More Closely
+Narrow the sponsor card width, enlarge event logo, update step label, and open meeting scheduling in a popup/modal instead of a new window
+
+We need to make several UI and interaction refinements to the attendee onboarding Sponsors step so it feels more polished and more consistent with the main event scheduling experience.
+
+The current version is close, but there are four specific issues to correct:
+
+The sponsor card is too wide compared to the event scheduling page
+
+The event logo at the top is too small
+
+The progress label “Your Email” should be changed to “Your Matches”
+
+Clicking the Onsite / Online meeting buttons should open a popup/modal, not a new browser window
+
+This is a focused polish pass.
+
+1. Primary Goal
+
+Update the sponsor step in the attendee onboarding flow so that:
+
+the sponsor card width visually matches the event scheduling page more closely
+
+the event logo is much more prominent
+
+the progress step label is clearer and more attendee-friendly
+
+onsite/online scheduling opens inline as a popup/modal rather than a new window/tab
+
+2. Narrow the Sponsor Card Width
+
+The sponsor card on the Sponsors step currently feels too wide.
+
+It should feel more like the card proportions used on the main event scheduling page.
+
+Required behavior
+
+Adjust the sponsor card/container width so it is closer to the event scheduling page card width and does not stretch excessively across the onboarding card.
+
+Notes
+
+do not make the overall onboarding container narrow again
+
+this instruction is specifically about the sponsor card width / internal layout, not collapsing the whole page
+
+preserve a polished centered layout
+
+The sponsor card should feel balanced and intentional, not oversized.
+
+3. Use the Event Scheduling Page as the Visual Reference
+
+Use the card proportions and internal spacing from the main event scheduling page as the reference point.
+
+Compare and align:
+
+card max width
+
+internal padding
+
+button widths
+
+content spacing
+
+logo / sponsor name / badge alignment
+
+The goal is that the sponsor step feels like a natural extension of the event scheduling page, not a stretched variation.
+
+4. Enlarge the Event Logo at the Top
+
+The event logo at the top of the onboarding page is too small.
+
+Required behavior
+
+Increase the displayed event logo size by approximately 200% compared to the current implementation.
+
+This should make the top of the page feel more like a branded event confirmation/setup experience.
+
+Important
+
+keep it visually balanced with the event title
+
+do not let it dominate the page
+
+preserve responsiveness on mobile
+
+The logo should be clearly more prominent than it is now.
+
+5. Keep Header Centered and Polished
+
+After enlarging the event logo, ensure the top header still feels clean:
+
+event logo
+
+event title
+
+spacing between them
+
+spacing before the onboarding card
+
+Do not let the larger logo create cramped or awkward vertical spacing.
+
+6. Update Progress Bar Label
+
+At the top progress bar, replace:
+
+Your Email
+
+with:
+
+Your Matches
+
+This is clearer and better reflects what is happening in that step.
+
+Required final step labels
+
+Use:
+
+Interests
+
+Your Matches
+
+Sessions
+
+Sponsors
+
+Complete
+
+Make sure this change is applied consistently anywhere the step label is rendered.
+
+7. Keep Progress Bar Logic Intact
+
+This is only a label change.
+
+Do not change the underlying step sequence or step logic unless necessary.
+
+The step that currently says “Your Email” should still remain the same step in the flow, but with the new attendee-friendly label:
+
+Your Matches
+8. Open Onsite / Online Meeting in a Popup / Modal
+
+When the attendee clicks:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+the current behavior should no longer open a new browser window/tab.
+
+Required behavior
+
+The scheduling experience should open in a popup/modal/dialog (or existing in-app sheet) instead.
+
+This should feel like an in-flow interaction, not an external jump.
+
+9. Reuse Existing Scheduling UI if Possible
+
+If the event scheduling page already has a scheduling modal/sheet/dialog that can be reused, use that same interaction model here.
+
+Do not build a separate scheduling UI unnecessarily.
+
+The attendee should feel like they are staying inside Concierge.
+
+10. Popup / Modal Requirements
+
+The scheduling popup/modal should:
+
+open over the current onboarding page
+
+preserve the attendee’s current progress in the onboarding flow
+
+allow them to schedule the meeting without losing their place
+
+close cleanly and return them to the Sponsors step
+
+If the scheduling flow is multi-step, keep it contained within the popup/modal where practical.
+
+11. Do Not Use New Window / External Navigation for Scheduling
+
+Remove the behavior where onsite/online buttons open:
+
+a new tab
+
+a new browser window
+
+external navigation away from the onboarding flow
+
+This is important for continuity and conversion.
+
+The attendee should not feel like they are leaving the process.
+
+12. Preserve Scheduling Functionality
+
+Changing the interaction container should not change the actual scheduling logic.
+
+The popup/modal should still use:
+
+the correct sponsor configuration
+
+the correct attendee identity context
+
+the real scheduling flow
+
+real meeting creation behavior
+
+This is a UI change to the presentation/launch method, not a change to scheduling rules.
+
+13. Preserve “Request Information” As-Is
+
+The Request Information action may remain inline on the sponsor card unless there is already a better modal-based pattern elsewhere.
+
+The priority here is the onsite/online scheduling buttons.
+
+Do not over-expand this task unnecessarily.
+
+14. Re-Test Mobile Behavior After Changes
+
+After narrowing the sponsor card and enlarging the logo, verify mobile responsiveness.
+
+Required checks
+
+sponsor card still fits comfortably
+
+buttons remain easy to tap
+
+enlarged logo does not crowd the page
+
+popup/modal works correctly on mobile viewport sizes
+
+These refinements must not break the mobile experience.
+
+15. Acceptance Criteria
+
+This refinement is complete when:
+
+the sponsor card width on the Sponsors step is closer to the event scheduling page card proportions
+
+the event logo at the top is significantly larger (about 200% larger than current)
+
+the progress bar label “Your Email” is changed to “Your Matches”
+
+clicking Schedule Onsite Meeting opens a popup/modal instead of a new window
+
+clicking Online Meeting opens a popup/modal instead of a new window
+
+scheduling still uses the correct sponsor setup/configuration and real scheduling logic
+
+the flow remains polished and mobile-friendly
+
+16. Success Standard
+
+After this update, the Sponsors step should feel much more polished and much more consistent with the main event scheduling experience. The card proportions should feel balanced, the event branding should be stronger, the progress labels clearer, and scheduling actions should happen inline without kicking the attendee into a separate window.

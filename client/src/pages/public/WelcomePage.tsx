@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AgendaSession, EventInterestTopic, Sponsor, EventSponsorLink } from "@shared/schema";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ interface SponsorWithTopics extends Sponsor {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const STEP_ORDER: WizardStep[] = ["topics", "email", "sessions", "sponsors", "complete"];
-const STEP_LABELS = ["Interests", "Your Email", "Sessions", "Sponsors", "Complete"];
+const STEP_LABELS = ["Interests", "Your Matches", "Sessions", "Sponsors", "Complete"];
 
 function storageKey(slug: string) {
   return `pending_concierge_${slug}`;
@@ -543,6 +544,12 @@ function SponsorsCard({
   loading: boolean;
 }) {
   const [requestInfoSponsor, setRequestInfoSponsor] = useState<SponsorWithTopics | null>(null);
+  const [schedulingModal, setSchedulingModal] = useState<{ sponsor: SponsorWithTopics; mode: "onsite" | "online" } | null>(null);
+
+  function openScheduling(s: SponsorWithTopics, mode: "onsite" | "online") {
+    onSchedule(s.id, mode);          // record intent locally
+    setSchedulingModal({ sponsor: s, mode });
+  }
 
   const topicMap = new Map<string, string>(allTopics.map((t) => [t.id, t.topicLabel]));
   const attendeeTopicSet = new Set(selectedTopicIds);
@@ -581,7 +588,7 @@ function SponsorsCard({
         {sorted.length === 0 ? (
           <p className="text-sm text-gray-400 italic py-8 text-center">No sponsors to show yet.</p>
         ) : (
-          <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1 -mr-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[540px] overflow-y-auto pr-1 -mr-1">
             {sorted.map((s) => {
               const level = getSponsorEventLevel(s, eventId);
               const link = getSponsorEventLink(s, eventId);
@@ -668,56 +675,46 @@ function SponsorsCard({
                     {/* Action buttons — same capability logic as EventPage */}
                     <div className="space-y-1.5">
                       {booked ? (
-                        /* Already initiated scheduling */
+                        /* Already initiated scheduling — re-open in modal */
                         <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-xs font-semibold">
                           <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
                           <span>{booked === "online" ? "Online" : "Onsite"} Meeting Scheduling Opened</span>
-                          <a
-                            href={buildScheduleUrl(s.id, booked)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            onClick={() => openScheduling(s, booked)}
                             className="ml-auto flex items-center gap-1 text-green-600 hover:text-green-800 underline underline-offset-2"
                             data-testid={`link-sponsor-reschedule-${s.id}`}
                           >
-                            Open again <ExternalLink className="w-3 h-3" />
-                          </a>
+                            Open again
+                          </button>
                         </div>
                       ) : (
                         <>
-                          {/* Schedule Onsite Meeting */}
+                          {/* Schedule Onsite Meeting — opens inline modal */}
                           {onsiteEnabled && (
-                            <a
-                              href={buildScheduleUrl(s.id, "onsite")}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
                               data-testid={`button-sponsor-onsite-${s.id}`}
-                              onClick={() => onSchedule(s.id, "onsite")}
+                              onClick={() => openScheduling(s, "onsite")}
                               className={cn(
                                 "w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
                                 levelAccent[level] || "bg-blue-600 hover:bg-blue-700 text-white"
                               )}
                             >
                               <MapPin className="w-3.5 h-3.5" /> Schedule Onsite Meeting
-                              <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
-                            </a>
+                            </button>
                           )}
 
-                          {/* Online Meeting */}
+                          {/* Online Meeting — opens inline modal */}
                           {onlineEnabled && (
-                            <a
-                              href={buildScheduleUrl(s.id, "online")}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
                               data-testid={`button-sponsor-online-${s.id}`}
-                              onClick={() => onSchedule(s.id, "online")}
+                              onClick={() => openScheduling(s, "online")}
                               className={cn(
                                 "w-full flex items-center justify-center gap-1.5 py-1 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98]",
                                 levelAccentSecondary[level] || "border-gray-300 text-gray-600 bg-gray-50/60 hover:bg-gray-100"
                               )}
                             >
                               <Video className="w-3 h-3" /> Online Meeting
-                              <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
-                            </a>
+                            </button>
                           )}
                         </>
                       )}
@@ -771,6 +768,32 @@ function SponsorsCard({
           email: attendeeEmail || undefined,
         }}
       />
+
+      {/* Scheduling modal — embeds the EventPage scheduling flow inline */}
+      <Dialog open={!!schedulingModal} onOpenChange={(o) => !o && setSchedulingModal(null)}>
+        <DialogContent className="max-w-5xl w-full h-[90vh] p-0 gap-0 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60 bg-muted/30 shrink-0">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              {schedulingModal?.mode === "online"
+                ? <Video className="w-4 h-4 text-blue-600" />
+                : <MapPin className="w-4 h-4 text-blue-600" />}
+              <span>
+                {schedulingModal?.mode === "online" ? "Online Meeting" : "Schedule Onsite Meeting"}
+                {schedulingModal && <span className="font-normal text-muted-foreground ml-1">· {schedulingModal.sponsor.name}</span>}
+              </span>
+            </div>
+          </div>
+          {schedulingModal && (
+            <iframe
+              key={`${schedulingModal.sponsor.id}-${schedulingModal.mode}`}
+              src={buildScheduleUrl(schedulingModal.sponsor.id, schedulingModal.mode)}
+              className="w-full flex-1 border-0"
+              style={{ height: "calc(90vh - 44px)" }}
+              title="Meeting Scheduling"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -1000,14 +1023,14 @@ export default function WelcomePage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {event?.logoUrl && step === "topics" && (
-          <div className="text-center mb-6">
-            <img src={event.logoUrl} alt={event.name} className="h-10 object-contain mx-auto" />
+          <div className="text-center mb-8">
+            <img src={event.logoUrl} alt={event.name} className="h-24 max-w-[280px] object-contain mx-auto" />
           </div>
         )}
 
         {event && step !== "topics" && step !== "complete" && (
           <div className="text-center mb-6">
-            {event.logoUrl && <img src={event.logoUrl} alt={event.name} className="h-8 object-contain mx-auto mb-2" />}
+            {event.logoUrl && <img src={event.logoUrl} alt={event.name} className="h-16 max-w-[220px] object-contain mx-auto mb-2" />}
             <p className="text-sm font-semibold text-gray-700">{event.name}</p>
           </div>
         )}

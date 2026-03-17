@@ -469,7 +469,7 @@ function SessionsCard({ sessions, savedIds, onToggle, onNext, onBack, loading }:
 
 // ── Card 4: Sponsors ──────────────────────────────────────────────────────────
 
-function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, selectedTopicIds, meetingRequests, onSchedule, onNext, onBack, loading }: {
+function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, selectedTopicIds, meetingRequests, infoRequestedIds, onSchedule, onInfoRequested, onNext, onBack, loading }: {
   eventId: string;
   eventSlug: string;
   attendeeEmail: string;
@@ -477,7 +477,9 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
   allTopics: EventInterestTopic[];
   selectedTopicIds: string[];
   meetingRequests: { sponsorId: string; requestType: string }[];
+  infoRequestedIds: string[];
   onSchedule: (sponsorId: string, mode: "onsite" | "online") => void;
+  onInfoRequested: (sponsorId: string) => void;
   onNext: () => void;
   onBack: () => void;
   loading: boolean;
@@ -492,6 +494,7 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
 
   const topicMap = new Map<string, string>(allTopics.map((t) => [t.id, t.topicLabel]));
   const attendeeTopicSet = new Set(selectedTopicIds);
+  const infoRequestedSet = new Set(infoRequestedIds);
 
   const sorted = [...sponsors].sort((a, b) => {
     const la = LEVEL_ORDER[getSponsorEventLevel(a, eventId)] ?? 0;
@@ -501,10 +504,11 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
     return lb - la || rb - ra;
   });
 
-  function scheduledMode(sponsorId: string): "onsite" | "online" | null {
-    const r = meetingRequests.find((r) => r.sponsorId === sponsorId && (r.requestType === "onsite" || r.requestType === "online" || r.requestType === "meeting"));
-    if (!r) return null;
-    return r.requestType === "online" ? "online" : "onsite";
+  function wasOnsiteScheduled(sponsorId: string) {
+    return meetingRequests.some((r) => r.sponsorId === sponsorId && r.requestType === "onsite");
+  }
+  function wasOnlineScheduled(sponsorId: string) {
+    return meetingRequests.some((r) => r.sponsorId === sponsorId && r.requestType === "online");
   }
 
   function buildScheduleUrl(sponsorId: string, mode: "onsite" | "online") {
@@ -594,55 +598,54 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
                     </Link>
                   </div>
 
-                  {/* Action buttons — same layout as EventPage */}
-                  <div className="px-3 pb-3 space-y-1">
-                    {booked ? (
-                      <div className="w-full py-2 rounded-lg bg-green-50 border border-green-200 text-green-700 text-xs font-semibold text-center flex items-center justify-center gap-1.5">
-                        <CheckCircle2 className="h-3 w-3" />
-                        {booked === "online" ? "Online" : "Onsite"} Meeting Opening…
-                        <button
-                          onClick={() => openScheduling(s, booked)}
-                          className="ml-1 text-green-600 hover:text-green-800 underline underline-offset-2"
-                          data-testid={`link-sponsor-reschedule-${s.id}`}
-                        >
-                          Reopen
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        {onsiteEnabled && (
-                          <button
-                            data-testid={`button-sponsor-onsite-${s.id}`}
-                            onClick={() => openScheduling(s, "onsite")}
-                            className={cn(
-                              "w-full py-1.5 rounded-lg text-white text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
-                              levelAccent[level] || "bg-primary hover:bg-primary/90",
-                            )}
-                          >
-                            Schedule Onsite Meeting
-                          </button>
+                  {/* Action buttons — always visible, with ✓ status indicators */}
+                  <div className="px-3 pb-3 space-y-1.5">
+                    {onsiteEnabled && (
+                      <button
+                        data-testid={`button-sponsor-onsite-${s.id}`}
+                        onClick={() => openScheduling(s, "onsite")}
+                        className={cn(
+                          "w-full py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-[0.98] flex items-center justify-between px-3",
+                          levelAccent[level] || "bg-primary hover:bg-primary/90 text-white",
                         )}
-                        {onlineEnabled && (
-                          <button
-                            data-testid={`button-sponsor-online-${s.id}`}
-                            onClick={() => openScheduling(s, "online")}
-                            className={cn(
-                              "w-full py-1 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5",
-                              levelAccentSecondary[level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
-                            )}
-                          >
-                            <Video className="h-3 w-3" /> Online Meeting
-                          </button>
+                      >
+                        <span>Schedule Onsite Meeting</span>
+                        {wasOnsiteScheduled(s.id) && (
+                          <span className="flex items-center gap-0.5 opacity-90 text-[10px] font-bold ml-2 shrink-0">
+                            <CheckCircle2 className="h-3 w-3" /> Requested
+                          </span>
                         )}
-                      </>
+                      </button>
+                    )}
+                    {onlineEnabled && (
+                      <button
+                        data-testid={`button-sponsor-online-${s.id}`}
+                        onClick={() => openScheduling(s, "online")}
+                        className={cn(
+                          "w-full py-1 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-between px-3",
+                          levelAccentSecondary[level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
+                        )}
+                      >
+                        <span className="flex items-center gap-1.5"><Video className="h-3 w-3" /> Online Meeting</span>
+                        {wasOnlineScheduled(s.id) && (
+                          <span className="flex items-center gap-0.5 text-[10px] font-bold ml-2 shrink-0">
+                            <CheckCircle2 className="h-3 w-3" /> Requested
+                          </span>
+                        )}
+                      </button>
                     )}
                     {infoEnabled && (
                       <button
                         onClick={() => setRequestInfoSponsor(s)}
                         data-testid={`button-sponsor-info-${s.id}`}
-                        className="w-full py-1 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground bg-transparent hover:bg-muted/50 transition-all duration-150 active:scale-[0.98]"
+                        className="w-full py-1 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground bg-transparent hover:bg-muted/50 transition-all duration-150 active:scale-[0.98] flex items-center justify-between px-3"
                       >
-                        Request Information
+                        <span>Request Information</span>
+                        {infoRequestedSet.has(s.id) && (
+                          <span className="flex items-center gap-0.5 text-[10px] font-bold text-green-600 ml-2 shrink-0">
+                            <CheckCircle2 className="h-3 w-3" /> Sent
+                          </span>
+                        )}
                       </button>
                     )}
                   </div>
@@ -666,6 +669,7 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
       <RequestInfoModal
         open={!!requestInfoSponsor}
         onClose={() => setRequestInfoSponsor(null)}
+        onSuccess={() => { if (requestInfoSponsor) onInfoRequested(requestInfoSponsor.id); }}
         sponsorId={requestInfoSponsor?.id ?? ""}
         sponsorName={requestInfoSponsor?.name ?? ""}
         eventId={eventId}
@@ -756,6 +760,7 @@ export default function WelcomePage() {
   const [topicIds, setTopicIds] = useState<string[]>([]);
   const [sessionIds, setSessionIds] = useState<string[]>([]);
   const [meetingRequests, setMeetingRequests] = useState<{ sponsorId: string; requestType: string }[]>([]);
+  const [infoRequestedIds, setInfoRequestedIds] = useState<string[]>([]);
   const [email, setEmail] = useState("");
   const [matchedToken, setMatchedToken] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -846,6 +851,10 @@ export default function WelcomePage() {
     setMeetingRequests((p) => [...p, { sponsorId, requestType: mode }]);
   }
 
+  function handleInfoRequested(sponsorId: string) {
+    setInfoRequestedIds((p) => p.includes(sponsorId) ? p : [...p, sponsorId]);
+  }
+
   async function handleSponsorsNext() {
     if (!profileId) return;
     setActionLoading(true);
@@ -867,7 +876,7 @@ export default function WelcomePage() {
     );
   }
 
-  const uniqueSponsorContacts = new Set(meetingRequests.map((r) => r.sponsorId)).size;
+  const uniqueSponsorContacts = new Set([...meetingRequests.map((r) => r.sponsorId), ...infoRequestedIds]).size;
 
   return (
     <Shell>
@@ -900,7 +909,9 @@ export default function WelcomePage() {
             allTopics={topics}
             selectedTopicIds={topicIds}
             meetingRequests={meetingRequests}
+            infoRequestedIds={infoRequestedIds}
             onSchedule={handleSchedule}
+            onInfoRequested={handleInfoRequested}
             onNext={handleSponsorsNext}
             onBack={() => setStep("sessions")}
             loading={actionLoading}

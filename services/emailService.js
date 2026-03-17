@@ -10,6 +10,7 @@ import {
   sponsorMagicLoginEmail,
   meetingReminderEmail,
   deliverableReminderEmail,
+  conciergeSummaryEmail,
 } from "./emailTemplates.js";
 import {
   buildMeetingIcs,
@@ -323,6 +324,33 @@ export async function sendInformationRequestConfirmationToAttendee(storage, info
     console.log(`[EMAIL] Automation disabled — skipping info request confirmation for ${toEmail}`);
     return;
   }
+
+  let BASE_URL = process.env.BASE_APP_URL?.trim()?.replace(/\/$/, "") || null;
+  if (!BASE_URL) {
+    try {
+      const branding = await storage.getBranding();
+      if (branding?.appBaseUrl?.trim()) BASE_URL = branding.appBaseUrl.trim().replace(/\/$/, "");
+    } catch (_) {}
+  }
+  if (!BASE_URL) {
+    if (process.env.REPLIT_DEPLOYMENT === "1" && process.env.REPLIT_DOMAINS) {
+      BASE_URL = `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`;
+    } else if (process.env.REPLIT_DEV_DOMAIN) {
+      BASE_URL = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+    } else {
+      BASE_URL = "https://concierge.convergeevents.com";
+    }
+  }
+
+  let conciergePlanUrl = null;
+  if (infoRequest?.attendeeId) {
+    try {
+      const tokens = await storage.getAttendeeTokensByAttendee(infoRequest.attendeeId);
+      const token = tokens.find((t) => !infoRequest.eventId || t.eventId === infoRequest.eventId) ?? tokens[0];
+      if (token?.token) conciergePlanUrl = `${BASE_URL}/attendee-access/${token.token}`;
+    } catch (_) {}
+  }
+
   const sponsorDisplayName = sponsor?.name ? sponsor.name.trim() : "";
   const subject = sponsorDisplayName
     ? `Your information request has been sent to ${sponsorDisplayName}`
@@ -331,7 +359,7 @@ export async function sendInformationRequestConfirmationToAttendee(storage, info
     attendeeFirstName: infoRequest?.attendeeFirstName ?? "",
     sponsorName: sponsor?.name ?? "",
     eventName: event?.name ?? "",
-    eventSlug: event?.slug ?? null,
+    conciergePlanUrl,
   });
   await sendAndLog(storage, {
     emailType: "info_request_confirmation_attendee",
@@ -499,6 +527,62 @@ export async function sendMeetingReminderEmail(storage, attendee, sponsor, meeti
       source: "Automation – Meeting Reminder",
     });
   }
+}
+
+export async function sendConciergeSummaryEmail(storage, { profile, event, topicLabels, sessionTitles, sponsorContactCount }) {
+  const toEmail = profile?.email;
+  if (!toEmail) {
+    console.warn(`[EMAIL] No email on pending profile ${profile?.id} — skipping concierge summary`);
+    return;
+  }
+
+  let BASE_URL = process.env.BASE_APP_URL?.trim()?.replace(/\/$/, "") || null;
+  if (!BASE_URL) {
+    try {
+      const branding = await storage.getBranding();
+      if (branding?.appBaseUrl?.trim()) BASE_URL = branding.appBaseUrl.trim().replace(/\/$/, "");
+    } catch (_) {}
+  }
+  if (!BASE_URL) {
+    if (process.env.REPLIT_DEPLOYMENT === "1" && process.env.REPLIT_DOMAINS) {
+      BASE_URL = `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`;
+    } else if (process.env.REPLIT_DEV_DOMAIN) {
+      BASE_URL = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+    } else {
+      BASE_URL = "https://concierge.convergeevents.com";
+    }
+  }
+
+  let conciergePlanUrl = null;
+  if (profile?.matchedAttendeeId) {
+    try {
+      const tokens = await storage.getAttendeeTokensByAttendee(profile.matchedAttendeeId);
+      const token = tokens.find((t) => !profile.eventId || t.eventId === profile.eventId) ?? tokens[0];
+      if (token?.token) conciergePlanUrl = `${BASE_URL}/attendee-access/${token.token}`;
+    } catch (_) {}
+  }
+
+  const emailFirstName = profile?.email?.split("@")[0] ?? "there";
+  const subject = `Your concierge plan for ${event?.name ?? "the event"} is ready`;
+  const html = conciergeSummaryEmail({
+    attendeeFirstName: emailFirstName,
+    eventName: event?.name ?? "",
+    eventSlug: event?.slug ?? null,
+    topicLabels: topicLabels ?? [],
+    sessionTitles: sessionTitles ?? [],
+    sponsorContactCount: sponsorContactCount ?? 0,
+    conciergePlanUrl,
+  });
+  await sendAndLog(storage, {
+    emailType: "concierge_summary",
+    to: toEmail,
+    subject,
+    html,
+    eventId: profile?.eventId ?? null,
+    sponsorId: null,
+    attendeeId: profile?.matchedAttendeeId ?? null,
+    source: "System Action",
+  });
 }
 
 export async function sendInternalDeliverableNotification(storage, { sponsorId, sponsorName, eventId, eventName, deliverableName, action }) {

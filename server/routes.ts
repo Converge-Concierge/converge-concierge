@@ -6,7 +6,7 @@ import { normalizeAttendeeCategory, rankAttendees, categoryLabel, setCategoryWei
 import { evaluateRules, testRulesAgainstValue } from "./services/categoryRuleEngine";
 import { requireAuth, requireAdmin, stripPassword } from "./auth";
 import { buildSponsorReportPDF } from "./pdf-report";
-import { sendEmail, sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee, sendInternalDeliverableNotification as sendInternalNotification, isAutomationEnabled, recordAutomationSend, createMessageJobForSend, completeMessageJob } from "../services/emailService";
+import { sendEmail, sendMeetingConfirmationToAttendee, sendMeetingNotificationToSponsor, sendInformationRequestNotificationToSponsor, sendInformationRequestConfirmationToAttendee, sendInternalDeliverableNotification as sendInternalNotification, isAutomationEnabled, recordAutomationSend, createMessageJobForSend, completeMessageJob, sendConciergeSummaryEmail } from "../services/emailService";
 import multer from "multer";
 import path from "path";
 import { randomBytes, createHash } from "crypto";
@@ -2341,6 +2341,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const profile = await storage.getPendingConciergeProfile(req.params.profileId);
       if (!profile) return res.status(404).json({ error: "Profile not found" });
       await storage.updatePendingConciergeProfile(profile.id, { isCompleted: true, onboardingStep: "complete" });
+      // Fire-and-forget summary email
+      (async () => {
+        try {
+          const [event, profileTopics, profileSessions, meetingRequests, allTopics, allSessions] = await Promise.all([
+            storage.getEvent(profile.eventId),
+            storage.getPendingConciergeTopics(profile.id),
+            storage.getPendingConciergeSessions(profile.id),
+            storage.getPendingConciergeMeetingRequests(profile.id),
+            storage.getEventInterestTopics(profile.eventId),
+            storage.getAgendaSessions(profile.eventId),
+          ]);
+          const topicIdSet = new Set(profileTopics.map((t) => t.topicId));
+          const topicLabels = allTopics.filter((t) => topicIdSet.has(t.id)).map((t) => t.topicLabel);
+          const sessionIdSet = new Set(profileSessions.map((s) => s.sessionId));
+          const sessionTitles = allSessions.filter((s) => sessionIdSet.has(s.id)).map((s) => s.title);
+          const sponsorContactCount = new Set(meetingRequests.map((r) => r.sponsorId)).size;
+          await sendConciergeSummaryEmail(storage, { profile, event, topicLabels, sessionTitles, sponsorContactCount });
+        } catch (emailErr) {
+          console.warn(`[EMAIL] Failed to send concierge summary for profile ${profile.id}:`, emailErr?.message ?? emailErr);
+        }
+      })();
       return res.json({ ok: true });
     } catch (e) {
       return res.status(500).json({ error: "Internal error" });

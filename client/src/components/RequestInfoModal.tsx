@@ -21,6 +21,7 @@ interface RequestInfoPrefill {
 interface RequestInfoModalProps {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   sponsorId: string;
   sponsorName: string;
   eventId?: string;
@@ -30,6 +31,7 @@ interface RequestInfoModalProps {
 export function RequestInfoModal({
   open,
   onClose,
+  onSuccess,
   sponsorId,
   sponsorName,
   eventId,
@@ -100,6 +102,7 @@ export function RequestInfoModal({
         source: "Public",
       });
       setSuccess(true);
+      onSuccess?.();
     } catch {
       setErrors({ submit: "Something went wrong. Please try again." });
     } finally {

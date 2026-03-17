@@ -194,7 +194,7 @@ export function infoRequestNotificationForSponsor({ sponsorName, attendeeFirstNa
   `);
 }
 
-export function infoRequestConfirmationForAttendee({ attendeeFirstName, sponsorName, eventName, eventSlug }) {
+export function infoRequestConfirmationForAttendee({ attendeeFirstName, sponsorName, eventName, conciergePlanUrl }) {
   return wrap(`
     <p style="color:#14b8a6;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 8px;">Request Sent</p>
     <h1 style="color:#0f172a;font-size:22px;font-weight:800;margin:0 0 6px;">Hi ${attendeeFirstName || "there"},</h1>
@@ -208,9 +208,50 @@ export function infoRequestConfirmationForAttendee({ attendeeFirstName, sponsorN
       </table>
     </div>
 
-    ${eventSlug ? ctaButton("View Event Schedule", `${BASE_URL}/event/${eventSlug}`) : ""}
+    ${conciergePlanUrl ? ctaButton("View My Concierge Plan", conciergePlanUrl) : ""}
 
     <p style="color:#94a3b8;font-size:12px;margin:24px 0 0;">If you have questions, please contact the event team directly.</p>
+  `);
+}
+
+export function conciergeSummaryEmail({ attendeeFirstName, eventName, eventSlug, topicLabels, sessionTitles, sponsorContactCount, conciergePlanUrl }) {
+  const topicList = (topicLabels ?? []).map(t =>
+    `<li style="color:#065f46;font-size:13px;line-height:1.8;">${t}</li>`
+  ).join("") || `<li style="color:#94a3b8;font-size:13px;">No topics selected</li>`;
+
+  const sessionList = (sessionTitles ?? []).slice(0, 5).map(t =>
+    `<li style="color:#1e3a5f;font-size:13px;line-height:1.8;">${t}</li>`
+  ).join("") || `<li style="color:#94a3b8;font-size:13px;">No sessions saved</li>`;
+
+  const moreSessionsNote = (sessionTitles ?? []).length > 5
+    ? `<p style="color:#64748b;font-size:12px;margin:4px 0 0;">…and ${(sessionTitles ?? []).length - 5} more session${(sessionTitles ?? []).length - 5 > 1 ? "s" : ""}</p>`
+    : "";
+
+  return wrap(`
+    <p style="color:#14b8a6;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 8px;">Your Concierge Plan is Ready</p>
+    <h1 style="color:#0f172a;font-size:22px;font-weight:800;margin:0 0 6px;">Hi ${attendeeFirstName || "there"},</h1>
+    <p style="color:#475569;font-size:15px;margin:0 0 24px;">You've finished setting up your personalized concierge plan for <strong>${eventName}</strong>. Here's a summary of what we've put together for you.</p>
+
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:20px 24px;margin-bottom:20px;">
+      <p style="color:#064e3b;font-size:13px;font-weight:700;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.8px;">Your Agenda Topics</p>
+      <ul style="margin:0;padding-left:18px;">${topicList}</ul>
+    </div>
+
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:20px 24px;margin-bottom:20px;">
+      <p style="color:#1e3a5f;font-size:13px;font-weight:700;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.8px;">Saved Sessions</p>
+      <ul style="margin:0;padding-left:18px;">${sessionList}</ul>
+      ${moreSessionsNote}
+    </div>
+
+    ${sponsorContactCount > 0 ? `
+    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:16px 24px;margin-bottom:28px;">
+      <p style="color:#4c1d95;font-size:13px;font-weight:700;margin:0 0 4px;">Sponsor Connections</p>
+      <p style="color:#6b21a8;font-size:13px;margin:0;">You connected with <strong>${sponsorContactCount} sponsor${sponsorContactCount !== 1 ? "s" : ""}</strong> — they'll be in touch soon.</p>
+    </div>` : ""}
+
+    ${conciergePlanUrl ? ctaButton("View My Concierge Plan", conciergePlanUrl) : (eventSlug ? ctaButton("View Event Schedule", `${BASE_URL}/event/${eventSlug}`) : "")}
+
+    <p style="color:#94a3b8;font-size:12px;margin:24px 0 0;">This plan was built just for you. If you have questions, reach out to the event team directly.</p>
   `);
 }
 

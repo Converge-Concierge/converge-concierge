@@ -1,0 +1,266 @@
+1. Fix Sponsor Card Behavior (Always Show All Sponsor Actions)
+Problem
+
+The current sponsor card behavior remembers the last action and replaces the buttons with a state like:
+
+Onsite Meeting Opening...
+Reopen
+
+This hides other available options such as:
+
+Online Meeting
+
+Request Information
+
+This behavior does not provide value and reduces usability.
+
+Attendees should always see all available actions for that sponsor.
+
+Required Behavior
+
+Sponsor cards should always display all available actions based on sponsor configuration.
+
+The UI must never replace buttons with "Reopen" or similar states.
+
+Instead, the interface should remain stable.
+
+Example:
+
+Schedule Onsite Meeting
+Online Meeting
+Request Information
+
+These buttons should always remain visible.
+
+If a User Already Took an Action
+
+Instead of replacing the button, show a status indicator next to the button.
+
+Examples:
+
+After requesting onsite meeting
+Schedule Onsite Meeting  ✓ Requested
+Online Meeting
+Request Information
+After requesting information
+Schedule Onsite Meeting
+Online Meeting
+Request Information ✓ Sent
+After scheduling a meeting
+Schedule Onsite Meeting ✓ Scheduled
+Online Meeting
+Request Information
+Do NOT Use "Reopen"
+
+Remove the entire "Reopen" behavior.
+
+Users can simply click the button again if they want to schedule another meeting.
+
+Source of Truth
+
+The buttons must continue to respect sponsor configuration:
+
+Sponsor settings determine if the card shows:
+
+Onsite Meeting
+Online Meeting
+Request Information
+
+Example sponsor configurations:
+
+Sponsor	Buttons
+Platinum	Onsite + Online + Info
+Bronze	Onsite + Info
+Digital	Online only
+Result
+
+Sponsor cards should be stable.
+
+They should never hide other actions.
+
+Replit Instructions
+2. Improve the "Request Information" Email CTA
+Problem
+
+Current email includes:
+
+View Event Schedule
+
+which links to the general event page.
+
+This is generic and not personalized.
+
+We know the attendee email, so we should link them back into their Concierge experience instead.
+
+Replace Button With
+View My Concierge Plan
+Button Destination
+
+Instead of:
+
+/event/FRC2026
+
+Link to:
+
+/concierge/{token}
+
+or the equivalent personalized attendee route.
+
+This should open their personal Concierge dashboard where they can:
+
+• view saved sessions
+• schedule sponsor meetings
+• modify their selections
+
+Updated Email Flow
+
+Email should become:
+
+Subject
+Your information request was sent to Winnow
+Body
+Hi Dan,
+
+Your information request has been sent to Winnow for
+The 2026 Fintech Risk & Compliance Forum.
+
+A representative will be in touch shortly.
+Action Button
+View My Concierge Plan
+Optional Secondary CTA
+
+Under the main button:
+
+Browse More Sponsors
+
+Which can link to:
+
+/event/FRC2026#sponsors
+Result
+
+The email becomes:
+
+• personalized
+• more useful
+• brings users back into Concierge
+
+instead of dumping them into the general event page.
+
+Replit Instructions
+3. Fix Missing Summary Email After Step 5
+Problem
+
+After completing the full 5-step onboarding flow:
+
+Interests
+Matches
+Sessions
+Sponsors
+Complete
+
+The system did not send the summary email.
+
+The UI claims:
+
+We'll send your personalized agenda to dan@treasolution.com
+
+But no email was sent.
+
+Required Behavior
+
+When the user clicks:
+
+Complete My Setup
+
+the system must trigger:
+
+sendConciergeSummaryEmail()
+Trigger Point
+
+The email should send when:
+
+onboarding_status = completed
+
+or when:
+
+Complete My Setup
+
+is clicked.
+
+Email Content
+
+Subject:
+
+Your Concierge Plan for The 2026 Fintech Risk & Compliance Forum
+
+Body:
+
+Hi Dan,
+
+Your personalized conference plan is ready.
+
+Based on your interests, we've recommended sessions and sponsors for you.
+
+Your selections:
+• X sessions saved
+• Y sponsors contacted
+Email Actions
+
+Primary button:
+
+View My Concierge Plan
+
+Secondary button:
+
+Browse Sponsors
+Optional Additional Content
+
+Include:
+
+Your Selected Topics
+
+Example:
+
+Compliance Strategy
+AI Regulation
+Fraud Prevention
+Fail Safe
+
+If email fails to send:
+
+log error in Email Center
+
+allow resend
+
+show warning in admin
+
+Additional Recommended Improvement (Optional but High Value)
+
+Add a summary card to the completion screen:
+
+3 Sessions Saved
+2 Sponsors Contacted
+
+With a button:
+
+Email My Plan
+
+This provides manual resend capability.
+
+Summary of Changes
+Sponsor Cards
+
+• Always show all sponsor options
+• Remove "Reopen" behavior
+• Add simple status indicators
+
+Emails
+
+• Replace "View Event Schedule" with "View My Concierge Plan"
+• Link to attendee's personal Concierge page
+
+Summary Email
+
+• Trigger on completion
+• Send automatically
+• Include session + sponsor summary

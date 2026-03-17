@@ -29,6 +29,8 @@ interface PublicEvent {
   venue: string | null;
   logoUrl: string | null;
   websiteUrl: string | null;
+  accentColor: string | null;
+  buttonColor: string | null;
 }
 
 interface SponsorWithTopics extends Sponsor {
@@ -204,30 +206,49 @@ function EventHero({ event, step }: { event: PublicEvent; step: WizardStep }) {
 
 // ── Progress Bar ──────────────────────────────────────────────────────────────
 
-function StepBar({ step }: { step: WizardStep }) {
+function StepBar({ step, accentColor }: { step: WizardStep; accentColor?: string | null }) {
   const idx = STEP_ORDER.indexOf(step);
   return (
     <div className="flex items-start gap-1.5 mb-5">
-      {STEP_ORDER.map((s, i) => (
-        <div key={s} className="flex-1 flex flex-col items-center gap-1.5">
-          <div className={cn("h-1.5 w-full rounded-full transition-all duration-500", i < idx ? "bg-accent" : i === idx ? "bg-accent/70" : "bg-border")} />
-          <span className={cn("text-[10px] font-semibold hidden sm:block tracking-wide", i < idx ? "text-accent" : i === idx ? "text-foreground" : "text-muted-foreground")}>
-            {STEP_LABELS[i]}
-          </span>
-        </div>
-      ))}
+      {STEP_ORDER.map((s, i) => {
+        const isDone = i < idx;
+        const isActive = i === idx;
+        const barStyle = accentColor
+          ? { backgroundColor: isDone ? accentColor : isActive ? accentColor + "99" : undefined }
+          : undefined;
+        return (
+          <div key={s} className="flex-1 flex flex-col items-center gap-1.5">
+            <div
+              className={cn("h-1.5 w-full rounded-full transition-all duration-500",
+                accentColor ? (isDone || isActive ? "" : "bg-border") :
+                  isDone ? "bg-accent" : isActive ? "bg-accent/70" : "bg-border"
+              )}
+              style={barStyle}
+            />
+            <span
+              className={cn("text-[10px] font-semibold hidden sm:block tracking-wide",
+                isDone ? "text-accent" : isActive ? "text-foreground" : "text-muted-foreground"
+              )}
+              style={accentColor && isDone ? { color: accentColor } : undefined}
+            >
+              {STEP_LABELS[i]}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 // ── Card 1: Topics ────────────────────────────────────────────────────────────
 
-function TopicsCard({ topics, selected, onChange, onNext, loading }: {
+function TopicsCard({ topics, selected, onChange, onNext, loading, accentColor }: {
   topics: EventInterestTopic[];
   selected: string[];
   onChange: (ids: string[]) => void;
   onNext: () => void;
   loading: boolean;
+  accentColor?: string | null;
 }) {
   function toggle(id: string) {
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
@@ -259,8 +280,9 @@ function TopicsCard({ topics, selected, onChange, onNext, loading }: {
                 onClick={() => toggle(t.id)}
                 className={cn(
                   "px-3.5 py-2 rounded-full text-sm font-medium border transition-all duration-150 active:scale-[0.97]",
-                  on ? "bg-accent text-white border-accent shadow-sm" : "bg-card text-foreground/70 border-border hover:border-accent/60 hover:text-foreground hover:bg-accent/5"
+                  on ? "text-white shadow-sm" : "bg-card text-foreground/70 border-border hover:text-foreground"
                 )}
+                style={on ? { backgroundColor: accentColor || undefined, borderColor: accentColor || undefined } : undefined}
               >
                 {on && <CheckCircle className="inline-block w-3.5 h-3.5 mr-1.5 -mt-0.5" />}
                 {t.topicLabel}
@@ -282,7 +304,14 @@ function TopicsCard({ topics, selected, onChange, onNext, loading }: {
         </ol>
       </div>
 
-      <Button onClick={onNext} disabled={loading} className="w-full gap-2" size="lg" data-testid="button-topics-next">
+      <Button
+        onClick={onNext}
+        disabled={loading}
+        className="w-full gap-2"
+        size="lg"
+        data-testid="button-topics-next"
+        style={accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+      >
         {loading ? "Saving…" : selected.length > 0 ? `Continue with ${selected.length} topic${selected.length !== 1 ? "s" : ""} selected` : "Continue Without Topics"}
         {!loading && <ChevronRight className="w-4 h-4" />}
       </Button>
@@ -292,18 +321,27 @@ function TopicsCard({ topics, selected, onChange, onNext, loading }: {
 
 // ── Card 2: Email (Your Matches) ──────────────────────────────────────────────
 
-function EmailCard({ profileId, allSessions, onNext, onBack, loading, setEmail, email }: {
+function EmailCard({ profileId, allSessions, sponsors, selectedTopicIds, onNext, onBack, loading, setEmail, email, accentColor }: {
   profileId: string;
   allSessions: AgendaSession[];
+  sponsors: SponsorWithTopics[];
+  selectedTopicIds: string[];
   onNext: (email: string, matched: boolean, token: string | null) => void;
   onBack: () => void;
   loading: boolean;
   setEmail: (e: string) => void;
   email: string;
+  accentColor?: string | null;
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const preview = allSessions.filter((s) => s.status === "Published" && s.isPublic).slice(0, 3);
+
+  const topicSet = new Set(selectedTopicIds);
+  const publishedSessions = allSessions.filter((s) => s.status === "Published" && s.isPublic);
+  const matchedSessionCount = publishedSessions.length;
+  const matchedSponsorCount = selectedTopicIds.length > 0
+    ? sponsors.filter((s) => (s.topicIds ?? []).some((t) => topicSet.has(t))).length
+    : sponsors.length;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -320,53 +358,65 @@ function EmailCard({ profileId, allSessions, onNext, onBack, loading, setEmail, 
   return (
     <div className="bg-white border border-border/60 rounded-2xl shadow-sm p-6 sm:p-8">
       <div className="mb-6">
-        <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-1">A glimpse of your personalised agenda</h2>
-        <p className="text-muted-foreground text-sm">Based on your interests — you'll customise the full schedule in the next step.</p>
-      </div>
-
-      {preview.length > 0 && (
-        <div className="space-y-2 mb-6">
-          {preview.map((s) => (
-            <div key={s.id} className="flex items-start gap-3 p-3.5 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors">
-              <Calendar className="w-4 h-4 mt-0.5 text-accent flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">{s.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {s.sessionDate ? format(parseISO(s.sessionDate), "EEE, MMM d") : ""}
-                  {s.startTime ? ` · ${formatTime(s.startTime)}` : ""}
-                  {s.locationName ? ` · ${s.locationName}` : ""}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="border-t border-border/40 pt-6">
-        <h3 className="text-base font-bold text-foreground mb-1">Save your personalised plan</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Enter the email you used to register so we can match your selections and send you your personalised agenda.
+        <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-1">
+          Great news — we found your matches!
+        </h2>
+        <p className="text-muted-foreground text-sm">
+          Based on your selections, Concierge has curated sessions and sponsors just for you.
         </p>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="relative">
-            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              data-testid="input-email"
-              type="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setError(""); }}
-              placeholder="your@email.com"
-              className="w-full pl-10 pr-4 py-3 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent bg-background"
-              autoComplete="email"
-            />
-          </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
-          <Button type="submit" disabled={submitting || loading} className="w-full gap-2" size="lg" data-testid="button-email-submit">
-            {submitting ? "Saving…" : "Save & Build My Agenda"}
-            {!submitting && <ChevronRight className="w-4 h-4" />}
-          </Button>
-        </form>
       </div>
+
+      {/* Match count teaser */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="rounded-xl border-2 border-border/60 bg-muted/20 p-4 text-center">
+          <p className="text-3xl font-bold text-foreground" style={accentColor ? { color: accentColor } : undefined}>
+            {matchedSessionCount}
+          </p>
+          <p className="text-xs font-semibold text-muted-foreground mt-1 uppercase tracking-wider">
+            Session{matchedSessionCount !== 1 ? "s" : ""} available
+          </p>
+        </div>
+        <div className="rounded-xl border-2 border-border/60 bg-muted/20 p-4 text-center">
+          <p className="text-3xl font-bold text-foreground" style={accentColor ? { color: accentColor } : undefined}>
+            {matchedSponsorCount}
+          </p>
+          <p className="text-xs font-semibold text-muted-foreground mt-1 uppercase tracking-wider">
+            Sponsor{matchedSponsorCount !== 1 ? "s" : ""} matched
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-muted/30 border border-border/40 rounded-xl p-4 mb-6 text-sm text-muted-foreground flex items-start gap-2">
+        <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0 text-accent" style={accentColor ? { color: accentColor } : undefined} />
+        <span>Enter your registration email to save your personalised Concierge plan and receive your recommendations.</span>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="relative">
+          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            data-testid="input-email"
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(""); }}
+            placeholder="your@email.com"
+            className="w-full pl-10 pr-4 py-3 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent bg-background"
+            autoComplete="email"
+          />
+        </div>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <Button
+          type="submit"
+          disabled={submitting || loading}
+          className="w-full gap-2"
+          size="lg"
+          data-testid="button-email-submit"
+          style={accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+        >
+          {submitting ? "Saving…" : "Continue to My Recommendations"}
+          {!submitting && <ChevronRight className="w-4 h-4" />}
+        </Button>
+      </form>
 
       <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mt-5 mx-auto" data-testid="button-back-topics">
         <ChevronLeft className="w-4 h-4" /> Back to Interests
@@ -377,18 +427,33 @@ function EmailCard({ profileId, allSessions, onNext, onBack, loading, setEmail, 
 
 // ── Card 3: Sessions ──────────────────────────────────────────────────────────
 
-function SessionsCard({ sessions, savedIds, onToggle, onNext, onBack, loading }: {
+function SessionsCard({ sessions, selectedTopicIds, savedIds, onToggle, onNext, onBack, loading, accentColor }: {
   sessions: AgendaSession[];
+  selectedTopicIds: string[];
   savedIds: string[];
   onToggle: (id: string, saved: boolean) => Promise<void>;
   onNext: () => void;
   onBack: () => void;
   loading: boolean;
+  accentColor?: string | null;
 }) {
   const [toggling, setToggling] = useState<Record<string, boolean>>({});
+
+  const topicSet = new Set(selectedTopicIds);
   const published = sessions.filter((s) => s.status === "Published" && s.isPublic);
+  // Show only sessions matching selected topics; if no topics selected, show all
+  const recommended = selectedTopicIds.length > 0
+    ? published.filter((s) => {
+        const tags: string[] = (s as any).topicTags ?? [];
+        return tags.some((t) => topicSet.has(t));
+      })
+    : published;
+  // If topic filtering yields nothing (sessions have no topicTags data), fall back to all
+  const displaySessions = recommended.length > 0 ? recommended : published;
+  const isFiltered = selectedTopicIds.length > 0 && recommended.length > 0;
+
   const byDate: Record<string, AgendaSession[]> = {};
-  for (const s of published) { (byDate[s.sessionDate] ??= []).push(s); }
+  for (const s of displaySessions) { (byDate[s.sessionDate] ??= []).push(s); }
   const dates = Object.keys(byDate).sort();
 
   async function handleToggle(id: string) {
@@ -400,22 +465,38 @@ function SessionsCard({ sessions, savedIds, onToggle, onNext, onBack, loading }:
 
   return (
     <div className="bg-white border border-border/60 rounded-2xl shadow-sm p-6 sm:p-8">
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-2">
         <div>
-          <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-1">Build your agenda</h2>
-          <p className="text-muted-foreground text-sm">Bookmark sessions to add them to your personalised event plan.</p>
+          <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-1">
+            {isFiltered ? "Your Recommended Sessions" : "Sessions"}
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            {isFiltered
+              ? "Based on your interests, we recommend these sessions. All of our sessions are great — but you shouldn't miss these."
+              : "Bookmark sessions to add them to your personalised event plan."}
+          </p>
         </div>
         {savedIds.length > 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/10 text-accent text-xs font-semibold ml-4 shrink-0">
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ml-4 shrink-0"
+            style={accentColor ? { backgroundColor: `${accentColor}15`, color: accentColor } : { backgroundColor: "hsl(var(--accent)/0.1)", color: "hsl(var(--accent))" }}
+          >
             <BookmarkCheck className="w-3.5 h-3.5" /> {savedIds.length} saved
           </div>
         )}
       </div>
 
-      {published.length === 0 ? (
+      {isFiltered && (
+        <div className="flex items-center gap-1.5 mb-4 px-3 py-2 rounded-lg bg-muted/30 border border-border/40 w-fit">
+          <Sparkles className="w-3.5 h-3.5 flex-shrink-0" style={accentColor ? { color: accentColor } : undefined} />
+          <span className="text-xs text-muted-foreground font-medium">{displaySessions.length} session{displaySessions.length !== 1 ? "s" : ""} matched to your interests</span>
+        </div>
+      )}
+
+      {displaySessions.length === 0 ? (
         <p className="text-sm text-muted-foreground italic py-8 text-center">No sessions published yet — check back soon.</p>
       ) : (
-        <div className="space-y-6 max-h-[500px] overflow-y-auto pr-1 -mr-1 mb-6">
+        <div className="space-y-6 max-h-[500px] overflow-y-auto pr-1 -mr-1 mb-6 mt-3">
           {dates.map((date) => (
             <div key={date}>
               <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 sticky top-0 bg-white py-1">
@@ -434,6 +515,7 @@ function SessionsCard({ sessions, savedIds, onToggle, onNext, onBack, loading }:
                         "flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all duration-150",
                         saved ? "border-accent/30 bg-accent/5 shadow-sm" : "border-border/60 bg-card hover:border-accent/30 hover:bg-accent/5"
                       )}
+                      style={saved && accentColor ? { borderColor: `${accentColor}50`, backgroundColor: `${accentColor}08` } : undefined}
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-foreground leading-snug">{s.title}</p>
@@ -442,7 +524,10 @@ function SessionsCard({ sessions, savedIds, onToggle, onNext, onBack, loading }:
                           {s.locationName ? ` · ${s.locationName}` : ""}
                         </p>
                       </div>
-                      <div className={cn("flex-shrink-0 p-1.5 rounded-lg transition-all mt-0.5", saved ? "text-accent bg-accent/10" : "text-muted-foreground/40", busy && "opacity-40")}>
+                      <div
+                        className={cn("flex-shrink-0 p-1.5 rounded-lg transition-all mt-0.5", !accentColor && (saved ? "text-accent bg-accent/10" : "text-muted-foreground/40"), busy && "opacity-40")}
+                        style={accentColor && saved ? { color: accentColor, backgroundColor: `${accentColor}18` } : accentColor && !saved ? { color: "#9ca3af" } : undefined}
+                      >
                         {saved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
                       </div>
                     </div>
@@ -458,7 +543,14 @@ function SessionsCard({ sessions, savedIds, onToggle, onNext, onBack, loading }:
         <Button variant="outline" onClick={onBack} className="gap-1.5" data-testid="button-back-email">
           <ChevronLeft className="w-4 h-4" /> Back
         </Button>
-        <Button onClick={onNext} disabled={loading} className="flex-1 gap-2" size="lg" data-testid="button-sessions-next">
+        <Button
+          onClick={onNext}
+          disabled={loading}
+          className="flex-1 gap-2"
+          size="lg"
+          data-testid="button-sessions-next"
+          style={accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+        >
           {loading ? "Saving…" : "Continue to Sponsors"}
           {!loading && <ChevronRight className="w-4 h-4" />}
         </Button>
@@ -469,7 +561,7 @@ function SessionsCard({ sessions, savedIds, onToggle, onNext, onBack, loading }:
 
 // ── Card 4: Sponsors ──────────────────────────────────────────────────────────
 
-function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, selectedTopicIds, meetingRequests, infoRequestedIds, onSchedule, onInfoRequested, onNext, onBack, loading }: {
+function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, selectedTopicIds, meetingRequests, infoRequestedIds, onSchedule, onInfoRequested, onNext, onBack, loading, accentColor }: {
   eventId: string;
   eventSlug: string;
   attendeeEmail: string;
@@ -483,6 +575,7 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
   onNext: () => void;
   onBack: () => void;
   loading: boolean;
+  accentColor?: string | null;
 }) {
   const [requestInfoSponsor, setRequestInfoSponsor] = useState<SponsorWithTopics | null>(null);
   const [schedulingModal, setSchedulingModal] = useState<{ sponsor: SponsorWithTopics; mode: "onsite" | "online" } | null>(null);
@@ -546,7 +639,6 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
               const onlineEnabled = link?.onlineMeetingEnabled ?? s.allowOnlineMeetings ?? false;
               const infoEnabled   = link?.informationRequestEnabled ?? true;
               const matchingTopics = (s.topicIds ?? []).filter((tid) => attendeeTopicSet.has(tid)).map((tid) => topicMap.get(tid)).filter(Boolean) as string[];
-              const booked = scheduledMode(s.id);
 
               return (
                 <div
@@ -659,7 +751,14 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
           <Button variant="outline" onClick={onBack} className="gap-1.5" data-testid="button-back-sessions">
             <ChevronLeft className="w-4 h-4" /> Back
           </Button>
-          <Button onClick={onNext} disabled={loading} className="flex-1 gap-2" size="lg" data-testid="button-sponsors-next">
+          <Button
+            onClick={onNext}
+            disabled={loading}
+            className="flex-1 gap-2"
+            size="lg"
+            data-testid="button-sponsors-next"
+            style={accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+          >
             {loading ? "Finishing…" : "Complete My Setup"}
             {!loading && <CheckCircle className="w-4 h-4" />}
           </Button>
@@ -702,29 +801,34 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
 
 // ── Card 5: Complete ──────────────────────────────────────────────────────────
 
-function CompleteCard({ email, sessionCount, meetingCount, eventName }: {
+function CompleteCard({ email, sessionCount, meetingCount, eventName, matchedToken, onStartOver, accentColor }: {
   email: string;
   sessionCount: number;
   meetingCount: number;
   eventName: string;
+  matchedToken: string | null;
+  onStartOver: () => void;
+  accentColor?: string | null;
 }) {
+  const dashboardUrl = matchedToken ? `/attendee-access/${matchedToken}` : null;
+
   return (
     <div className="bg-white border border-border/60 rounded-2xl shadow-sm p-8 text-center space-y-6">
       <div className="mx-auto w-20 h-20 rounded-full bg-green-100 flex items-center justify-center ring-8 ring-green-50">
         <CheckCircle className="w-10 h-10 text-green-600" />
       </div>
       <div>
-        <h2 className="text-2xl font-display font-bold text-foreground">You're all set!</h2>
+        <h2 className="text-2xl font-display font-bold text-foreground">Your Concierge is ready!</h2>
         <p className="mt-2 text-muted-foreground text-sm max-w-sm mx-auto">
-          Your personalised plan for <span className="font-semibold text-foreground">{eventName}</span> has been saved.
+          Your personalised recommendations for <span className="font-semibold text-foreground">{eventName}</span> have been saved.
         </p>
       </div>
       {(sessionCount > 0 || meetingCount > 0) && (
         <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
           {sessionCount > 0 && (
-            <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
-              <p className="text-3xl font-bold text-accent">{sessionCount}</p>
-              <p className="text-xs text-accent/80 mt-1 font-medium">Session{sessionCount !== 1 ? "s" : ""} saved</p>
+            <div className="rounded-xl p-4 border" style={accentColor ? { backgroundColor: `${accentColor}0d`, borderColor: `${accentColor}30` } : { backgroundColor: "hsl(var(--accent)/0.05)", borderColor: "hsl(var(--accent)/0.2)" }}>
+              <p className="text-3xl font-bold" style={accentColor ? { color: accentColor } : { color: "hsl(var(--accent))" }}>{sessionCount}</p>
+              <p className="text-xs mt-1 font-medium text-muted-foreground">Session{sessionCount !== 1 ? "s" : ""} saved</p>
             </div>
           )}
           {meetingCount > 0 && (
@@ -739,13 +843,39 @@ function CompleteCard({ email, sessionCount, meetingCount, eventName }: {
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 max-w-sm mx-auto text-left">
           <div className="flex items-start gap-2">
             <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <p>We'll send your personalised agenda to <span className="font-semibold">{email}</span> once your registration is confirmed.</p>
+            <p>We'll email your recommendations to <span className="font-semibold">{email}</span> so you can revisit them any time.</p>
           </div>
         </div>
       )}
       <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-        Your selections are saved to your registration. Return any time to update your agenda or add more sponsor meetings.
+        Your recommendations are saved to your registration. Return any time to review sessions, revisit sponsors, or book meetings.
       </p>
+
+      {/* Action buttons */}
+      <div className="flex flex-col gap-3 max-w-xs mx-auto w-full pt-2">
+        {dashboardUrl && (
+          <Link href={dashboardUrl}>
+            <Button
+              className="w-full gap-2"
+              size="lg"
+              data-testid="button-complete-dashboard"
+              style={accentColor ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+            >
+              See Your Dashboard
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </Link>
+        )}
+        <Button
+          variant="outline"
+          className="w-full gap-2"
+          size="lg"
+          data-testid="button-complete-startover"
+          onClick={onStartOver}
+        >
+          Start Over
+        </Button>
+      </div>
     </div>
   );
 }
@@ -863,6 +993,26 @@ export default function WelcomePage() {
     finally { setActionLoading(false); setStep("complete"); }
   }
 
+  function handleStartOver() {
+    if (!slug) return;
+    try { localStorage.removeItem(storageKey(slug)); } catch {}
+    setStep("topics");
+    setTopicIds([]);
+    setSessionIds([]);
+    setMeetingRequests([]);
+    setInfoRequestedIds([]);
+    setEmail("");
+    setMatchedToken(null);
+    // Start a fresh anonymous profile
+    (async () => {
+      try {
+        const data = await apiPost(`/api/public/welcome/${slug}/start`);
+        setProfileId(data.profileId);
+        saveToStorage(slug, { profileId: data.profileId, step: "topics" });
+      } catch (e) { console.error("[welcome] start-over error", e); }
+    })();
+  }
+
   if (initialising || !event) {
     return (
       <Shell>
@@ -876,6 +1026,7 @@ export default function WelcomePage() {
     );
   }
 
+  const accentColor = event.buttonColor || event.accentColor || null;
   const uniqueSponsorContacts = new Set([...meetingRequests.map((r) => r.sponsorId), ...infoRequestedIds]).size;
 
   return (
@@ -885,19 +1036,39 @@ export default function WelcomePage() {
         <EventHero event={event} step={step} />
 
         {/* Progress bar — only on steps 1–4 */}
-        {step !== "complete" && <StepBar step={step} />}
+        {step !== "complete" && <StepBar step={step} accentColor={accentColor} />}
 
         {/* Step content */}
         {step === "topics" && (
-          <TopicsCard topics={topics} selected={topicIds} onChange={setTopicIds} onNext={handleTopicsNext} loading={actionLoading} />
+          <TopicsCard topics={topics} selected={topicIds} onChange={setTopicIds} onNext={handleTopicsNext} loading={actionLoading} accentColor={accentColor} />
         )}
 
         {step === "email" && (
-          <EmailCard profileId={profileId ?? ""} allSessions={sessions} onNext={handleEmailNext} onBack={() => setStep("topics")} loading={actionLoading} email={email} setEmail={setEmail} />
+          <EmailCard
+            profileId={profileId ?? ""}
+            allSessions={sessions}
+            sponsors={sponsors}
+            selectedTopicIds={topicIds}
+            onNext={handleEmailNext}
+            onBack={() => setStep("topics")}
+            loading={actionLoading}
+            email={email}
+            setEmail={setEmail}
+            accentColor={accentColor}
+          />
         )}
 
         {step === "sessions" && (
-          <SessionsCard sessions={sessions} savedIds={sessionIds} onToggle={handleSessionToggle} onNext={() => setStep("sponsors")} onBack={() => setStep("email")} loading={actionLoading} />
+          <SessionsCard
+            sessions={sessions}
+            selectedTopicIds={topicIds}
+            savedIds={sessionIds}
+            onToggle={handleSessionToggle}
+            onNext={() => setStep("sponsors")}
+            onBack={() => setStep("email")}
+            loading={actionLoading}
+            accentColor={accentColor}
+          />
         )}
 
         {step === "sponsors" && (
@@ -915,11 +1086,20 @@ export default function WelcomePage() {
             onNext={handleSponsorsNext}
             onBack={() => setStep("sessions")}
             loading={actionLoading}
+            accentColor={accentColor}
           />
         )}
 
         {step === "complete" && (
-          <CompleteCard email={email} sessionCount={sessionIds.length} meetingCount={uniqueSponsorContacts} eventName={event.name} />
+          <CompleteCard
+            email={email}
+            sessionCount={sessionIds.length}
+            meetingCount={uniqueSponsorContacts}
+            eventName={event.name}
+            matchedToken={matchedToken}
+            onStartOver={handleStartOver}
+            accentColor={accentColor}
+          />
         )}
       </div>
     </Shell>

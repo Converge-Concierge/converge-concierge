@@ -2202,7 +2202,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const event = await storage.getEventBySlug(req.params.slug);
       if (!event) return res.status(404).json({ error: "Event not found" });
-      return res.json({ id: event.id, name: event.name, slug: event.slug, startDate: event.startDate, endDate: event.endDate, location: event.location, venue: event.location, logoUrl: event.logoUrl, websiteUrl: event.websiteUrl ?? null });
+      return res.json({ id: event.id, name: event.name, slug: event.slug, startDate: event.startDate, endDate: event.endDate, location: event.location, venue: event.location, logoUrl: event.logoUrl, websiteUrl: event.websiteUrl ?? null, accentColor: event.accentColor ?? null, buttonColor: event.buttonColor ?? null });
     } catch (e) {
       return res.status(500).json({ error: "Internal error" });
     }

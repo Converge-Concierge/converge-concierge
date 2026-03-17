@@ -1,0 +1,328 @@
+Correct the Attendee Concierge Flow Issues Documented in the PDF
+
+Please implement the following corrections to the Attendee Concierge onboarding flow based on the issues documented in the uploaded PDF.
+
+These are targeted UX and functional corrections to the 5-card attendee flow.
+
+1. Use the Event Accent Color in the Progress Bar and Bottom CTA Button
+
+On the welcome page and all subsequent cards, the light blue currently used in:
+
+the progress bar
+
+the primary bottom button
+
+should be replaced with the event accent color defined in Settings.
+
+Required behavior
+
+For the active event:
+
+read the configured accent color from settings
+
+apply it consistently to:
+
+the active progress bar segments
+
+the primary bottom CTA button
+
+any step-highlight treatment that is currently using the generic light blue
+
+Important
+
+This should be event-specific, not hard-coded.
+
+So:
+
+FRC can use its event accent color
+
+TLS can use its event accent color
+
+USBT can use its event accent color
+
+The onboarding flow should visually reflect the selected event brand.
+
+2. Simplify Card 2 so it is a Teaser Preview, Not a Session Selection Step
+
+The PDF correctly notes that the second card is confusing because it currently makes it seem like the attendee should already be selecting sessions there.
+
+That is not the purpose of Card 2.
+
+Card 2 should become:
+
+A lightweight match preview + email capture step.
+
+Required messaging concept
+
+Use copy along these lines:
+
+Thank you for your selections!
+You’ve matched with 8 sessions and 4 sponsors.
+Enter the email you used to register to continue.
+
+The exact counts should be dynamic.
+
+Required behavior
+
+Card 2 should:
+
+show the number of matched sessions
+
+show the number of matched sponsors
+
+ask for the registration email
+
+not present this as a session-picking page
+
+Remove / reduce
+
+Do not show Card 2 in a way that looks like a full agenda builder.
+
+It should feel like:
+
+confirmation of interest selections
+
+teaser of what Concierge found
+
+identity capture before continuing
+
+3. Card 3 Should Show Only Recommended Sessions, Not All Sessions
+
+The PDF states that Card 3 currently looks like it is showing all sessions. It should only show the sessions correlated to the attendee’s selected topics.
+
+That is the correct product behavior.
+
+Required behavior
+
+On Card 3:
+
+show only sessions that are correlated to the attendee’s selected topics
+
+do not show the full event agenda here
+
+use the existing recommendation logic already built from topic overlap
+
+Messaging
+
+Update the copy so it clearly communicates that these are recommended sessions.
+
+Use language along these lines:
+
+Based on your interests, we recommend these sessions.
+All of our sessions are great, but you shouldn’t miss these.
+
+This should feel curated and helpful.
+
+Session actions
+
+Allow attendees to:
+
+select/save recommended sessions
+
+add them to their agenda as already designed
+
+But keep Card 3 focused on:
+
+recommended sessions
+
+not:
+
+all sessions
+4. Fix the Blank White Page When Continuing to Sponsors
+
+The PDF notes that clicking Continue to Sponsors currently causes a blank white page.
+
+This is a functional bug and must be corrected.
+
+Required action
+
+Audit and fix the transition from:
+
+Card 3 → Card 4
+
+Specifically verify:
+
+routing/state transition
+
+card index / step logic
+
+sponsor data loading
+
+null/undefined handling
+
+conditional rendering for sponsor recommendations
+
+Required outcome
+
+When the attendee clicks Continue to Sponsors:
+
+Card 4 should render normally
+
+no blank white page
+
+no silent failure
+
+no crash if sponsor data is empty or sparse
+
+Also add graceful fallback
+
+If there are no sponsor matches, Card 4 should still render with a friendly message, not a blank page.
+
+Example:
+
+We’ll continue to recommend sponsors as more profiles are completed.
+5. Update Card 5 Messaging From “Selections” to “Recommendations”
+
+The PDF notes that Card 5 should say the attendee will be emailed their recommendations, not their selections.
+
+This is the correct wording because the system is giving them:
+
+recommended sessions
+
+recommended sponsors
+
+a personalized plan
+
+Not just storing their selections.
+
+Required copy update
+
+Change the completion messaging to say something like:
+
+We’ll email you your recommendations
+
+instead of:
+
+We’ll email you your selections
+
+This is important because attendees may want to return later to:
+
+book meetings
+
+review sponsors
+
+revisit recommendations
+
+6. Add “Start Over” Button to Card 5
+
+Card 5 should include a clear way to restart the process.
+
+Required behavior
+
+Add a button or link:
+
+Start Over
+
+Clicking it should:
+
+reset the attendee’s flow progress for that event
+
+return them to Card 1
+
+allow them to reselect topics and rebuild their recommendations
+
+This is especially useful for:
+
+attendee preference changes
+
+testing
+
+demos
+
+Use the same reset logic already being built/admin-supported where possible, but make it attendee-initiated here.
+
+7. Add “See Your Dashboard” Button to Card 5
+
+The PDF also requests a button on Card 5 to go to the attendee dashboard.
+
+Required behavior
+
+Add a button or link:
+
+See Your Dashboard
+
+This should take the attendee to their persistent Concierge page/dashboard where they can:
+
+review recommendations
+
+view saved sessions
+
+view sponsors
+
+schedule meetings later
+
+This gives Card 5 a much stronger post-completion outcome.
+
+8. Preserve the 5-Step Structure, but Clarify Each Step
+
+After these updates, the five steps should feel like:
+
+Interests
+
+Your Matches
+
+Recommended Sessions
+
+Sponsors
+
+Complete
+
+This is the intended story.
+
+Desired UX narrative
+
+choose interests
+
+see what matched
+
+review recommended sessions
+
+review recommended sponsors
+
+receive personalized recommendations and continue later
+
+This should feel guided and intuitive.
+
+9. Validate the Flow End-to-End
+
+After implementing these fixes, test the full attendee flow end-to-end for at least one event.
+
+Required QA checks
+
+Verify:
+
+event accent color appears correctly on all five cards
+
+Card 2 is clearly a teaser, not a session-selection screen
+
+Card 3 only shows topic-correlated sessions
+
+Continue to Sponsors no longer causes a blank screen
+
+Card 5 says recommendations, not selections
+
+Start Over works
+
+See Your Dashboard works
+
+10. Acceptance Criteria
+
+This correction is complete when:
+
+the progress bar and primary bottom CTA use the event accent color on all cards
+
+Card 2 is a teaser/match-count step with email capture, not a session-selection screen
+
+Card 3 only shows recommended sessions tied to the attendee’s selected topics
+
+Continue to Sponsors no longer causes a blank white page
+
+Card 5 refers to recommendations rather than selections
+
+Card 5 includes a Start Over action
+
+Card 5 includes a See Your Dashboard action
+
+11. Success Standard
+
+After these fixes, the Attendee Concierge flow should feel polished, event-branded, and easy to understand. Each card should have a distinct purpose, the transitions should work reliably, and the completion screen should clearly support both restarting and returning to the attendee’s ongoing Concierge dashboard.

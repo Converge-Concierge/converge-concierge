@@ -1,0 +1,166 @@
+Fix Sponsorship Card UI + Prevent Duplicate Logo Requests in Sponsor Dashboard
+1. Remove “Requested” Status from Meeting Buttons (Attendee Flow)
+Problem
+
+On the attendee sponsorship cards, when a user clicks:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+the UI updates to show:
+
+Requested
+
+inside the button.
+
+This creates clutter and adds no real value. It also breaks consistency with the intended clean CTA experience.
+
+Required Change
+Remove the “Requested” state entirely from the buttons
+
+Buttons should always display as:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+No inline status labels inside the buttons.
+
+Behavior After Change
+
+Clicking a button should still trigger the correct action (popup, request, etc.)
+
+But the button label should NOT change
+
+No “Requested” badge or text inside buttons
+
+Optional (Better UX – Recommended)
+
+If you still want to confirm the action:
+
+show a toast notification:
+
+Meeting request sent
+
+or a subtle confirmation message outside the button
+
+Do not modify the button label itself.
+
+Acceptance Criteria
+
+No “Requested” text appears inside any sponsorship card buttons
+
+Buttons remain consistent before and after click
+
+Functionality still works (requests are still submitted)
+
+2. Prevent Duplicate Logo Requests in Sponsor Dashboard
+Problem
+
+On the sponsor dashboard → Deliverables:
+
+The system is asking for Company Logo upload
+
+But the logo already exists (entered during sponsor setup in admin)
+
+This creates:
+
+redundant work
+
+confusion
+
+poor sponsor experience
+
+Required Logic Fix
+If a sponsor already has a logo → DO NOT request it again
+Implementation Requirements
+A. Check for Existing Logo
+
+When rendering deliverables like:
+
+Company Logo
+
+the system must:
+
+check if sponsor already has a logo stored
+
+if YES:
+
+mark this deliverable as complete
+
+do NOT show upload field
+
+do NOT show “Awaiting Your Input”
+
+B. Data Source
+
+Use the existing sponsor logo field from:
+
+Admin → Sponsor Setup → Basic Info → Sponsor Logo
+
+This is already stored and should be treated as the source of truth.
+
+C. UI Behavior When Logo Exists
+
+Instead of showing upload:
+
+Display something like:
+
+Company Logo
+✔ Logo on file
+
+Optional:
+
+show the logo preview
+
+or add a “Replace Logo” action if needed
+
+But do NOT treat it as missing.
+
+D. UI Behavior When Logo Does NOT Exist
+
+Only in this case should the system show:
+
+upload field
+
+“Awaiting Your Input”
+
+Acceptance Criteria
+
+Sponsors with an existing logo are NOT asked to upload it again
+
+The Company Logo deliverable is auto-completed if logo exists
+
+Upload field only appears when no logo is on file
+
+Sponsor dashboard reflects accurate completion status
+
+3. Summary of Changes
+Attendee Flow
+
+Remove “Requested” state from meeting buttons
+
+Keep buttons static and clean
+
+Sponsor Dashboard
+
+Detect existing logo from admin setup
+
+Auto-complete logo deliverable if present
+
+Remove redundant upload request
+
+4. Success Standard
+
+After this update:
+
+Sponsorship cards feel cleaner and more intentional
+
+Sponsors are not asked for data you already have
+
+The system behaves intelligently based on existing data
+
+UX aligns with a premium, well-designed product

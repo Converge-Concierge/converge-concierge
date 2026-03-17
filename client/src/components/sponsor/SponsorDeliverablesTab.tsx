@@ -150,6 +150,10 @@ function isActionRequired(d: SponsorDeliverable): boolean {
   return d.sponsorEditable && ACTION_REQUIRED_STATUSES.has(d.status);
 }
 
+function isLogoDeliverable(d: SponsorDeliverable): boolean {
+  return d.fulfillmentType === "file_upload" && d.deliverableName.toLowerCase().includes("logo");
+}
+
 function dueLabelStr(d: SponsorDeliverable): string | null {
   if (d.dueDate) {
     try { return `Due ${new Date(d.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`; }
@@ -1406,8 +1410,8 @@ function renderStructuredContent(d: SponsorDeliverable, token: string, canEdit: 
 }
 
 function DeliverableRow({
-  deliverable, token, canEdit,
-}: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
+  deliverable, token, canEdit, sponsorLogoUrl,
+}: { deliverable: SponsorDeliverable; token: string; canEdit: boolean; sponsorLogoUrl?: string | null }) {
   const [expanded, setExpanded] = useState(true);
   const st = detectStructuredType(deliverable);
   const isCOI = st === "coi";
@@ -1501,7 +1505,16 @@ function DeliverableRow({
                 <SpeakerEditor deliverable={deliverable} token={token} canEdit={canEdit} />
               )}
               {inputType === "file_upload" && (
-                <FileUploadEditor deliverable={deliverable} token={token} canEdit={canEdit} onSaved={() => setExpanded(false)} />
+                isLogoDeliverable(deliverable) && sponsorLogoUrl ? (
+                  <div className="flex items-center gap-3 py-2">
+                    <img src={sponsorLogoUrl} alt="Logo on file" className="h-12 max-w-[120px] object-contain border rounded-lg p-1 bg-white" />
+                    <span className="text-sm text-emerald-600 font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4" /> Logo on file
+                    </span>
+                  </div>
+                ) : (
+                  <FileUploadEditor deliverable={deliverable} token={token} canEdit={canEdit} onSaved={() => setExpanded(false)} />
+                )
               )}
             </>
           )}
@@ -1512,8 +1525,8 @@ function DeliverableRow({
 }
 
 function ActionCard({
-  deliverable, token, canEdit,
-}: { deliverable: SponsorDeliverable; token: string; canEdit: boolean }) {
+  deliverable, token, canEdit, sponsorLogoUrl,
+}: { deliverable: SponsorDeliverable; token: string; canEdit: boolean; sponsorLogoUrl?: string | null }) {
   const [expanded, setExpanded] = useState(true);
   const st = detectStructuredType(deliverable);
   const inputType = getInputType(deliverable);
@@ -1569,7 +1582,16 @@ function ActionCard({
               {inputType === "registrants" && <RegistrantEditor deliverable={deliverable} token={token} canEdit={canEdit} />}
               {inputType === "speakers" && <SpeakerEditor deliverable={deliverable} token={token} canEdit={canEdit} />}
               {inputType === "file_upload" && (
-                <FileUploadEditor deliverable={deliverable} token={token} canEdit={canEdit} onSaved={() => setExpanded(false)} />
+                isLogoDeliverable(deliverable) && sponsorLogoUrl ? (
+                  <div className="flex items-center gap-3 py-2">
+                    <img src={sponsorLogoUrl} alt="Logo on file" className="h-12 max-w-[120px] object-contain border rounded-lg p-1 bg-white" />
+                    <span className="text-sm text-emerald-600 font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4" /> Logo on file
+                    </span>
+                  </div>
+                ) : (
+                  <FileUploadEditor deliverable={deliverable} token={token} canEdit={canEdit} onSaved={() => setExpanded(false)} />
+                )
               )}
             </>
           )}
@@ -1806,9 +1828,10 @@ function SponsorTopicSelectionSection({ token, canEdit }: { token: string; canEd
 interface Props {
   token: string;
   canEdit: boolean;
+  sponsorLogoUrl?: string | null;
 }
 
-export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
+export default function SponsorDeliverablesTab({ token, canEdit, sponsorLogoUrl }: Props) {
   const queryKey = ["/api/sponsor-dashboard/agreement-deliverables", token];
 
   const { data: deliverables = [], isLoading } = useQuery<SponsorDeliverable[]>({
@@ -1849,7 +1872,7 @@ export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
 
   const pct = total > 0 ? Math.round(((delivered + inProgress) / total) * 100) : 0;
 
-  const actionItems = visibleDeliverables.filter(isActionRequired);
+  const actionItems = visibleDeliverables.filter(d => isActionRequired(d) && !(sponsorLogoUrl && isLogoDeliverable(d)));
 
   const byCat = DELIVERABLE_CATEGORIES.reduce<Record<string, SponsorDeliverable[]>>((acc, cat) => {
     acc[cat] = visibleDeliverables.filter((d) => d.category === cat);
@@ -1916,7 +1939,7 @@ export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
         ) : (
           <div className="space-y-3">
             {actionItems.map((d) => (
-              <ActionCard key={d.id} deliverable={d} token={token} canEdit={canEdit} />
+              <ActionCard key={d.id} deliverable={d} token={token} canEdit={canEdit} sponsorLogoUrl={sponsorLogoUrl} />
             ))}
           </div>
         )}
@@ -1945,7 +1968,7 @@ export default function SponsorDeliverablesTab({ token, canEdit }: Props) {
                 )}
               </div>
               {items.map((d) => (
-                <DeliverableRow key={d.id} deliverable={d} token={token} canEdit={canEdit} />
+                <DeliverableRow key={d.id} deliverable={d} token={token} canEdit={canEdit} sponsorLogoUrl={sponsorLogoUrl} />
               ))}
             </div>
           );

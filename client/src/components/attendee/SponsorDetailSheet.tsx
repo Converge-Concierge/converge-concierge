@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, ExternalLink, Linkedin, Building2, Calendar, Mail, Sparkles, CheckCircle2 } from "lucide-react";
+import { X, ExternalLink, Linkedin, Building2, Calendar, Mail, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAttendeeAuth } from "@/hooks/use-attendee-auth";
+import { useToast } from "@/hooks/use-toast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -21,32 +21,11 @@ export interface SponsorDetail {
   topicLabels: { id: string; label: string }[];
 }
 
-interface InteractionState {
-  meetingStatus?: string;
-  infoStatus?: string;
-}
-
 interface SponsorDetailSheetProps {
   sponsor: SponsorDetail;
-  interaction: InteractionState;
+  interaction?: { meetingStatus?: string; infoStatus?: string };
   onClose: () => void;
   onInteractionChange: () => void;
-}
-
-// ── Meeting status helpers ────────────────────────────────────────────────────
-
-function getMeetingLabel(status?: string): string {
-  if (!status) return "";
-  if (status === "Pending") return "Meeting Requested";
-  if (status === "Confirmed") return "Meeting Confirmed";
-  if (status === "Scheduled") return "Meeting Scheduled";
-  if (status === "Completed") return "Meeting Completed";
-  return `Meeting ${status}`;
-}
-
-function getInfoLabel(status?: string): string {
-  if (!status) return "";
-  return "Information Requested";
 }
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -58,9 +37,10 @@ const LEVEL_COLORS: Record<string, string> = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function SponsorDetailSheet({ sponsor, interaction, onClose, onInteractionChange }: SponsorDetailSheetProps) {
+export default function SponsorDetailSheet({ sponsor, onClose, onInteractionChange }: SponsorDetailSheetProps) {
   const { headers } = useAttendeeAuth();
   const qc = useQueryClient();
+  const { toast } = useToast();
 
   const requestMeetingMutation = useMutation({
     mutationFn: () =>
@@ -71,6 +51,7 @@ export default function SponsorDetailSheet({ sponsor, interaction, onClose, onIn
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] });
       onInteractionChange();
+      toast({ title: "Meeting request sent", description: `We'll connect you with ${sponsor.name}.` });
     },
   });
 
@@ -83,11 +64,9 @@ export default function SponsorDetailSheet({ sponsor, interaction, onClose, onIn
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] });
       onInteractionChange();
+      toast({ title: "Information requested", description: `${sponsor.name} will be in touch with more details.` });
     },
   });
-
-  const hasMeeting = !!interaction.meetingStatus;
-  const hasInfo = !!interaction.infoStatus;
 
   const summaryLines = sponsor.solutionsSummary?.split("\n").filter(Boolean) ?? [];
 
@@ -188,33 +167,16 @@ export default function SponsorDetailSheet({ sponsor, interaction, onClose, onIn
         {/* Action footer */}
         <div className="border-t border-border/60 p-4 bg-card/50 shrink-0">
           <div className="grid grid-cols-2 gap-3">
-            {/* Request Meeting */}
-            {hasMeeting ? (
-              <div className="flex items-center gap-2 justify-center text-sm font-medium text-primary bg-primary/5 border border-primary/20 rounded-xl px-3 py-2.5" data-testid="status-meeting-requested">
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                <span className="truncate">{getMeetingLabel(interaction.meetingStatus)}</span>
-              </div>
-            ) : (
-              <Button variant="default" className="gap-2 w-full" disabled={requestMeetingMutation.isPending}
-                onClick={() => requestMeetingMutation.mutate()} data-testid="button-request-meeting-sheet">
-                <Calendar className="h-4 w-4" />
-                {requestMeetingMutation.isPending ? "Requesting…" : "Request Meeting"}
-              </Button>
-            )}
-
-            {/* Request Information */}
-            {hasInfo ? (
-              <div className="flex items-center gap-2 justify-center text-sm font-medium text-accent bg-accent/5 border border-accent/20 rounded-xl px-3 py-2.5" data-testid="status-info-requested">
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                <span className="truncate">{getInfoLabel(interaction.infoStatus)}</span>
-              </div>
-            ) : (
-              <Button variant="outline" className="gap-2 w-full" disabled={requestInfoMutation.isPending}
-                onClick={() => requestInfoMutation.mutate()} data-testid="button-request-info-sheet">
-                <Mail className="h-4 w-4" />
-                {requestInfoMutation.isPending ? "Requesting…" : "Request Info"}
-              </Button>
-            )}
+            <Button variant="default" className="gap-2 w-full" disabled={requestMeetingMutation.isPending}
+              onClick={() => requestMeetingMutation.mutate()} data-testid="button-request-meeting-sheet">
+              <Calendar className="h-4 w-4" />
+              {requestMeetingMutation.isPending ? "Requesting…" : "Request Meeting"}
+            </Button>
+            <Button variant="outline" className="gap-2 w-full" disabled={requestInfoMutation.isPending}
+              onClick={() => requestInfoMutation.mutate()} data-testid="button-request-info-sheet">
+              <Mail className="h-4 w-4" />
+              {requestInfoMutation.isPending ? "Requesting…" : "Request Info"}
+            </Button>
           </div>
         </div>
       </div>

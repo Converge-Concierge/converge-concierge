@@ -1,12 +1,13 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Search, Sparkles, Calendar, Mail, CheckCircle2, ChevronRight } from "lucide-react";
+import { Building2, Search, Sparkles, Calendar, Mail, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
 import SponsorDetailSheet, { type SponsorDetail } from "@/components/attendee/SponsorDetailSheet";
 import { useAttendeeAuth } from "@/hooks/use-attendee-auth";
+import { useToast } from "@/hooks/use-toast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -17,33 +18,17 @@ interface InteractionMap {
 
 const LEVEL_ORDER = ["Platinum", "Gold", "Silver", "Bronze"];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function getMeetingLabel(status?: string) {
-  if (!status) return null;
-  if (status === "Pending") return "Meeting Requested";
-  if (status === "Confirmed") return "Meeting Confirmed";
-  if (status === "Scheduled") return "Meeting Scheduled";
-  if (status === "Completed") return "Meeting Completed";
-  return `Meeting ${status}`;
-}
-
 // ── Sponsor Card ──────────────────────────────────────────────────────────────
 
 function SponsorCard({
-  sponsor, interaction, onView, onRequestMeeting, onRequestInfo, isActing,
+  sponsor, onView, onRequestMeeting, onRequestInfo, isActing,
 }: {
   sponsor: SponsorDetail;
-  interaction: { meetingStatus?: string; infoStatus?: string };
   onView: () => void;
   onRequestMeeting: () => void;
   onRequestInfo: () => void;
   isActing: boolean;
 }) {
-  const hasMeeting = !!interaction.meetingStatus;
-  const hasInfo = !!interaction.infoStatus;
-  const meetingLabel = getMeetingLabel(interaction.meetingStatus);
-
   return (
     <div className="bg-card border border-border/60 rounded-xl p-4 flex flex-col gap-3" data-testid={`card-sponsor-${sponsor.id}`}>
       {/* Header row */}
@@ -80,26 +65,12 @@ function SponsorCard({
         <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 px-2" onClick={onView} data-testid={`button-view-sponsor-${sponsor.id}`}>
           View <ChevronRight className="h-3 w-3" />
         </Button>
-
-        {hasMeeting ? (
-          <div className="flex items-center gap-1 text-xs text-primary font-medium" data-testid={`status-meeting-${sponsor.id}`}>
-            <CheckCircle2 className="h-3.5 w-3.5" /> {meetingLabel}
-          </div>
-        ) : (
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={isActing} onClick={onRequestMeeting} data-testid={`button-request-meeting-${sponsor.id}`}>
-            <Calendar className="h-3 w-3" /> Request Meeting
-          </Button>
-        )}
-
-        {hasInfo ? (
-          <div className="flex items-center gap-1 text-xs text-accent font-medium" data-testid={`status-info-${sponsor.id}`}>
-            <CheckCircle2 className="h-3.5 w-3.5" /> Info Requested
-          </div>
-        ) : (
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" disabled={isActing} onClick={onRequestInfo} data-testid={`button-request-info-${sponsor.id}`}>
-            <Mail className="h-3 w-3" /> Request Info
-          </Button>
-        )}
+        <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={isActing} onClick={onRequestMeeting} data-testid={`button-request-meeting-${sponsor.id}`}>
+          <Calendar className="h-3 w-3" /> Request Meeting
+        </Button>
+        <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" disabled={isActing} onClick={onRequestInfo} data-testid={`button-request-info-${sponsor.id}`}>
+          <Mail className="h-3 w-3" /> Request Info
+        </Button>
       </div>
     </div>
   );
@@ -110,6 +81,7 @@ function SponsorCard({
 export default function AttendeeSponsorsPage() {
   const { token, headers, meQuery, logout } = useAttendeeAuth();
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [topicFilter, setTopicFilter] = useState<string | null>(null);
   const [detailSponsor, setDetailSponsor] = useState<SponsorDetail | null>(null);
@@ -135,7 +107,10 @@ export default function AttendeeSponsorsPage() {
       }).then((r) => r.json()),
     onMutate: (sponsorId) => setActingFor(sponsorId),
     onSettled: () => setActingFor(null),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] });
+      toast({ title: "Meeting request sent", description: "We'll connect you with this sponsor." });
+    },
   });
 
   const requestInfoMutation = useMutation({
@@ -146,7 +121,10 @@ export default function AttendeeSponsorsPage() {
       }).then((r) => r.json()),
     onMutate: (sponsorId) => setActingFor(sponsorId),
     onSettled: () => setActingFor(null),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] });
+      toast({ title: "Information requested", description: "This sponsor will be in touch with more details." });
+    },
   });
 
   const sponsors = sponsorsQuery.data ?? [];
@@ -245,21 +223,16 @@ export default function AttendeeSponsorsPage() {
 
         {/* Sponsor grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="sponsors-grid">
-          {filtered.map((sponsor) => {
-            const mtg = interactions.meetings[sponsor.id];
-            const info = interactions.infoRequests[sponsor.id];
-            return (
-              <SponsorCard
-                key={sponsor.id}
-                sponsor={sponsor}
-                interaction={{ meetingStatus: mtg?.status, infoStatus: info?.status }}
-                onView={() => setDetailSponsor(sponsor)}
-                onRequestMeeting={() => requestMeetingMutation.mutate(sponsor.id)}
-                onRequestInfo={() => requestInfoMutation.mutate(sponsor.id)}
-                isActing={actingFor === sponsor.id}
-              />
-            );
-          })}
+          {filtered.map((sponsor) => (
+            <SponsorCard
+              key={sponsor.id}
+              sponsor={sponsor}
+              onView={() => setDetailSponsor(sponsor)}
+              onRequestMeeting={() => requestMeetingMutation.mutate(sponsor.id)}
+              onRequestInfo={() => requestInfoMutation.mutate(sponsor.id)}
+              isActing={actingFor === sponsor.id}
+            />
+          ))}
         </div>
       </div>
 

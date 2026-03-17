@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
 import { useAttendeeAuth, type AttendeeMe } from "@/hooks/use-attendee-auth";
+import { useToast } from "@/hooks/use-toast";
 import SessionDetailSheet, { type AgendaSessionDetail } from "@/components/attendee/SessionDetailSheet";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -343,8 +344,6 @@ function SponsorsCard({ sponsors, sponsorInteractions, onRequestMeeting, onReque
         ) : (
           <div className="space-y-3" data-testid="onboarding-sponsors-list">
             {sponsors.slice(0, 3).map((s) => {
-              const hasMeeting = !!sponsorInteractions.meetings[s.id];
-              const hasInfo = !!sponsorInteractions.infoRequests[s.id];
               const acting = isActingOnSponsor === s.id;
               return (
                 <div key={s.id} className="bg-card border border-border/60 rounded-xl p-4" data-testid={`card-onboarding-sponsor-${s.id}`}>
@@ -364,28 +363,16 @@ function SponsorsCard({ sponsors, sponsorInteractions, onRequestMeeting, onReque
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {hasMeeting ? (
-                      <span className="flex items-center gap-1 text-xs text-primary font-medium" data-testid={`status-onboarding-meeting-${s.id}`}>
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Meeting Requested
-                      </span>
-                    ) : (
-                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={acting}
-                        onClick={() => onRequestMeeting(s.id)}
-                        data-testid={`button-onboarding-request-meeting-${s.id}`}>
-                        <Calendar className="h-3 w-3" /> Request Meeting
-                      </Button>
-                    )}
-                    {hasInfo ? (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium" data-testid={`status-onboarding-info-${s.id}`}>
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Info Sent
-                      </span>
-                    ) : (
-                      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" disabled={acting}
-                        onClick={() => onRequestInfo(s.id)}
-                        data-testid={`button-onboarding-request-info-${s.id}`}>
-                        <Mail className="h-3 w-3" /> Request Info
-                      </Button>
-                    )}
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" disabled={acting}
+                      onClick={() => onRequestMeeting(s.id)}
+                      data-testid={`button-onboarding-request-meeting-${s.id}`}>
+                      <Calendar className="h-3 w-3" /> Request Meeting
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" disabled={acting}
+                      onClick={() => onRequestInfo(s.id)}
+                      data-testid={`button-onboarding-request-info-${s.id}`}>
+                      <Mail className="h-3 w-3" /> Request Info
+                    </Button>
                   </div>
                 </div>
               );
@@ -875,7 +862,6 @@ function Dashboard({
           <div className="bg-card border border-border/60 rounded-2xl divide-y divide-border/40" data-testid="suggested-meetings-list">
             {suggestedMeetings.map((s) => {
               const acting = isActingOnSponsor === s.id;
-              const hasMeeting = !!sponsorInteractions.meetings[s.id];
               return (
                 <div key={s.id} className="flex items-center gap-3 px-5 py-3.5" data-testid={`card-suggested-meeting-${s.id}`}>
                   {s.logoUrl
@@ -886,16 +872,10 @@ function Dashboard({
                     <p className="text-sm font-semibold text-foreground">{s.name}</p>
                     <RelevanceLabel labels={s.overlapTopicLabels} />
                   </div>
-                  {hasMeeting ? (
-                    <span className="flex items-center gap-1 text-xs text-primary font-medium shrink-0" style={acColor} data-testid={`status-suggested-meeting-${s.id}`}>
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Requested
-                    </span>
-                  ) : (
-                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0 font-medium" disabled={acting}
-                      onClick={() => onRequestMeeting(s.id)} data-testid={`button-request-meeting-suggested-${s.id}`}>
-                      <Calendar className="h-3.5 w-3.5" /> Request
-                    </Button>
-                  )}
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0 font-medium" disabled={acting}
+                    onClick={() => onRequestMeeting(s.id)} data-testid={`button-request-meeting-suggested-${s.id}`}>
+                    <Calendar className="h-3.5 w-3.5" /> Request
+                  </Button>
                 </div>
               );
             })}
@@ -929,8 +909,6 @@ function Dashboard({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="sponsors-list">
             {sponsors.map((sponsor) => {
-              const hasMeeting = !!sponsorInteractions.meetings[sponsor.id];
-              const hasInfo = !!sponsorInteractions.infoRequests[sponsor.id];
               const acting = isActingOnSponsor === sponsor.id;
               return (
                 <div key={sponsor.id} className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-3" data-testid={`card-sponsor-${sponsor.id}`}>
@@ -952,24 +930,12 @@ function Dashboard({
                         View <ChevronRight className="h-3 w-3" />
                       </Button>
                     </Link>
-                    {hasMeeting ? (
-                      <span className="flex items-center gap-1 text-xs text-primary font-medium" style={acColor} data-testid={`status-meeting-${sponsor.id}`}>
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Meeting Requested
-                      </span>
-                    ) : (
-                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1 font-medium" disabled={acting} onClick={() => onRequestMeeting(sponsor.id)} data-testid={`button-request-meeting-${sponsor.id}`}>
-                        <Calendar className="h-3 w-3" /> Meeting
-                      </Button>
-                    )}
-                    {!hasMeeting && (hasInfo ? (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium" data-testid={`status-info-${sponsor.id}`}>
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Info Sent
-                      </span>
-                    ) : (
-                      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" disabled={acting} onClick={() => onRequestInfo(sponsor.id)} data-testid={`button-request-info-${sponsor.id}`}>
-                        <Mail className="h-3 w-3" /> Info
-                      </Button>
-                    ))}
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1 font-medium" disabled={acting} onClick={() => onRequestMeeting(sponsor.id)} data-testid={`button-request-meeting-${sponsor.id}`}>
+                      <Calendar className="h-3 w-3" /> Meeting
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" disabled={acting} onClick={() => onRequestInfo(sponsor.id)} data-testid={`button-request-info-${sponsor.id}`}>
+                      <Mail className="h-3 w-3" /> Info
+                    </Button>
                   </div>
                 </div>
               );
@@ -1018,6 +984,7 @@ type OnboardingStep = "welcome" | "topics" | "edit-topics" | "sessions" | "spons
 export default function AttendeePortalPage() {
   const { token, headers, meQuery, logout } = useAttendeeAuth();
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>(null);
   const [wizardDetailSession, setWizardDetailSession] = useState<RecommendedSession | null>(null);
 
@@ -1100,6 +1067,7 @@ export default function AttendeePortalPage() {
       qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] });
       qc.invalidateQueries({ queryKey: ["/api/attendee-portal/suggested-meetings"] });
       qc.invalidateQueries({ queryKey: ["/api/attendee-portal/recommended-sponsors"] });
+      toast({ title: "Meeting request sent", description: "We'll connect you with this sponsor." });
     },
   });
 
@@ -1110,7 +1078,10 @@ export default function AttendeePortalPage() {
       }).then((r) => r.json()),
     onMutate: (id) => setActingOnSponsor(id),
     onSettled: () => setActingOnSponsor(null),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] });
+      toast({ title: "Information requested", description: "This sponsor will be in touch with more details." });
+    },
   });
 
   const saveTopicsMutation = useMutation({

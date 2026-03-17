@@ -1056,7 +1056,7 @@ export default function SponsorDashboardPage() {
                   <p className="text-xs text-muted-foreground mt-0.5">Your sponsorship deliverables and action items</p>
                 </div>
                 <div className="p-6">
-                  <SponsorDeliverablesTab token={token} canEdit={canEdit} />
+                  <SponsorDeliverablesTab token={token} canEdit={canEdit} sponsorLogoUrl={sponsor.logoUrl} />
                 </div>
               </div>
             </TabsContent>

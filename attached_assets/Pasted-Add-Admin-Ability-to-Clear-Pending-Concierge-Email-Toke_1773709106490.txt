@@ -1,0 +1,247 @@
+Add Admin Ability to Clear Pending Concierge Email Tokens
+Extend token reset tools so they cover pending email-based Concierge records, not just registered attendees
+
+There is currently a way to clear tokens for currently registered attendees, but there is no way to clear tokens for pending email records created during the anonymous / pre-matched Concierge flow.
+
+This is a problem for testing and support because pending email records can still hold active tokens and completed onboarding states, which prevents clean re-testing.
+
+We need to extend the admin reset/token tools so they also cover pending email-based Concierge profiles.
+
+1. Primary Goal
+
+Add admin functionality so Converge can clear/reset tokens for:
+
+registered attendee records
+
+pending email / pending Concierge records that are not yet fully matched to an attendee
+
+This should make the reset tools complete and prevent stale pending tokens from persisting.
+
+2. Clarify the Current Gap
+Current behavior
+
+Admins can clear/reset tokens for registered attendees.
+
+Missing behavior
+
+Admins cannot clear/reset tokens for:
+
+pending concierge profiles
+
+pending email-based onboarding records
+
+anonymous/pre-matched records created before attendee reconciliation
+
+This needs to be corrected.
+
+3. Identify the Pending Record Model Being Used
+
+First, identify which model/table currently stores these pending email-based records.
+
+It may be something like:
+
+pending_concierge_profiles
+
+attendee_access_tokens
+
+attendee_magic_links
+
+another token/state table
+
+Required action
+
+Determine:
+
+where pending email/token records are stored
+
+how they are linked to event and email
+
+which fields determine token validity and onboarding completion
+
+Do not guess. Use the actual live model.
+
+4. Add Admin Reset/Clear Action for Pending Email Records
+
+In the relevant admin area, add the ability to clear/reset pending email-based Concierge tokens.
+
+Recommended placement:
+
+admin attendee tools
+
+admin concierge tools
+
+or a dedicated reset utility if one already exists
+
+At minimum, admins should be able to search by:
+
+email
+
+event
+
+and clear the pending record/token state.
+
+5. What “Clear Pending Token” Should Do
+
+For a pending email record, clearing should reset the state so the user can restart cleanly.
+
+Required behavior
+
+Clear/reset:
+
+active token value
+
+onboarding completion state
+
+current step state
+
+any “completed” or “done” marker tied only to the pending record
+
+any redirect logic that would force the attendee back to Card 5 or the dashboard
+
+Optional depending on how the model works
+
+Also clear:
+
+matched token state
+
+email verification state if only used for the flow
+
+stale wizard progress
+
+Do not delete useful audit history unless necessary.
+
+6. Event-Specific Reset
+
+This reset must be event-specific.
+
+If the same email exists across multiple events, clearing one pending profile/token for:
+
+dan@treasolution.com on FRC2026
+
+must not wipe the same email’s progress for another event.
+
+Use:
+
+email
+
+event
+
+as the reset scope.
+
+7. Preserve Ability to Re-Test From Card 1
+
+After the pending token/profile is cleared, the next time that person enters the flow:
+
+they should be able to start again from Card 1
+
+they should not be forced to Card 5
+
+they should not be treated as fully completed
+
+This is the key testing requirement.
+
+8. Add Admin UI Visibility for Pending Concierge Records
+
+Right now this issue suggests pending records are not visible enough.
+
+Add basic admin visibility for pending concierge profiles, including:
+
+email
+
+event
+
+token present yes/no
+
+onboarding status
+
+current step if available
+
+matched to attendee yes/no
+
+This can be:
+
+a small admin utility view
+
+a table/filter inside existing admin tools
+
+or a lightweight support/debug panel
+
+We need admins to be able to see these records, not just registered attendees.
+
+9. Add Two Distinct Admin Actions If Practical
+
+If possible, separate the actions:
+
+A. Reset Concierge Progress
+
+Resets flow state but can keep the token
+
+B. Clear / Regenerate Token
+
+Invalidates the current pending token and creates a fresh one if needed
+
+This is ideal for support and testing.
+
+If that is too much for now, at least implement:
+
+clear pending token + reset progress
+
+10. Search / Lookup by Email
+
+Because pending records may not yet be attached to a full attendee record, admin lookup must support searching directly by email.
+
+Required behavior
+
+Admin should be able to locate pending records by:
+
+email
+
+event
+
+This is essential.
+
+Do not require a full attendee record id to manage the pending token.
+
+11. Confirmation Modal
+
+Because token reset can affect live attendee access, add a confirmation step.
+
+Example:
+
+Clear pending Concierge token?
+
+This will reset the attendee’s pending Concierge progress for this event and allow them to restart from Card 1.
+
+[Cancel] [Clear Token]
+
+If there is a distinction between clearing token and clearing progress, explain that clearly.
+
+12. Do Not Break Registered Attendee Reset Behavior
+
+This new pending-token reset functionality should extend the current tools, not break the existing attendee token reset tools.
+
+Both cases should now be supported:
+
+registered attendee token reset
+
+pending email token reset
+
+13. Acceptance Criteria
+
+This correction is complete when:
+
+admins can find pending email-based Concierge records
+
+admins can clear/reset tokens for pending records
+
+the reset is event-specific
+
+pending onboarding completion state can be cleared
+
+after reset, the user can restart from Card 1
+
+existing registered-attendee token reset tools continue to work
+
+14. Success Standard
+
+After this update, Converge should be able to fully reset both registered attendee Concierge tokens and pending email-based Concierge tokens so testing and support are no longer blocked by stale completion states or hidden pending records.

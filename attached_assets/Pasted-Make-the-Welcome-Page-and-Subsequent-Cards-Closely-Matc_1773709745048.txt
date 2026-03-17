@@ -1,0 +1,359 @@
+Make the Welcome Page and Subsequent Cards Closely Match the Event Scheduling Page Layout
+Use the TLS2026 event page as the visual/layout reference for the attendee onboarding experience
+
+I would like the attendee welcome page and the subsequent onboarding cards to closely match the layout and visual structure of the main event scheduling page:
+
+https://concierge.convergeevents.com/event/TLS2026
+
+Right now the onboarding flow feels like a separate mini-app.
+Instead, it should feel like a guided extension of the event scheduling page.
+
+This is primarily a layout and design consistency task, not a change to the onboarding logic itself.
+
+1. Primary Goal
+
+Refine the attendee onboarding flow so that:
+
+the welcome page visually matches the event scheduling page layout
+
+subsequent cards also feel like they belong inside that same event page system
+
+attendees feel like they are moving through a guided version of the event scheduling page, not switching into a different interface
+
+The flow logic can remain:
+
+Interests
+
+Your Matches
+
+Sessions
+
+Sponsors
+
+Complete
+
+But the page structure, spacing, card treatment, and visual framing should align with the event scheduling page.
+
+2. Use the TLS2026 Event Scheduling Page as the Design Reference
+
+The event scheduling page should be treated as the design/layout reference.
+
+Specifically align the onboarding flow with the event page in terms of:
+
+overall page width
+
+hero/header treatment
+
+event logo placement
+
+event title sizing
+
+event metadata row
+
+section spacing
+
+sponsor/session card proportions
+
+typography hierarchy
+
+button styling
+
+white card / light background structure
+
+Do not create a separate narrow wizard aesthetic if the goal is consistency with the event page.
+
+3. Keep the Existing Event Page Hero Structure
+
+The top of the welcome page should closely resemble the event scheduling page header.
+
+Required structure
+
+At the top of the page, use the same general hero pattern as the event page:
+
+event logo on the left
+
+title / event text on the right
+
+badge or label row above title if appropriate
+
+date/location/website metadata row below title
+
+This should feel visually like the attendee has arrived on the event page, but now with a guided next-step experience layered into it.
+
+4. Add “Registration Confirmed” / “Next Step” Within the Event Page Style
+
+The welcome page should still communicate that registration is complete and this is the next step.
+
+However, do this within the event page visual style, not as a completely different narrow wizard header.
+
+Recommended approach
+
+Above or inside the hero content, add:
+
+Registration Confirmed badge/graphic
+
+Next Step label
+
+short line explaining that Concierge will help personalize the experience
+
+Example:
+
+Registration Confirmed
+Next Step
+
+Let’s personalize your conference experience.
+
+But preserve the same overall layout language as the event page.
+
+5. Widen the Onboarding Flow to Match the Event Page Content Width
+
+The onboarding flow should no longer feel like a narrow centered form.
+
+Required behavior
+
+Use a content width much closer to the event scheduling page content width.
+
+This should apply to:
+
+welcome page
+
+interests card
+
+match preview card
+
+sessions card
+
+sponsors card
+
+completion card
+
+The attendee should feel like they are progressing through sections of the event page, not stepping through a modal wizard.
+
+6. Keep the Onboarding Content in Event-Style Sections
+
+Instead of tiny/narrow cards, use sections that visually align with the event page structure.
+
+Recommended pattern
+
+page background same as event scheduling page
+
+event hero block at top
+
+onboarding step content below in a large white content card/section
+
+sponsor/session cards styled like the event page cards
+
+If you still use a stepper/progress indicator, it should sit naturally inside the page section and not make the whole page feel like a separate checkout flow.
+
+7. Progress Bar Should Feel Native to the Event Page
+
+Keep the onboarding progress, but make it visually feel like part of the event page.
+
+Required labels
+
+Use:
+
+Interests
+
+Your Matches
+
+Sessions
+
+Sponsors
+
+Complete
+
+Design requirement
+
+The progress bar/stepper should:
+
+fit the page width appropriately
+
+not make the UI feel cramped
+
+look polished and aligned with the event page spacing
+
+8. Make Card 1 Look Like the Event Page With Guided Next Steps
+
+For Card 1:
+
+Keep
+
+event hero/header
+
+branded layout
+
+topic chip selection
+
+Refine
+
+use the same page width and section spacing as the event page
+
+align heading hierarchy with event page styles
+
+keep topic chips inside a larger section that feels part of the event page
+
+This should no longer look like a small survey widget dropped onto a blank page.
+
+9. Make Subsequent Cards Feel Like Event Page Sections, Not Separate Wizard Screens
+
+Cards 2–5 should also visually align with the event page.
+
+Required behavior
+
+When the attendee advances to:
+
+Your Matches
+
+Sessions
+
+Sponsors
+
+Complete
+
+they should still feel like they are on the same event page framework.
+
+That means:
+
+same hero remains or is consistently preserved
+
+same content width
+
+same sponsor/session card styling
+
+same section spacing
+
+same button language/style
+
+Do not make each step feel like a different application state with a completely different layout.
+
+10. Sessions Step Should Use Event Page Session Card Language
+
+The sessions step should visually align with how sessions/agenda are shown elsewhere in the attendee experience.
+
+Where possible:
+
+use the same session card proportions
+
+same typography for titles
+
+same metadata row treatment
+
+same save / add to calendar button styling
+
+The sessions step should feel like a curated version of the agenda page.
+
+11. Sponsors Step Should Use Event Scheduling Page Sponsor Card Style
+
+This is especially important.
+
+The sponsor cards shown on the Sponsors step should closely match the sponsor cards used on the event scheduling page.
+
+That includes:
+
+card proportions
+
+sponsor logo placement
+
+level badge placement
+
+name and description treatment
+
+View Profile link
+
+meeting buttons
+
+Request Information button
+
+spacing and button widths
+
+This should feel like the attendee is seeing a filtered/recommended version of the event sponsor list, not a different sponsor UI.
+
+12. Keep the Existing Sponsor Button Logic Aligned With the Event Page
+
+As already specified, the sponsor actions on the onboarding Sponsors step should continue to use the same sponsor-driven configuration logic as the event page:
+
+onsite scheduling if enabled
+
+online scheduling if enabled
+
+request information if enabled
+
+Do not diverge from the event scheduling page behavior.
+
+This instruction is about making the layout align as well.
+
+13. Keep Event Branding Stronger Throughout the Flow
+
+The event logo and event identity should remain prominent enough throughout the flow so the attendee feels anchored to the event.
+
+The onboarding experience should not become so generic that it could belong to any app.
+
+The attendee should always feel:
+
+I’m preparing for THIS conference
+
+not:
+
+I’m in a generic setup wizard
+14. Preserve Mobile Responsiveness
+
+Even while making the layout more like the event page, keep the flow mobile-friendly.
+
+Important requirements:
+
+event hero stacks cleanly on mobile
+
+topic chips wrap well
+
+session cards remain readable
+
+sponsor cards remain tappable
+
+buttons stay large and accessible
+
+progress bar still works on smaller screens
+
+Do not sacrifice mobile usability for desktop polish.
+
+15. Do Not Change the Underlying Flow Logic Unnecessarily
+
+This task is primarily about layout and design consistency.
+
+Do not rebuild the backend flow or recommendation logic unless required for minor UI integration.
+
+The underlying onboarding flow can remain:
+
+Interests
+
+Your Matches
+
+Sessions
+
+Sponsors
+
+Complete
+
+We are changing how it feels and presents, not the whole workflow architecture.
+
+16. Acceptance Criteria
+
+This refinement is complete when:
+
+the welcome page visually aligns closely with the TLS2026 event scheduling page
+
+the hero/header area uses the same event page structure and hierarchy
+
+subsequent onboarding steps also feel like part of the same event page system
+
+the onboarding content is wider and no longer feels like a narrow wizard form
+
+session and sponsor cards align visually with the event scheduling page patterns
+
+the onboarding flow still remains mobile-friendly
+
+the attendee experience feels like a guided version of the event scheduling page rather than a separate mini-app
+
+17. Success Standard
+
+After this update, the attendee should feel like they are on the conference’s Concierge event page the entire time, with guided next steps layered into it. The onboarding flow should no longer feel visually disconnected from the main event scheduling experience.

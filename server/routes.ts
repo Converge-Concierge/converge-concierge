@@ -843,6 +843,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // GET /api/admin/pending-concierge — search/list pending concierge profiles
+  app.get("/api/admin/pending-concierge", requireAuth, async (req, res) => {
+    try {
+      const { eventId, email } = req.query as { eventId?: string; email?: string };
+      const profiles = await storage.searchPendingConciergeProfiles({
+        eventId: eventId || undefined,
+        email: email || undefined,
+      });
+      return res.json(profiles);
+    } catch (e: any) {
+      return res.status(500).json({ message: e.message ?? "Failed to search pending concierge profiles" });
+    }
+  });
+
+  // POST /api/admin/pending-concierge/:id/reset — reset a pending concierge profile
+  app.post("/api/admin/pending-concierge/:id/reset", requireAuth, async (req, res) => {
+    try {
+      const profile = await storage.getPendingConciergeProfile(req.params.id);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+      await storage.resetPendingConciergeProfile(req.params.id);
+      return res.json({ ok: true, message: "Pending concierge profile reset to Card 1" });
+    } catch (e: any) {
+      return res.status(500).json({ message: e.message ?? "Failed to reset pending concierge profile" });
+    }
+  });
+
   app.post("/api/attendees/prefill-lookup", async (req, res) => {
     const { eventId, email } = req.body ?? {};
     if (!eventId || !email || typeof email !== "string") {
@@ -2176,7 +2202,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const event = await storage.getEventBySlug(req.params.slug);
       if (!event) return res.status(404).json({ error: "Event not found" });
-      return res.json({ id: event.id, name: event.name, startDate: event.startDate, endDate: event.endDate, venue: event.location, logoUrl: event.logoUrl });
+      return res.json({ id: event.id, name: event.name, slug: event.slug, startDate: event.startDate, endDate: event.endDate, location: event.location, venue: event.location, logoUrl: event.logoUrl, websiteUrl: event.websiteUrl ?? null });
     } catch (e) {
       return res.status(500).json({ error: "Internal error" });
     }

@@ -265,6 +265,8 @@ export interface IStorage {
   addPendingConciergeMeetingRequest(profileId: string, sponsorId: string, requestType: string): Promise<void>;
   getPendingConciergeProfilesByEmail(eventId: string, email: string): Promise<import("@shared/schema").PendingConciergeProfile[]>;
   reconcilePendingConciergeProfiles(eventId: string, email: string, attendeeId: string): Promise<void>;
+  searchPendingConciergeProfiles(params: { eventId?: string; email?: string }): Promise<import("@shared/schema").PendingConciergeProfile[]>;
+  resetPendingConciergeProfile(profileId: string): Promise<void>;
 
   // Sponsor Users & Magic Login
   upsertSponsorUser(data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser>;
@@ -1072,6 +1074,8 @@ export class MemStorage implements IStorage {
   async addPendingConciergeMeetingRequest(_profileId: string, _sponsorId: string, _requestType: string): Promise<void> {}
   async getPendingConciergeProfilesByEmail(_eventId: string, _email: string): Promise<import("@shared/schema").PendingConciergeProfile[]> { return []; }
   async reconcilePendingConciergeProfiles(_eventId: string, _email: string, _attendeeId: string): Promise<void> {}
+  async searchPendingConciergeProfiles(_params: { eventId?: string; email?: string }): Promise<import("@shared/schema").PendingConciergeProfile[]> { return []; }
+  async resetPendingConciergeProfile(_profileId: string): Promise<void> {}
 
   async upsertSponsorUser(_data: { sponsorId: string; name: string; email: string; accessLevel?: string; isPrimary?: boolean }): Promise<SponsorUser> { return { id: randomUUID(), sponsorId: _data.sponsorId, name: _data.name, email: _data.email, accessLevel: _data.accessLevel ?? "owner", isPrimary: _data.isPrimary ?? false, isActive: true, lastLoginAt: null, loginCount: 0, createdAt: new Date(), updatedAt: new Date() }; }
   async getSponsorUserByEmail(_email: string): Promise<SponsorUser | undefined> { return undefined; }

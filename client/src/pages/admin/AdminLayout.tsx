@@ -24,6 +24,7 @@ import CategoryRulesPage from "./CategoryRulesPage";
 import SponsorHealthPage from "./SponsorHealthPage";
 import AgendaPage from "./AgendaPage";
 import InterestTopicsPage from "./InterestTopicsPage";
+import ConciergeToolsPage from "./ConciergeToolsPage";
 import DemoBanner from "@/components/DemoBanner";
 
 function AccessDenied() {
@@ -126,6 +127,7 @@ export default function AdminLayout() {
               <Route path="/admin/agreement/:rest*" component={AgreementDeliverablesPage} />
               <Route path="/admin/agenda" component={AgendaPage} />
               <Route path="/admin/interest-topics" component={InterestTopicsPage} />
+              <Route path="/admin/concierge-tools" component={ConciergeToolsPage} />
               <Route path="/admin/sponsor-health" component={SponsorHealthPage} />
               <Route path="/admin/data-backup">{() => { window.location.href = "/admin/data-management"; return null; }}</Route>
             </Switch>

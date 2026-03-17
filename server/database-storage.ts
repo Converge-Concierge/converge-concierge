@@ -1561,6 +1561,22 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(pendingConciergeProfiles.eventId, eventId), eq(pendingConciergeProfiles.email, email.toLowerCase())));
   }
 
+  async searchPendingConciergeProfiles(params: { eventId?: string; email?: string }): Promise<PendingConciergeProfile[]> {
+    const conditions: ReturnType<typeof eq>[] = [];
+    if (params.eventId) conditions.push(eq(pendingConciergeProfiles.eventId, params.eventId));
+    if (params.email) conditions.push(eq(pendingConciergeProfiles.email, params.email.toLowerCase()));
+    if (conditions.length === 0) {
+      return db.select().from(pendingConciergeProfiles).orderBy(desc(pendingConciergeProfiles.createdAt)).limit(200);
+    }
+    return db.select().from(pendingConciergeProfiles).where(and(...conditions)).orderBy(desc(pendingConciergeProfiles.createdAt));
+  }
+
+  async resetPendingConciergeProfile(profileId: string): Promise<void> {
+    await db.update(pendingConciergeProfiles)
+      .set({ isCompleted: false, onboardingStep: "topics", updatedAt: new Date() })
+      .where(eq(pendingConciergeProfiles.id, profileId));
+  }
+
   async reconcilePendingConciergeProfiles(eventId: string, email: string, attendeeId: string): Promise<void> {
     const profiles = await this.getPendingConciergeProfilesByEmail(eventId, email.toLowerCase());
     const unmatched = profiles.filter((p) => !p.matchedAttendeeId);

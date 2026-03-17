@@ -1,0 +1,394 @@
+Replace Sponsor “Solution Types” With “Correlated Agenda Topics” and Align Sponsor Matching to Agenda Topics
+Move sponsor topic mapping into its own tab, support sponsor-suggested topics with admin review, remove duplicate meeting settings from Basic Info, and rename Event Assignments to Meeting Management
+
+We need to update sponsor setup so that sponsor recommendation logic is fully aligned with the Agenda Topics system.
+
+Right now the field labeled:
+
+Solution Types
+
+is not the right model or terminology.
+
+The sponsor topics used for attendee recommendation should directly correlate to the same Agenda Topics used in:
+
+Admin → Agenda / session topic tagging
+
+attendee topic-of-interest selection during the attendee card flow
+
+sponsor recommendation logic
+
+This needs to become a first-class part of sponsor setup.
+
+1. Primary Goal
+
+Update sponsor setup so that:
+
+sponsors are mapped to the same Agenda Topics used elsewhere in Concierge
+
+sponsor recommendation logic uses those topic mappings directly
+
+the old “Solution Types” label is replaced with Correlated Agenda Topics
+
+topic mapping gets its own dedicated tab in sponsor setup
+
+sponsor-suggested new terms can be reviewed and approved/denied by Converge
+
+duplicate meeting settings are removed from the Basic Info tab
+
+the Event Assignments tab is renamed to Meeting Management
+
+2. Replace “Solution Types” Conceptually
+
+The sponsor topic field should no longer be treated as generic free-form “Solution Types.”
+
+Instead, it should be treated as:
+
+Correlated Agenda Topics
+
+These are the same topics used to:
+
+tag sessions
+
+capture attendee interests
+
+drive sponsor recommendations
+
+This creates one shared topic system.
+
+3. Rename “Solution Types” to “Correlated Agenda Topics”
+
+Anywhere the sponsor setup UI currently shows:
+
+Solution Types
+
+replace it with:
+
+Correlated Agenda Topics
+Apply this rename to:
+
+sponsor setup UI
+
+sponsor edit modal/page
+
+sponsor admin detail view if applicable
+
+any sponsor-facing dashboard section if it currently references Solution Types
+
+any helper text that still references Solution Types
+
+Do not leave mixed terminology in the app.
+
+4. Move Correlated Agenda Topics Out of the Basic Info Tab
+
+The Basic Info tab is currently carrying too much and this topic mapping deserves its own focused location.
+
+Required behavior
+
+Create a dedicated sponsor setup tab for this functionality.
+
+Recommended new tab name
+Correlated Agenda Topics
+
+This tab should be part of the sponsor setup/edit flow.
+
+Do not leave the topic mapping field on the first/basic tab.
+
+5. New Sponsor Setup Tab Structure
+
+Add a dedicated tab in sponsor setup.
+
+Recommended sponsor setup tabs after update:
+
+Basic Info
+
+Sponsor Profile
+
+Contacts
+
+Correlated Agenda Topics
+
+Meeting Management
+
+You may adjust exact order slightly if needed, but this should be the direction.
+
+6. Correlated Agenda Topics Tab — Core Behavior
+
+In the new Correlated Agenda Topics tab, the sponsor should be able to be mapped to the event’s Agenda Topics.
+
+Required behavior
+
+Show the approved active Agenda Topics for the relevant event(s).
+
+Allow Converge admin to:
+
+select the topics that correlate to the sponsor’s offerings
+
+save those topic mappings cleanly in the structured sponsor topic selection model
+
+This should not be a free-form text field.
+
+7. Use Agenda Topics as the Source of Truth
+
+The available options in this tab must come from the event’s approved active Agenda Topics.
+
+Do not use:
+
+old free-text solution words
+
+separate unmanaged topic lists
+
+duplicate sponsor-only topic sets
+
+The source of truth is the Agenda Topics system.
+
+8. Sponsor Recommendation Logic Must Use These Correlated Agenda Topics
+
+This is critical.
+
+A sponsor should be highlighted/recommended to attendees when:
+
+attendee selected topic(s)
+match
+sponsor correlated agenda topic(s)
+Required behavior
+
+Ensure sponsor recommendation logic uses the sponsor’s structured correlated Agenda Topic mappings directly.
+
+That means:
+
+if attendee selects Fair Lending
+
+sponsor has Fair Lending selected in Correlated Agenda Topics
+
+sponsor should be eligible to be recommended/highlighted
+
+This is the core relationship we want.
+
+9. Review Existing Recommendation Logic and Update if Needed
+
+Audit the current sponsor recommendation pipeline to confirm what it is reading today.
+
+If it is still using:
+
+old Solution Types
+
+legacy fields
+
+free-text values
+
+partial mappings
+
+replace that logic so it now uses the new structured sponsor ↔ Agenda Topic relationship.
+
+This recommendation logic should now align with:
+
+attendee selected topics
+
+session tagged topics
+
+sponsor correlated topics
+
+all from the same Agenda Topics framework.
+
+10. Support Sponsor-Suggested New Terms
+
+This new Correlated Agenda Topics tab should also be the place where sponsor-suggested new terms can be reviewed.
+
+Required behavior
+
+Allow sponsors to suggest a new topic/term if they do not see an appropriate Agenda Topic.
+
+This should not become live immediately.
+
+It should enter an approval workflow.
+
+11. Admin Review / Approve / Deny Flow for Sponsor-Suggested Terms
+
+When a sponsor suggests a new term:
+
+create a pending suggestion record or pending topic state
+
+link it to:
+
+sponsor
+
+event
+
+mark it as pending review
+
+Converge admin should be able to:
+
+review
+
+approve
+
+deny
+
+optionally edit before approval
+
+If approved:
+
+it should become a valid Agenda Topic for that event
+
+it should become selectable / usable in sponsor, session, and attendee logic where appropriate
+
+This tab should be the central place for that workflow in sponsor setup.
+
+12. Remove “Meeting Settings → Allow Online Meetings” From Basic Info
+
+The Basic Info tab currently contains:
+
+Meeting Settings
+Allow Online Meetings
+
+This should be removed from the first tab.
+
+That functionality is already part of the event-specific sponsor/event setup logic.
+
+Required behavior
+
+Remove the duplicate meeting settings control from the Basic Info tab.
+
+Do not keep meeting mode settings there.
+
+13. Rename “Event Assignments” Tab to “Meeting Management”
+
+The current tab labeled:
+
+Event Assignments
+
+should be renamed to:
+
+Meeting Management
+
+This is a better label because that tab is now handling event-specific meeting behavior/configuration rather than just assignment.
+
+14. Keep Event-Specific Meeting Controls in Meeting Management
+
+After the rename, the Meeting Management tab should remain the place where event-specific sponsor meeting functionality is controlled, including items like:
+
+assigned events
+
+sponsorship/event relationship
+
+online meeting availability
+
+onsite/online meeting options
+
+any event-specific meeting controls already there
+
+Do not move those back into Basic Info.
+
+15. Basic Info Tab Should Be Simplified
+
+After these changes, the Basic Info tab should focus on true basic data only, such as:
+
+sponsor logo
+
+sponsor name
+
+status
+
+maybe core profile identity fields
+
+It should not contain:
+
+duplicate topic mapping
+
+duplicate event-specific meeting settings
+
+This will make the tab cleaner.
+
+16. Suggested UI for Correlated Agenda Topics Tab
+
+Recommended sections in the new tab:
+
+Section A — Select Correlated Agenda Topics
+
+Show selectable chips/cards for approved active event Agenda Topics.
+
+Section B — Suggested New Terms
+
+Show pending sponsor-suggested terms with statuses like:
+
+Pending Review
+
+Approved
+
+Denied
+
+Section C — Admin Actions
+
+Allow admin to:
+
+approve
+
+deny
+
+edit before approval if desired
+
+This tab should become the operational hub for sponsor topic alignment.
+
+17. Event Scoping Consideration
+
+Because Agenda Topics are event-specific, be careful about event context.
+
+If sponsor setup spans multiple events, the Correlated Agenda Topics tab should either:
+
+Option A
+
+Be scoped to the currently selected event context
+
+or
+
+Option B
+
+Show mappings grouped by event
+
+Choose the cleanest approach for the existing sponsor architecture, but do not mix topics from unrelated events without clear labeling.
+
+This matters because sponsor-topic mapping should remain event-aware.
+
+18. Migration / Legacy Handling
+
+Existing “Solution Types” values may already exist.
+
+Required approach
+
+Do not keep Solution Types as the long-term source of truth.
+
+Instead:
+
+preserve legacy values if needed for reference
+
+migrate or replace them with structured Correlated Agenda Topic mappings
+
+ensure the recommendation engine reads the new structured data going forward
+
+If a lightweight migration helper is needed, add one.
+
+19. Acceptance Criteria
+
+This work is complete when:
+
+the sponsor setup UI no longer relies on “Solution Types” terminology
+
+Solution Types is replaced with “Correlated Agenda Topics”
+
+sponsor topic mapping lives in its own dedicated tab
+
+sponsors/admin can map sponsors to approved event Agenda Topics
+
+sponsors can suggest new terms for Converge review
+
+Converge can approve or deny those suggestions
+
+sponsor recommendation logic uses sponsor correlated Agenda Topics directly
+
+the duplicate “Allow Online Meetings” control is removed from Basic Info
+
+the Event Assignments tab is renamed to Meeting Management
+
+20. Success Standard
+
+After this update, sponsor setup should be fully aligned with the shared Agenda Topics system. Sponsors should be recommended based on the same topic framework used by sessions and attendee interests, and sponsor meeting settings should be cleaner and more logically organized across the sponsor setup tabs.

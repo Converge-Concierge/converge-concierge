@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sponsor, InsertSponsor, Event, EventSponsorLink, SPONSORSHIP_LEVELS, SponsorshipLevel } from "@shared/schema";
-import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem, CalendarDays, ChevronDown, ChevronUp, Send, Clock, Info, Sparkles } from "lucide-react";
+import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem, CalendarDays, Send, Clock, Info, Sparkles, Check, Plus, Tag, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -38,22 +38,46 @@ const levelColors: Record<string, string> = {
 const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
-type TabId = "basic" | "profile" | "contacts" | "events";
+type TabId = "basic" | "profile" | "contacts" | "topics" | "meetings";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "basic", label: "Basic Info" },
   { id: "profile", label: "Sponsor Profile" },
   { id: "contacts", label: "Contacts" },
-  { id: "events", label: "Event Assignments" },
+  { id: "topics", label: "Correlated Agenda Topics" },
+  { id: "meetings", label: "Meeting Management" },
 ];
+
+interface EventTopic {
+  id: string;
+  topicLabel: string;
+  topicKey: string;
+  topicSource: string;
+  status: string;
+  isActive: boolean;
+  suggestedBySponsorId?: string | null;
+}
+
+interface SponsorTopicData {
+  eventId: string;
+  selectedTopics: { id: string; topicLabel: string }[];
+  pendingSuggestions: { id: string; topicLabel: string; suggestedBySponsorId?: string | null }[];
+}
 
 export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, isPending, readOnly }: SponsorFormModalProps) {
   const { toast } = useToast();
-  const [formData, setFormData] = useState<Partial<InsertSponsor>>({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false });
+  const queryClient = useQueryClient();
+  const [formData, setFormData] = useState<Partial<InsertSponsor>>({ name: "", logoUrl: "", level: "Gold", assignedEvents: [], archiveState: "active" });
   const [dragOver, setDragOver] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("basic");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [editedTopics, setEditedTopics] = useState<Record<string, Set<string>>>({});
+  const [topicsInitialized, setTopicsInitialized] = useState(false);
+  const [newTopicInputs, setNewTopicInputs] = useState<Record<string, string>>({});
+
+  const assignedEventIds = (formData.assignedEvents ?? []).map(ae => ae.eventId);
 
   const { data: sponsorUserData, refetch: refetchSponsorUser } = useQuery<{ user: { lastLoginAt: string | null } | null }>({
     queryKey: ["/api/admin/sponsors", sponsor?.id, "user"],
@@ -61,11 +85,84 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
     staleTime: 30000,
   });
 
-  const { data: sponsorTopics } = useQuery<{ eventId: string; selectedTopics: { id: string; topicLabel: string }[]; pendingSuggestions: { id: string; topicLabel: string }[] }[]>({
+  const { data: sponsorTopics, refetch: refetchSponsorTopics } = useQuery<SponsorTopicData[]>({
     queryKey: ["/api/admin/sponsors", sponsor?.id, "topic-selections"],
     queryFn: () => fetch(`/api/admin/sponsors/${sponsor!.id}/topic-selections`).then(r => r.json()),
     enabled: !!sponsor?.id && isOpen,
     staleTime: 30000,
+  });
+
+  const { data: eventTopicsMap } = useQuery<Record<string, EventTopic[]>>({
+    queryKey: ["/api/admin/event-topics-for-sponsor", assignedEventIds.join(",")],
+    queryFn: async () => {
+      if (assignedEventIds.length === 0) return {};
+      const pairs = await Promise.all(
+        assignedEventIds.map(async (eid) => {
+          const data: EventTopic[] = await fetch(`/api/events/${eid}/interest-topics`).then(r => r.json());
+          return [eid, data] as [string, EventTopic[]];
+        })
+      );
+      return Object.fromEntries(pairs);
+    },
+    enabled: assignedEventIds.length > 0 && isOpen && activeTab === "topics",
+    staleTime: 60000,
+  });
+
+  const saveTopicsMutation = useMutation({
+    mutationFn: async ({ eventId, topicIds }: { eventId: string; topicIds: string[] }) => {
+      const res = await apiRequest("POST", `/api/admin/sponsors/${sponsor!.id}/topic-selections`, { eventId, topicIds });
+      return res.json();
+    },
+    onSuccess: (_, { eventId }) => {
+      toast({ title: "Topics saved", description: "Correlated Agenda Topics updated." });
+      refetchSponsorTopics();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/sponsors", sponsor?.id, "topic-selections"] });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to save topic selections.", variant: "destructive" }),
+  });
+
+  const approveTopicMutation = useMutation({
+    mutationFn: async (topicId: string) => {
+      const res = await apiRequest("PATCH", `/api/admin/interest-topics/${topicId}`, { status: "APPROVED", isActive: true });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Topic approved", description: "The suggested topic is now active." });
+      refetchSponsorTopics();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/event-topics-for-sponsor", assignedEventIds.join(",")] });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to approve topic.", variant: "destructive" }),
+  });
+
+  const denyTopicMutation = useMutation({
+    mutationFn: async (topicId: string) => {
+      const res = await apiRequest("PATCH", `/api/admin/interest-topics/${topicId}`, { status: "DENIED", isActive: false });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Topic denied", description: "The suggestion has been declined." });
+      refetchSponsorTopics();
+    },
+    onError: () => toast({ title: "Error", description: "Failed to deny topic.", variant: "destructive" }),
+  });
+
+  const suggestTopicMutation = useMutation({
+    mutationFn: async ({ eventId, topicLabel }: { eventId: string; topicLabel: string }) => {
+      const res = await apiRequest("POST", `/api/admin/events/${eventId}/interest-topics`, {
+        topicLabel,
+        topicSource: "SPONSOR_SUGGESTED",
+        status: "PENDING",
+        isActive: false,
+        suggestedBySponsorId: sponsor?.id,
+      });
+      return res.json();
+    },
+    onSuccess: (_, { eventId }) => {
+      toast({ title: "Topic suggested", description: "The new topic has been submitted for review." });
+      setNewTopicInputs(prev => ({ ...prev, [eventId]: "" }));
+      refetchSponsorTopics();
+    },
+    onError: (err: any) => toast({ title: "Error", description: err?.message ?? "Failed to suggest topic.", variant: "destructive" }),
   });
 
   const sendAccessMutation = useMutation({
@@ -81,29 +178,40 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
         toast({ title: "Email failed", description: data.error ?? "Could not send access email.", variant: "destructive" });
       }
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to send access email.", variant: "destructive" });
-    },
+    onError: () => toast({ title: "Error", description: "Failed to send access email.", variant: "destructive" }),
   });
 
   useEffect(() => {
     if (isOpen) {
       setLogoError(false);
       setActiveTab("basic");
+      setTopicsInitialized(false);
+      setEditedTopics({});
+      setNewTopicInputs({});
       if (sponsor) {
         setFormData({
           ...sponsor,
-          allowOnlineMeetings: sponsor.allowOnlineMeetings ?? false,
           attributes: sponsor.attributes ?? [],
           assignedEvents: (sponsor.assignedEvents ?? []).filter(
             (ae) => !!ae.sponsorshipLevel && ae.sponsorshipLevel !== "None"
           ),
         });
       } else {
-        setFormData({ name: "", logoUrl: "", assignedEvents: [], archiveState: "active", allowOnlineMeetings: false, attributes: [] });
+        setFormData({ name: "", logoUrl: "", assignedEvents: [], archiveState: "active", attributes: [] });
       }
     }
   }, [sponsor, isOpen]);
+
+  useEffect(() => {
+    if (sponsorTopics && !topicsInitialized) {
+      const initial: Record<string, Set<string>> = {};
+      sponsorTopics.forEach(et => {
+        initial[et.eventId] = new Set(et.selectedTopics.map(t => t.id));
+      });
+      setEditedTopics(initial);
+      setTopicsInitialized(true);
+    }
+  }, [sponsorTopics, topicsInitialized]);
 
   function handleFile(file: File) {
     if (readOnly || !file.type.startsWith("image/")) return;
@@ -190,6 +298,15 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
     return ae?.sponsorshipLevel ?? null;
   }
 
+  function toggleTopic(eventId: string, topicId: string) {
+    setEditedTopics(prev => {
+      const current = new Set(prev[eventId] ?? []);
+      if (current.has(topicId)) current.delete(topicId);
+      else current.add(topicId);
+      return { ...prev, [eventId]: current };
+    });
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (readOnly) return;
@@ -238,6 +355,7 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
         <div className="flex-1 overflow-y-auto min-h-0">
           <form id="sponsor-form" onSubmit={handleSubmit} className="px-6 pt-6 pb-6">
 
+            {/* ── Basic Info ─────────────────────────────────────────── */}
             {activeTab === "basic" && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -307,98 +425,11 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                       </div>
                     </fieldset>
                   </div>
-
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-sm font-semibold text-foreground mb-4">Meeting Settings</h3>
-                      <div className="space-y-2">
-                        <Label>Allow Online Meetings</Label>
-                        <div className="flex rounded-lg border border-input overflow-hidden w-fit text-sm">
-                          <button
-                            type="button"
-                            onClick={() => !readOnly && setFormData((prev) => ({ ...prev, allowOnlineMeetings: true }))}
-                            className={cn(
-                              "px-5 py-2 font-medium transition-colors",
-                              formData.allowOnlineMeetings ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted",
-                            )}
-                            data-testid="toggle-online-yes"
-                          >
-                            Yes
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => !readOnly && setFormData((prev) => ({ ...prev, allowOnlineMeetings: false }))}
-                            className={cn(
-                              "px-5 py-2 font-medium transition-colors border-l border-input",
-                              !formData.allowOnlineMeetings ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted",
-                            )}
-                            data-testid="toggle-online-no"
-                          >
-                            No
-                          </button>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {formData.allowOnlineMeetings
-                            ? "Attendees may submit an online meeting request for this sponsor."
-                            : "Only onsite meeting scheduling is available for this sponsor."}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-foreground">Solution Types <span className="text-muted-foreground font-normal text-xs">(up to 3)</span></h3>
-                        {(formData.attributes ?? []).filter(Boolean).length > 0 && (
-                          <span className="text-xs text-accent font-medium">{(formData.attributes ?? []).filter(Boolean).length} entered</span>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        {[0, 1, 2].map((i) => {
-                          const current = formData.attributes ?? [];
-                          const val = current[i] ?? "";
-                          const filledBefore = i === 0 || !!(current[i - 1] ?? "").trim();
-                          if (i > 0 && !filledBefore && !val) return null;
-                          return (
-                            <div key={i} className="flex items-center gap-2">
-                              <Input
-                                value={val}
-                                disabled={readOnly}
-                                placeholder={i === 0 ? "e.g. Compliance" : i === 1 ? "e.g. Payments" : "e.g. AI"}
-                                className="h-8 text-xs flex-1"
-                                data-testid={`input-solution-type-${i}`}
-                                onChange={(e) => {
-                                  if (readOnly) return;
-                                  const next = [...(formData.attributes ?? [])];
-                                  while (next.length <= i) next.push("");
-                                  next[i] = e.target.value;
-                                  setFormData((p) => ({ ...p, attributes: next }));
-                                }}
-                              />
-                              {!readOnly && val && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const next = [...(formData.attributes ?? [])];
-                                    next.splice(i, 1);
-                                    setFormData((p) => ({ ...p, attributes: next }));
-                                  }}
-                                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                                  data-testid={`remove-solution-type-${i}`}
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">Used to filter sponsors by Solution Type on the event page.</p>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
 
+            {/* ── Sponsor Profile ────────────────────────────────────── */}
             {activeTab === "profile" && (
               <div className="space-y-6 max-w-2xl">
                 <div className="space-y-2">
@@ -456,6 +487,7 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
               </div>
             )}
 
+            {/* ── Contacts ───────────────────────────────────────────── */}
             {activeTab === "contacts" && (
               <div className="space-y-6 max-w-2xl">
                 <div className="flex items-center gap-2 mb-2">
@@ -517,7 +549,209 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
               </div>
             )}
 
-            {activeTab === "events" && (
+            {/* ── Correlated Agenda Topics ───────────────────────────── */}
+            {activeTab === "topics" && (
+              <div className="space-y-6">
+                {!sponsor?.id ? (
+                  <div className="flex flex-col items-center justify-center py-14 text-center gap-3">
+                    <Tag className="h-8 w-8 text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground">Save the sponsor first to configure Correlated Agenda Topics.</p>
+                  </div>
+                ) : assignedEventIds.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-14 text-center gap-3">
+                    <Tag className="h-8 w-8 text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground">Assign this sponsor to at least one event in Meeting Management to configure Correlated Agenda Topics.</p>
+                    <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setActiveTab("meetings")}>
+                      Go to Meeting Management <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    <div className="flex items-start gap-2 p-3 rounded-lg border border-border/50 bg-muted/30">
+                      <Sparkles className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground">
+                        Correlated Agenda Topics connect this sponsor to the same topic framework used to tag sessions and capture attendee interests. Attendees whose selected topics overlap with the sponsor's topics will see this sponsor recommended to them.
+                      </p>
+                    </div>
+
+                    {assignedEventIds.map((eventId) => {
+                      const ev = events.find(e => e.id === eventId);
+                      const availableTopics: EventTopic[] = eventTopicsMap?.[eventId] ?? [];
+                      const selectedSet = editedTopics[eventId] ?? new Set<string>();
+                      const etData = sponsorTopics?.find(et => et.eventId === eventId);
+                      const pendingSuggestions = etData?.pendingSuggestions ?? [];
+                      const newTopicInput = newTopicInputs[eventId] ?? "";
+                      const selectedCount = selectedSet.size;
+
+                      return (
+                        <div key={eventId} className="rounded-xl border border-border/60 overflow-hidden" data-testid={`topics-event-section-${eventId}`}>
+                          <div className="flex items-center gap-3 px-4 py-3 bg-muted/30 border-b border-border/40">
+                            <span className="font-mono text-xs font-semibold text-accent bg-accent/10 border border-accent/20 px-2 py-0.5 rounded shrink-0">
+                              {ev?.slug ?? eventId}
+                            </span>
+                            <span className="text-sm font-medium text-foreground truncate">{ev?.name ?? eventId}</span>
+                            {selectedCount > 0 && (
+                              <span className="ml-auto text-xs text-accent font-semibold shrink-0">{selectedCount} selected</span>
+                            )}
+                          </div>
+
+                          <div className="px-4 py-4 space-y-5">
+                            {/* Section A: Topic Chip Selector */}
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Select Correlated Agenda Topics</h4>
+                                {!readOnly && selectedCount > 0 && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="h-7 px-3 text-xs bg-accent text-accent-foreground hover:bg-accent/90"
+                                    disabled={saveTopicsMutation.isPending}
+                                    onClick={() => saveTopicsMutation.mutate({ eventId, topicIds: Array.from(selectedSet) })}
+                                    data-testid={`btn-save-topics-${eventId}`}
+                                  >
+                                    {saveTopicsMutation.isPending ? "Saving…" : "Save Topics"}
+                                  </Button>
+                                )}
+                              </div>
+
+                              {availableTopics.length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic">
+                                  {eventTopicsMap ? "No approved Agenda Topics exist for this event yet. Add topics in the Agenda section first." : "Loading topics…"}
+                                </p>
+                              ) : (
+                                <div className="flex flex-wrap gap-2" data-testid={`topic-chips-${eventId}`}>
+                                  {availableTopics.map((topic) => {
+                                    const isSelected = selectedSet.has(topic.id);
+                                    return (
+                                      <button
+                                        key={topic.id}
+                                        type="button"
+                                        disabled={readOnly}
+                                        onClick={() => toggleTopic(eventId, topic.id)}
+                                        className={cn(
+                                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                                          isSelected
+                                            ? "bg-accent text-accent-foreground border-accent"
+                                            : "bg-background text-muted-foreground border-border hover:border-accent/60 hover:text-foreground"
+                                        )}
+                                        data-testid={`chip-topic-${topic.id}`}
+                                      >
+                                        {isSelected && <Check className="h-3 w-3 shrink-0" />}
+                                        {topic.topicLabel}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {!readOnly && availableTopics.length > 0 && (
+                                <div className="flex justify-end">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={selectedCount > 0 ? "default" : "outline"}
+                                    className={cn("h-7 px-3 text-xs", selectedCount > 0 ? "bg-accent text-accent-foreground hover:bg-accent/90" : "")}
+                                    disabled={saveTopicsMutation.isPending}
+                                    onClick={() => saveTopicsMutation.mutate({ eventId, topicIds: Array.from(selectedSet) })}
+                                    data-testid={`btn-save-topics-bottom-${eventId}`}
+                                  >
+                                    {saveTopicsMutation.isPending ? "Saving…" : selectedCount > 0 ? `Save ${selectedCount} Topic${selectedCount !== 1 ? "s" : ""}` : "Save (no topics)"}
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Section B: Pending Suggestions */}
+                            {pendingSuggestions.length > 0 && (
+                              <div className="space-y-2 border-t border-border/30 pt-4">
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sponsor-Suggested Topics — Pending Review</h4>
+                                <div className="space-y-1.5">
+                                  {pendingSuggestions.map((suggestion) => (
+                                    <div
+                                      key={suggestion.id}
+                                      className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800"
+                                      data-testid={`pending-suggestion-${suggestion.id}`}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                                        <span className="text-sm text-amber-900 dark:text-amber-200 font-medium truncate">{suggestion.topicLabel}</span>
+                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium shrink-0">Pending Review</span>
+                                      </div>
+                                      {!readOnly && (
+                                        <div className="flex gap-1.5 shrink-0">
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            className="h-6 px-2 text-[11px] bg-green-600 hover:bg-green-700 text-white"
+                                            disabled={approveTopicMutation.isPending}
+                                            onClick={() => approveTopicMutation.mutate(suggestion.id)}
+                                            data-testid={`btn-approve-suggestion-${suggestion.id}`}
+                                          >
+                                            <Check className="h-3 w-3 mr-1" /> Approve
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-6 px-2 text-[11px] border-red-200 text-red-600 hover:bg-red-50"
+                                            disabled={denyTopicMutation.isPending}
+                                            onClick={() => denyTopicMutation.mutate(suggestion.id)}
+                                            data-testid={`btn-deny-suggestion-${suggestion.id}`}
+                                          >
+                                            <X className="h-3 w-3 mr-1" /> Deny
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Section C: Suggest New Topic */}
+                            {!readOnly && (
+                              <div className="space-y-2 border-t border-border/30 pt-4">
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Suggest a New Topic for Review</h4>
+                                <p className="text-[11px] text-muted-foreground">If you don't see an appropriate Agenda Topic, suggest a new term. It will enter review before becoming active.</p>
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={newTopicInput}
+                                    onChange={(e) => setNewTopicInputs(prev => ({ ...prev, [eventId]: e.target.value }))}
+                                    placeholder="e.g. Fair Lending"
+                                    className="h-8 text-xs flex-1"
+                                    data-testid={`input-suggest-topic-${eventId}`}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" && newTopicInput.trim()) {
+                                        e.preventDefault();
+                                        suggestTopicMutation.mutate({ eventId, topicLabel: newTopicInput.trim() });
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 px-3 text-xs gap-1"
+                                    disabled={!newTopicInput.trim() || suggestTopicMutation.isPending}
+                                    onClick={() => suggestTopicMutation.mutate({ eventId, topicLabel: newTopicInput.trim() })}
+                                    data-testid={`btn-suggest-topic-${eventId}`}
+                                  >
+                                    <Plus className="h-3 w-3" /> Submit
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Meeting Management (was Event Assignments) ─────────── */}
+            {activeTab === "meetings" && (
               <div className="space-y-4">
                 <div className="flex items-start gap-2 p-3 rounded-lg border border-border/50 bg-muted/30">
                   <Info className="h-4 w-4 text-accent shrink-0 mt-0.5" />
@@ -700,49 +934,6 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                     </div>
                   );
                 })()}
-
-                {sponsorTopics && sponsorTopics.some(et => et.selectedTopics.length > 0 || et.pendingSuggestions.length > 0) && (
-                  <div className="mt-4 rounded-xl border border-border/60 overflow-hidden" data-testid="admin-sponsor-topics-section">
-                    <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/40">
-                      <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Interest Topics</span>
-                    </div>
-                    <div className="divide-y divide-border/30">
-                      {sponsorTopics.filter(et => et.selectedTopics.length > 0 || et.pendingSuggestions.length > 0).map(et => {
-                        const ev = events.find(e => e.id === et.eventId);
-                        return (
-                          <div key={et.eventId} className="px-4 py-3 space-y-2">
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{ev?.name ?? et.eventId}</p>
-                            {et.selectedTopics.length > 0 && (
-                              <div>
-                                <p className="text-[10px] text-muted-foreground mb-1">Selected Topics</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {et.selectedTopics.map(t => (
-                                    <span key={t.id} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[11px] font-medium" data-testid={`admin-selected-topic-${t.id}`}>
-                                      {t.topicLabel}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {et.pendingSuggestions.length > 0 && (
-                              <div>
-                                <p className="text-[10px] text-muted-foreground mb-1">Pending Suggestions</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {et.pendingSuggestions.map(t => (
-                                    <span key={t.id} className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-medium" data-testid={`admin-pending-topic-${t.id}`}>
-                                      {t.topicLabel} · Under Review
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </form>

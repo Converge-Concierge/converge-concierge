@@ -3780,6 +3780,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // POST /api/admin/sponsors/:sponsorId/topic-selections — admin sets correlated Agenda Topics per event
+  app.post("/api/admin/sponsors/:sponsorId/topic-selections", requireAuth, async (req, res) => {
+    try {
+      const { sponsorId } = req.params;
+      const { eventId, topicIds } = req.body as { eventId: string; topicIds: string[] };
+      if (!eventId) return res.status(400).json({ message: "eventId is required" });
+      if (!Array.isArray(topicIds)) return res.status(400).json({ message: "topicIds must be an array" });
+      await storage.upsertSponsorTopics(sponsorId, eventId, topicIds);
+      const updated = await storage.getSponsorTopics(sponsorId, eventId);
+      res.json({ ok: true, topicIds: updated.map(t => t.topicId) });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   // ── Sponsor Dashboard: Agreement Deliverables (Phase 2) ───────────────────
 
   // GET /api/sponsor-dashboard/agreement-deliverables — list sponsor-visible deliverables with child records

@@ -220,11 +220,11 @@ export default function SponsorProfilePage() {
             </div>
           )}
 
-          {/* Solution Types */}
+          {/* Correlated Agenda Topics */}
           {(sponsor.attributes ?? []).length > 0 && (
             <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
-                <Tag className="h-4 w-4 text-accent" /> Solution Types
+                <Tag className="h-4 w-4 text-accent" /> Correlated Agenda Topics
               </h2>
               <div className="flex flex-wrap gap-2" data-testid="sponsor-solution-types">
                 {(sponsor.attributes ?? []).map((attr) => (

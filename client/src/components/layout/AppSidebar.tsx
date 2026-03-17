@@ -39,17 +39,17 @@ import { useLocation as useWouterLocation } from "wouter";
 const managementItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Events", url: "/admin/events", icon: CalendarDays },
-  { title: "Sponsors", url: "/admin/sponsors", icon: Building2 },
   { title: "Attendees", url: "/admin/attendees", icon: Users },
-  { title: "Meetings", url: "/admin/meetings", icon: Handshake },
   { title: "Agenda", url: "/admin/agenda", icon: BookOpen },
   { title: "Agenda Topics", url: "/admin/interest-topics", icon: Sparkles },
-  { title: "Info Requests", url: "/admin/information-requests", icon: Mail },
 ];
 
 const sponsorMgmtItems = [
+  { title: "Sponsors", url: "/admin/sponsors", icon: Building2 },
   { title: "Deliverables", url: "/admin/agreement", icon: ClipboardList },
   { title: "Sponsor Dashboards", url: "/admin/sponsor-dashboards", icon: LayoutGrid },
+  { title: "Meetings", url: "/admin/meetings", icon: Handshake },
+  { title: "Info Requests", url: "/admin/information-requests", icon: Mail },
   { title: "Sponsor Health", url: "/admin/sponsor-health", icon: HeartPulse },
 ];
 
@@ -114,10 +114,10 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* ── Management ── */}
+        {/* ── Event Management ── */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/70 text-xs font-semibold uppercase tracking-wider">
-            Management
+            Event Management
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>

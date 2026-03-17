@@ -983,8 +983,13 @@ export default function WelcomePage() {
             setMeetingRequests(data.meetingRequests?.map((r: any) => ({ sponsorId: r.sponsorId, requestType: r.requestType })) ?? stored.meetingRequests ?? []);
             setEmail(stored.email ?? "");
             setMatchedToken(stored.matchedToken ?? null);
+            // Restore furthest step reached (API step may lag behind local)
+            const VALID_STEPS: WizardStep[] = ["topics","email","sessions","sponsors","complete"];
             const apiStep = data.profile?.onboardingStep as WizardStep | undefined;
-            setStep(["topics","email","sessions","sponsors","complete"].includes(apiStep ?? "") ? (apiStep as WizardStep) : (stored.step ?? "topics"));
+            const apiIdx = VALID_STEPS.indexOf(apiStep ?? "" as WizardStep);
+            const storedIdx = VALID_STEPS.indexOf((stored.step ?? "") as WizardStep);
+            const resolvedIdx = Math.max(apiIdx, storedIdx);
+            setStep(resolvedIdx >= 0 ? VALID_STEPS[resolvedIdx] : "topics");
             setInitialising(false);
             return;
           }
@@ -1032,8 +1037,25 @@ export default function WelcomePage() {
   async function handleSponsorsNext() {
     if (!profileId) return;
     setActionLoading(true);
-    try { await apiPost(`/api/public/pending/${profileId}/complete`); }
-    catch (e) { console.error("[welcome] complete error", e); }
+    try {
+      // Persist all meeting + info requests to the backend before completing
+      const seen = new Set<string>();
+      const toSave = [
+        ...meetingRequests.map((r) => ({ sponsorId: r.sponsorId, requestType: r.requestType })),
+        ...infoRequestedIds.map((id) => ({ sponsorId: id, requestType: "info_request" })),
+      ].filter(({ sponsorId, requestType }) => {
+        const key = `${sponsorId}:${requestType}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      await Promise.all(
+        toSave.map(({ sponsorId, requestType }) =>
+          apiPost(`/api/public/pending/${profileId}/meeting-request`, { sponsorId, requestType }).catch(() => {})
+        )
+      );
+      await apiPost(`/api/public/pending/${profileId}/complete`);
+    } catch (e) { console.error("[welcome] complete error", e); }
     finally { setActionLoading(false); setStep("complete"); }
   }
 

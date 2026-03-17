@@ -76,6 +76,7 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
   const [editedTopics, setEditedTopics] = useState<Record<string, Set<string>>>({});
   const [topicsInitialized, setTopicsInitialized] = useState(false);
   const [newTopicInputs, setNewTopicInputs] = useState<Record<string, string>>({});
+  const [isSavingTopics, setIsSavingTopics] = useState(false);
 
   const assignedEventIds = (formData.assignedEvents ?? []).map(ae => ae.eventId);
 
@@ -307,9 +308,33 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
     });
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (readOnly) return;
+
+    if (sponsor?.id && Object.keys(editedTopics).length > 0) {
+      setIsSavingTopics(true);
+      try {
+        await Promise.all(
+          Object.entries(editedTopics).map(([eventId, topicSet]) =>
+            apiRequest("POST", `/api/admin/sponsors/${sponsor.id}/topic-selections`, {
+              eventId,
+              topicIds: Array.from(topicSet),
+            })
+          )
+        );
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/sponsors", sponsor.id, "topic-selections"] });
+      } catch {
+        toast({
+          title: "Warning",
+          description: "Sponsor details saved, but correlated agenda topics could not be updated.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSavingTopics(false);
+      }
+    }
+
     onSubmit(formData as InsertSponsor);
   }
 

@@ -1,0 +1,225 @@
+Fix Sponsor Edit Save Behavior for Correlated Agenda Topics
+Selecting Correlated Agenda Topics must persist when clicking Update Sponsor
+
+There is a save bug in sponsor editing.
+
+When editing a sponsor, I can select Correlated Agenda Topics, but when I click:
+
+Update Sponsor
+
+the topic selections do not save.
+
+This needs to be fixed so that correlated topic selections persist correctly as part of the sponsor update flow.
+
+1. Primary Goal
+
+Ensure that when a user edits a sponsor and changes the Correlated Agenda Topics, those changes are saved reliably when they click:
+
+Update Sponsor
+
+The sponsor edit flow should not allow the user to think changes were saved if the correlated topic mappings were not persisted.
+
+2. Problem Summary
+
+Current behavior appears to be:
+
+open Edit Sponsor
+
+go to Correlated Agenda Topics
+
+select or deselect topics
+
+click Update Sponsor
+
+sponsor updates, but correlated agenda topic selections do not persist
+
+This is a functional save bug.
+
+3. Required Behavior
+
+When clicking Update Sponsor, the system must save:
+
+basic sponsor fields
+
+sponsor profile fields
+
+contacts fields
+
+meeting management fields
+
+correlated agenda topic selections
+
+as one coherent sponsor update flow.
+
+At minimum, correlated agenda topic changes must not be dropped.
+
+4. Audit How Correlated Agenda Topics Are Currently Saved
+
+Please identify the actual current implementation.
+
+Possible current issue patterns:
+
+Possible issue A
+
+The correlated topic selector is maintaining only local UI state and not feeding that state into the sponsor update payload.
+
+Possible issue B
+
+The correlated topic tab has its own independent save mechanism, but the main Update Sponsor button does not trigger it.
+
+Possible issue C
+
+The topic save is event-scoped and the main sponsor update route is not calling the per-event topic persistence logic.
+
+Possible issue D
+
+The UI shows selection changes, but the selected topic ids are never included in the request or mutation.
+
+Possible issue E
+
+The update succeeds for sponsor fields, but topic mappings fail silently because of a backend validation or transaction issue.
+
+Find the actual cause and correct it.
+
+5. Update Sponsor Must Persist Correlated Agenda Topics
+Required behavior
+
+When a user clicks:
+
+Update Sponsor
+
+the currently selected correlated agenda topics must be persisted for each event shown in that tab.
+
+This includes:
+
+selected topics for FRC2026
+
+selected topics for USBT2026
+
+any other event-specific sponsor topic mappings being edited
+
+Selections should remain visible after reopening the sponsor edit view.
+
+6. Treat Correlated Agenda Topics as Part of the Sponsor Save Flow
+
+If the current implementation expects the user to click a separate button like:
+
+Save Topics
+
+but then Update Sponsor does not save or confirm that state, that is confusing and error-prone.
+
+Required correction
+
+Make the main Update Sponsor action save the correlated topic state as well.
+
+You may keep per-section save buttons only if they truly persist immediately and the UI clearly reflects that, but the overall sponsor update must still not lose these selections.
+
+Best practice:
+
+Update Sponsor should save everything currently changed in the modal.
+
+7. Preserve Event-Specific Topic Mappings
+
+Correlated Agenda Topics are event-specific.
+
+Required behavior
+
+Ensure the correct event-scoped mappings are saved.
+
+Example:
+
+FRC2026 selected topics save to sponsor-topic mappings for FRC2026
+
+USBT2026 selected topics save separately for USBT2026
+
+Do not flatten them into one global sponsor topic list.
+
+8. Save Suggested New Topics Correctly Too
+
+If the tab also includes:
+
+Suggest a New Topic for Review
+
+make sure that functionality is not broken by the fix.
+
+This request is primarily about selected correlated topics, but do not regress the suggestion workflow.
+
+9. Add Proper Success / Failure Feedback
+
+Right now the user can click Update Sponsor and assume the topic changes were saved.
+
+That should not happen if they were not actually persisted.
+
+Required behavior
+
+After update:
+
+show a success message only if sponsor update and correlated topic persistence both succeeded
+
+if correlated topic save fails, show a clear error
+
+Example:
+
+Sponsor updated successfully.
+
+or, on failure:
+
+Sponsor details saved, but correlated agenda topics could not be updated.
+
+Do not fail silently.
+
+10. Re-open Verification
+
+After saving, reopen the same sponsor and verify that:
+
+selected correlated agenda topics are still selected
+
+counts like “5 selected” remain accurate
+
+event-scoped selections are restored properly
+
+This should be part of the QA validation.
+
+11. Recommended Implementation Standard
+
+The cleanest behavior is:
+
+On click of Update Sponsor
+
+Persist:
+
+sponsor core fields
+
+sponsor related tab data
+
+correlated agenda topic mappings
+
+meeting management settings
+
+in one coordinated update flow.
+
+If these are saved through multiple backend calls, that is fine, but from the user’s perspective:
+
+one update action
+
+one result
+
+no dropped data
+
+12. Acceptance Criteria
+
+This fix is complete when:
+
+selecting correlated agenda topics in sponsor edit persists after clicking Update Sponsor
+
+reopening the sponsor shows the same saved topic selections
+
+event-specific topic mappings remain event-specific
+
+topic changes are no longer lost silently
+
+the main sponsor update flow correctly handles correlated topic persistence
+
+13. Success Standard
+
+After this fix, the Correlated Agenda Topics tab should behave like a true part of sponsor editing. If the user selects topics and clicks Update Sponsor, those selections must persist reliably and be restored when the sponsor record is opened again.

@@ -84,7 +84,7 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
         archiveState: "active", meetingLocations: [], meetingBlocks: [],
         schedulingEnabled: true, schedulingShutoffAt: null,
         externalSchedulingLabel: "", externalSchedulingUrl: "", externalSchedulingMessage: "",
-        websiteUrl: null,
+        websiteUrl: null, registrationUrl: null,
       });
       setColorOpen(false);
       setSchedulingOpen(true);
@@ -210,7 +210,7 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="websiteUrl">Event Website URL</Label>
+                <Label htmlFor="websiteUrl">Event URL</Label>
                 <Input
                   id="websiteUrl"
                   type="url"
@@ -218,8 +218,23 @@ export function EventFormModal({ isOpen, onClose, onSubmit, event, readOnly }: E
                   onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value || null })}
                   placeholder="https://example.com"
                   data-testid="input-event-website-url"
+                  disabled={readOnly}
                 />
-                <p className="text-[10px] text-muted-foreground">Optional. If set, displays an "Event Website" link on the public event page.</p>
+                <p className="text-[10px] text-muted-foreground">The event's main website. Shown as an "Event Website" link and used for "Learn More" buttons on the marketing page.</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="registrationUrl">Event Registration URL</Label>
+                <Input
+                  id="registrationUrl"
+                  type="url"
+                  value={formData.registrationUrl || ""}
+                  onChange={(e) => setFormData({ ...formData, registrationUrl: e.target.value || null })}
+                  placeholder="https://example.com/register"
+                  data-testid="input-event-registration-url"
+                  disabled={readOnly}
+                />
+                <p className="text-[10px] text-muted-foreground">Where attendees register for the event. All "Register" CTA buttons on the marketing page will link here.</p>
               </div>
             </fieldset>
 

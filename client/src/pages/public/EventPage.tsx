@@ -842,7 +842,20 @@ export default function EventPage() {
   if (step === 0) {
     const welcomeUrl = `/event/${event.slug}/welcome`;
     const eventWebsite = getEventWebsite(event.slug, event.websiteUrl);
+    const registrationUrl = event.registrationUrl || null;
+    const regTarget = registrationUrl ?? welcomeUrl;
+    const regIsExternal = !!registrationUrl;
     const agendaHighlights = publicSessions.slice(0, 6);
+
+    const btnStyle = { backgroundColor: evButton ?? evAccent ?? "#0D9488" };
+    function RegCTA({ className, testId, label }: { className: string; testId: string; label: string }) {
+      const inner = <><UserCheck className="h-4 w-4" /> {label}</>;
+      return regIsExternal ? (
+        <a href={regTarget} target="_blank" rel="noopener noreferrer" className={className} style={btnStyle} data-testid={testId}>{inner}</a>
+      ) : (
+        <Link href={regTarget} className={className} style={btnStyle} data-testid={testId}>{inner}</Link>
+      );
+    }
     const CONCIERGE_STEPS = [
       { icon: "1", title: "Select Your Interests", desc: "Tell us what topics matter most — AI, risk, compliance, treasury, and more." },
       { icon: "2", title: "See Recommended Sessions", desc: "Get a curated view of sessions matched to your priorities." },
@@ -896,12 +909,11 @@ export default function EventPage() {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <Link href={welcomeUrl}
+                  <RegCTA
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm hover:opacity-90 active:scale-[0.98] transition-all"
-                    style={{ backgroundColor: evButton ?? evAccent ?? "#0D9488" }}
-                    data-testid="cta-register-concierge">
-                    <UserCheck className="h-4 w-4" /> Register &amp; Activate Your Concierge
-                  </Link>
+                    testId="cta-register-concierge"
+                    label={registrationUrl ? "Register for this Event" : "Register & Activate Your Concierge"}
+                  />
                   {eventWebsite && (
                     <a href={eventWebsite} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border border-border hover:bg-muted/50 transition-all"
@@ -938,12 +950,11 @@ export default function EventPage() {
               ))}
             </div>
             <div className="text-center pt-1">
-              <Link href={welcomeUrl}
+              <RegCTA
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-90 active:scale-[0.98] transition-all"
-                style={{ backgroundColor: evButton ?? evAccent ?? "#0D9488" }}
-                data-testid="cta-activate-concierge">
-                <UserCheck className="h-4 w-4" /> Register to Unlock Your Personalized Experience
-              </Link>
+                testId="cta-activate-concierge"
+                label={registrationUrl ? "Register for this Event" : "Register to Unlock Your Personalized Experience"}
+              />
             </div>
           </div>
 
@@ -1014,12 +1025,11 @@ export default function EventPage() {
                   ))}
                 </div>
                 <div className="text-center pt-2">
-                  <Link href={welcomeUrl}
+                  <RegCTA
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all"
-                    style={{ backgroundColor: evButton ?? evAccent ?? "#0D9488" }}
-                    data-testid="cta-sponsors-concierge">
-                    <UserCheck className="h-4 w-4" /> Meet Sponsors in Your Concierge
-                  </Link>
+                    testId="cta-sponsors-concierge"
+                    label={registrationUrl ? "Register to Meet Sponsors" : "Meet Sponsors in Your Concierge"}
+                  />
                 </div>
               </>
             )}
@@ -1065,12 +1075,11 @@ export default function EventPage() {
                 ))}
               </div>
               <div className="text-center pt-2">
-                <Link href={welcomeUrl}
+                <RegCTA
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all"
-                  style={{ backgroundColor: evButton ?? evAccent ?? "#0D9488" }}
-                  data-testid="cta-agenda-concierge">
-                  <UserCheck className="h-4 w-4" /> Get My Personalized Session Plan
-                </Link>
+                  testId="cta-agenda-concierge"
+                  label={registrationUrl ? "Register for this Event" : "Get My Personalized Session Plan"}
+                />
               </div>
             </div>
           )}
@@ -1103,12 +1112,11 @@ export default function EventPage() {
               ))}
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link href={welcomeUrl}
+              <RegCTA
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-90 active:scale-[0.98] transition-all"
-                style={{ backgroundColor: evButton ?? evAccent ?? "#0D9488" }}
-                data-testid="cta-bottom-register">
-                <UserCheck className="h-4 w-4" /> Register &amp; Activate Your Concierge
-              </Link>
+                testId="cta-bottom-register"
+                label={registrationUrl ? "Register for this Event" : "Register & Activate Your Concierge"}
+              />
               {eventWebsite && (
                 <a href={eventWebsite} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold border border-border hover:bg-background/60 transition-all"

@@ -1,0 +1,331 @@
+Make Card 3 Sponsor Meeting Cards Match the Event Scheduling Page
+Use the same sponsor card behavior, button logic, and sponsor-level configuration as /event/FRC2026
+
+The sponsor meeting interface in Card 3 of the attendee flow must match the sponsor cards used on the main event scheduling page:
+
+https://concierge.convergeevents.com/event/FRC2026
+
+Right now Card 3 is not fully aligned. We need the Card 3 sponsor cards to behave exactly like the event scheduling page sponsor cards, including using the sponsor setup data so that different sponsors can show different buttons and capabilities.
+
+This is a consistency and functionality requirement.
+
+1. Primary Goal
+
+Update the sponsor cards in Card 3 of the attendee onboarding / welcome flow so they:
+
+visually match the event scheduling page sponsor cards as closely as practical
+
+use the same sponsor capability logic
+
+show the correct buttons based on sponsor setup/configuration
+
+do not hard-code the same buttons for every sponsor
+
+use the same interaction model as the event scheduling page
+
+2. Source of Truth
+
+The sponsor card behavior in Card 3 should use the same source of truth as the event scheduling page.
+
+Required behavior
+
+Do not create a separate or duplicated ruleset for onboarding.
+
+Instead, reuse the same sponsor-level configuration / sponsor setup data that controls the event scheduling page.
+
+That includes whether a sponsor supports:
+
+onsite meeting scheduling
+
+online meeting scheduling
+
+information requests
+
+other sponsor interaction states if already defined
+
+The event scheduling page should be treated as the functional reference implementation.
+
+3. Match the Event Scheduling Page Card Structure
+
+The sponsor cards in Card 3 should match the event scheduling page in layout and behavior as closely as practical.
+
+Card content should align with the event page:
+
+sponsor logo
+
+sponsorship level badge
+
+sponsor name
+
+short description
+
+view profile link
+
+interaction buttons driven by sponsor setup data
+
+You do not need to pixel-perfect clone the card if the onboarding container requires slightly tighter spacing, but the card should clearly feel like the same system and interaction model.
+
+4. Button Logic Must Be Sponsor-Driven
+
+This is the most important correction.
+
+The buttons displayed on each sponsor card in Card 3 must be controlled by sponsor setup/configuration.
+
+Different sponsors at different sponsorship levels may have different capabilities, so Card 3 must not assume the same buttons for every sponsor.
+
+Required behavior
+
+Buttons should render based on the sponsor’s configured functionality.
+
+Examples:
+
+Sponsor A
+
+Configured for:
+
+onsite meetings
+
+online meetings
+
+info requests
+
+Show:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+Sponsor B
+
+Configured for:
+
+onsite meetings only
+
+Show:
+
+Schedule Onsite Meeting
+
+Sponsor C
+
+Configured for:
+
+online meetings only
+
+info requests
+
+Show:
+
+Online Meeting
+
+Request Information
+
+Sponsor D
+
+Configured for:
+
+info requests only
+
+Show:
+
+Request Information
+
+Do not show buttons that the sponsor is not configured to support.
+
+5. Reuse the Same Capability Fields Used by the Event Scheduling Page
+
+Identify the exact sponsor fields / business logic currently used by:
+
+/event/FRC2026
+
+for card button rendering, and use those same fields in Card 3.
+
+This may include fields such as:
+
+allow_onsite_meetings
+
+allow_online_meetings
+
+allow_info_requests
+
+sponsor status / active status
+
+other sponsor dashboard or level-based capability flags
+
+Do not invent parallel logic unless absolutely necessary.
+
+6. Keep the Same Button Labels as the Event Scheduling Page
+
+Card 3 should use the same button wording used on the event scheduling page.
+
+Examples:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+If the event scheduling page uses slightly different exact copy, use that exact copy for consistency.
+
+The attendee should not feel like Card 3 is a different interaction model.
+
+7. Use the Same Button Order as the Event Scheduling Page
+
+Maintain consistent action order.
+
+Recommended order, if it matches the event scheduling page:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+If a button is unavailable, remove it cleanly and keep the remaining order logical.
+
+8. Use the Same Interaction Behavior as the Event Scheduling Page
+
+This is not just about button visibility. It is also about what happens when the attendee clicks.
+
+Required behavior
+
+If the attendee clicks:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+the behavior should match the event scheduling page.
+
+That means:
+
+same routing / modal behavior
+
+same scheduling logic
+
+same request creation logic
+
+same validation rules
+
+same state updates where applicable
+
+Do not create a separate lightweight fake version in onboarding if the event scheduling page already has the correct logic.
+
+Reuse the real interaction flow.
+
+9. Prefill Attendee Data When Available
+
+When Card 3 is being used by an attendee who has already provided email / been matched to an attendee record, the scheduling/request flow should prefill known attendee details just like the normal event scheduling experience should.
+
+Prefill where possible:
+
+first name
+
+last name
+
+email
+
+company
+
+title
+
+This should reduce friction and make the onboarding sponsor interaction feel polished.
+
+10. Handle Pending / Pre-Matched Attendee State Safely
+
+Because the onboarding flow can be used before attendee reconciliation is complete, make sure the sponsor interactions still behave safely.
+
+Required behavior
+
+If the attendee has entered their email on Card 2 and the system has enough identity context:
+
+allow the sponsor interactions to proceed
+
+preserve those interactions against the pending concierge profile if necessary
+
+reconcile them once the attendee record is fully matched
+
+Do not lose actions because the attendee record arrived later from Zapier.
+
+If the scheduling/request flow requires a fully matched attendee record, then handle that gracefully and consistently with the event scheduling page expectations.
+
+11. Keep “View Profile” Consistent
+
+The sponsor card should also continue to show View Profile as on the event scheduling page if that is part of the card design.
+
+If the event scheduling page uses a sponsor detail modal/sheet/page, Card 3 should link into the same detail experience where practical.
+
+12. Preserve Existing Interaction States
+
+If the attendee has already interacted with a sponsor, Card 3 should reflect that state in a way consistent with the event scheduling page or broader attendee sponsor logic.
+
+Examples:
+
+Meeting Requested
+
+Meeting Scheduled
+
+Info Sent
+
+However, only show states that are truly supported by the underlying flow. Do not create misleading states.
+
+The main goal is consistency between:
+
+Card 3 sponsor cards
+
+event scheduling page sponsor cards
+
+13. Do Not Hard-Code Sponsor Levels to Buttons
+
+You noted that sponsors at different levels will have different functionality.
+
+Important:
+Do not assume button behavior only from sponsorship level labels alone unless that is already how the event scheduling page works.
+
+Use the actual sponsor setup/configuration fields.
+
+Level may influence the configuration, but the UI should rely on the configured capabilities, not just the badge text.
+
+14. Audit Existing Differences Between Card 3 and /event/FRC2026
+
+Before making changes, identify where Card 3 currently differs from the event scheduling page:
+
+card layout
+
+button rendering
+
+button order
+
+sponsor capability mapping
+
+click behavior
+
+state behavior
+
+Then align Card 3 to the event scheduling page implementation.
+
+This should be treated as a consistency alignment task, not a greenfield redesign.
+
+15. Acceptance Criteria
+
+This correction is complete when:
+
+Card 3 sponsor cards clearly match the event scheduling page card model
+
+Card 3 uses the same sponsor capability/source-of-truth logic as /event/FRC2026
+
+different sponsors can show different button combinations based on setup data
+
+Card 3 no longer assumes identical buttons for every sponsor
+
+button labels/order/behavior are aligned with the event scheduling page
+
+sponsor interaction behavior is consistent across onboarding and the main event scheduling interface
+
+16. Success Standard
+
+After this update, an attendee viewing sponsors in Card 3 should feel like they are using the same sponsor scheduling system as the main event scheduling page. The card should not be a simplified or mismatched version. It should reflect the sponsor’s real configured capabilities and present the correct meeting/info actions accordingly.

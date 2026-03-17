@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
-import { useParams, useLocation } from "wouter";
+import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle, ChevronRight, ChevronLeft, Mail, Calendar, Building2,
-  Bookmark, BookmarkCheck, Info, Users, Laptop, MapPin, Sparkles, ExternalLink,
+  Bookmark, BookmarkCheck, Info, MapPin, Sparkles, ExternalLink,
+  Video, Gem,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgendaSession, EventInterestTopic, Sponsor, EventSponsorLink } from "@shared/schema";
+import { RequestInfoModal } from "@/components/RequestInfoModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -60,18 +62,47 @@ function saveToStorage(slug: string, state: Partial<PendingState>) {
   } catch {}
 }
 
-function getSponsorLevel(sponsor: Sponsor, eventId: string): string {
-  const ae = (sponsor.assignedEvents ?? []).find((e: EventSponsorLink) => e.eventId === eventId);
-  return (ae?.sponsorshipLevel && ae.sponsorshipLevel !== "None") ? ae.sponsorshipLevel : "";
-}
+// ── Sponsor level helpers (same source-of-truth as EventPage) ─────────────────
 
 const LEVEL_ORDER: Record<string, number> = { Platinum: 4, Gold: 3, Silver: 2, Bronze: 1 };
-const LEVEL_COLORS: Record<string, string> = {
-  Platinum: "bg-slate-100 text-slate-700 border-slate-300",
-  Gold: "bg-amber-50 text-amber-700 border-amber-300",
-  Silver: "bg-gray-100 text-gray-600 border-gray-300",
-  Bronze: "bg-orange-50 text-orange-700 border-orange-300",
+
+const levelBorder: Record<string, string> = {
+  Platinum: "border-slate-500 bg-slate-50",
+  Gold:     "border-amber-300 bg-amber-50/40",
+  Silver:   "border-gray-300 bg-gray-50",
+  Bronze:   "border-orange-300 bg-orange-50",
 };
+const levelBadge: Record<string, string> = {
+  Platinum: "bg-slate-800 text-white",
+  Gold:     "bg-amber-100 text-amber-900",
+  Silver:   "bg-gray-100 text-gray-600",
+  Bronze:   "bg-orange-100 text-orange-700",
+};
+const levelAccent: Record<string, string> = {
+  Platinum: "bg-slate-800 hover:bg-slate-900 text-white",
+  Gold:     "bg-amber-600 hover:bg-amber-700 text-white",
+  Silver:   "bg-gray-500 hover:bg-gray-600 text-white",
+  Bronze:   "bg-orange-600 hover:bg-orange-700 text-white",
+};
+const levelAccentSecondary: Record<string, string> = {
+  Platinum: "border-slate-400 text-slate-700 bg-slate-50/60 hover:bg-slate-100",
+  Gold:     "border-amber-300 text-amber-800 bg-amber-50/60 hover:bg-amber-100",
+  Silver:   "border-gray-300 text-gray-600 bg-gray-50/60 hover:bg-gray-100",
+  Bronze:   "border-orange-300 text-orange-700 bg-orange-50/60 hover:bg-orange-100",
+};
+
+function getSponsorEventLevel(sponsor: Sponsor, eventId: string): string {
+  const link = (sponsor.assignedEvents ?? []).find(
+    (ae) => ae.eventId === eventId && (ae.archiveState ?? "active") === "active"
+  );
+  return link?.sponsorshipLevel ?? "";
+}
+
+function getSponsorEventLink(sponsor: Sponsor, eventId: string): EventSponsorLink | undefined {
+  return (sponsor.assignedEvents ?? []).find(
+    (ae) => ae.eventId === eventId && (ae.archiveState ?? "active") === "active"
+  );
+}
 
 function formatTime(t: string) {
   const [h, m] = t.split(":").map(Number);
@@ -495,7 +526,6 @@ function SponsorsCard({
   selectedTopicIds,
   meetingRequests,
   onSchedule,
-  onInfoRequest,
   onNext,
   onBack,
   loading,
@@ -508,43 +538,29 @@ function SponsorsCard({
   selectedTopicIds: string[];
   meetingRequests: { sponsorId: string; requestType: string }[];
   onSchedule: (sponsorId: string, mode: "onsite" | "online") => void;
-  onInfoRequest: (sponsorId: string) => Promise<void>;
   onNext: () => void;
   onBack: () => void;
   loading: boolean;
 }) {
-  const [infoBusy, setInfoBusy] = useState<Record<string, boolean>>({});
+  const [requestInfoSponsor, setRequestInfoSponsor] = useState<SponsorWithTopics | null>(null);
 
-  // Build topic label map
   const topicMap = new Map<string, string>(allTopics.map((t) => [t.id, t.topicLabel]));
   const attendeeTopicSet = new Set(selectedTopicIds);
 
   const sorted = [...sponsors].sort((a, b) => {
-    const la = LEVEL_ORDER[getSponsorLevel(a, eventId)] ?? 0;
-    const lb = LEVEL_ORDER[getSponsorLevel(b, eventId)] ?? 0;
+    const la = LEVEL_ORDER[getSponsorEventLevel(a, eventId)] ?? 0;
+    const lb = LEVEL_ORDER[getSponsorEventLevel(b, eventId)] ?? 0;
     const ra = (a.topicIds ?? []).filter((t) => attendeeTopicSet.has(t)).length;
     const rb = (b.topicIds ?? []).filter((t) => attendeeTopicSet.has(t)).length;
     return lb - la || rb - ra;
   });
 
   function scheduledMode(sponsorId: string): "onsite" | "online" | null {
-    const r = meetingRequests.find((r) => r.sponsorId === sponsorId && (r.requestType === "onsite" || r.requestType === "online" || r.requestType === "meeting"));
+    const r = meetingRequests.find(
+      (r) => r.sponsorId === sponsorId && (r.requestType === "onsite" || r.requestType === "online" || r.requestType === "meeting")
+    );
     if (!r) return null;
     return r.requestType === "online" ? "online" : "onsite";
-  }
-
-  function hasInfoRequest(sponsorId: string) {
-    return meetingRequests.some((r) => r.sponsorId === sponsorId && r.requestType === "info");
-  }
-
-  async function handleInfo(sponsorId: string) {
-    if (infoBusy[sponsorId]) return;
-    setInfoBusy((p) => ({ ...p, [sponsorId]: true }));
-    try {
-      await onInfoRequest(sponsorId);
-    } finally {
-      setInfoBusy((p) => ({ ...p, [sponsorId]: false }));
-    }
   }
 
   function buildScheduleUrl(sponsorId: string, mode: "onsite" | "online") {
@@ -553,173 +569,209 @@ function SponsorsCard({
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">Sponsors You May Want to Meet</h2>
-        <p className="mt-1 text-gray-500 text-sm">
-          Choose a sponsor and schedule a meeting directly.
-        </p>
-      </div>
-
-      {sorted.length === 0 ? (
-        <p className="text-sm text-gray-400 italic py-8 text-center">No sponsors to show yet.</p>
-      ) : (
-        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1 -mr-1">
-          {sorted.map((s) => {
-            const level = getSponsorLevel(s, eventId);
-            const levelColor = LEVEL_COLORS[level] ?? "";
-
-            // Matching topics
-            const matchingTopics = (s.topicIds ?? [])
-              .filter((tid) => attendeeTopicSet.has(tid))
-              .map((tid) => topicMap.get(tid))
-              .filter(Boolean) as string[];
-
-            // Meeting states
-            const booked = scheduledMode(s.id);
-            const infoDone = hasInfoRequest(s.id);
-            const supportsOnline = !!s.allowOnlineMeetings;
-
-            return (
-              <div
-                key={s.id}
-                data-testid={`sponsor-card-${s.id}`}
-                className={cn(
-                  "p-4 rounded-xl border transition-all",
-                  matchingTopics.length > 0 ? "border-blue-100 bg-blue-50/30" : "border-gray-100 bg-white hover:border-gray-200"
-                )}
-              >
-                {/* Header */}
-                <div className="flex items-start gap-3 mb-3">
-                  {s.logoUrl ? (
-                    <img src={s.logoUrl} alt={s.name} className="w-11 h-11 object-contain rounded-lg border border-gray-100 bg-white p-0.5 flex-shrink-0" />
-                  ) : (
-                    <div className="w-11 h-11 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                      <Building2 className="w-5 h-5 text-gray-400" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                      <p className="text-sm font-bold text-gray-900">{s.name}</p>
-                      {level && (
-                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border font-semibold flex-shrink-0", levelColor)}>
-                          {level}
-                        </span>
-                      )}
-                    </div>
-                    {s.shortDescription && (
-                      <p className="text-xs text-gray-500 line-clamp-2">{s.shortDescription}</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Topic relevance */}
-                {matchingTopics.length > 0 && (
-                  <div className="flex items-start gap-1.5 mb-3 p-2 bg-blue-50 rounded-lg border border-blue-100">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-blue-700">
-                      <span className="font-semibold">Relevant to your interests: </span>
-                      {matchingTopics.join(", ")}
-                    </p>
-                  </div>
-                )}
-
-                {/* Meeting CTAs */}
-                <div className="space-y-2">
-                  {booked ? (
-                    /* ── Already initiated scheduling ── */
-                    <div className="flex items-center gap-2 py-2.5 px-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-xs font-semibold">
-                      <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>
-                        {booked === "online" ? "Online" : "Onsite"} Meeting Scheduling Opened
-                      </span>
-                      <a
-                        href={buildScheduleUrl(s.id, booked)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-auto flex items-center gap-1 text-green-600 hover:text-green-800 underline underline-offset-2"
-                        data-testid={`link-sponsor-reschedule-${s.id}`}
-                      >
-                        Open again <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  ) : (
-                    /* ── Primary scheduling actions ── */
-                    <div className={cn("grid gap-2", supportsOnline ? "grid-cols-2" : "grid-cols-1")}>
-                      {/* Onsite Meeting */}
-                      <a
-                        href={buildScheduleUrl(s.id, "onsite")}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        data-testid={`button-sponsor-onsite-${s.id}`}
-                        onClick={() => onSchedule(s.id, "onsite")}
-                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold border bg-blue-600 border-blue-600 text-white hover:bg-blue-700 transition-all"
-                      >
-                        <MapPin className="w-3.5 h-3.5" /> Schedule Onsite Meeting
-                        <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
-                      </a>
-
-                      {/* Online Meeting */}
-                      {supportsOnline && (
-                        <a
-                          href={buildScheduleUrl(s.id, "online")}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          data-testid={`button-sponsor-online-${s.id}`}
-                          onClick={() => onSchedule(s.id, "online")}
-                          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold border bg-white border-blue-400 text-blue-700 hover:bg-blue-50 transition-all"
-                        >
-                          <Laptop className="w-3.5 h-3.5" /> Schedule Online Meeting
-                          <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Secondary: Request Information */}
-                  <button
-                    data-testid={`button-sponsor-info-${s.id}`}
-                    onClick={() => handleInfo(s.id)}
-                    disabled={infoDone || !!infoBusy[s.id]}
-                    className={cn(
-                      "w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium border transition-all",
-                      infoDone
-                        ? "bg-gray-50 border-gray-200 text-gray-500"
-                        : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800 disabled:opacity-50"
-                    )}
-                  >
-                    {infoDone
-                      ? <><CheckCircle className="w-3.5 h-3.5" /> Information Requested</>
-                      : infoBusy[s.id] ? "…"
-                        : <><Info className="w-3.5 h-3.5" /> Request Information</>
-                    }
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+    <>
+      <div className="space-y-5">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Sponsors You May Want to Meet</h2>
+          <p className="mt-1 text-gray-500 text-sm">
+            Choose a sponsor and schedule a meeting directly.
+          </p>
         </div>
-      )}
 
-      <div className="flex gap-3 pt-1">
-        <button
-          data-testid="button-back-sessions"
-          onClick={onBack}
-          className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" /> Back
-        </button>
-        <button
-          data-testid="button-sponsors-next"
-          onClick={onNext}
-          disabled={loading}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm"
-        >
-          {loading ? "Finishing…" : "Complete My Setup"}
-          {!loading && <CheckCircle className="w-4 h-4" />}
-        </button>
+        {sorted.length === 0 ? (
+          <p className="text-sm text-gray-400 italic py-8 text-center">No sponsors to show yet.</p>
+        ) : (
+          <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1 -mr-1">
+            {sorted.map((s) => {
+              const level = getSponsorEventLevel(s, eventId);
+              const link = getSponsorEventLink(s, eventId);
+
+              // Capability flags — same source of truth as EventPage
+              const onsiteEnabled  = link?.onsiteMeetingEnabled  ?? true;
+              const onlineEnabled  = link?.onlineMeetingEnabled  ?? s.allowOnlineMeetings ?? false;
+              const infoEnabled    = link?.informationRequestEnabled ?? true;
+
+              const matchingTopics = (s.topicIds ?? [])
+                .filter((tid) => attendeeTopicSet.has(tid))
+                .map((tid) => topicMap.get(tid))
+                .filter(Boolean) as string[];
+
+              const booked = scheduledMode(s.id);
+
+              return (
+                <div
+                  key={s.id}
+                  data-testid={`sponsor-card-${s.id}`}
+                  className={cn(
+                    "rounded-xl border-2 overflow-hidden transition-all",
+                    level && levelBorder[level]
+                      ? levelBorder[level]
+                      : matchingTopics.length > 0
+                        ? "border-blue-200 bg-blue-50/30"
+                        : "border-gray-200 bg-white"
+                  )}
+                >
+                  <div className="p-4">
+                    {/* Header: logo + badge */}
+                    <div className="flex items-start gap-3 mb-2">
+                      <div className="h-8 flex items-center shrink-0">
+                        {s.logoUrl ? (
+                          <img src={s.logoUrl} alt={s.name} className="h-8 max-w-[80px] object-contain" />
+                        ) : (
+                          <div className="h-8 w-8 rounded-lg bg-white border border-black/10 shadow-sm flex items-center justify-center">
+                            <Building2 className="w-4 h-4 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                          <p className="text-sm font-bold text-gray-900 leading-snug">{s.name}</p>
+                          {level && (
+                            <span className={cn(
+                              "text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 inline-flex items-center gap-0.5",
+                              levelBadge[level] || "bg-gray-100 text-gray-600"
+                            )}>
+                              {level === "Platinum" && <Gem className="h-2.5 w-2.5" />}
+                              {level}
+                            </span>
+                          )}
+                        </div>
+                        {s.shortDescription && (
+                          <p className="text-[11px] text-gray-500 line-clamp-2 leading-snug">{s.shortDescription}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* View Profile link */}
+                    <a
+                      href={`/event/${eventSlug}/sponsor/${s.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-blue-600 hover:opacity-80 transition-opacity flex items-center gap-1 mb-3"
+                      data-testid={`link-sponsor-profile-${s.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink className="h-2.5 w-2.5" /> View Profile
+                    </a>
+
+                    {/* Topic relevance pill */}
+                    {matchingTopics.length > 0 && (
+                      <div className="flex items-start gap-1.5 mb-3 p-2 bg-blue-50 rounded-lg border border-blue-100">
+                        <Sparkles className="w-3.5 h-3.5 text-blue-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-blue-700">
+                          <span className="font-semibold">Relevant to your interests: </span>
+                          {matchingTopics.join(", ")}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Action buttons — same capability logic as EventPage */}
+                    <div className="space-y-1.5">
+                      {booked ? (
+                        /* Already initiated scheduling */
+                        <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-xs font-semibold">
+                          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{booked === "online" ? "Online" : "Onsite"} Meeting Scheduling Opened</span>
+                          <a
+                            href={buildScheduleUrl(s.id, booked)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-auto flex items-center gap-1 text-green-600 hover:text-green-800 underline underline-offset-2"
+                            data-testid={`link-sponsor-reschedule-${s.id}`}
+                          >
+                            Open again <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Schedule Onsite Meeting */}
+                          {onsiteEnabled && (
+                            <a
+                              href={buildScheduleUrl(s.id, "onsite")}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              data-testid={`button-sponsor-onsite-${s.id}`}
+                              onClick={() => onSchedule(s.id, "onsite")}
+                              className={cn(
+                                "w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-[0.98]",
+                                levelAccent[level] || "bg-blue-600 hover:bg-blue-700 text-white"
+                              )}
+                            >
+                              <MapPin className="w-3.5 h-3.5" /> Schedule Onsite Meeting
+                              <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
+                            </a>
+                          )}
+
+                          {/* Online Meeting */}
+                          {onlineEnabled && (
+                            <a
+                              href={buildScheduleUrl(s.id, "online")}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              data-testid={`button-sponsor-online-${s.id}`}
+                              onClick={() => onSchedule(s.id, "online")}
+                              className={cn(
+                                "w-full flex items-center justify-center gap-1.5 py-1 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98]",
+                                levelAccentSecondary[level] || "border-gray-300 text-gray-600 bg-gray-50/60 hover:bg-gray-100"
+                              )}
+                            >
+                              <Video className="w-3 h-3" /> Online Meeting
+                              <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
+                            </a>
+                          )}
+                        </>
+                      )}
+
+                      {/* Request Information — opens the same real modal as EventPage */}
+                      {infoEnabled && (
+                        <button
+                          data-testid={`button-sponsor-info-${s.id}`}
+                          onClick={() => setRequestInfoSponsor(s)}
+                          className="w-full flex items-center justify-center gap-1.5 py-1 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 bg-transparent hover:bg-gray-50 transition-all duration-150 active:scale-[0.98]"
+                        >
+                          <Info className="w-3.5 h-3.5" /> Request Information
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex gap-3 pt-1">
+          <button
+            data-testid="button-back-sessions"
+            onClick={onBack}
+            className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" /> Back
+          </button>
+          <button
+            data-testid="button-sponsors-next"
+            onClick={onNext}
+            disabled={loading}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm"
+          >
+            {loading ? "Finishing…" : "Complete My Setup"}
+            {!loading && <CheckCircle className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
-    </div>
+
+      {/* Request Information modal — same as EventPage */}
+      <RequestInfoModal
+        open={!!requestInfoSponsor}
+        onClose={() => setRequestInfoSponsor(null)}
+        sponsorId={requestInfoSponsor?.id ?? ""}
+        sponsorName={requestInfoSponsor?.name ?? ""}
+        eventId={eventId}
+        prefill={{
+          email: attendeeEmail || undefined,
+        }}
+      />
+    </>
   );
 }
 
@@ -912,15 +964,8 @@ export default function WelcomePage() {
   }
 
   function handleSchedule(sponsorId: string, mode: "onsite" | "online") {
-    // Mark locally so the card shows "Scheduling Opened" state; no API call needed
-    // (the real meeting is created on the EventPage via /api/meetings)
+    // Mark locally so the card shows "Scheduling Opened" state
     setMeetingRequests((p) => [...p, { sponsorId, requestType: mode }]);
-  }
-
-  async function handleInfoRequest(sponsorId: string) {
-    if (!profileId) return;
-    await apiPost(`/api/public/pending/${profileId}/meeting-request`, { sponsorId, requestType: "info" });
-    setMeetingRequests((p) => [...p, { sponsorId, requestType: "info" }]);
   }
 
   async function handleSponsorsNext() {
@@ -949,20 +994,17 @@ export default function WelcomePage() {
     );
   }
 
-  // Unique sponsor contacts for complete card
   const uniqueSponsorContacts = new Set(meetingRequests.map((r) => r.sponsorId)).size;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        {/* Logo only (event name shown inside Card 1) */}
         {event?.logoUrl && step === "topics" && (
           <div className="text-center mb-6">
             <img src={event.logoUrl} alt={event.name} className="h-10 object-contain mx-auto" />
           </div>
         )}
 
-        {/* Compact event header on steps 2–4 */}
         {event && step !== "topics" && step !== "complete" && (
           <div className="text-center mb-6">
             {event.logoUrl && <img src={event.logoUrl} alt={event.name} className="h-8 object-contain mx-auto mb-2" />}
@@ -970,7 +1012,6 @@ export default function WelcomePage() {
           </div>
         )}
 
-        {/* Wizard card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-10">
           {step !== "complete" && <StepBar step={step} />}
 
@@ -1018,7 +1059,6 @@ export default function WelcomePage() {
               selectedTopicIds={topicIds}
               meetingRequests={meetingRequests}
               onSchedule={handleSchedule}
-              onInfoRequest={handleInfoRequest}
               onNext={handleSponsorsNext}
               onBack={() => setStep("sessions")}
               loading={actionLoading}

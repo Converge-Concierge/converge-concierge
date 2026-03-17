@@ -99,7 +99,7 @@ function calendarLinks({ google, outlook } = {}) {
     </div>`;
 }
 
-export function meetingConfirmationForAttendee({ attendeeFirstName, sponsorName, eventName, date, time, location, meetingType, eventSlug, calendarLinks: links }) {
+export function meetingConfirmationForAttendee({ attendeeFirstName, sponsorName, eventName, date, time, location, meetingType, eventSlug, conciergePlanUrl, calendarLinks: links }) {
   const isOnline = meetingType === "online_request";
   const typeLabel = isOnline ? "Online Meeting Request" : "Onsite Meeting";
   const locationLabel = isOnline ? (location || "Online — details to follow") : location;
@@ -122,7 +122,7 @@ export function meetingConfirmationForAttendee({ attendeeFirstName, sponsorName,
 
     ${calendarLinks(links)}
 
-    ${eventSlug ? ctaButton("View Event Schedule", `${BASE_URL}/event/${eventSlug}`) : ""}
+    ${conciergePlanUrl ? ctaButton("See Your Dashboard", conciergePlanUrl) : (eventSlug ? ctaButton("View Event Schedule", `${BASE_URL}/event/${eventSlug}`) : "")}
 
     <p style="color:#94a3b8;font-size:12px;margin:24px 0 0;">If you have any questions, please contact the event team directly.</p>
   `);
@@ -208,7 +208,7 @@ export function infoRequestConfirmationForAttendee({ attendeeFirstName, sponsorN
       </table>
     </div>
 
-    ${conciergePlanUrl ? ctaButton("View My Concierge Plan", conciergePlanUrl) : ""}
+    ${conciergePlanUrl ? ctaButton("See Your Dashboard", conciergePlanUrl) : ""}
 
     <p style="color:#94a3b8;font-size:12px;margin:24px 0 0;">If you have questions, please contact the event team directly.</p>
   `);
@@ -249,7 +249,7 @@ export function conciergeSummaryEmail({ attendeeFirstName, eventName, eventSlug,
       <p style="color:#6b21a8;font-size:13px;margin:0;">You connected with <strong>${sponsorContactCount} sponsor${sponsorContactCount !== 1 ? "s" : ""}</strong> — they'll be in touch soon.</p>
     </div>` : ""}
 
-    ${conciergePlanUrl ? ctaButton("View My Concierge Plan", conciergePlanUrl) : (eventSlug ? ctaButton("View Event Schedule", `${BASE_URL}/event/${eventSlug}`) : "")}
+    ${conciergePlanUrl ? ctaButton("See Your Dashboard", conciergePlanUrl) : (eventSlug ? ctaButton("View Event Schedule", `${BASE_URL}/event/${eventSlug}`) : "")}
 
     <p style="color:#94a3b8;font-size:12px;margin:24px 0 0;">This plan was built just for you. If you have questions, reach out to the event team directly.</p>
   `);

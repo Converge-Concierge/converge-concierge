@@ -179,6 +179,33 @@ export async function sendMeetingConfirmationToAttendee(storage, attendee, spons
     return;
   }
 
+  // Resolve base URL for dashboard link
+  let BASE_URL_MTG = process.env.BASE_APP_URL?.trim()?.replace(/\/$/, "") || null;
+  if (!BASE_URL_MTG) {
+    try {
+      const branding = await storage.getBranding();
+      if (branding?.appBaseUrl?.trim()) BASE_URL_MTG = branding.appBaseUrl.trim().replace(/\/$/, "");
+    } catch (_) {}
+  }
+  if (!BASE_URL_MTG) {
+    if (process.env.REPLIT_DEPLOYMENT === "1" && process.env.REPLIT_DOMAINS) {
+      BASE_URL_MTG = `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`;
+    } else if (process.env.REPLIT_DEV_DOMAIN) {
+      BASE_URL_MTG = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+    } else {
+      BASE_URL_MTG = "https://concierge.convergeevents.com";
+    }
+  }
+
+  let conciergePlanUrlMtg = null;
+  if (attendee?.id) {
+    try {
+      const tokens = await storage.getAttendeeTokensByAttendee(attendee.id);
+      const token = tokens.find((t) => !meeting?.eventId || t.eventId === meeting.eventId) ?? tokens[0];
+      if (token?.token) conciergePlanUrlMtg = `${BASE_URL_MTG}/attendee-access/${token.token}`;
+    } catch (_) {}
+  }
+
   // Build calendar support (non-blocking)
   let calLinks = null;
   let icsAttachment = null;
@@ -205,6 +232,7 @@ export async function sendMeetingConfirmationToAttendee(storage, attendee, spons
     location: meeting?.location,
     meetingType: meeting?.meetingType,
     eventSlug: event?.slug ?? null,
+    conciergePlanUrl: conciergePlanUrlMtg,
     calendarLinks: calLinks,
   });
 

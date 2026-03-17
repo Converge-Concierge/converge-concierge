@@ -1,0 +1,286 @@
+Update the Attendee Dashboard Styling, Fix “See Your Dashboard” Email Links, and Add a “Bring a Team” Promotion
+Make the attendee dashboard visually consistent with the rest of Concierge, ensure dashboard email links go directly to this page, and encourage attendees to bring colleagues to the event
+
+We need three attendee-facing improvements.
+
+1. Restyle the Attendee Dashboard So It Matches the Rest of Concierge
+
+The current attendee dashboard does not match the look and feel of the rest of Concierge.
+
+It feels visually separate from:
+
+the onboarding flow
+
+the public event page
+
+the broader Concierge design system
+
+We need to bring the attendee dashboard into alignment with the rest of the product.
+
+Primary Goal
+
+Update the attendee dashboard so it visually matches the established Concierge style system.
+
+Use the Existing Concierge Design Language
+
+The attendee dashboard should use the same overall visual system as the rest of Concierge, including:
+
+spacing
+
+card treatment
+
+border radius
+
+typography hierarchy
+
+icon style
+
+button style
+
+event branding
+
+section header treatment
+
+event accent color usage where appropriate
+
+Do not leave the attendee dashboard looking like a separate lightweight site.
+
+Specific Areas to Update
+A. Top Navigation / Header
+
+Make sure the attendee top nav/header feels consistent with the Concierge product style.
+
+Align:
+
+logo treatment
+
+nav spacing
+
+active tab treatment
+
+header padding
+
+event context placement
+
+B. Greeting / Event Context Area
+
+The “Hello, Dan” area should feel more polished and consistent with the rest of the system.
+
+Use a layout/style that aligns with:
+
+stronger title hierarchy
+
+better spacing between greeting and event info
+
+cleaner event metadata presentation
+
+C. Blue Prompt Banners
+
+The current prompt bars feel visually different from the rest of the platform.
+
+Refine these so they feel like proper Concierge cards/alerts rather than generic blue bars.
+
+Use the same design language as the rest of the system:
+
+more polished card styling
+
+better spacing
+
+cleaner CTA button treatment
+
+event accent alignment where appropriate
+
+D. Recommended Session Cards
+
+The recommended session cards should visually align with:
+
+agenda cards
+
+sponsor cards
+
+other dashboard cards in the product
+
+Make sure:
+
+card padding is consistent
+
+metadata/icon row styling matches the broader app
+
+Save buttons look like native Concierge controls
+
+Desired Outcome
+
+The attendee dashboard should feel like a natural part of the same product as:
+
+the onboarding flow
+
+the agenda page
+
+the sponsors page
+
+the admin style language
+
+2. “See Your Dashboard” Email Links Must Go Directly to the Attendee Dashboard
+
+When an email sent to an attendee says:
+
+See Your Dashboard
+
+that button/link should go directly to the attendee dashboard page, not to a generic event page or intermediate destination.
+
+Required behavior
+
+Update all relevant attendee emails so that the “See Your Dashboard” CTA links directly into the attendee’s personalized dashboard route.
+
+This should apply to emails such as:
+
+completion / summary emails
+
+recommendation emails
+
+follow-up emails
+
+any attendee email that references “See Your Dashboard”
+
+Link Destination
+
+The link should resolve to the attendee’s actual dashboard page using the correct attendee access route / tokenized route already used by Concierge.
+
+The attendee should land directly on:
+
+their personalized dashboard
+
+with their sessions, sponsor matches, and recommendations available
+
+Do not send them to:
+
+the generic event page
+
+the event marketing page
+
+a generic schedule page
+
+a route that forces them back through unnecessary steps
+
+Required Action
+
+Audit attendee email templates and update the CTA destination for “See Your Dashboard” so it always points to the personalized attendee dashboard entry route.
+
+3. Add a “Bring a Team” Promotion to the Attendee Experience
+
+Because people using this attendee dashboard are already registered for the event, this is a strong moment to encourage them to bring colleagues.
+
+We want to add a dashboard tab or link that promotes bringing team members and links to event registration.
+
+Primary Goal
+
+Add a clear attendee-facing entry point that encourages:
+
+Bring a Team
+
+and routes to registration.
+
+Recommended Label
+
+Use one of these:
+
+Bring a Team
+
+Invite a Colleague
+
+Bring Your Team
+
+My recommendation:
+
+Bring a Team
+
+because it is the clearest and most commercial.
+
+Placement Options
+
+Add this as a top-level attendee navigation item or a highly visible dashboard link/card.
+
+Preferred options:
+Option A
+
+Add a nav item/tab:
+
+Bring a Team
+Option B
+
+Add a prominent dashboard card/promo block near the top
+
+Either is acceptable, but it should be clearly visible and easy to access.
+
+If the nav is already crowded, a prominent dashboard card may be better.
+
+Destination
+
+The Bring a Team link/button should go directly to the event registration page for that event.
+
+It should not go to a generic homepage.
+
+The destination should be event-specific.
+
+Example:
+
+FRC dashboard → FRC registration
+
+TLS dashboard → TLS registration
+
+Suggested Messaging
+
+Use concise copy such as:
+
+Bring a Team
+Conferences are more valuable when your team attends together.
+Invite colleagues to join you at this event.
+
+CTA:
+
+Register a Team Member
+
+or
+
+Invite Your Team
+Optional Stronger Version
+
+If practical, add a small explanation of value:
+
+Bring colleagues from compliance, risk, operations, or technology so your team can divide sessions, meet sponsors, and compare insights.
+
+This would work particularly well for Converge’s executive audience.
+
+4. Keep the Attendee Dashboard Focused
+
+Adding Bring a Team should not make the dashboard cluttered.
+
+The dashboard should still prioritize:
+
+recommended sessions
+
+recommended sponsors
+
+meeting activity
+
+agenda building
+
+The Bring a Team promotion should feel like a valuable secondary CTA, not the main purpose of the page.
+
+5. Acceptance Criteria
+
+This work is complete when:
+
+the attendee dashboard styling is updated to match the rest of Concierge more closely
+
+dashboard cards, prompts, headers, and controls feel visually consistent with the platform
+
+all attendee email CTAs labeled “See Your Dashboard” link directly to the personalized attendee dashboard
+
+the attendee dashboard includes a visible “Bring a Team” link/tab/promo
+
+the Bring a Team CTA routes to the correct event registration page
+
+6. Success Standard
+
+After this update, the attendee dashboard should feel like a polished part of the full Concierge product, attendee emails should reliably return users to their personalized dashboard, and the dashboard should also create a clear opportunity to encourage registered attendees to bring additional team members to the event.

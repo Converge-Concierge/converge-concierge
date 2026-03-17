@@ -573,6 +573,7 @@ function Dashboard({
   me, topics, selections, sessions, sponsors, suggestedMeetings, savedSessionIds,
   onEditInterests, onSaveSession, onUnsaveSession, isSavingSession,
   sponsorInteractions, onRequestMeeting, onRequestInfo, isActingOnSponsor, invitationCount,
+  registrationUrl, websiteUrl,
 }: {
   me: AttendeeMe; topics: Topic[]; selections: TopicSelection[];
   sessions: RecommendedSession[]; sponsors: RecommendedSponsor[];
@@ -586,6 +587,8 @@ function Dashboard({
   onRequestInfo: (id: string) => void;
   isActingOnSponsor: string | null;
   invitationCount: number;
+  registrationUrl: string | null;
+  websiteUrl: string | null;
 }) {
   const topicMap = new Map(topics.map((t) => [t.id, t]));
   const selectedTopics = selections.map((s) => topicMap.get(s.topicId)).filter(Boolean) as Topic[];
@@ -607,25 +610,44 @@ function Dashboard({
     prompts.push({ key: "no-meetings", icon: <UserCheck className="h-4 w-4" />, text: `${suggestedMeetings.length} sponsor${suggestedMeetings.length !== 1 ? "s" : ""} align with your interests. Request a meeting to connect.`, cta: "View Sponsors", href: "/attendee/sponsors" });
   }
 
+  const teamUrl = registrationUrl || websiteUrl;
+
+  const fmtDateShort = (d: string | null) => d ? new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;
+  const startStr = fmtDateShort(me.event.startDate);
+  const endStr = fmtDateShort(me.event.endDate);
+  const eventDateStr = startStr && endStr && startStr !== endStr ? `${startStr} – ${endStr}` : (startStr ?? null);
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
 
       {/* Greeting */}
-      <div>
+      <div className="space-y-1">
+        <p className="text-xs font-semibold text-primary uppercase tracking-wider" data-testid="text-event-name">{me.event.name}</p>
         <h1 className="text-2xl font-display font-bold text-foreground tracking-tight" data-testid="text-greeting">
-          Hello, {me.attendee.firstName || me.attendee.name} 👋
+          Hello, {me.attendee.firstName || me.attendee.name}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1" data-testid="text-event-name">
-          {me.event.name}{me.event.location ? ` · ${me.event.location}` : ""}
-        </p>
+        {(eventDateStr || me.event.location) && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1">
+            {eventDateStr && (
+              <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                <CalendarDays className="h-3.5 w-3.5 shrink-0" /> {eventDateStr}
+              </span>
+            )}
+            {me.event.location && (
+              <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 shrink-0" /> {me.event.location}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Meeting invitation banner */}
       {invitationCount > 0 && (
         <Link href="/attendee/meetings">
-          <div className="flex items-center gap-3 bg-primary/5 border border-primary/30 rounded-xl px-4 py-3 cursor-pointer hover:bg-primary/10 transition-colors" data-testid="banner-meeting-invitations">
-            <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-              <Bell className="h-4 w-4 text-primary" />
+          <div className="flex items-center gap-3 bg-primary/5 border border-primary/25 rounded-xl px-4 py-3.5 cursor-pointer hover:bg-primary/10 transition-colors" data-testid="banner-meeting-invitations">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Bell className="h-4.5 w-4.5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground">
@@ -644,17 +666,17 @@ function Dashboard({
       {prompts.length > 0 && (
         <div className="space-y-2" data-testid="smart-prompts">
           {prompts.map((p) => (
-            <div key={p.key} className="flex items-center gap-3 bg-accent/30 border border-border/50 rounded-xl px-4 py-3" data-testid={`prompt-${p.key}`}>
-              <div className="h-7 w-7 rounded-full bg-background border border-border/60 flex items-center justify-center shrink-0 text-muted-foreground">
+            <div key={p.key} className="flex items-center gap-3 bg-card border border-border/60 rounded-xl px-4 py-3.5 shadow-sm" data-testid={`prompt-${p.key}`}>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-primary">
                 {p.icon}
               </div>
               <p className="flex-1 text-sm text-foreground">{p.text}</p>
               {p.href ? (
                 <Link href={p.href}>
-                  <Button variant="outline" size="sm" className="h-7 text-xs shrink-0">{p.cta}</Button>
+                  <Button variant="outline" size="sm" className="h-7 text-xs shrink-0 font-medium">{p.cta}</Button>
                 </Link>
               ) : (
-                <Button variant="outline" size="sm" className="h-7 text-xs shrink-0" onClick={p.action}>{p.cta}</Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs shrink-0 font-medium" onClick={p.action}>{p.cta}</Button>
               )}
             </div>
           ))}
@@ -871,6 +893,30 @@ function Dashboard({
               {selectedTopics.map((t) => <Badge key={t.id} variant="secondary" className="rounded-full" data-testid={`badge-topic-${t.id}`}>{t.label}</Badge>)}
             </div>
         }
+      </div>
+
+      {/* Bring a Team */}
+      <div className="bg-card border border-border/60 rounded-2xl p-5" data-testid="section-bring-a-team">
+        <div className="flex items-start gap-4">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Users className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-semibold text-foreground mb-1">Bring a Team</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Conferences are more valuable when your team attends together. Invite colleagues to divide sessions, meet sponsors, and compare insights.
+            </p>
+            {teamUrl ? (
+              <a href={teamUrl} target="_blank" rel="noopener noreferrer" data-testid="link-bring-a-team">
+                <Button variant="outline" size="sm" className="mt-3 gap-1.5 font-medium" data-testid="button-register-team-member">
+                  <ExternalLink className="h-3.5 w-3.5" /> Register a Team Member
+                </Button>
+              </a>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-2 italic">Contact the event organiser for registration details.</p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Session detail sheet */}
@@ -1143,6 +1189,8 @@ export default function AttendeePortalPage() {
         onRequestInfo={(id) => requestInfoMutation.mutate(id)}
         isActingOnSponsor={actingOnSponsor}
         invitationCount={invitationCount}
+        registrationUrl={me.event.registrationUrl}
+        websiteUrl={me.event.websiteUrl}
       />
     </AttendeeShell>
   );

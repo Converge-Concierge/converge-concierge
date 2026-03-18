@@ -65,6 +65,9 @@ export const eventSponsorLinkSchema = z.object({
   // Meeting block access: true = use all event blocks, false = use selectedBlockIds only
   useDefaultBlocks: z.boolean().default(true),
   selectedBlockIds: z.array(z.string()).default([]),
+  // Attendee Discovery entitlement (per-sponsor, per-event)
+  discoveryEnabled: z.boolean().default(false),
+  discoveryRequestLimit: z.number().int().min(0).default(0),
 });
 export type EventSponsorLink = z.infer<typeof eventSponsorLinkSchema>;
 

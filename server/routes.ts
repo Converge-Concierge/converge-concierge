@@ -1718,6 +1718,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     const eventLink = (sponsor.assignedEvents ?? []).find((ae) => ae.eventId === tokenRecord.eventId);
     const sponsorLevel = eventLink?.sponsorshipLevel ?? sponsor.level ?? "";
+    const discoveryEnabled = eventLink?.discoveryEnabled ?? false;
+    const discoveryRequestLimit = eventLink?.discoveryRequestLimit ?? 0;
 
     res.json({
       sponsor: {
@@ -1735,6 +1737,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         startDate: event.startDate, endDate: event.endDate,
         logoUrl: event.logoUrl ?? null,
         accentColor: event.accentColor ?? null,
+        discoveryEnabled,
+        discoveryRequestLimit,
       },
       stats: {
         total:         sponsorMeetings.length,
@@ -6798,10 +6802,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const tokenRecord = validation.tokenRecord;
 
       const event = await storage.getEvent(tokenRecord.eventId);
-      if (!event || !event.matchmakingEnabled) return res.json({ attendees: [], matchmakingEnabled: false });
+      if (!event) return res.status(404).json({ message: "Event not found" });
 
       const sponsor = await storage.getSponsor(tokenRecord.sponsorId);
       if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
+
+      // Check per-sponsor discovery entitlement
+      const eventLink = (sponsor.assignedEvents ?? []).find(ae => ae.eventId === event.id);
+      const discoveryEnabled = eventLink?.discoveryEnabled ?? false;
+      if (!discoveryEnabled) return res.json({ attendees: [], matchmakingEnabled: false, discoveryEnabled: false });
 
       const allAttendees = (await storage.getAttendees()).filter(
         a => a.assignedEvent === event.id && a.archiveState === "active"
@@ -6809,9 +6818,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const ranked = rankAttendees(allAttendees, sponsor);
 
+      // Use sponsor-specific limit if set; fall back to event quotas then global defaults
+      const discoveryRequestLimit = eventLink?.discoveryRequestLimit ?? 0;
       const sponsorLevel = sponsor.level || "Bronze";
       const quotas = event.invitationQuotas || INVITATION_QUOTAS;
-      const invitationLimit = quotas[sponsorLevel] ?? INVITATION_QUOTAS[sponsorLevel] ?? 5;
+      const invitationLimit = discoveryRequestLimit > 0
+        ? discoveryRequestLimit
+        : (quotas[sponsorLevel] ?? INVITATION_QUOTAS[sponsorLevel] ?? 5);
+
       const sentCount = await storage.countSponsorInvitations(sponsor.id, event.id);
 
       const existingInvitations = await storage.listMeetingInvitations({ sponsorId: sponsor.id, eventId: event.id });
@@ -6839,6 +6853,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       res.json({
         matchmakingEnabled: true,
+        discoveryEnabled: true,
         attendees: safeAttendees,
         categoryCounts,
         invitationsUsed: sentCount,
@@ -6887,14 +6902,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!attendeeId) return res.status(400).json({ message: "attendeeId required" });
 
       const event = await storage.getEvent(tokenRecord.eventId);
-      if (!event || !event.matchmakingEnabled) return res.status(400).json({ message: "Matchmaking not enabled for this event" });
+      if (!event) return res.status(404).json({ message: "Event not found" });
 
       const sponsor = await storage.getSponsor(tokenRecord.sponsorId);
       if (!sponsor) return res.status(404).json({ message: "Sponsor not found" });
 
+      // Check per-sponsor discovery entitlement
+      const eventLink = (sponsor.assignedEvents ?? []).find(ae => ae.eventId === event.id);
+      const discoveryEnabled = eventLink?.discoveryEnabled ?? false;
+      if (!discoveryEnabled) return res.status(400).json({ message: "Attendee Discovery not enabled for this sponsor" });
+
+      // Use sponsor-specific limit if set; fall back to event quotas then global defaults
+      const discoveryRequestLimit = eventLink?.discoveryRequestLimit ?? 0;
       const sponsorLevel = sponsor.level || "Bronze";
       const quotas = event.invitationQuotas || INVITATION_QUOTAS;
-      const invitationLimit = quotas[sponsorLevel] ?? INVITATION_QUOTAS[sponsorLevel] ?? 5;
+      const invitationLimit = discoveryRequestLimit > 0
+        ? discoveryRequestLimit
+        : (quotas[sponsorLevel] ?? INVITATION_QUOTAS[sponsorLevel] ?? 5);
       const sentCount = await storage.countSponsorInvitations(sponsor.id, event.id);
       if (sentCount >= invitationLimit) return res.status(400).json({ message: "Invitation quota exceeded" });
 

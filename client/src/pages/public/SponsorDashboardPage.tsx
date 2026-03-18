@@ -71,7 +71,7 @@ interface DashboardData {
     contactEmail?: string | null;
     repsJson?: string | null;
   };
-  event: { id: string; name: string; slug: string; location: string; startDate: string; endDate: string; logoUrl?: string | null; accentColor?: string | null };
+  event: { id: string; name: string; slug: string; location: string; startDate: string; endDate: string; logoUrl?: string | null; accentColor?: string | null; discoveryEnabled?: boolean; discoveryRequestLimit?: number };
   stats: { total: number; scheduled: number; completed: number; cancelled: number; pendingOnline: number; companies: number };
   meetings: SponsorMeeting[];
   notifications: SponsorNotification[];
@@ -532,25 +532,37 @@ export default function SponsorDashboardPage() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-7 h-auto p-1 bg-muted/50 border border-border/40 rounded-xl mb-8">
-              {(["overview", "deliverables", "meetings", "info-requests", "discovery", "leads", "reports"] as const).map((tab) => (
-                <TabsTrigger
-                  key={tab}
-                  value={tab}
-                  data-testid={tab === "deliverables" ? "tab-deliverables" : `tab-${tab}`}
-                  className="py-2.5 rounded-lg data-[state=active]:shadow-sm transition-all text-[11px] sm:text-sm"
-                  style={activeTab === tab ? { backgroundColor: eventAccent, color: "#ffffff" } : {}}
-                >
-                  {tab === "overview" ? "Overview"
-                    : tab === "deliverables" ? "Deliverables"
-                    : tab === "meetings" ? "Meetings"
-                    : tab === "info-requests" ? "Info Requests"
-                    : tab === "discovery" ? "Discovery"
-                    : tab === "leads" ? "Leads"
-                    : "Reports"}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+            {(() => {
+              const discoveryEnabled = data?.event?.discoveryEnabled ?? false;
+              const allTabs = (["overview", "deliverables", "meetings", "info-requests", "discovery", "leads", "reports"] as const).filter(
+                t => t !== "discovery" || discoveryEnabled
+              );
+              const colsClass = allTabs.length === 7 ? "grid-cols-7" : "grid-cols-6";
+              const tabLabels: Record<string, string> = {
+                overview: "Overview",
+                deliverables: "Deliverables",
+                meetings: "Meetings",
+                "info-requests": "Info Requests",
+                discovery: "Discovery",
+                leads: "Leads",
+                reports: "Reports",
+              };
+              return (
+                <TabsList className={`grid w-full ${colsClass} h-auto p-1 bg-muted/50 border border-border/40 rounded-xl mb-8`}>
+                  {allTabs.map((tab) => (
+                    <TabsTrigger
+                      key={tab}
+                      value={tab}
+                      data-testid={tab === "deliverables" ? "tab-deliverables" : `tab-${tab}`}
+                      className="py-2.5 rounded-lg data-[state=active]:shadow-sm transition-all text-[11px] sm:text-sm"
+                      style={activeTab === tab ? { backgroundColor: eventAccent, color: "#ffffff" } : {}}
+                    >
+                      {tabLabels[tab]}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              );
+            })()}
 
             <TabsContent value="overview" className="space-y-8 outline-none">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

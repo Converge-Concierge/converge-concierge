@@ -1,0 +1,307 @@
+Add Sponsor-Level Attendee Discovery Controls and Meeting Request Limits
+Make the Sponsor Dashboard Discovery tab contingent on sponsor configuration and track allowed/used/remaining sponsor outreach requests
+
+We need to enhance the Sponsor Dashboard Discovery feature so it is controlled from sponsor setup in Admin and tied to sponsorship/package entitlements.
+
+Right now the Sponsor Dashboard shows a Discovery tab with a placeholder state:
+
+Attendee Discovery Not Available
+Attendee discovery has not been enabled for this event yet.
+
+We need to make this more intentional and configurable.
+
+1. Primary Goal
+
+Add a new sponsor admin configuration area so Converge can control whether a sponsor has access to Attendee Discovery, and if so, how many proactive meeting request emails the sponsor is allowed to send.
+
+This should support three things:
+
+turning Attendee Discovery on or off for a sponsor
+
+defining a sponsor-specific limit for proactive outreach / meeting requests
+
+showing this limit as a sponsor-facing, non-editable entitlement with usage tracking
+
+This should become part of sponsor setup and sponsor dashboard logic.
+
+2. Add a New Sponsor Setup Tab in Admin → Sponsors
+
+When creating or editing a sponsor in:
+
+Admin → Sponsors → New / Edit Sponsor
+
+add a new tab titled:
+
+Attendee Discovery
+
+This should be a dedicated tab in the sponsor admin modal/page, similar to:
+
+Basic Info
+
+Sponsor Profile
+
+Contacts
+
+Correlated Agenda Topics
+
+Meeting Management
+
+Add:
+
+Attendee Discovery
+
+3. Attendee Discovery Tab — Core Controls
+
+Inside the new Attendee Discovery tab, add the following admin-configurable settings.
+
+A. Enable / Disable Attendee Discovery
+
+Add a toggle or Yes/No control:
+
+Enable Attendee Discovery
+Behavior
+
+If ON → sponsor can access the Discovery feature in the Sponsor Dashboard
+
+If OFF → sponsor should not have Discovery access
+
+This setting must be sponsor-specific and event-specific where appropriate.
+
+B. Allowed Meeting Request / Outreach Limit
+
+Add a numeric input field:
+
+Allowed Outreach Requests
+
+or
+
+Allowed Meeting Requests
+
+This should be a free-form number entered by Converge.
+
+Example
+
+0
+
+5
+
+10
+
+25
+
+This value represents how many proactive attendee outreach requests the sponsor is allowed to make through Discovery.
+
+4. Discovery Access Must Be Contingent on Sponsor Setup
+
+The Discovery tab on the Sponsor Dashboard must no longer be treated as a generic placeholder.
+
+Required behavior
+If Attendee Discovery = OFF
+
+Then on the Sponsor Dashboard:
+
+either hide the Discovery tab entirely
+
+or keep it visible but clearly disabled/inaccessible
+
+Recommended approach
+
+Hide the Discovery tab if not enabled.
+
+That makes the sponsor dashboard cleaner and more aligned with actual entitlement.
+
+If you choose to keep the tab visible, the message should clearly indicate that the sponsor’s package does not include Discovery access.
+
+But preferred behavior is:
+
+No access → no Discovery tab
+5. Discovery Request Limit Must Be Tracked as an Entitlement
+
+This request limit should be treated like a sponsor entitlement / deliverable.
+
+It is effectively a Converge-controlled sponsor benefit.
+
+Required sponsor-facing visibility
+
+On the Sponsor Dashboard Discovery tab, show the outreach limit as a non-editable sponsor field.
+
+Example display:
+
+Discovery Outreach Requests
+Allowed: 10
+Used: 3
+Remaining: 7
+
+This should be visible to the sponsor but not editable by them.
+
+6. Sponsor Dashboard Discovery Tab — Usage Tracking
+
+When Discovery is enabled, the Sponsor Dashboard Discovery tab should display:
+
+total allowed outreach requests
+
+used outreach requests
+
+remaining outreach requests
+
+Example UI
+Allowed Requests: 10
+Used: 3
+Remaining: 7
+
+This should update dynamically as the sponsor uses Discovery.
+
+7. Count What Consumes a Request
+
+We need a consistent rule for what counts against the sponsor’s outreach allocation.
+
+Required behavior
+
+A request should be counted as used when the sponsor proactively sends an attendee outreach / meeting request email through the Discovery feature.
+
+Do not decrement the count merely because:
+
+the sponsor views attendee discovery results
+
+the sponsor opens a profile
+
+the sponsor drafts but does not send
+
+It should count when a real outbound sponsor-initiated outreach action is submitted.
+
+8. Prevent Sponsors From Exceeding Their Allowed Limit
+
+If the sponsor has a set limit, the system must enforce it.
+
+Required behavior
+
+When:
+
+used_requests >= allowed_requests
+
+then the sponsor should no longer be able to send additional Discovery outreach requests.
+
+UI behavior
+
+Disable or block the outreach action and show a clear message such as:
+
+You have used all Discovery outreach requests included in your sponsorship package.
+
+This should be clear and sponsor-friendly.
+
+9. Treat This as a Sponsor Deliverable / Benefit
+
+Because this outreach capacity is part of the sponsor package, it should also be represented as a Converge-managed sponsor deliverable/benefit.
+
+Required behavior
+
+This information should be visible to Converge as part of sponsor agreement management and sponsor benefit tracking.
+
+At minimum, the sponsor admin configuration should clearly store:
+
+whether Discovery is enabled
+
+how many requests are included
+
+how many have been used
+
+how many remain
+
+If practical, surface this in Sponsor Management / Deliverables as part of the sponsor’s package fulfillment context.
+
+10. Make the Sponsor-Facing Discovery State More Intentional
+
+The current message:
+
+Attendee Discovery Not Available
+Attendee discovery has not been enabled for this event yet.
+
+is too generic.
+
+We now need more intentional behavior based on sponsor setup.
+
+Required behavior
+
+If Discovery is disabled for the sponsor, either:
+
+hide the tab
+or
+
+show a sponsor-package-specific message such as:
+
+Attendee Discovery is not included in your current sponsorship package.
+Contact Converge if you have questions about your included sponsor benefits.
+
+This is much clearer than implying the event itself has not enabled it.
+
+11. Event-Specific Scope
+
+Attendee Discovery access and request limits should be event-specific.
+
+A sponsor may have:
+
+Discovery enabled for one event
+
+Discovery disabled for another
+
+different request limits per event
+
+Make sure the configuration is tied to the correct sponsor-event relationship.
+
+Do not treat this as a global sponsor setting unless your existing data model absolutely requires it.
+
+Preferred behavior:
+
+Discovery entitlement belongs to the sponsor’s participation in a specific event
+
+12. Add This to Sponsor Create / Edit Workflow Cleanly
+
+When creating a sponsor or editing a sponsor:
+
+the new Attendee Discovery tab should be clearly visible
+
+the controls should be intuitive
+
+the save/update flow should persist these settings reliably
+
+If sponsor settings are event-specific, make that clear in the UI.
+
+13. Preserve Existing Discovery Logic if Already Built
+
+If parts of attendee discovery/search already exist, keep that functionality.
+
+This request is about:
+
+entitlement controls
+
+sponsor access gating
+
+request limits
+
+sponsor-facing usage visibility
+
+Do not discard existing discovery functionality unless needed.
+
+14. Acceptance Criteria
+
+This work is complete when:
+
+Admin → Sponsors → New/Edit includes a new Attendee Discovery tab
+
+Converge can turn Attendee Discovery on/off for a sponsor
+
+Converge can enter a free-form number for allowed outreach / meeting requests
+
+the Sponsor Dashboard Discovery tab is shown or hidden based on that setting
+
+sponsors can see allowed / used / remaining request counts as non-editable fields
+
+sponsors cannot exceed their allowed outreach request limit
+
+usage is decremented only when a real outreach request is sent
+
+the Discovery feature behaves as a sponsor-package entitlement rather than a generic placeholder
+
+15. Success Standard
+
+After this update, Attendee Discovery should function like a true sponsor benefit that Converge can control per sponsor/event. Sponsors should only see Discovery if it is included in their package, and if they are allowed to proactively email attendees for meetings, the system should clearly show how many requests are included, how many have been used, and how many remain.

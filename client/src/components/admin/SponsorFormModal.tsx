@@ -38,7 +38,7 @@ const levelColors: Record<string, string> = {
 const selectClass =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
-type TabId = "basic" | "profile" | "contacts" | "topics" | "meetings";
+type TabId = "basic" | "profile" | "contacts" | "topics" | "meetings" | "discovery";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "basic", label: "Basic Info" },
@@ -46,6 +46,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "contacts", label: "Contacts" },
   { id: "topics", label: "Correlated Agenda Topics" },
   { id: "meetings", label: "Meeting Management" },
+  { id: "discovery", label: "Attendee Discovery" },
 ];
 
 interface EventTopic {
@@ -301,6 +302,16 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
       ...prev,
       assignedEvents: (prev.assignedEvents ?? []).map(ae =>
         ae.eventId === eventId ? { ...ae, useDefaultBlocks: useDefault, selectedBlockIds: blockIds } : ae
+      )
+    }));
+  }
+
+  function handleDiscovery(eventId: string, field: "discoveryEnabled" | "discoveryRequestLimit", value: boolean | number) {
+    if (readOnly) return;
+    setFormData(prev => ({
+      ...prev,
+      assignedEvents: (prev.assignedEvents ?? []).map(ae =>
+        ae.eventId === eventId ? { ...ae, [field]: value } : ae
       )
     }));
   }
@@ -1039,6 +1050,107 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                                     </div>
                                   );
                                 })()}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* ── Attendee Discovery ──────────────────────────────────── */}
+            {activeTab === "discovery" && (
+              <div className="space-y-4">
+                <div className="flex items-start gap-2 p-3 rounded-lg border border-border/50 bg-muted/30">
+                  <Info className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">
+                    Control whether this sponsor can access Attendee Discovery on their dashboard, and how many proactive outreach requests are included in their package. Settings are per-event.
+                  </p>
+                </div>
+
+                {(() => {
+                  const assignedLinks = (formData.assignedEvents ?? []).filter(ae => (ae.archiveState ?? "active") === "active" && !!ae.sponsorshipLevel);
+                  if (assignedLinks.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-14 text-center gap-3">
+                        <Users className="h-8 w-8 text-muted-foreground/30" />
+                        <p className="text-sm text-muted-foreground">Assign this sponsor to at least one event in Meeting Management to configure Attendee Discovery.</p>
+                        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setActiveTab("meetings")}>
+                          Go to Meeting Management <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="rounded-xl border border-border/60 divide-y divide-border/40 overflow-hidden">
+                      {assignedLinks.map((ae) => {
+                        const ev = events.find(e => e.id === ae.eventId);
+                        const enabled = ae.discoveryEnabled ?? false;
+                        const limit = ae.discoveryRequestLimit ?? 0;
+                        return (
+                          <div key={ae.eventId} className="px-5 py-4 space-y-4" data-testid={`discovery-event-section-${ae.eventId}`}>
+                            <div className="flex items-center gap-3">
+                              <span className="font-mono text-xs font-semibold text-accent bg-accent/10 border border-accent/20 px-2 py-0.5 rounded shrink-0">
+                                {ev?.slug ?? ae.eventId}
+                              </span>
+                              <span className="text-sm font-medium text-foreground truncate">{ev?.name ?? ae.eventId}</span>
+                            </div>
+
+                            {/* Enable / Disable toggle */}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <Label className="text-sm font-medium">Enable Attendee Discovery</Label>
+                                <p className="text-xs text-muted-foreground mt-0.5">When on, sponsor can browse attendees and send outreach requests.</p>
+                              </div>
+                              <div className="flex rounded-md border border-input overflow-hidden shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={readOnly}
+                                  onClick={() => handleDiscovery(ae.eventId, "discoveryEnabled", true)}
+                                  className={cn(
+                                    "text-xs px-3 py-1.5 font-medium transition-colors",
+                                    enabled ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+                                  )}
+                                  data-testid={`toggle-discovery-on-${ae.eventId}`}
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={readOnly}
+                                  onClick={() => handleDiscovery(ae.eventId, "discoveryEnabled", false)}
+                                  className={cn(
+                                    "text-xs px-3 py-1.5 font-medium border-l border-input transition-colors",
+                                    !enabled ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
+                                  )}
+                                  data-testid={`toggle-discovery-off-${ae.eventId}`}
+                                >
+                                  No
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Outreach request limit */}
+                            {enabled && (
+                              <div className="space-y-1.5">
+                                <Label htmlFor={`discovery-limit-${ae.eventId}`} className="text-sm font-medium">
+                                  Allowed Outreach Requests
+                                </Label>
+                                <p className="text-xs text-muted-foreground">Number of proactive attendee outreach requests included in this sponsor's package. Set to 0 to use the event's default quota for this sponsor level.</p>
+                                <input
+                                  id={`discovery-limit-${ae.eventId}`}
+                                  type="number"
+                                  min={0}
+                                  step={1}
+                                  disabled={readOnly}
+                                  value={limit}
+                                  onChange={(e) => handleDiscovery(ae.eventId, "discoveryRequestLimit", Math.max(0, parseInt(e.target.value) || 0))}
+                                  className={cn(selectClass, "w-32")}
+                                  data-testid={`input-discovery-limit-${ae.eventId}`}
+                                />
                               </div>
                             )}
                           </div>

@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { format, parseISO } from "date-fns";
 import {
   ArrowLeft, RefreshCw, Plus, Pencil, Trash2, RotateCcw, CheckCircle2,
-  AlertCircle, Clock, Ban, FileCheck, Users, Gem, Send,
+  AlertCircle, Clock, Ban, FileCheck, Users, Gem, Send, Save,
   Upload, Download, Archive, Link2, ExternalLink, File as FileIcon, X, Paperclip,
   ChevronDown, ChevronRight,
 } from "lucide-react";
@@ -452,13 +452,63 @@ function emptyEditForm(d?: AgreementDeliverable): EditDeliverableForm {
 
 type SponsorRep = { id: string; name: string; title: string; email: string };
 
-function CompanyRepsCard({ sponsor }: { sponsor: { contactName?: string | null; contactEmail?: string | null; repsJson?: string | null } | undefined }) {
-  const additionalContacts: SponsorRep[] = (() => {
+function CompanyRepsCard({ sponsor, sponsorId }: {
+  sponsor: { contactName?: string | null; contactEmail?: string | null; repsJson?: string | null } | undefined;
+  sponsorId: string;
+}) {
+  const { toast } = useToast();
+  const [reps, setReps] = useState<SponsorRep[]>(() => {
     try { return (sponsor?.repsJson ? JSON.parse(sponsor.repsJson) : []) as SponsorRep[]; } catch { return []; }
-  })();
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ name: "", title: "", email: "" });
+
+  const saveReps = useMutation({
+    mutationFn: (newReps: SponsorRep[]) =>
+      apiRequest("PATCH", `/api/sponsors/${sponsorId}`, { repsJson: JSON.stringify(newReps) }),
+    onSuccess: (_, newReps) => {
+      setReps(newReps);
+      queryClient.invalidateQueries({ queryKey: ["/api/sponsors"] });
+      toast({ title: "Representatives updated" });
+    },
+    onError: () => toast({ title: "Failed to save", variant: "destructive" }),
+  });
+
+  function startEdit(r: SponsorRep) {
+    setForm({ name: r.name, title: r.title, email: r.email });
+    setEditingId(r.id);
+    setAdding(false);
+  }
+
+  function saveEdit() {
+    const updated = reps.map(r => r.id === editingId ? { ...r, ...form } : r);
+    saveReps.mutate(updated);
+    setEditingId(null);
+  }
+
+  function removeRep(id: string) {
+    const updated = reps.filter(r => r.id !== id);
+    saveReps.mutate(updated);
+  }
+
+  function addRep() {
+    const newRep: SponsorRep = { id: `rep-${Date.now()}`, ...form };
+    const updated = [...reps, newRep];
+    saveReps.mutate(updated);
+    setAdding(false);
+    setForm({ name: "", title: "", email: "" });
+  }
 
   const hasPrimary = !!(sponsor?.contactName || sponsor?.contactEmail);
-  const hasAny = hasPrimary || additionalContacts.length > 0;
+
+  const repInlineForm = (
+    <div className="rounded-lg border border-dashed border-border/60 p-3 space-y-2 bg-muted/10">
+      <Input placeholder="Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="h-8 text-sm" />
+      <Input placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="h-8 text-sm" />
+      <Input placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="h-8 text-sm" />
+    </div>
+  );
 
   return (
     <div className="bg-white border border-border rounded-xl p-5 shadow-sm space-y-3">
@@ -466,33 +516,78 @@ function CompanyRepsCard({ sponsor }: { sponsor: { contactName?: string | null; 
         <h3 className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" /> Dashboard Owner(s)
         </h3>
-        <span className="text-[10px] text-muted-foreground italic">Managed in Admin Contacts</span>
       </div>
 
-      {!hasAny && (
-        <p className="text-sm text-muted-foreground">No contacts on file. Add contacts via the Admin Contacts form.</p>
-      )}
-
       <div className="space-y-2">
+        {/* Primary contact — read-only */}
         {hasPrimary && (
           <div className="flex items-center gap-3 bg-muted/30 rounded-lg px-3 py-2 text-sm">
             <span className="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5 shrink-0 font-medium">Primary</span>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="font-medium text-foreground truncate">{sponsor?.contactName || <span className="italic text-muted-foreground">No name</span>}</p>
               {sponsor?.contactEmail && <p className="text-xs text-muted-foreground truncate">{sponsor.contactEmail}</p>}
             </div>
+            <span className="text-[10px] text-muted-foreground italic shrink-0">Edit via Sponsor Details</span>
           </div>
         )}
-        {additionalContacts.map((r) => (
-          <div key={r.id} className="flex items-center gap-3 bg-muted/30 rounded-lg px-3 py-2 text-sm">
-            <div className="min-w-0">
-              <p className="font-medium text-foreground truncate">{r.name || <span className="italic text-muted-foreground">Unnamed</span>}</p>
-              {(r.title || r.email) && (
-                <p className="text-xs text-muted-foreground truncate">{[r.title, r.email].filter(Boolean).join(" · ")}</p>
-              )}
-            </div>
+        {!hasPrimary && reps.length === 0 && !adding && (
+          <p className="text-sm text-muted-foreground italic">No representatives on file. Add one below.</p>
+        )}
+
+        {/* Additional reps — editable */}
+        {reps.map(r => (
+          <div key={r.id} data-testid={`rep-row-${r.id}`}>
+            {editingId === r.id ? (
+              <>
+                {repInlineForm}
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" className="h-7 text-xs" onClick={saveEdit} disabled={!form.name.trim() || saveReps.isPending}>
+                    <Save className="h-3 w-3 mr-1" /> Save
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingId(null)}>
+                    <X className="h-3 w-3 mr-1" /> Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-3 bg-muted/30 rounded-lg px-3 py-2 text-sm">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground truncate">{r.name || <span className="italic text-muted-foreground">Unnamed</span>}</p>
+                  {(r.title || r.email) && (
+                    <p className="text-xs text-muted-foreground truncate">{[r.title, r.email].filter(Boolean).join(" · ")}</p>
+                  )}
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => startEdit(r)} data-testid={`btn-edit-rep-${r.id}`}>
+                    <Pencil className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => removeRep(r.id)} data-testid={`btn-remove-rep-${r.id}`}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
+
+        {/* Add rep inline form */}
+        {adding ? (
+          <>
+            {repInlineForm}
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" className="h-7 text-xs" onClick={addRep} disabled={!form.name.trim() || saveReps.isPending} data-testid="btn-save-new-rep">
+                <Save className="h-3 w-3 mr-1" /> Add
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setAdding(false); setForm({ name: "", title: "", email: "" }); }}>
+                <X className="h-3 w-3 mr-1" /> Cancel
+              </Button>
+            </div>
+          </>
+        ) : (
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setAdding(true); setEditingId(null); setForm({ name: "", title: "", email: "" }); }} data-testid="btn-add-rep">
+            <Plus className="h-3 w-3 mr-1" /> Add Representative
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -801,7 +896,7 @@ export default function SponsorAgreementDetailPage() {
           </div>
 
           {/* Company Profile + Representatives */}
-          <CompanyRepsCard sponsor={sponsor} />
+          <CompanyRepsCard key={sponsor?.id ?? sponsorId} sponsor={sponsor} sponsorId={sponsorId} />
 
           {/* Reminder History */}
           <div className="bg-white border border-border rounded-xl p-5 shadow-sm space-y-3">

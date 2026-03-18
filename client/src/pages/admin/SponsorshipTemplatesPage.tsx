@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import type { PackageTemplate } from "@shared/schema";
 
 type TemplateWithCount = PackageTemplate & { deliverableCount: number };
+type Event = { id: string; name: string; slug: string; accentColor?: string | null };
 
 const LEVEL_COLORS: Record<string, string> = {
   Platinum: "bg-slate-100 text-slate-700 border-slate-300",
@@ -31,10 +32,17 @@ const LEVEL_COLORS: Record<string, string> = {
   Bronze:   "bg-orange-50 text-orange-700 border-orange-300",
 };
 
+function templateMatchesEvent(t: TemplateWithCount, event: Event): boolean {
+  if (t.eventId && t.eventId === event.id) return true;
+  if (t.eventFamily && event.slug.toLowerCase().includes(t.eventFamily.toLowerCase())) return true;
+  return false;
+}
+
 export default function SponsorshipTemplatesPage() {
   const [, nav] = useLocation();
   const { toast } = useToast();
 
+  const [selectedEventId, setSelectedEventId] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState<TemplateWithCount | null>(null);
   const [searchTemplates, setSearchTemplates] = useState("");
@@ -48,6 +56,8 @@ export default function SponsorshipTemplatesPage() {
   const { data: templates = [], isLoading: tplLoading } = useQuery<TemplateWithCount[]>({
     queryKey: ["/api/agreement/package-templates"],
   });
+
+  const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
 
   const createTemplate = useMutation({
     mutationFn: (data: object) => apiRequest("POST", "/api/agreement/package-templates", data),
@@ -94,7 +104,15 @@ export default function SponsorshipTemplatesPage() {
     onError: () => toast({ title: "Seed failed", variant: "destructive" }),
   });
 
-  const filteredTemplates = templates.filter((t) => {
+  // Filter by selected event
+  const eventFiltered = selectedEventId === "all"
+    ? templates
+    : templates.filter((t) => {
+        const ev = events.find((e) => e.id === selectedEventId);
+        return ev ? templateMatchesEvent(t, ev) : false;
+      });
+
+  const filteredTemplates = eventFiltered.filter((t) => {
     if (searchTemplates && !t.packageName.toLowerCase().includes(searchTemplates.toLowerCase())) return false;
     if (filterLevel !== "all" && t.sponsorshipLevel !== filterLevel) return false;
     return true;
@@ -102,6 +120,11 @@ export default function SponsorshipTemplatesPage() {
 
   const activeTemplates = filteredTemplates.filter((t) => !t.isArchived);
   const archivedTemplates = filteredTemplates.filter((t) => t.isArchived);
+
+  // Only show events that have at least one matching template
+  const eventsWithTemplates = events.filter((ev) =>
+    templates.some((t) => templateMatchesEvent(t, ev)),
+  );
 
   return (
     <div className="space-y-6">
@@ -159,6 +182,42 @@ export default function SponsorshipTemplatesPage() {
         ))}
       </div>
 
+      {/* Event tabs */}
+      {eventsWithTemplates.length > 0 && (
+        <div className="overflow-x-auto pb-1">
+          <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
+            {eventsWithTemplates.map((event) => {
+              const isActive = selectedEventId === event.id;
+              return (
+                <button
+                  key={event.id}
+                  data-testid={`event-tab-${event.id}`}
+                  onClick={() => setSelectedEventId(event.id)}
+                  className={cn(
+                    "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                    isActive ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                  )}
+                  style={isActive ? { backgroundColor: event.accentColor ?? "#0D9488", color: "#ffffff" } : undefined}
+                >
+                  {event.slug ?? event.name}
+                </button>
+              );
+            })}
+            <button
+              data-testid="event-tab-all"
+              onClick={() => setSelectedEventId("all")}
+              className={cn(
+                "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                selectedEventId === "all" ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+              )}
+              style={selectedEventId === "all" ? { backgroundColor: "#0D9488", color: "#ffffff" } : undefined}
+            >
+              All Events
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex gap-3">
         <div className="relative flex-1">
@@ -192,19 +251,25 @@ export default function SponsorshipTemplatesPage() {
       ) : activeTemplates.length === 0 ? (
         <div className="flex flex-col items-center py-16 text-muted-foreground gap-3">
           <Package className="h-12 w-12 opacity-20" />
-          <p className="text-sm font-medium">No sponsorship templates yet</p>
-          <p className="text-xs text-center max-w-xs">
-            Create your first template or seed the standard FRC 2026 package templates to get started.
+          <p className="text-sm font-medium">
+            {selectedEventId === "all" ? "No sponsorship templates yet" : "No templates for this event"}
           </p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => seedTemplates.mutate()} disabled={seedTemplates.isPending}>
-              {seedTemplates.isPending ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : null}
-              Seed FRC 2026 Templates
-            </Button>
-            <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> Create Template
-            </Button>
-          </div>
+          {selectedEventId === "all" && (
+            <>
+              <p className="text-xs text-center max-w-xs">
+                Create your first template or seed the standard FRC 2026 package templates to get started.
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => seedTemplates.mutate()} disabled={seedTemplates.isPending}>
+                  {seedTemplates.isPending ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : null}
+                  Seed FRC 2026 Templates
+                </Button>
+                <Button size="sm" onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Create Template
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">

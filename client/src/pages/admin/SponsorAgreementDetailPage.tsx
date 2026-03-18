@@ -554,7 +554,7 @@ export default function SponsorAgreementDetailPage() {
   const [showCustomDialog, setShowCustomDialog] = useState(false);
   const [editForm, setEditForm] = useState<EditDeliverableForm>(emptyEditForm());
   const [customForm, setCustomForm] = useState<EditDeliverableForm>(emptyEditForm());
-  const [expandedDeliverable, setExpandedDeliverable] = useState<string | null>(null);
+  const [collapsedDeliverables, setCollapsedDeliverables] = useState<Set<string>>(new Set());
 
   const { data: deliverables = [], isLoading } = useQuery<EnrichedDeliverable[]>({
     queryKey: ["/api/agreement/deliverables/detail", sponsorId, eventId],
@@ -921,10 +921,14 @@ export default function SponsorAgreementDetailPage() {
                                   {hasStructuredEditor(d) && (
                                     <Button
                                       variant="ghost" size="sm" className="h-5 w-5 p-0 shrink-0"
-                                      onClick={() => setExpandedDeliverable(expandedDeliverable === d.id ? null : d.id)}
+                                      onClick={() => setCollapsedDeliverables((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(d.id)) next.delete(d.id); else next.add(d.id);
+                                        return next;
+                                      })}
                                       data-testid={`button-expand-${d.id}`}
                                     >
-                                      {expandedDeliverable === d.id
+                                      {!collapsedDeliverables.has(d.id)
                                         ? <ChevronDown className="h-3 w-3 text-accent" />
                                         : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
                                     </Button>
@@ -999,7 +1003,7 @@ export default function SponsorAgreementDetailPage() {
                                 </div>
                               </td>
                             </tr>
-                            {expandedDeliverable === d.id && hasStructuredEditor(d) && sponsorId && eventId && (
+                            {!collapsedDeliverables.has(d.id) && hasStructuredEditor(d) && sponsorId && eventId && (
                               <tr data-testid={`expanded-${d.id}`}>
                                 <td colSpan={8} className="px-4 py-2 bg-muted/10">
                                   <StructuredDeliverablePanel deliverable={d} sponsorId={sponsorId} eventId={eventId} />

@@ -3,10 +3,13 @@ import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bookmark, CalendarDays, Clock, MapPin, Download, Trash2,
-  Building2, Calendar, ListChecks,
+  Building2, Calendar, ListChecks, ChevronDown, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
 import SessionDetailSheet, { type AgendaSessionDetail } from "@/components/attendee/SessionDetailSheet";
 import { useAttendeeAuth } from "@/hooks/use-attendee-auth";
@@ -56,6 +59,13 @@ function formatSingleTime(t: string) {
   if (!t || t === "00:00") return "";
   const [h, m] = t.split(":").map(Number);
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+}
+function buildGoogleCalendarUrl(title: string, date: string, start: string, end: string, location?: string | null, description?: string | null) {
+  const fmtDt = (d: string, t: string) => d.replace(/-/g, "") + "T" + t.replace(/:/g, "") + "00";
+  const params = new URLSearchParams({ action: "TEMPLATE", text: title, dates: `${fmtDt(date, start)}/${fmtDt(date, end)}` });
+  if (location) params.set("location", location);
+  if (description) params.set("details", description.substring(0, 500));
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 // Detect overlap between a session and confirmed meetings (simple start-time check)
@@ -140,9 +150,45 @@ function MyAgendaTab({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={() => onAddToCalendar(session.id)} data-testid={`button-calendar-${session.id}`}>
-                        <CalendarDays className="h-3 w-3" /> Add to Calendar
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" data-testid={`button-calendar-${session.id}`}>
+                            <CalendarDays className="h-3 w-3" /> Add to Calendar <ChevronDown className="h-3 w-3 opacity-60" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-52">
+                          <DropdownMenuItem asChild>
+                            <a
+                              href={`/api/agenda-sessions/${session.id}/ics`}
+                              download
+                              className="flex items-center gap-2 cursor-pointer"
+                              data-testid={`link-ics-myagenda-${session.id}`}
+                            >
+                              <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                              Download .ics
+                            </a>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <a
+                              href={buildGoogleCalendarUrl(
+                                session.title,
+                                session.sessionDate,
+                                session.startTime,
+                                session.endTime,
+                                [session.locationName, session.locationDetails].filter(Boolean).join(" - "),
+                                session.description,
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 cursor-pointer"
+                              data-testid={`link-gcal-myagenda-${session.id}`}
+                            >
+                              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                              Add to Google Calendar
+                            </a>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={isRemoving} onClick={() => unsaveSession(session.id)} data-testid={`button-remove-${session.id}`}>
                         <Trash2 className="h-3 w-3" /> Remove
                       </Button>

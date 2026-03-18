@@ -1,9 +1,12 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, MapPin, Clock, Bookmark, Users, ChevronDown, Sparkles } from "lucide-react";
+import { CalendarDays, MapPin, Clock, Bookmark, Users, ChevronDown, Sparkles, Download, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
 import SessionDetailSheet, { type AgendaSessionDetail } from "@/components/attendee/SessionDetailSheet";
 import { useAttendeeAuth } from "@/hooks/use-attendee-auth";
@@ -31,6 +34,13 @@ function formatDateShort(d: string) {
 function formatTimeRange(s: string, e: string) {
   const fmt = (t: string) => { const [h, m] = t.split(":").map(Number); return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`; };
   return `${fmt(s)} – ${fmt(e)}`;
+}
+function buildGoogleCalendarUrl(title: string, date: string, start: string, end: string, location?: string | null, description?: string | null) {
+  const fmtDt = (d: string, t: string) => d.replace(/-/g, "") + "T" + t.replace(/:/g, "") + "00";
+  const params = new URLSearchParams({ action: "TEMPLATE", text: title, dates: `${fmtDt(date, start)}/${fmtDt(date, end)}` });
+  if (location) params.set("location", location);
+  if (description) params.set("details", description.substring(0, 500));
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 // ── Session Card ──────────────────────────────────────────────────────────────
@@ -89,17 +99,59 @@ function SessionCard({ session, saved, onSave, onUnsave, onView, isSaving, isRec
             </p>
           )}
         </div>
-        <Button
-          variant={saved ? "secondary" : "outline"}
-          size="sm"
-          className="h-8 shrink-0 gap-1.5 text-xs"
-          disabled={isSaving}
-          data-testid={`button-save-agenda-${session.id}`}
-          onClick={saved ? onUnsave : onSave}
-        >
-          <Bookmark className={`h-3.5 w-3.5 ${saved ? "fill-current" : ""}`} />
-          {saved ? "Saved" : "Save"}
-        </Button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs px-2.5" data-testid={`button-calendar-dropdown-${session.id}`}>
+                <CalendarDays className="h-3.5 w-3.5" />
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem asChild>
+                <a
+                  href={`/api/agenda-sessions/${session.id}/ics`}
+                  download
+                  className="flex items-center gap-2 cursor-pointer"
+                  data-testid={`link-ics-${session.id}`}
+                >
+                  <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                  Download .ics
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a
+                  href={buildGoogleCalendarUrl(
+                    session.title,
+                    session.sessionDate,
+                    session.startTime,
+                    session.endTime,
+                    [session.locationName, session.locationDetails].filter(Boolean).join(" - "),
+                    session.description,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 cursor-pointer"
+                  data-testid={`link-gcal-${session.id}`}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                  Add to Google Calendar
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant={saved ? "secondary" : "outline"}
+            size="sm"
+            className="h-8 shrink-0 gap-1.5 text-xs"
+            disabled={isSaving}
+            data-testid={`button-save-agenda-${session.id}`}
+            onClick={saved ? onUnsave : onSave}
+          >
+            <Bookmark className={`h-3.5 w-3.5 ${saved ? "fill-current" : ""}`} />
+            {saved ? "Saved" : "Save"}
+          </Button>
+        </div>
       </div>
     </div>
   );

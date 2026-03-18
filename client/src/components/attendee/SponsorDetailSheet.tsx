@@ -19,6 +19,9 @@ export interface SponsorDetail {
   overlapScore: number;
   overlapTopicLabels: string[];
   topicLabels: { id: string; label: string }[];
+  onsiteMeetingEnabled?: boolean;
+  onlineMeetingEnabled?: boolean;
+  informationRequestEnabled?: boolean;
 }
 
 interface SponsorDetailSheetProps {

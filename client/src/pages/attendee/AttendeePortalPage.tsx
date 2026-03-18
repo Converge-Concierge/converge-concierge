@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Star, ChevronRight, CheckCircle2, Hexagon,
-  CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail, Bell,
+  CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail, Bell, Video,
   Lightbulb, Sparkles, MapPin, Clock, AlertCircle, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,9 @@ interface RecommendedSession {
   overlapTopicLabels: string[]; speakers?: { name: string; title?: string | null }[];
 }
 interface RecommendedSponsor {
-  id: string; name: string; category: string | null; logoUrl: string | null;
-  shortDescription?: string | null; overlapScore: number; overlapTopicLabels: string[];
+  id: string; name: string; level: string | null; category: string | null; logoUrl: string | null;
+  shortDescription?: string | null; websiteUrl?: string | null; overlapScore: number; overlapTopicLabels: string[];
+  onsiteMeetingEnabled: boolean; onlineMeetingEnabled: boolean; informationRequestEnabled: boolean;
 }
 
 interface SponsorInteractions {
@@ -775,41 +776,71 @@ function Dashboard({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="sponsors-list">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="sponsors-list">
             {sponsors.map((sponsor) => {
               const acting = isActingOnSponsor === sponsor.id;
               return (
                 <div key={sponsor.id} className="bg-card border border-border/60 rounded-2xl p-4 flex flex-col gap-3" data-testid={`card-sponsor-${sponsor.id}`}>
-                  <div className="flex items-start gap-3">
+                  {/* Header: logo + level */}
+                  <div className="flex items-start justify-between gap-2">
                     {sponsor.logoUrl
-                      ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-10 w-10 rounded-xl object-contain shrink-0 border border-border/40 bg-white p-1" />
-                      : <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0" style={acBg}><Building2 className="h-5 w-5 text-primary" style={acColor} /></div>
+                      ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-12 w-12 rounded-xl object-contain shrink-0 border border-border/40 bg-white p-1" />
+                      : <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0" style={acBg}><Building2 className="h-6 w-6 text-primary" style={acColor} /></div>
                     }
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-foreground truncate">{sponsor.name}</p>
-                      {sponsor.category && <p className="text-xs text-muted-foreground">{sponsor.category}</p>}
-                      {sponsor.shortDescription && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{sponsor.shortDescription}</p>}
-                      <RelevanceLabel labels={sponsor.overlapTopicLabels} />
-                    </div>
+                    {sponsor.level && (
+                      <Badge variant="secondary" className="rounded-full text-[10px] shrink-0 font-semibold">{sponsor.level}</Badge>
+                    )}
                   </div>
-                  <div className="space-y-1.5 pt-1 border-t border-border/40">
-                    <button
-                      className="w-full py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-                      style={acColor ? { backgroundColor: ac ?? undefined, color: "#fff" } : undefined}
-                      disabled={acting}
-                      onClick={() => onRequestMeeting(sponsor.id)}
-                      data-testid={`button-schedule-meeting-${sponsor.id}`}
-                    >
-                      <Calendar className="h-3 w-3" /> Schedule Meeting
-                    </button>
-                    <button
-                      className="w-full py-1 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground bg-transparent hover:bg-muted/50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
-                      disabled={acting}
-                      onClick={() => onRequestInfo(sponsor.id)}
-                      data-testid={`button-request-info-${sponsor.id}`}
-                    >
-                      <Mail className="h-3 w-3" /> Request Information
-                    </button>
+                  {/* Info */}
+                  <div className="space-y-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground leading-snug">{sponsor.name}</p>
+                    {sponsor.shortDescription && <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{sponsor.shortDescription}</p>}
+                    {sponsor.overlapTopicLabels.length > 0 && (
+                      <div className="flex items-center gap-1 pt-0.5">
+                        <Sparkles className="h-3 w-3 text-primary shrink-0" style={acColor} />
+                        <p className="text-xs text-primary font-medium truncate" style={acColor}>{sponsor.overlapTopicLabels.join(", ")}</p>
+                      </div>
+                    )}
+                    {sponsor.websiteUrl && (
+                      <a href={sponsor.websiteUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline" style={acColor}
+                        data-testid={`link-view-profile-${sponsor.id}`}>
+                        <ExternalLink className="h-3 w-3" /> View Profile
+                      </a>
+                    )}
+                  </div>
+                  {/* Actions */}
+                  <div className="space-y-1.5 pt-2 border-t border-border/40">
+                    {sponsor.onsiteMeetingEnabled && (
+                      <button
+                        className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 bg-foreground text-background hover:bg-foreground/90"
+                        disabled={acting}
+                        onClick={() => onRequestMeeting(sponsor.id)}
+                        data-testid={`button-onsite-meeting-${sponsor.id}`}
+                      >
+                        <Calendar className="h-3.5 w-3.5" /> Schedule Onsite Meeting
+                      </button>
+                    )}
+                    {sponsor.onlineMeetingEnabled && (
+                      <button
+                        className="w-full py-2 rounded-xl text-xs font-semibold border border-border/60 bg-transparent text-foreground hover:bg-muted/50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                        disabled={acting}
+                        onClick={() => onRequestMeeting(sponsor.id)}
+                        data-testid={`button-online-meeting-${sponsor.id}`}
+                      >
+                        <Video className="h-3.5 w-3.5" /> Online Meeting
+                      </button>
+                    )}
+                    {sponsor.informationRequestEnabled && (
+                      <button
+                        className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                        disabled={acting}
+                        onClick={() => onRequestInfo(sponsor.id)}
+                        data-testid={`button-request-info-${sponsor.id}`}
+                      >
+                        Request Information
+                      </button>
+                    )}
                   </div>
                 </div>
               );

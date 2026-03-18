@@ -1,9 +1,8 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Search, Sparkles, Calendar, Mail, ChevronRight } from "lucide-react";
+import { Building2, Search, Sparkles, Calendar, Video, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
 import SponsorDetailSheet, { type SponsorDetail } from "@/components/attendee/SponsorDetailSheet";
 import { useAttendeeAuth } from "@/hooks/use-attendee-auth";
@@ -17,137 +16,120 @@ interface InteractionMap {
 interface RecommendedSponsor {
   id: string;
   name: string;
+  level: string | null;
   logoUrl: string | null;
   category: string | null;
   shortDescription: string | null;
+  websiteUrl: string | null;
   overlapTopicLabels: string[];
+  onsiteMeetingEnabled: boolean;
+  onlineMeetingEnabled: boolean;
+  informationRequestEnabled: boolean;
 }
 
-const LEVEL_ORDER = ["Platinum", "Gold", "Silver", "Bronze"];
+// ── Shared sponsor card (used for both all-sponsors and recommended) ───────────
 
 function SponsorCard({
   sponsor, onView, onRequestMeeting, onRequestInfo, isActing,
+  showViewProfile = true,
 }: {
-  sponsor: SponsorDetail;
-  onView: () => void;
+  sponsor: SponsorDetail | RecommendedSponsor;
+  onView?: () => void;
   onRequestMeeting: () => void;
   onRequestInfo: () => void;
   isActing: boolean;
+  showViewProfile?: boolean;
 }) {
+  const hasActions = sponsor.onsiteMeetingEnabled || sponsor.onlineMeetingEnabled || sponsor.informationRequestEnabled;
   return (
-    <div className="bg-card border border-border/60 rounded-xl p-4 flex flex-col gap-3" data-testid={`card-sponsor-${sponsor.id}`}>
-      <div className="flex items-start gap-3">
+    <div className="bg-card border border-border/60 rounded-2xl p-4 flex flex-col gap-3" data-testid={`card-sponsor-${sponsor.id}`}>
+      {/* Logo + level badge */}
+      <div className="flex items-start justify-between gap-2">
         {sponsor.logoUrl
-          ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-12 w-12 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-1" />
-          : <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-6 w-6 text-primary" /></div>
+          ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-12 w-12 rounded-xl object-contain shrink-0 border border-border/40 bg-white p-1" />
+          : <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-6 w-6 text-primary" /></div>
         }
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-1">
-            <p className="font-semibold text-foreground text-sm leading-snug" data-testid={`text-sponsor-name-${sponsor.id}`}>{sponsor.name}</p>
-            {sponsor.level && (
-              <Badge variant="outline" className="text-[10px] shrink-0 rounded-full">{sponsor.level}</Badge>
-            )}
+        {sponsor.level && (
+          <Badge variant="secondary" className="rounded-full text-[10px] shrink-0 font-semibold px-2.5">
+            {sponsor.level}
+          </Badge>
+        )}
+      </div>
+
+      {/* Name, description, relevance, view profile */}
+      <div className="space-y-1 min-w-0">
+        <p className="font-bold text-sm text-foreground leading-snug" data-testid={`text-sponsor-name-${sponsor.id}`}>{sponsor.name}</p>
+        {sponsor.shortDescription && (
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{sponsor.shortDescription}</p>
+        )}
+        {sponsor.overlapTopicLabels.length > 0 && (
+          <div className="flex items-center gap-1 pt-0.5">
+            <Sparkles className="h-3 w-3 text-primary shrink-0" />
+            <p className="text-xs text-primary font-medium truncate">{sponsor.overlapTopicLabels.join(", ")}</p>
           </div>
-          {sponsor.shortDescription && (
-            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{sponsor.shortDescription}</p>
+        )}
+        {showViewProfile && sponsor.websiteUrl && (
+          <a
+            href={sponsor.websiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-primary hover:underline"
+            data-testid={`link-view-profile-${sponsor.id}`}
+          >
+            <ExternalLink className="h-3 w-3" /> View Profile
+          </a>
+        )}
+        {showViewProfile && !sponsor.websiteUrl && onView && (
+          <button
+            onClick={onView}
+            className="flex items-center gap-1 text-xs text-primary hover:underline"
+            data-testid={`button-view-sponsor-${sponsor.id}`}
+          >
+            <ExternalLink className="h-3 w-3" /> View Profile
+          </button>
+        )}
+      </div>
+
+      {/* Action buttons */}
+      {hasActions && (
+        <div className="space-y-1.5 pt-2 border-t border-border/40">
+          {sponsor.onsiteMeetingEnabled && (
+            <button
+              className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50"
+              disabled={isActing}
+              onClick={onRequestMeeting}
+              data-testid={`button-onsite-meeting-${sponsor.id}`}
+            >
+              <Calendar className="h-3.5 w-3.5" /> Schedule Onsite Meeting
+            </button>
+          )}
+          {sponsor.onlineMeetingEnabled && (
+            <button
+              className="w-full py-2 rounded-xl text-xs font-semibold border border-border/60 bg-transparent text-foreground hover:bg-muted/50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
+              disabled={isActing}
+              onClick={onRequestMeeting}
+              data-testid={`button-online-meeting-${sponsor.id}`}
+            >
+              <Video className="h-3.5 w-3.5" /> Online Meeting
+            </button>
+          )}
+          {sponsor.informationRequestEnabled && (
+            <button
+              className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center disabled:opacity-50"
+              disabled={isActing}
+              onClick={onRequestInfo}
+              data-testid={`button-request-info-${sponsor.id}`}
+            >
+              Request Information
+            </button>
           )}
         </div>
-      </div>
-
-      {sponsor.overlapTopicLabels.length > 0 && (
-        <div className="flex items-start gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-          <p className="text-xs text-primary font-medium leading-snug">
-            Relevant: {sponsor.overlapTopicLabels.join(", ")}
-          </p>
-        </div>
       )}
-
-      <div className="space-y-1.5 pt-1 border-t border-border/40">
-        <div className="flex items-center gap-2 mb-1">
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 px-2" onClick={onView} data-testid={`button-view-sponsor-${sponsor.id}`}>
-            View <ChevronRight className="h-3 w-3" />
-          </Button>
-        </div>
-        <Button
-          variant="default"
-          size="sm"
-          className="w-full h-8 text-xs gap-1.5 font-semibold"
-          disabled={isActing}
-          onClick={onRequestMeeting}
-          data-testid={`button-schedule-meeting-${sponsor.id}`}
-        >
-          <Calendar className="h-3.5 w-3.5" /> Schedule Meeting
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full h-8 text-xs gap-1.5"
-          disabled={isActing}
-          onClick={onRequestInfo}
-          data-testid={`button-request-info-${sponsor.id}`}
-        >
-          <Mail className="h-3.5 w-3.5" /> Request Information
-        </Button>
-      </div>
     </div>
   );
 }
 
-function RecommendedSponsorCard({
-  sponsor, onRequestMeeting, onRequestInfo, isActing,
-}: {
-  sponsor: RecommendedSponsor;
-  onRequestMeeting: () => void;
-  onRequestInfo: () => void;
-  isActing: boolean;
-}) {
-  return (
-    <div className="bg-card border border-primary/20 rounded-xl p-4 flex flex-col gap-3" data-testid={`card-rec-sponsor-${sponsor.id}`}>
-      <div className="flex items-start gap-3">
-        {sponsor.logoUrl
-          ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-10 w-10 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-1" />
-          : <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-5 w-5 text-primary" /></div>
-        }
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-foreground text-sm leading-snug">{sponsor.name}</p>
-          {sponsor.category && <p className="text-xs text-muted-foreground">{sponsor.category}</p>}
-          {sponsor.shortDescription && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{sponsor.shortDescription}</p>}
-        </div>
-      </div>
-      {sponsor.overlapTopicLabels.length > 0 && (
-        <div className="flex items-start gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-          <p className="text-xs text-primary font-medium leading-snug">
-            Relevant: {sponsor.overlapTopicLabels.join(", ")}
-          </p>
-        </div>
-      )}
-      <div className="space-y-1.5 pt-1 border-t border-border/40">
-        <Button
-          variant="default"
-          size="sm"
-          className="w-full h-8 text-xs gap-1.5 font-semibold"
-          disabled={isActing}
-          onClick={onRequestMeeting}
-          data-testid={`button-schedule-meeting-rec-${sponsor.id}`}
-        >
-          <Calendar className="h-3.5 w-3.5" /> Schedule Meeting
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full h-8 text-xs gap-1.5"
-          disabled={isActing}
-          onClick={onRequestInfo}
-          data-testid={`button-request-info-rec-${sponsor.id}`}
-        >
-          <Mail className="h-3.5 w-3.5" /> Request Information
-        </Button>
-      </div>
-    </div>
-  );
-}
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AttendeeSponsorsPage() {
   const { token, headers, meQuery, logout } = useAttendeeAuth();
@@ -251,7 +233,7 @@ export default function AttendeeSponsorsPage() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="recommended-sponsors-grid">
               {recommended.map((sponsor) => (
-                <RecommendedSponsorCard
+                <SponsorCard
                   key={sponsor.id}
                   sponsor={sponsor}
                   onRequestMeeting={() => requestMeetingMutation.mutate(sponsor.id)}
@@ -267,7 +249,6 @@ export default function AttendeeSponsorsPage() {
         <div>
           <h2 className="text-sm font-semibold text-foreground mb-4">All Sponsors</h2>
 
-          {/* Search + filters */}
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />

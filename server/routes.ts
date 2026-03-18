@@ -7326,15 +7326,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       .filter((s) => s.overlap > 0 || attendeeTopicIds.size === 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 5)
-      .map(({ sponsor, overlap, overlapping }) => ({
-        id: sponsor.id,
-        name: sponsor.name,
-        category: sponsor.category,
-        logoUrl: sponsor.logoUrl,
-        shortDescription: sponsor.shortDescription,
-        overlapScore: overlap,
-        overlapTopicLabels: overlapping.map((t) => topicLabelMap.get(t.topicId) ?? "").filter(Boolean),
-      }));
+      .map(({ sponsor, overlap, overlapping }) => {
+        const eventLink = (sponsor.assignedEvents ?? []).find((link: any) => link.eventId === tokenRecord.eventId);
+        return {
+          id: sponsor.id,
+          name: sponsor.name,
+          level: sponsor.level ?? null,
+          category: sponsor.category ?? null,
+          logoUrl: sponsor.logoUrl ?? null,
+          shortDescription: sponsor.shortDescription ?? null,
+          websiteUrl: sponsor.websiteUrl ?? null,
+          overlapScore: overlap,
+          overlapTopicLabels: overlapping.map((t) => topicLabelMap.get(t.topicId) ?? "").filter(Boolean),
+          onsiteMeetingEnabled: eventLink?.onsiteMeetingEnabled ?? false,
+          onlineMeetingEnabled: eventLink?.onlineMeetingEnabled ?? false,
+          informationRequestEnabled: eventLink?.informationRequestEnabled ?? false,
+        };
+      });
 
     return res.json(results);
   });
@@ -7493,6 +7501,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       eventSponsors.map(async (sponsor) => {
         const sponsorTopics = await storage.getSponsorTopics(sponsor.id, tokenRecord.eventId);
         const overlapTopics = sponsorTopics.filter((t) => attendeeTopicIds.has(t.topicId));
+        const eventLink = (sponsor.assignedEvents ?? []).find((link: any) => link.eventId === tokenRecord.eventId);
         return {
           id: sponsor.id,
           name: sponsor.name,
@@ -7506,6 +7515,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           overlapTopicLabels: overlapTopics.map((t) => topicLabelMap.get(t.topicId) ?? "").filter(Boolean),
           topicIds: sponsorTopics.map((t) => t.topicId),
           topicLabels: sponsorTopics.map((t) => ({ id: t.topicId, label: topicLabelMap.get(t.topicId) ?? "" })),
+          onsiteMeetingEnabled: eventLink?.onsiteMeetingEnabled ?? false,
+          onlineMeetingEnabled: eventLink?.onlineMeetingEnabled ?? false,
+          informationRequestEnabled: eventLink?.informationRequestEnabled ?? false,
         };
       })
     );

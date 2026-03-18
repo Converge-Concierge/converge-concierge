@@ -180,10 +180,22 @@ export default function SponsorProfilePage() {
           {/* CTA block — second position, right below the name card */}
           {slug && (
             <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
-              <h2 className="text-sm font-semibold text-foreground mb-1">
-                Meeting with {sponsor.name}{event ? ` at ${event.name}` : ""}
-              </h2>
-              <p className="text-xs text-muted-foreground mb-4">Schedule a 30-minute 1-on-1 meeting at the event, or request an online call.</p>
+              <div className="flex items-center gap-3 mb-4">
+                {event?.logoUrl && (
+                  <img
+                    src={event.logoUrl}
+                    alt={event.name}
+                    className="h-10 w-10 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-1"
+                    data-testid="img-event-logo-cta"
+                  />
+                )}
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground leading-snug">
+                    Meeting with {sponsor.name}{event ? ` at ${event.name}` : ""}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Schedule a 30-minute 1-on-1 meeting at the event, or request an online call.</p>
+                </div>
+              </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   onClick={() => nav(`/event/${slug}?sponsor=${sponsor.id}&mode=onsite`)}

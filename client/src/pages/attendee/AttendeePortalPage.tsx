@@ -714,50 +714,78 @@ function Dashboard({
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
 
-      {/* ── Event Hero Card ─────────────────────────────────────────────── */}
-      <div className="bg-card border border-border/60 rounded-2xl overflow-hidden shadow-sm" data-testid="section-event-hero">
-        {/* Branded top band */}
-        <div className="border-b border-border/40 px-6 pt-6 pb-5 bg-primary/5" style={acBgXl}>
-          <div className="flex items-center gap-4 mb-3">
-            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0" style={acBg}>
-              <Hexagon className="h-6 w-6 text-primary" style={acColor} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5" style={acColor}>Concierge Dashboard</p>
-              <p className="font-display font-bold text-lg text-foreground leading-tight truncate" data-testid="text-event-name">{me.event.name}</p>
-            </div>
+      {/* ── Event Header Card ───────────────────────────────────────────── */}
+      <div className="bg-card border border-border/60 rounded-2xl p-5 shadow-sm flex items-center gap-5" data-testid="section-event-hero">
+        {/* Event Logo */}
+        {me.event.logoUrl ? (
+          <img
+            src={me.event.logoUrl}
+            alt={me.event.name}
+            className="h-[84px] w-[84px] rounded-xl object-contain border border-border/40 bg-white shrink-0 p-1.5"
+            data-testid="img-event-logo"
+          />
+        ) : (
+          <div
+            className="h-[84px] w-[84px] rounded-xl shrink-0 flex items-center justify-center border border-border/40"
+            style={acBg ?? { backgroundColor: "hsl(var(--primary) / 0.08)" }}
+          >
+            <Hexagon className="h-9 w-9 text-primary" style={acColor} />
           </div>
+        )}
+
+        {/* Event Info */}
+        <div className="flex-1 min-w-0">
+          {me.onboarding.isDone && (
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-xs font-medium mb-2 dark:bg-green-950/30 dark:border-green-800 dark:text-green-400" data-testid="badge-setup-complete">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Setup Complete
+            </div>
+          )}
+          <h1 className="font-display font-bold text-xl text-foreground leading-tight mb-2" data-testid="text-event-name">
+            {me.event.name}
+          </h1>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             {eventDateStr && (
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <CalendarDays className="h-3.5 w-3.5 shrink-0 text-primary/60" style={ac ? { color: `${ac}99` } : undefined} />{eventDateStr}
+                <CalendarDays className="h-3.5 w-3.5 shrink-0" /> {eventDateStr}
               </span>
             )}
             {me.event.location && (
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-primary/60" style={ac ? { color: `${ac}99` } : undefined} />{me.event.location}
+                <MapPin className="h-3.5 w-3.5 shrink-0" /> {me.event.location}
               </span>
+            )}
+            {me.event.websiteUrl && (
+              <a
+                href={me.event.websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-sm font-medium hover:underline transition-colors"
+                style={acColor ?? { color: "hsl(var(--primary))" }}
+                data-testid="link-event-website"
+              >
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" /> Event Website
+              </a>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Greeting + Stats */}
-        <div className="px-6 py-5">
-          <p className="text-sm text-muted-foreground mb-5" data-testid="text-greeting">
-            Welcome back, <span className="font-semibold text-foreground">{me.attendee.firstName || me.attendee.name}</span>.{" "}
-            Your personalised event dashboard is ready.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { value: savedSessionIds.size, label: "Sessions Saved", testId: "stat-sessions-saved" },
-              { value: meetingsScheduledCount, label: "Meetings Scheduled", testId: "stat-meetings-scheduled" },
-            ].map(({ value, label, testId }) => (
-              <div key={label} className="bg-background border border-border/60 rounded-xl p-3 text-center" data-testid={testId}>
-                <p className="text-2xl font-display font-bold text-primary leading-none mb-1" style={acColor}>{value}</p>
-                <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
-              </div>
-            ))}
-          </div>
+      {/* ── Greeting + Stats ────────────────────────────────────────────── */}
+      <div className="bg-card border border-border/60 rounded-2xl px-5 py-4 shadow-sm">
+        <p className="text-sm text-muted-foreground mb-4" data-testid="text-greeting">
+          Welcome back, <span className="font-semibold text-foreground">{me.attendee.firstName || me.attendee.name}</span>.{" "}
+          Your personalised event dashboard is ready.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { value: savedSessionIds.size, label: "Sessions Saved", testId: "stat-sessions-saved" },
+            { value: meetingsScheduledCount, label: "Meetings Scheduled", testId: "stat-meetings-scheduled" },
+          ].map(({ value, label, testId }) => (
+            <div key={label} className="bg-background border border-border/60 rounded-xl p-3 text-center" data-testid={testId}>
+              <p className="text-2xl font-display font-bold text-primary leading-none mb-1" style={acColor}>{value}</p>
+              <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+            </div>
+          ))}
         </div>
       </div>
 

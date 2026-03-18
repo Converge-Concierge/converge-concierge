@@ -7182,7 +7182,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!attendee || !event) return res.status(404).json({ message: "Attendee or event not found" });
     return res.json({
       attendee: { id: attendee.id, firstName: attendee.firstName, lastName: attendee.lastName, name: attendee.name, company: attendee.company, title: attendee.title, email: attendee.email },
-      event: { id: event.id, slug: event.slug, name: event.name, startDate: event.startDate, endDate: event.endDate, location: event.location, registrationUrl: event.registrationUrl ?? null, websiteUrl: event.websiteUrl ?? null, buttonColor: event.buttonColor ?? null, accentColor: event.accentColor ?? null, meetingLocations: (event.meetingLocations ?? []).map((l: any) => ({ id: l.id, name: l.name, allowedSponsorLevels: l.allowedSponsorLevels ?? [] })) },
+      event: { id: event.id, slug: event.slug, name: event.name, startDate: event.startDate, endDate: event.endDate, location: event.location, registrationUrl: event.registrationUrl ?? null, websiteUrl: event.websiteUrl ?? null, logoUrl: event.logoUrl ?? null, buttonColor: event.buttonColor ?? null, accentColor: event.accentColor ?? null, meetingLocations: (event.meetingLocations ?? []).map((l: any) => ({ id: l.id, name: l.name, allowedSponsorLevels: l.allowedSponsorLevels ?? [] })) },
       onboarding: {
         completedAt: tokenRecord.onboardingCompletedAt,
         skippedAt: tokenRecord.onboardingSkippedAt,

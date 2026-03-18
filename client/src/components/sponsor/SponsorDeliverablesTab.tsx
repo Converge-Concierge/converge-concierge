@@ -24,6 +24,7 @@ interface Registrant {
   lastName: string | null;
   title: string | null;
   email: string | null;
+  attendeeId: string | null;
   conciergeRole: string | null;
   registrationStatus: string | null;
 }
@@ -847,7 +848,36 @@ function RegistrationsInfoPanel({
         </div>
       )}
 
-      {!deliverable.registrationAccessCode && !deliverable.registrationInstructions && !pdfFile && total === 0 && (
+      {/* Assigned attendees list — visible to sponsor when admin has assigned them */}
+      {deliverable.registrants.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Registered Attendees</p>
+          <div className="space-y-1">
+            {deliverable.registrants.map((r) => (
+              <div key={r.id} className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 py-2 text-sm" data-testid={`reg-attendee-row-${r.id}`}>
+                <div className="h-6 w-6 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                  {(r.name || "?")[0].toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground truncate">{r.name}</p>
+                  {(r.title || r.email) && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {[r.title, r.email].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </div>
+                {r.registrationStatus && r.registrationStatus !== "Unknown" && (
+                  <span className="text-[10px] bg-green-100 text-green-700 rounded-full px-2 py-0.5 shrink-0 font-medium">
+                    {r.registrationStatus}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!deliverable.registrationAccessCode && !deliverable.registrationInstructions && !pdfFile && total === 0 && deliverable.registrants.length === 0 && (
         <p className="text-xs text-muted-foreground italic">Registration details have not been configured yet. Check back later.</p>
       )}
     </div>

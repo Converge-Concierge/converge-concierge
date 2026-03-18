@@ -7182,7 +7182,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!attendee || !event) return res.status(404).json({ message: "Attendee or event not found" });
     return res.json({
       attendee: { id: attendee.id, firstName: attendee.firstName, lastName: attendee.lastName, name: attendee.name, company: attendee.company, title: attendee.title, email: attendee.email },
-      event: { id: event.id, slug: event.slug, name: event.name, startDate: event.startDate, endDate: event.endDate, location: event.location, registrationUrl: event.registrationUrl ?? null, websiteUrl: event.websiteUrl ?? null, buttonColor: event.buttonColor ?? null, accentColor: event.accentColor ?? null },
+      event: { id: event.id, slug: event.slug, name: event.name, startDate: event.startDate, endDate: event.endDate, location: event.location, registrationUrl: event.registrationUrl ?? null, websiteUrl: event.websiteUrl ?? null, buttonColor: event.buttonColor ?? null, accentColor: event.accentColor ?? null, meetingLocations: (event.meetingLocations ?? []).map((l: any) => ({ id: l.id, name: l.name, allowedSponsorLevels: l.allowedSponsorLevels ?? [] })) },
       onboarding: {
         completedAt: tokenRecord.onboardingCompletedAt,
         skippedAt: tokenRecord.onboardingSkippedAt,
@@ -7573,7 +7573,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
     const { tokenRecord } = validation;
 
-    const { sponsorId, requestType, date, time, platform, firstName, lastName, email, company, title } =
+    const { sponsorId, requestType, date, time, platform, firstName, lastName, email, company, title, locationName } =
       req.body as {
         sponsorId: string;
         requestType?: "onsite" | "online";
@@ -7585,6 +7585,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         email?: string;
         company?: string;
         title?: string;
+        locationName?: string;
       };
     if (!sponsorId) return res.status(400).json({ message: "sponsorId required" });
 
@@ -7615,7 +7616,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       status: "Pending",
       date: date ?? today,
       time: time ?? "09:00",
-      location: requestType === "onsite" ? "TBD" : (platformLabel ?? "Online"),
+      location: requestType === "onsite" ? (locationName ?? "TBD") : (platformLabel ?? "Online"),
       source: "public",
     });
 

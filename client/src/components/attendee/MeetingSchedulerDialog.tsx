@@ -13,6 +13,12 @@ import { useToast } from "@/hooks/use-toast";
 
 type Mode = "onsite" | "online";
 
+interface MeetingLocation {
+  id: string;
+  name: string;
+  allowedSponsorLevels: string[];
+}
+
 interface AttendeeMe {
   attendee: {
     firstName: string;
@@ -29,6 +35,7 @@ interface AttendeeMe {
     endDate: string;
     buttonColor?: string | null;
     accentColor?: string | null;
+    meetingLocations?: MeetingLocation[];
   };
 }
 
@@ -144,6 +151,7 @@ export default function MeetingSchedulerDialog({
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedPlatform, setSelectedPlatform] = useState<string>("");
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [info, setInfo] = useState({
     firstName: me.attendee.firstName ?? "",
     lastName: me.attendee.lastName ?? "",
@@ -170,6 +178,7 @@ export default function MeetingSchedulerDialog({
           date: selectedDate,
           time: selectedTime ? timeToHHMM(selectedTime) : "09:00",
           platform: selectedPlatform || undefined,
+          locationName: selectedLocation || undefined,
           firstName: info.firstName,
           lastName: info.lastName,
           email: info.email,
@@ -193,6 +202,7 @@ export default function MeetingSchedulerDialog({
     setSelectedDate("");
     setSelectedTime("");
     setSelectedPlatform("");
+    setSelectedLocation("");
     onClose();
   }
 
@@ -353,8 +363,38 @@ export default function MeetingSchedulerDialog({
   }
 
   function renderInfoStep() {
+    const locations = mode === "onsite" ? (me.event.meetingLocations ?? []) : [];
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
+        {locations.length > 0 && (
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Meeting Location</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">Choose your preferred onsite meeting spot.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {locations.map((loc) => {
+                const isSelected = selectedLocation === loc.name;
+                return (
+                  <button
+                    key={loc.id}
+                    onClick={() => setSelectedLocation(isSelected ? "" : loc.name)}
+                    data-testid={`location-${loc.id}`}
+                    className={cn(
+                      "px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all",
+                      isSelected
+                        ? "bg-foreground border-foreground text-background"
+                        : "bg-card border-border hover:border-foreground/40 text-foreground"
+                    )}
+                    style={isSelected && ac ? { backgroundColor: ac, borderColor: ac } : undefined}
+                  >
+                    {loc.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div>
           <h2 className="text-2xl font-bold text-foreground">Your Information</h2>
           <p className="text-sm text-muted-foreground mt-1">Confirm your details so the sponsor can reach you.</p>
@@ -431,6 +471,7 @@ export default function MeetingSchedulerDialog({
           <Row label="Date" value={formattedDate} />
           <Row label="Time" value={selectedTime || "—"} />
           {mode === "online" && platformLabel && <Row label="Platform" value={platformLabel} />}
+          {mode === "onsite" && selectedLocation && <Row label="Location" value={selectedLocation} />}
           <Row label="Name" value={`${info.firstName} ${info.lastName}`} />
           <Row label="Email" value={info.email} />
           {info.company && <Row label="Company" value={info.company} />}

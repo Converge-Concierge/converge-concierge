@@ -452,95 +452,48 @@ function emptyEditForm(d?: AgreementDeliverable): EditDeliverableForm {
 
 type SponsorRep = { id: string; name: string; title: string; email: string };
 
-function CompanyRepsCard({ sponsorId, sponsor }: { sponsorId: string; sponsor: { contactName?: string | null; contactEmail?: string | null; repsJson?: string | null } | undefined }) {
-  const { toast } = useToast();
-
-  const parsedReps = (() => {
-    try { return (sponsor?.repsJson ? JSON.parse(sponsor.repsJson) : []) as SponsorRep[]; } catch { return [] as SponsorRep[]; }
+function CompanyRepsCard({ sponsor }: { sponsor: { contactName?: string | null; contactEmail?: string | null; repsJson?: string | null } | undefined }) {
+  const additionalContacts: SponsorRep[] = (() => {
+    try { return (sponsor?.repsJson ? JSON.parse(sponsor.repsJson) : []) as SponsorRep[]; } catch { return []; }
   })();
 
-  const initialReps = parsedReps.length > 0 ? parsedReps
-    : (sponsor?.contactName || sponsor?.contactEmail)
-      ? [{ id: "main", name: sponsor.contactName ?? "", title: "", email: sponsor.contactEmail ?? "" }]
-      : [];
-
-  const [reps, setReps] = useState<SponsorRep[]>(initialReps);
-  const [savingReps, setSavingReps] = useState(false);
-  const [addingRep, setAddingRep] = useState(false);
-  const [newRep, setNewRep] = useState({ name: "", title: "", email: "" });
-
-  const saveReps = async (updatedReps: SponsorRep[]) => {
-    setSavingReps(true);
-    try {
-      await apiRequest("PATCH", `/api/sponsors/${sponsorId}`, { repsJson: JSON.stringify(updatedReps) });
-      setReps(updatedReps);
-      queryClient.invalidateQueries({ queryKey: ["/api/sponsors"] });
-      toast({ title: "Representatives updated" });
-    } catch { toast({ title: "Failed to save", variant: "destructive" }); }
-    finally { setSavingReps(false); }
-  };
-
-  const handleAddRep = () => {
-    if (!newRep.name.trim()) return;
-    const updated = [...reps, { id: crypto.randomUUID(), ...newRep }];
-    setNewRep({ name: "", title: "", email: "" });
-    setAddingRep(false);
-    saveReps(updated);
-  };
-
-  const handleRemoveRep = (id: string) => saveReps(reps.filter(r => r.id !== id));
+  const hasPrimary = !!(sponsor?.contactName || sponsor?.contactEmail);
+  const hasAny = hasPrimary || additionalContacts.length > 0;
 
   return (
     <div className="bg-white border border-border rounded-xl p-5 shadow-sm space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" /> Company Representatives
+          <Users className="h-4 w-4 text-muted-foreground" /> Dashboard Owner(s)
         </h3>
-        {!addingRep && (
-          <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setAddingRep(true)} data-testid="button-add-rep">
-            <Plus className="h-3.5 w-3.5" /> Add Rep
-          </Button>
-        )}
+        <span className="text-[10px] text-muted-foreground italic">Managed in Admin Contacts</span>
       </div>
 
-      {reps.length === 0 && !addingRep && (
-        <p className="text-sm text-muted-foreground">No representatives on file. Click "Add Rep" to add contacts.</p>
+      {!hasAny && (
+        <p className="text-sm text-muted-foreground">No contacts on file. Add contacts via the Admin Contacts form.</p>
       )}
 
       <div className="space-y-2">
-        {reps.map((r, i) => (
-          <div key={r.id} className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2 text-sm">
-            <div className="flex items-center gap-3 min-w-0">
-              {i === 0 && <span className="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5 shrink-0 font-medium">Primary</span>}
-              <div className="min-w-0">
-                <p className="font-medium text-foreground truncate">{r.name || <span className="text-muted-foreground italic">Unnamed</span>}</p>
-                {(r.title || r.email) && (
-                  <p className="text-xs text-muted-foreground truncate">{[r.title, r.email].filter(Boolean).join(" · ")}</p>
-                )}
-              </div>
+        {hasPrimary && (
+          <div className="flex items-center gap-3 bg-muted/30 rounded-lg px-3 py-2 text-sm">
+            <span className="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5 shrink-0 font-medium">Primary</span>
+            <div className="min-w-0">
+              <p className="font-medium text-foreground truncate">{sponsor?.contactName || <span className="italic text-muted-foreground">No name</span>}</p>
+              {sponsor?.contactEmail && <p className="text-xs text-muted-foreground truncate">{sponsor.contactEmail}</p>}
             </div>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0" onClick={() => handleRemoveRep(r.id)} disabled={savingReps} data-testid={`button-remove-rep-${r.id}`}>
-              <X className="h-3.5 w-3.5" />
-            </Button>
+          </div>
+        )}
+        {additionalContacts.map((r) => (
+          <div key={r.id} className="flex items-center gap-3 bg-muted/30 rounded-lg px-3 py-2 text-sm">
+            <div className="min-w-0">
+              <p className="font-medium text-foreground truncate">{r.name || <span className="italic text-muted-foreground">Unnamed</span>}</p>
+              {(r.title || r.email) && (
+                <p className="text-xs text-muted-foreground truncate">{[r.title, r.email].filter(Boolean).join(" · ")}</p>
+              )}
+            </div>
           </div>
         ))}
       </div>
-
-      {addingRep && (
-        <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/20">
-          <div className="grid grid-cols-2 gap-2">
-            <Input placeholder="Full Name *" value={newRep.name} onChange={e => setNewRep(n => ({ ...n, name: e.target.value }))} className="h-8 text-sm col-span-2" data-testid="input-rep-name" />
-            <Input placeholder="Title / Role" value={newRep.title} onChange={e => setNewRep(n => ({ ...n, title: e.target.value }))} className="h-8 text-sm" data-testid="input-rep-title" />
-            <Input placeholder="Email" value={newRep.email} onChange={e => setNewRep(n => ({ ...n, email: e.target.value }))} className="h-8 text-sm" data-testid="input-rep-email" type="email" />
-          </div>
-          <div className="flex gap-2 justify-end">
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setAddingRep(false); setNewRep({ name: "", title: "", email: "" }); }}>Cancel</Button>
-            <Button size="sm" className="h-7 text-xs" disabled={!newRep.name.trim() || savingReps} onClick={handleAddRep} data-testid="button-save-rep">
-              Add Representative
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -848,7 +801,7 @@ export default function SponsorAgreementDetailPage() {
           </div>
 
           {/* Company Profile + Representatives */}
-          <CompanyRepsCard sponsorId={sponsorId ?? ""} sponsor={sponsor} />
+          <CompanyRepsCard sponsor={sponsor} />
 
           {/* Reminder History */}
           <div className="bg-white border border-border rounded-xl p-5 shadow-sm space-y-3">

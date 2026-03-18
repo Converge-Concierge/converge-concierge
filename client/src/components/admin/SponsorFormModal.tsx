@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sponsor, InsertSponsor, Event, EventSponsorLink, SPONSORSHIP_LEVELS, SponsorshipLevel } from "@shared/schema";
-import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Gem, CalendarDays, Send, Clock, Info, Sparkles, Check, Plus, Tag, ChevronRight } from "lucide-react";
+import { Building2, X, ImagePlus, Lock, Globe, Linkedin, Phone, Mail, User, Users, Gem, CalendarDays, Send, Clock, Info, Sparkles, Check, Plus, Tag, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -77,6 +77,11 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
   const [topicsInitialized, setTopicsInitialized] = useState(false);
   const [newTopicInputs, setNewTopicInputs] = useState<Record<string, string>>({});
   const [isSavingTopics, setIsSavingTopics] = useState(false);
+
+  type DashboardContact = { id: string; name: string; title: string; email: string };
+  const [additionalContacts, setAdditionalContacts] = useState<DashboardContact[]>([]);
+  const [addingContact, setAddingContact] = useState(false);
+  const [newContact, setNewContact] = useState({ name: "", title: "", email: "" });
 
   const assignedEventIds = (formData.assignedEvents ?? []).map(ae => ae.eventId);
 
@@ -189,6 +194,8 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
       setTopicsInitialized(false);
       setEditedTopics({});
       setNewTopicInputs({});
+      setAddingContact(false);
+      setNewContact({ name: "", title: "", email: "" });
       if (sponsor) {
         setFormData({
           ...sponsor,
@@ -197,8 +204,12 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
             (ae) => !!ae.sponsorshipLevel && ae.sponsorshipLevel !== "None"
           ),
         });
+        try {
+          setAdditionalContacts(sponsor.repsJson ? JSON.parse(sponsor.repsJson) : []);
+        } catch { setAdditionalContacts([]); }
       } else {
         setFormData({ name: "", logoUrl: "", assignedEvents: [], archiveState: "active", attributes: [] });
+        setAdditionalContacts([]);
       }
     }
   }, [sponsor, isOpen]);
@@ -335,7 +346,10 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
       }
     }
 
-    onSubmit(formData as InsertSponsor);
+    onSubmit({
+      ...formData,
+      repsJson: additionalContacts.length > 0 ? JSON.stringify(additionalContacts) : null,
+    } as InsertSponsor);
   }
 
   const hasLogo = !!formData.logoUrl;
@@ -563,13 +577,87 @@ export function SponsorFormModal({ isOpen, onClose, onSubmit, sponsor, events, i
                   </div>
                 </div>
 
-                <div className="mt-6 p-4 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
-                  <div className="flex items-start gap-2">
-                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                    <p className="text-xs text-blue-700 dark:text-blue-300">
-                      Additional sponsor representatives can be managed from the Sponsor Dashboard once the sponsor is created.
-                    </p>
+                {/* Dashboard Owners */}
+                <div className="mt-2 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" /> Dashboard Owner(s)
+                    </h4>
+                    {!readOnly && !addingContact && (
+                      <Button type="button" size="sm" variant="ghost" className="h-7 text-xs gap-1"
+                        onClick={() => { setAddingContact(true); setNewContact({ name: "", title: "", email: "" }); }}
+                        data-testid="button-add-dashboard-contact">
+                        <Plus className="h-3.5 w-3.5" /> Add Contact
+                      </Button>
+                    )}
                   </div>
+
+                  {/* Primary contact — auto-populated, always listed first */}
+                  {(formData.contactName || formData.contactEmail) && (
+                    <div className="flex items-center gap-3 bg-muted/30 border border-border/50 rounded-lg px-3 py-2 text-sm">
+                      <span className="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5 shrink-0 font-medium">Primary</span>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground truncate">{formData.contactName || <span className="italic text-muted-foreground">No name</span>}</p>
+                        {formData.contactEmail && <p className="text-xs text-muted-foreground truncate">{formData.contactEmail}</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Additional contacts from repsJson */}
+                  {additionalContacts.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between bg-muted/30 border border-border/50 rounded-lg px-3 py-2 text-sm">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate">{c.name || <span className="italic text-muted-foreground">Unnamed</span>}</p>
+                          {(c.title || c.email) && (
+                            <p className="text-xs text-muted-foreground truncate">{[c.title, c.email].filter(Boolean).join(" · ")}</p>
+                          )}
+                        </div>
+                      </div>
+                      {!readOnly && (
+                        <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() => setAdditionalContacts(prev => prev.filter(r => r.id !== c.id))}
+                          data-testid={`button-remove-contact-${c.id}`}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Add contact inline form */}
+                  {addingContact && (
+                    <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/10">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input placeholder="Full Name *" value={newContact.name}
+                          onChange={e => setNewContact(p => ({ ...p, name: e.target.value }))}
+                          className="h-8 text-sm" data-testid="input-new-contact-name" />
+                        <Input placeholder="Title (optional)" value={newContact.title}
+                          onChange={e => setNewContact(p => ({ ...p, title: e.target.value }))}
+                          className="h-8 text-sm" />
+                      </div>
+                      <Input placeholder="Email (optional)" type="email" value={newContact.email}
+                        onChange={e => setNewContact(p => ({ ...p, email: e.target.value }))}
+                        className="h-8 text-sm" />
+                      <div className="flex gap-2 justify-end">
+                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs"
+                          onClick={() => setAddingContact(false)}>Cancel</Button>
+                        <Button type="button" size="sm" className="h-7 text-xs"
+                          disabled={!newContact.name.trim()}
+                          onClick={() => {
+                            setAdditionalContacts(prev => [...prev, { id: crypto.randomUUID(), ...newContact }]);
+                            setAddingContact(false);
+                            setNewContact({ name: "", title: "", email: "" });
+                          }}
+                          data-testid="button-save-new-contact">
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!formData.contactName && !formData.contactEmail && additionalContacts.length === 0 && !addingContact && (
+                    <p className="text-xs text-muted-foreground">Enter a Main Contact above — they'll automatically be the primary Dashboard Owner.</p>
+                  )}
                 </div>
               </div>
             )}

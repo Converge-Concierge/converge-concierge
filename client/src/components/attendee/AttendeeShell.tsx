@@ -26,7 +26,7 @@ export default function AttendeeShell({ children, onLogout, attendeeName, accent
     <div className="min-h-screen bg-background flex flex-col">
       {/* Top header */}
       <header className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-border/60">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div
               className="flex h-7 w-7 items-center justify-center rounded-lg shadow-md text-white"
@@ -50,7 +50,7 @@ export default function AttendeeShell({ children, onLogout, attendeeName, accent
 
       {/* Tab nav */}
       <nav className="sticky top-14 z-10 bg-background border-b border-border/60">
-        <div className="max-w-4xl mx-auto px-4">
+        <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
             {navItems.map(({ label, href, icon: Icon }) => {
               const active = href === "/attendee"

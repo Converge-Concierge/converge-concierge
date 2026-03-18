@@ -712,7 +712,7 @@ function Dashboard({
   const eventDateStr = startStr && endStr && startStr !== endStr ? `${startStr} – ${endStr}` : (startStr ?? null);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
 
       {/* ── Event Hero Card ─────────────────────────────────────────────── */}
       <div className="bg-card border border-border/60 rounded-2xl overflow-hidden shadow-sm" data-testid="section-event-hero">

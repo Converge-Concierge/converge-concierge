@@ -176,7 +176,7 @@ export default function AttendeeAgendaPage() {
 
   return (
     <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={me?.event.buttonColor || me?.event.accentColor || null}>
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Page header */}
         <div className="mb-6">
           <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">

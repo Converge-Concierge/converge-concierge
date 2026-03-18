@@ -184,7 +184,7 @@ export default function AttendeeSponsorsPage() {
 
   return (
     <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={ac}>
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-8">
 
         {/* Page header */}
         <div>

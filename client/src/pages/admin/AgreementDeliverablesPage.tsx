@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
@@ -113,6 +113,35 @@ export default function AgreementDeliverablesPage() {
     enabled: activeTab === "sponsor-agreements",
   });
   const activationMap = new Map(activationMetrics.map(m => [`${m.sponsorId}:${m.eventId}`, m]));
+
+  // Sort events: upcoming first (soonest start), then past (most recent end first)
+  const hasAutoSelected = useRef(false);
+  const sortedEventsForSelector = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const active = events.filter(e => (e.archiveState ?? "active") === "active");
+    const upcoming = active
+      .filter(e => e.endDate && new Date(e.endDate) >= today)
+      .sort((a, b) => new Date(a.startDate ?? 0).getTime() - new Date(b.startDate ?? 0).getTime());
+    const completed = active
+      .filter(e => !e.endDate || new Date(e.endDate) < today)
+      .sort((a, b) => new Date(b.endDate ?? 0).getTime() - new Date(a.endDate ?? 0).getTime());
+    return [...upcoming, ...completed];
+  }, [events]);
+
+  // Only show events that actually have agreements
+  const eventIdsWithAgreements = useMemo(() => new Set(agreements.map(a => a.eventId)), [agreements]);
+  const eventsWithAgreements = useMemo(
+    () => sortedEventsForSelector.filter(e => eventIdsWithAgreements.has(e.id)),
+    [sortedEventsForSelector, eventIdsWithAgreements],
+  );
+
+  // Auto-select the soonest active event on first load
+  useEffect(() => {
+    if (hasAutoSelected.current || agreements.length === 0 || eventsWithAgreements.length === 0) return;
+    hasAutoSelected.current = true;
+    setFilterEvent(eventsWithAgreements[0].id);
+  }, [agreements, eventsWithAgreements]);
 
   type OutstandingItem = {
     id: string; sponsorId: string; eventId: string; sponsorName: string; eventName: string;
@@ -266,12 +295,13 @@ export default function AgreementDeliverablesPage() {
 
         {/* ── Sponsor Agreements ── */}
         <TabsContent value="sponsor-agreements" className="mt-4 space-y-4">
-          {/* Event tab strip */}
-          {events.length > 0 && (
+          {/* Event tab strip — soonest active event first, only events with agreements */}
+          {eventsWithAgreements.length > 0 && (
             <div className="overflow-x-auto pb-1">
               <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
-                {events.map((ev) => {
+                {eventsWithAgreements.map((ev) => {
                   const isActive = filterEvent === ev.id;
+                  const count = agreements.filter(a => a.eventId === ev.id).length;
                   return (
                     <button
                       key={ev.id}
@@ -280,10 +310,10 @@ export default function AgreementDeliverablesPage() {
                         "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
                         isActive ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
                       )}
-                      style={isActive ? { backgroundColor: ev.accentColor ?? "#0D9488", color: "#ffffff" } : undefined}
+                      style={isActive ? { backgroundColor: ev.accentColor ?? ev.primaryColor ?? "#0D9488", color: "#ffffff" } : undefined}
                       data-testid={`tab-event-${ev.id}`}
                     >
-                      {ev.slug ?? ev.name}
+                      {ev.slug ?? ev.name} ({count})
                     </button>
                   );
                 })}

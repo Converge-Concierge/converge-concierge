@@ -568,7 +568,7 @@ function Dashboard({
   onEditInterests: () => void;
   onSaveSession: (id: string) => void; onUnsaveSession: (id: string) => void;
   isSavingSession: boolean;
-  onRequestMeeting: (id: string) => void;
+  onRequestMeeting: (id: string, mode?: "onsite" | "online") => void;
   onRequestInfo: (id: string) => void;
   isActingOnSponsor: string | null;
   invitationCount: number;
@@ -580,13 +580,8 @@ function Dashboard({
   const topicMap = new Map(topics.map((t) => [t.id, t]));
   const selectedTopics = selections.map((s) => topicMap.get(s.topicId)).filter(Boolean) as Topic[];
   const [detailSession, setDetailSession] = useState<AgendaSessionDetail | null>(null);
-  const [schedulingModal, setSchedulingModal] = useState<{ sponsorId: string; mode: "onsite" | "online" } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ sponsorId: string; sponsorName: string; mode: "onsite" | "online" } | null>(null);
   const [requestInfoSponsor, setRequestInfoSponsor] = useState<{ id: string; name: string } | null>(null);
-
-  function buildScheduleUrl(sponsorId: string, mode: "onsite" | "online") {
-    const base = `/event/${me.event.slug}/welcome?sponsor=${sponsorId}&mode=${mode}`;
-    return me.attendee.email ? `${base}&prefillEmail=${encodeURIComponent(me.attendee.email)}` : base;
-  }
 
   const hasInterests = selections.length > 0;
   const teamUrl = registrationUrl || websiteUrl;
@@ -824,7 +819,7 @@ function Dashboard({
                       {sponsor.onsiteMeetingEnabled && (
                         <button
                           className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 bg-foreground text-background hover:bg-foreground/90"
-                          onClick={() => setSchedulingModal({ sponsorId: sponsor.id, mode: "onsite" })}
+                          onClick={() => setConfirmModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "onsite" })}
                           data-testid={`button-onsite-meeting-${sponsor.id}`}
                         >
                           <Calendar className="h-3.5 w-3.5" /> Schedule Onsite Meeting
@@ -833,7 +828,7 @@ function Dashboard({
                       {sponsor.onlineMeetingEnabled && (
                         <button
                           className="w-full py-2 rounded-xl text-xs font-semibold border border-border/60 bg-transparent text-foreground hover:bg-muted/50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
-                          onClick={() => setSchedulingModal({ sponsorId: sponsor.id, mode: "online" })}
+                          onClick={() => setConfirmModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "online" })}
                           data-testid={`button-online-meeting-${sponsor.id}`}
                         >
                           <Video className="h-3.5 w-3.5" /> Online Meeting
@@ -957,16 +952,41 @@ function Dashboard({
         />
       )}
 
-      {/* Scheduling iframe dialog — matches Card 4 behavior */}
-      <Dialog open={!!schedulingModal} onOpenChange={(o) => !o && setSchedulingModal(null)}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden h-[80vh]">
-          {schedulingModal && (
-            <iframe
-              src={buildScheduleUrl(schedulingModal.sponsorId, schedulingModal.mode)}
-              className="w-full h-full border-0"
-              title={schedulingModal.mode === "onsite" ? "Schedule Onsite Meeting" : "Schedule Online Meeting"}
-            />
-          )}
+      {/* Meeting request confirmation dialog */}
+      <Dialog open={!!confirmModal} onOpenChange={(o) => !o && setConfirmModal(null)}>
+        <DialogContent className="max-w-sm">
+          <div className="flex flex-col gap-4 pt-2">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                {confirmModal?.mode === "online" ? <Video className="h-5 w-5 text-primary" /> : <Calendar className="h-5 w-5 text-primary" />}
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground text-base">
+                  {confirmModal?.mode === "online" ? "Request Online Meeting" : "Schedule Onsite Meeting"}
+                </h3>
+                <p className="text-sm text-muted-foreground">{confirmModal?.sponsorName}</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              We'll send your meeting request to <span className="font-medium text-foreground">{confirmModal?.sponsorName}</span> and connect you to coordinate the details.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setConfirmModal(null)}>Cancel</Button>
+              <Button
+                size="sm"
+                disabled={isActingOnSponsor === confirmModal?.sponsorId}
+                style={ac ? { backgroundColor: ac, borderColor: ac } : undefined}
+                onClick={() => {
+                  if (confirmModal) {
+                    onRequestMeeting(confirmModal.sponsorId, confirmModal.mode);
+                    setConfirmModal(null);
+                  }
+                }}
+              >
+                {isActingOnSponsor === confirmModal?.sponsorId ? "Sending…" : "Send Request"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1066,11 +1086,12 @@ export default function AttendeePortalPage() {
   const [actingOnSponsor, setActingOnSponsor] = useState<string | null>(null);
 
   const requestMeetingMutation = useMutation({
-    mutationFn: (sponsorId: string) =>
+    mutationFn: ({ id, mode }: { id: string; mode?: "onsite" | "online" }) =>
       fetch("/api/attendee-portal/request-meeting", {
-        method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify({ sponsorId }),
+        method: "POST", headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ sponsorId: id, requestType: mode }),
       }).then((r) => r.json()),
-    onMutate: (id) => setActingOnSponsor(id),
+    onMutate: ({ id }) => setActingOnSponsor(id),
     onSettled: () => setActingOnSponsor(null),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] });
@@ -1193,7 +1214,7 @@ export default function AttendeePortalPage() {
       <SponsorsCard
         sponsors={sponsors}
         sponsorInteractions={interactions}
-        onRequestMeeting={(id) => requestMeetingMutation.mutate(id)}
+        onRequestMeeting={(id) => requestMeetingMutation.mutate({ id })}
         onRequestInfo={(id) => requestInfoMutation.mutate(id)}
         isActingOnSponsor={actingOnSponsor}
         onContinue={() => setOnboardingStep("ready")}
@@ -1242,7 +1263,7 @@ export default function AttendeePortalPage() {
         onSaveSession={(id) => saveSessionMutation.mutate(id)}
         onUnsaveSession={(id) => unsaveSessionMutation.mutate(id)}
         isSavingSession={isSavingSession}
-        onRequestMeeting={(id) => requestMeetingMutation.mutate(id)}
+        onRequestMeeting={(id, mode) => requestMeetingMutation.mutate({ id, mode })}
         onRequestInfo={(id) => requestInfoMutation.mutate(id)}
         isActingOnSponsor={actingOnSponsor}
         invitationCount={invitationCount}

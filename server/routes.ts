@@ -7568,7 +7568,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
     const { tokenRecord } = validation;
 
-    const { sponsorId } = req.body as { sponsorId: string };
+    const { sponsorId, requestType } = req.body as { sponsorId: string; requestType?: "onsite" | "online" };
     if (!sponsorId) return res.status(400).json({ message: "sponsorId required" });
 
     const sponsor = await storage.getSponsor(sponsorId);
@@ -7586,17 +7586,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     );
     if (existing) return res.json({ ok: true, meeting: existing, alreadyExisted: true });
 
-    // Create online_request meeting (date/time are placeholders — admin follows up)
+    // Create meeting — type depends on requestType param
+    const meetingType = requestType === "onsite" ? "onsite" : "online_request";
     const today = new Date().toISOString().split("T")[0];
     const meeting = await storage.createMeeting({
       eventId: tokenRecord.eventId,
       sponsorId,
       attendeeId: tokenRecord.attendeeId,
-      meetingType: "online_request",
+      meetingType,
       status: "Pending",
       date: today,
       time: "09:00",
-      location: "Online",
+      location: requestType === "onsite" ? "TBD" : "Online",
       source: "public",
     });
 

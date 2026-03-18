@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Star, Tag, ChevronRight, Pencil, CheckCircle2, Hexagon,
+  Star, ChevronRight, CheckCircle2, Hexagon,
   CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail, Bell,
-  Lightbulb, Sparkles, MapPin, Clock, UserCheck, AlertCircle, X,
+  Lightbulb, Sparkles, MapPin, Clock, AlertCircle, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,10 +28,7 @@ interface RecommendedSponsor {
   id: string; name: string; category: string | null; logoUrl: string | null;
   shortDescription?: string | null; overlapScore: number; overlapTopicLabels: string[];
 }
-interface SuggestedMeeting {
-  id: string; name: string; logoUrl: string | null;
-  shortDescription?: string | null; overlapScore: number; overlapTopicLabels: string[];
-}
+
 interface SponsorInteractions {
   meetings: Record<string, { status: string }>;
   infoRequests: Record<string, { status: string }>;
@@ -557,19 +554,17 @@ function RelevanceLabel({ labels }: { labels: string[] }) {
 }
 
 function Dashboard({
-  me, topics, selections, sessions, sponsors, suggestedMeetings, savedSessionIds,
+  me, topics, selections, sessions, sponsors, savedSessionIds,
   onEditInterests, onSaveSession, onUnsaveSession, isSavingSession,
-  sponsorInteractions, onRequestMeeting, onRequestInfo, isActingOnSponsor, invitationCount,
+  onRequestMeeting, onRequestInfo, isActingOnSponsor, invitationCount,
   registrationUrl, websiteUrl, meetingsScheduledCount, accentColor,
 }: {
   me: AttendeeMe; topics: Topic[]; selections: TopicSelection[];
   sessions: RecommendedSession[]; sponsors: RecommendedSponsor[];
-  suggestedMeetings: SuggestedMeeting[];
   savedSessionIds: Set<string>;
   onEditInterests: () => void;
   onSaveSession: (id: string) => void; onUnsaveSession: (id: string) => void;
   isSavingSession: boolean;
-  sponsorInteractions: SponsorInteractions;
   onRequestMeeting: (id: string) => void;
   onRequestInfo: (id: string) => void;
   isActingOnSponsor: string | null;
@@ -584,7 +579,6 @@ function Dashboard({
   const [detailSession, setDetailSession] = useState<AgendaSessionDetail | null>(null);
 
   const hasInterests = selections.length > 0;
-  const hasSuggestedMeetings = suggestedMeetings.length > 0;
   const teamUrl = registrationUrl || websiteUrl;
   const ac = accentColor;
   const acBg  = ac ? { backgroundColor: `${ac}18` } : undefined;
@@ -757,6 +751,73 @@ function Dashboard({
         </div>
       </div>
 
+      {/* ── Recommended Sponsors ──────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-primary" style={acColor} /> Recommended Sponsors
+          </h2>
+          <Link href="/attendee/sponsors">
+            <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" data-testid="link-view-all-sponsors">
+              All Sponsors <ArrowRight className="h-3 w-3" />
+            </Button>
+          </Link>
+        </div>
+        {sponsors.length === 0 ? (
+          <div className="bg-card border border-border/60 rounded-2xl p-8 text-center space-y-2">
+            <Building2 className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+            {!hasInterests ? (
+              <p className="text-sm text-muted-foreground">
+                <Link href="/attendee/interests"><span className="text-primary underline cursor-pointer">Add interests</span></Link> to see sponsor recommendations.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No sponsor recommendations yet.</p>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="sponsors-list">
+            {sponsors.map((sponsor) => {
+              const acting = isActingOnSponsor === sponsor.id;
+              return (
+                <div key={sponsor.id} className="bg-card border border-border/60 rounded-2xl p-4 flex flex-col gap-3" data-testid={`card-sponsor-${sponsor.id}`}>
+                  <div className="flex items-start gap-3">
+                    {sponsor.logoUrl
+                      ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-10 w-10 rounded-xl object-contain shrink-0 border border-border/40 bg-white p-1" />
+                      : <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0" style={acBg}><Building2 className="h-5 w-5 text-primary" style={acColor} /></div>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-foreground truncate">{sponsor.name}</p>
+                      {sponsor.category && <p className="text-xs text-muted-foreground">{sponsor.category}</p>}
+                      {sponsor.shortDescription && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{sponsor.shortDescription}</p>}
+                      <RelevanceLabel labels={sponsor.overlapTopicLabels} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 pt-1 border-t border-border/40">
+                    <button
+                      className="w-full py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+                      style={acColor ? { backgroundColor: ac ?? undefined, color: "#fff" } : undefined}
+                      disabled={acting}
+                      onClick={() => onRequestMeeting(sponsor.id)}
+                      data-testid={`button-schedule-meeting-${sponsor.id}`}
+                    >
+                      <Calendar className="h-3 w-3" /> Schedule Meeting
+                    </button>
+                    <button
+                      className="w-full py-1 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground bg-transparent hover:bg-muted/50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                      disabled={acting}
+                      onClick={() => onRequestInfo(sponsor.id)}
+                      data-testid={`button-request-info-${sponsor.id}`}
+                    >
+                      <Mail className="h-3 w-3" /> Request Information
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* ── Recommended Sessions ──────────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -774,7 +835,7 @@ function Dashboard({
             <CalendarDays className="h-8 w-8 text-muted-foreground/30 mx-auto" />
             {!hasInterests ? (
               <p className="text-sm text-muted-foreground">
-                <button className="text-primary underline" onClick={onEditInterests}>Select your interests</button> to unlock personalised session recommendations.
+                <Link href="/attendee/interests"><span className="text-primary underline cursor-pointer">Select your interests</span></Link> to unlock personalised session recommendations.
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -789,7 +850,6 @@ function Dashboard({
               return (
                 <div key={session.id} className="bg-card border border-border/60 rounded-2xl p-5 hover:border-border transition-colors" data-testid={`card-session-${session.id}`}>
                   <div className="flex items-start gap-4">
-                    {/* Left accent */}
                     <div className="w-1 self-stretch rounded-full bg-primary/25 shrink-0 mt-0.5" style={acBarBg} />
                     <div className="flex-1 min-w-0 space-y-1.5">
                       {(session.isFeatured || session.sessionTypeLabel) && (
@@ -846,122 +906,6 @@ function Dashboard({
         )}
       </div>
 
-      {/* ── Suggested Meetings ────────────────────────────────────────── */}
-      {(hasInterests && hasSuggestedMeetings) && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-primary" style={acColor} /> Suggested Meetings
-            </h2>
-            <Link href="/attendee/sponsors">
-              <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" data-testid="link-view-all-sponsors-meetings">
-                All Sponsors <ArrowRight className="h-3 w-3" />
-              </Button>
-            </Link>
-          </div>
-          <div className="bg-card border border-border/60 rounded-2xl divide-y divide-border/40" data-testid="suggested-meetings-list">
-            {suggestedMeetings.map((s) => {
-              const acting = isActingOnSponsor === s.id;
-              return (
-                <div key={s.id} className="flex items-center gap-3 px-5 py-3.5" data-testid={`card-suggested-meeting-${s.id}`}>
-                  {s.logoUrl
-                    ? <img src={s.logoUrl} alt={s.name} className="h-8 w-8 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-0.5" />
-                    : <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0" style={acBg}><Building2 className="h-4 w-4 text-primary" style={acColor} /></div>
-                  }
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground">{s.name}</p>
-                    <RelevanceLabel labels={s.overlapTopicLabels} />
-                  </div>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 shrink-0 font-medium" disabled={acting}
-                    onClick={() => onRequestMeeting(s.id)} data-testid={`button-request-meeting-suggested-${s.id}`}>
-                    <Calendar className="h-3.5 w-3.5" /> Request
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Recommended Sponsors ──────────────────────────────────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-primary" style={acColor} /> Recommended Sponsors
-          </h2>
-          <Link href="/attendee/sponsors">
-            <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
-              All Sponsors <ArrowRight className="h-3 w-3" />
-            </Button>
-          </Link>
-        </div>
-        {sponsors.length === 0 ? (
-          <div className="bg-card border border-border/60 rounded-2xl p-8 text-center space-y-2">
-            <Building2 className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-            {!hasInterests ? (
-              <p className="text-sm text-muted-foreground">
-                <button className="text-primary underline" onClick={onEditInterests}>Add interests</button> to see sponsor recommendations.
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">No sponsor recommendations yet.</p>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-testid="sponsors-list">
-            {sponsors.map((sponsor) => {
-              const acting = isActingOnSponsor === sponsor.id;
-              return (
-                <div key={sponsor.id} className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-3" data-testid={`card-sponsor-${sponsor.id}`}>
-                  <div className="flex items-start gap-3">
-                    {sponsor.logoUrl
-                      ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-10 w-10 rounded-xl object-contain shrink-0 border border-border/40 bg-white p-1" />
-                      : <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0" style={acBg}><Building2 className="h-5 w-5 text-primary" style={acColor} /></div>
-                    }
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-foreground truncate">{sponsor.name}</p>
-                      {sponsor.category && <p className="text-xs text-muted-foreground">{sponsor.category}</p>}
-                      {sponsor.shortDescription && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{sponsor.shortDescription}</p>}
-                      <RelevanceLabel labels={sponsor.overlapTopicLabels} />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-border/40">
-                    <Link href="/attendee/sponsors">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 px-2 text-muted-foreground" data-testid={`button-view-sponsor-${sponsor.id}`}>
-                        View <ChevronRight className="h-3 w-3" />
-                      </Button>
-                    </Link>
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1 font-medium" disabled={acting} onClick={() => onRequestMeeting(sponsor.id)} data-testid={`button-request-meeting-${sponsor.id}`}>
-                      <Calendar className="h-3 w-3" /> Meeting
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" disabled={acting} onClick={() => onRequestInfo(sponsor.id)} data-testid={`button-request-info-${sponsor.id}`}>
-                      <Mail className="h-3 w-3" /> Info
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ── Your Interests ────────────────────────────────────────────── */}
-      <div className="bg-card border border-border/60 rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Tag className="h-4 w-4 text-primary" style={acColor} /> Your Interests
-          </h2>
-          <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" data-testid="button-edit-interests" onClick={onEditInterests}>
-            <Pencil className="h-3 w-3" /> Edit
-          </Button>
-        </div>
-        {selectedTopics.length === 0
-          ? <p className="text-sm text-muted-foreground">No interests selected yet. <button className="text-primary underline" onClick={onEditInterests}>Add interests</button></p>
-          : <div className="flex flex-wrap gap-2" data-testid="interests-list">
-              {selectedTopics.map((t) => <Badge key={t.id} variant="secondary" className="rounded-full" data-testid={`badge-topic-${t.id}`}>{t.label}</Badge>)}
-            </div>
-        }
-      </div>
-
       {/* Session detail sheet */}
       {detailSession && (
         <SessionDetailSheet
@@ -1013,12 +957,6 @@ export default function AttendeePortalPage() {
   const sponsorsQuery = useQuery<RecommendedSponsor[]>({
     queryKey: ["/api/attendee-portal/recommended-sponsors"],
     queryFn: () => fetch("/api/attendee-portal/recommended-sponsors", { headers }).then((r) => r.json()),
-    enabled: isPostOnboarding,
-  });
-
-  const suggestedMeetingsQuery = useQuery<SuggestedMeeting[]>({
-    queryKey: ["/api/attendee-portal/suggested-meetings"],
-    queryFn: () => fetch("/api/attendee-portal/suggested-meetings", { headers }).then((r) => r.json()),
     enabled: isPostOnboarding,
   });
 
@@ -1227,13 +1165,11 @@ export default function AttendeePortalPage() {
         selections={selections}
         sessions={sessions}
         sponsors={sponsors}
-        suggestedMeetings={suggestedMeetingsQuery.data ?? []}
         savedSessionIds={savedSessionIds}
         onEditInterests={() => setOnboardingStep("edit-topics")}
         onSaveSession={(id) => saveSessionMutation.mutate(id)}
         onUnsaveSession={(id) => unsaveSessionMutation.mutate(id)}
         isSavingSession={isSavingSession}
-        sponsorInteractions={interactions}
         onRequestMeeting={(id) => requestMeetingMutation.mutate(id)}
         onRequestInfo={(id) => requestInfoMutation.mutate(id)}
         isActingOnSponsor={actingOnSponsor}

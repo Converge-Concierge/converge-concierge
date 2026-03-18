@@ -1,0 +1,343 @@
+Restructure Attendee Dashboard + Sponsor Interaction Model + Admin Table Consistency
+
+This is a structural UX + functionality cleanup. The goal is to simplify the attendee experience, remove redundant elements, and align sponsor interactions across the platform.
+
+1. REMOVE Redundant Dashboard Sections
+A. Remove “Suggested Meetings”
+Problem
+
+Redundant with sponsor interaction
+
+Introduces confusion (request vs schedule)
+
+Not aligned with final product direction
+
+Action
+
+Remove entire Suggested Meetings component from dashboard
+
+Remove any associated API calls/state tied to it
+
+B. Remove “Recommended Sponsors” Section (Current Version)
+Important Clarification
+
+You are not removing the concept, just the current implementation location
+
+We will reintroduce it in a better position (see Section 3)
+
+C. Remove “Your Interests” from Dashboard
+Problem
+
+Clutters dashboard
+
+Not actionable in current placement
+
+Better suited as a dedicated control surface
+
+Action
+
+Remove “Your Interests” card from dashboard
+
+2. CREATE A DEDICATED “Interests” TAB
+New Navigation Tab
+
+Add a new top-level tab:
+
+Interests
+
+Position alongside:
+
+Home
+
+Agenda
+
+My Agenda
+
+Sponsors
+
+Meetings
+
+Tab Functionality
+Display:
+
+All available agenda topics
+
+Selected topics (pre-filled from Card 1)
+
+Behavior:
+
+Toggle/select topics (same UI as onboarding Card 1)
+
+CRITICAL LOGIC
+
+When attendee updates interests:
+
+Immediately persist to backend
+
+Trigger recomputation of:
+
+Recommended Sessions
+
+Recommended Sponsors
+
+Data Flow Requirement
+Update Interests → Save → Recalculate Recommendations → Reflect across:
+- Dashboard
+- Sponsors Tab
+- Agenda Recommendations
+
+No refresh required if possible (reactive update preferred)
+
+3. RESTRUCTURE DASHBOARD LAYOUT
+New Order of Sections (Top → Bottom)
+1. Summary Cards (keep existing)
+
+Sessions Saved
+
+Sponsors Matched
+
+Meetings Scheduled
+
+2. Recommended Sponsors (MOVE HERE)
+
+This becomes the first actionable section
+
+3. Recommended Sessions (below sponsors)
+Rationale
+
+Sponsors = monetization driver
+
+Higher priority than sessions
+
+Aligns with business goals
+
+4. STANDARDIZE SPONSOR CARDS (CRITICAL)
+Problem
+
+Dashboard sponsor cards ≠ Card 4 sponsor cards
+
+This creates:
+
+inconsistent UX
+
+broken expectations
+
+duplicated logic
+
+Required Change
+
+ALL sponsor cards must replicate Card 4 behavior exactly
+
+Required Capabilities
+Buttons:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information (optional depending on permissions)
+
+REMOVE:
+
+“Request” buttons
+
+Any “meeting request” flow
+
+RULE:
+
+👉 Only scheduling, no requesting
+
+Sponsor Level Permissions
+
+Ensure:
+
+Platinum / Gold / Bronze logic still applies
+
+Button availability respects sponsorship tier
+
+5. APPLY SAME LOGIC TO “Sponsors” TAB
+Structure of Sponsors Tab
+Section 1: Recommended Sponsors
+
+Based on attendee interests
+
+Same card UI as Card 4
+
+Section 2: All Sponsors
+
+Full sponsor list
+
+Same card UI
+
+Allows discovery beyond recommendations
+
+Behavior
+
+No request buttons
+
+Only scheduling actions
+
+Same UI + logic as everywhere else
+
+6. REMOVE “REQUEST” LANGUAGE PLATFORM-WIDE
+
+Search and remove:
+
+“Request Meeting”
+
+“Requested”
+
+“Request” buttons
+
+Replace with:
+
+“Schedule Meeting”
+
+“Book Meeting”
+
+This applies to:
+
+Dashboard
+
+Sponsors tab
+
+Any modal or CTA
+
+7. NAVIGATION STYLE CONSISTENCY
+Problem
+
+Tabs:
+
+Agenda
+
+My Agenda
+
+Sponsors
+
+Meetings
+
+Do not visually match:
+
+Home
+
+Required Fix
+
+Standardize:
+
+active tab color
+
+hover states
+
+font weight
+
+underline/border indicators
+
+Rule
+
+All top navigation tabs must behave identically to:
+
+Home (selected state)
+8. ADMIN → ATTENDEES TABLE CONSISTENCY
+Problem
+
+Different events show different row actions
+
+This creates:
+
+inconsistency
+
+operational confusion
+
+Required Standard Row Actions
+
+Every attendee row must include:
+
+👁 View
+
+📅 Calendar (if applicable)
+
+✏️ Edit
+
+✉️ Send (email / invite)
+
+🗑 Delete
+
+(Use exact icon set already implemented in TLS2026)
+
+Apply To:
+
+FRC2026
+
+TLS2026
+
+USBT2026
+
+All Events view
+
+Implementation Rule
+
+Use a single reusable row component
+
+Do not maintain separate variations per event.
+
+9. ACCEPTANCE CRITERIA
+
+This update is complete when:
+
+Dashboard
+
+Suggested Meetings removed
+
+Your Interests removed
+
+Recommended Sponsors moved above sessions
+
+Sponsor cards match Card 4 exactly
+
+Interests Tab
+
+Exists as its own tab
+
+Reflects Card 1 selections
+
+Updates recommendations dynamically
+
+Sponsors Tab
+
+Shows:
+
+Recommended Sponsors first
+
+All Sponsors below
+
+Uses unified card UI
+
+No request functionality
+
+UX Consistency
+
+No “Request” language anywhere
+
+Navigation tabs visually consistent
+
+Admin
+
+All attendee tables use same row actions
+
+No variation by event
+
+10. END STATE (IMPORTANT)
+
+After this update:
+
+The attendee experience becomes clean, intentional, and monetization-aligned
+
+Sponsors are front and center
+
+Interest selection becomes a true control layer
+
+Meeting flow is simple and decisive (schedule only)
+
+Admin experience becomes consistent and scalable
+
+This is a foundational cleanup that brings the product closer to a production-ready experience.

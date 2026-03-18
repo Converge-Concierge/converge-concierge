@@ -26,6 +26,7 @@ import AttendeeAgendaPage from "@/pages/attendee/AttendeeAgendaPage";
 import AttendeeMyAgendaPage from "@/pages/attendee/AttendeeMyAgendaPage";
 import AttendeeSponsorsPage from "@/pages/attendee/AttendeeSponsorsPage";
 import AttendeeMeetingsPage from "@/pages/attendee/AttendeeMeetingsPage";
+import AttendeeInterestsPage from "@/pages/attendee/AttendeeInterestsPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import AdminResetPasswordPage from "@/pages/AdminResetPasswordPage";
 import TermsPage from "@/pages/TermsPage";
@@ -82,6 +83,7 @@ function Router() {
       <Route path="/attendee/my-agenda" component={AttendeeMyAgendaPage} />
       <Route path="/attendee/sponsors" component={AttendeeSponsorsPage} />
       <Route path="/attendee/meetings" component={AttendeeMeetingsPage} />
+      <Route path="/attendee/interests" component={AttendeeInterestsPage} />
       <Route path="/attendee" component={AttendeePortalPage} />
       <Route path="/event/:slug/book/:rest*">
         {(params) => <Redirect to={`/event/${params.slug}`} />}

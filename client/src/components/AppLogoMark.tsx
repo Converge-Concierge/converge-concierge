@@ -20,7 +20,7 @@ export function AppLogoMark({
       <img
         src={logoUrl}
         alt={appName}
-        className={cn("object-contain", imgClassName)}
+        className={cn("block shrink-0 object-contain", imgClassName)}
         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
       />
     );

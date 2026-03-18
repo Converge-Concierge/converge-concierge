@@ -1,14 +1,12 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Building2, Sparkles, Calendar, Video, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
+import MeetingSchedulerDialog from "@/components/attendee/MeetingSchedulerDialog";
 import SponsorDetailSheet, { type SponsorDetail } from "@/components/attendee/SponsorDetailSheet";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { useAttendeeAuth } from "@/hooks/use-attendee-auth";
-import { useToast } from "@/hooks/use-toast";
 
 interface RecommendedSponsor {
   id: string;
@@ -131,12 +129,9 @@ function SponsorCard({
 
 export default function AttendeeSponsorsPage() {
   const { token, headers, meQuery, logout } = useAttendeeAuth();
-  const { toast } = useToast();
-  const qc = useQueryClient();
   const [detailSponsor, setDetailSponsor] = useState<SponsorDetail | null>(null);
-  const [confirmModal, setConfirmModal] = useState<{ sponsorId: string; sponsorName: string; mode: "onsite" | "online" } | null>(null);
+  const [schedulerModal, setSchedulerModal] = useState<{ sponsorId: string; sponsorName: string; mode: "onsite" | "online" } | null>(null);
   const [requestInfoSponsor, setRequestInfoSponsor] = useState<{ id: string; name: string } | null>(null);
-  const [actingOnSponsor, setActingOnSponsor] = useState<string | null>(null);
 
   const sponsorsQuery = useQuery<SponsorDetail[]>({
     queryKey: ["/api/attendee-portal/sponsors"],
@@ -148,23 +143,6 @@ export default function AttendeeSponsorsPage() {
     queryKey: ["/api/attendee-portal/recommended-sponsors"],
     queryFn: () => fetch("/api/attendee-portal/recommended-sponsors", { headers }).then((r) => r.json()),
     enabled: !!token,
-  });
-
-  const requestMeetingMutation = useMutation({
-    mutationFn: ({ id, mode }: { id: string; mode: "onsite" | "online" }) =>
-      fetch("/api/attendee-portal/request-meeting", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ sponsorId: id, requestType: mode }),
-      }).then((r) => r.json()),
-    onMutate: ({ id }) => setActingOnSponsor(id),
-    onSettled: () => setActingOnSponsor(null),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] });
-      qc.invalidateQueries({ queryKey: ["/api/attendee-portal/suggested-meetings"] });
-      qc.invalidateQueries({ queryKey: ["/api/attendee-portal/recommended-sponsors"] });
-      toast({ title: "Meeting request sent", description: "We'll connect you with this sponsor." });
-    },
   });
 
   const sponsors = sponsorsQuery.data ?? [];
@@ -198,8 +176,8 @@ export default function AttendeeSponsorsPage() {
                 <SponsorCard
                   key={sponsor.id}
                   sponsor={sponsor}
-                  onScheduleOnsite={() => setConfirmModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "onsite" })}
-                  onScheduleOnline={() => setConfirmModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "online" })}
+                  onScheduleOnsite={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "onsite" })}
+                  onScheduleOnline={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "online" })}
                   onRequestInfo={() => setRequestInfoSponsor({ id: sponsor.id, name: sponsor.name })}
                 />
               ))}
@@ -230,8 +208,8 @@ export default function AttendeeSponsorsPage() {
                 key={sponsor.id}
                 sponsor={sponsor}
                 onView={() => setDetailSponsor(sponsor)}
-                onScheduleOnsite={() => setConfirmModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "onsite" })}
-                onScheduleOnline={() => setConfirmModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "online" })}
+                onScheduleOnsite={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "onsite" })}
+                onScheduleOnline={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "online" })}
                 onRequestInfo={() => setRequestInfoSponsor({ id: sponsor.id, name: sponsor.name })}
               />
             ))}
@@ -248,43 +226,19 @@ export default function AttendeeSponsorsPage() {
         />
       )}
 
-      {/* Meeting request confirmation dialog */}
-      <Dialog open={!!confirmModal} onOpenChange={(o) => !o && setConfirmModal(null)}>
-        <DialogContent className="max-w-sm">
-          <div className="flex flex-col gap-4 pt-2">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                {confirmModal?.mode === "online" ? <Video className="h-5 w-5 text-primary" /> : <Calendar className="h-5 w-5 text-primary" />}
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground text-base">
-                  {confirmModal?.mode === "online" ? "Request Online Meeting" : "Schedule Onsite Meeting"}
-                </h3>
-                <p className="text-sm text-muted-foreground">{confirmModal?.sponsorName}</p>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              We'll send your meeting request to <span className="font-medium text-foreground">{confirmModal?.sponsorName}</span> and connect you to coordinate the details.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => setConfirmModal(null)}>Cancel</Button>
-              <Button
-                size="sm"
-                disabled={actingOnSponsor === confirmModal?.sponsorId}
-                style={ac ? { backgroundColor: ac, borderColor: ac } : undefined}
-                onClick={() => {
-                  if (confirmModal) {
-                    requestMeetingMutation.mutate({ id: confirmModal.sponsorId, mode: confirmModal.mode });
-                    setConfirmModal(null);
-                  }
-                }}
-              >
-                {actingOnSponsor === confirmModal?.sponsorId ? "Sending…" : "Send Request"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Meeting scheduler wizard */}
+      {schedulerModal && me && (
+        <MeetingSchedulerDialog
+          open={!!schedulerModal}
+          onClose={() => setSchedulerModal(null)}
+          sponsorId={schedulerModal.sponsorId}
+          sponsorName={schedulerModal.sponsorName}
+          mode={schedulerModal.mode}
+          me={me}
+          headers={headers}
+          onSuccess={() => setSchedulerModal(null)}
+        />
+      )}
 
       {/* Request Information modal */}
       {requestInfoSponsor && (

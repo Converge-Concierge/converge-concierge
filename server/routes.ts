@@ -7568,7 +7568,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
     const { tokenRecord } = validation;
 
-    const { sponsorId, requestType } = req.body as { sponsorId: string; requestType?: "onsite" | "online" };
+    const { sponsorId, requestType, date, time, platform, firstName, lastName, email, company, title } =
+      req.body as {
+        sponsorId: string;
+        requestType?: "onsite" | "online";
+        date?: string;
+        time?: string;
+        platform?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        company?: string;
+        title?: string;
+      };
     if (!sponsorId) return res.status(400).json({ message: "sponsorId required" });
 
     const sponsor = await storage.getSponsor(sponsorId);
@@ -7589,15 +7601,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     // Create meeting — type depends on requestType param
     const meetingType = requestType === "onsite" ? "onsite" : "online_request";
     const today = new Date().toISOString().split("T")[0];
+    const platformLabel = platform === "zoom" ? "Zoom" : platform === "teams" ? "Microsoft Teams" : platform === "google_meet" ? "Google Meet" : platform === "other" ? "TBD" : null;
     const meeting = await storage.createMeeting({
       eventId: tokenRecord.eventId,
       sponsorId,
       attendeeId: tokenRecord.attendeeId,
       meetingType,
       status: "Pending",
-      date: today,
-      time: "09:00",
-      location: requestType === "onsite" ? "TBD" : "Online",
+      date: date ?? today,
+      time: time ?? "09:00",
+      location: requestType === "onsite" ? "TBD" : (platformLabel ?? "Online"),
       source: "public",
     });
 

@@ -5463,10 +5463,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const { sponsorId, eventId } = req.query;
       if (!sponsorId || !eventId) return res.status(400).json({ message: "sponsorId and eventId required" });
-      const [deliverables, sponsor] = await Promise.all([
-        storage.listAgreementDeliverables({ sponsorId: String(sponsorId), eventId: String(eventId) }),
+
+      // Phase 1: load sponsor + all deliverables
+      const [sponsor, allDeliverables] = await Promise.all([
         storage.getSponsor(String(sponsorId)),
+        storage.listAgreementDeliverables({ sponsorId: String(sponsorId), eventId: String(eventId) }),
       ]);
+
+      // Phase 2: for every speaking deliverable, ensure bio/headshot sponsor deliverables exist.
+      // This is a proactive check so newly-created items are included in the response below.
+      const speakingDeliverables = allDeliverables.filter(
+        (d) => d.category === "Speaking & Content" || d.fulfillmentType === "speakers",
+      );
+      for (const sd of speakingDeliverables) {
+        const speakers = await storage.listDeliverableSpeakers(sd.id);
+        for (const s of speakers) {
+          await ensureSpeakerDeliverables(sd, s.speakerName, s.speakerBio, s.headshotFileAssetId);
+        }
+      }
+
+      // Phase 3: reload deliverables (may include newly-created bio/headshot items)
+      const deliverables = await storage.listAgreementDeliverables({ sponsorId: String(sponsorId), eventId: String(eventId) });
+
+      // Phase 4: enrich each deliverable with counts + reconciled status
       const enriched = await Promise.all(deliverables.map(async (d) => {
         const [registrants, speakers, socialEntries, reconciledStatus] = await Promise.all([
           storage.listDeliverableRegistrants(d.id),

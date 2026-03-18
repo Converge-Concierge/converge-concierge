@@ -202,7 +202,7 @@ export async function sendMeetingConfirmationToAttendee(storage, attendee, spons
     try {
       const tokens = await storage.getAttendeeTokensByAttendee(attendee.id);
       const token = tokens.find((t) => !meeting?.eventId || t.eventId === meeting.eventId) ?? tokens[0];
-      if (token?.token) conciergePlanUrlMtg = `${BASE_URL_MTG}/attendee-access/${token.token}`;
+      if (token?.token) conciergePlanUrlMtg = `${BASE_URL_MTG}/attendee-access/${token.token}?source=email`;
     } catch (_) {}
   }
 
@@ -375,7 +375,7 @@ export async function sendInformationRequestConfirmationToAttendee(storage, info
     try {
       const tokens = await storage.getAttendeeTokensByAttendee(infoRequest.attendeeId);
       const token = tokens.find((t) => !infoRequest.eventId || t.eventId === infoRequest.eventId) ?? tokens[0];
-      if (token?.token) conciergePlanUrl = `${BASE_URL}/attendee-access/${token.token}`;
+      if (token?.token) conciergePlanUrl = `${BASE_URL}/attendee-access/${token.token}?source=email`;
     } catch (_) {}
   }
 
@@ -586,7 +586,7 @@ export async function sendConciergeSummaryEmail(storage, { profile, event, topic
     try {
       const tokens = await storage.getAttendeeTokensByAttendee(profile.matchedAttendeeId);
       const token = tokens.find((t) => !profile.eventId || t.eventId === profile.eventId) ?? tokens[0];
-      if (token?.token) conciergePlanUrl = `${BASE_URL}/attendee-access/${token.token}`;
+      if (token?.token) conciergePlanUrl = `${BASE_URL}/attendee-access/${token.token}?source=email`;
     } catch (_) {}
   }
 

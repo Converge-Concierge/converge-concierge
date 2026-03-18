@@ -7160,6 +7160,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const attendee = await storage.getAttendee(tokenRecord.attendeeId);
     const event = await storage.getEvent(tokenRecord.eventId);
     if (!attendee || !event) return res.status(404).json({ message: "Attendee or event not found" });
+    // Email access links are only generated post-setup, so mark onboarding done
+    // on every click — this ensures users always land on the dashboard, never the welcome wizard
+    if (!tokenRecord.onboardingCompletedAt && !tokenRecord.onboardingSkippedAt) {
+      await storage.updateAttendeeToken(req.params.token, { onboardingSkippedAt: new Date() });
+    }
     return res.json({ ok: true, attendeeId: attendee.id, eventId: event.id });
   });
 

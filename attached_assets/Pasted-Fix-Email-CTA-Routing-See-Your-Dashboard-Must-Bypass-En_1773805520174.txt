@@ -1,0 +1,195 @@
+Fix Email CTA Routing — “See Your Dashboard” Must Bypass Entire Onboarding Flow
+
+This is a routing and state control issue, not a UI problem.
+
+Right now, your system is treating users coming from the email as if they are new or incomplete, which is triggering the full onboarding flow again.
+
+That is incorrect.
+
+1. Define the Correct Behavior (Non-Negotiable)
+
+When a user clicks:
+
+See Your Dashboard
+
+from the email, the system must:
+
+👉 Always route directly to the attendee dashboard
+
+No exceptions if:
+
+they have already completed the concierge setup
+
+the email was triggered after completion
+
+2. Identify the Root Cause
+
+Your current flow likely does this:
+
+Email CTA → App Entry → Check onboarding status → Route to onboarding
+
+Which means one of these is happening:
+
+Likely Issues
+
+onboardingComplete flag is:
+
+not saved
+
+not persisted correctly
+
+not retrieved on login
+
+Email link does not include:
+
+user context
+
+event context
+
+completion state
+
+Default route is:
+
+onboarding instead of dashboard
+
+3. REQUIRED FIX — FORCE DASHBOARD ROUTE FROM EMAIL
+Step 1 — Update Email CTA Link
+
+Change the email button URL to include an explicit dashboard route.
+
+Replace generic link like:
+/app
+With:
+/app/dashboard?eventId={eventId}&source=email
+Step 2 — Add Routing Override Logic
+
+In your router / entry logic:
+
+Pseudocode:
+const source = getQueryParam("source");
+const onboardingComplete = user.onboardingComplete;
+
+if (source === "email") {
+  routeTo("/dashboard");
+  return;
+}
+Step 3 — Secondary Safety Check
+
+Even without query param, enforce:
+
+if (user.onboardingComplete === true) {
+  routeTo("/dashboard");
+} else {
+  routeTo("/onboarding");
+}
+4. REMOVE THE ENTIRE POST-EMAIL FLOW
+
+The following screens must NEVER appear after email click:
+
+Welcome (Get Started)
+
+Select Interests
+
+Recommended Sessions
+
+Recommended Sponsors
+
+“Dashboard Ready” screen
+
+These are onboarding-only screens.
+
+5. FIX DATA FLAGGING (CRITICAL)
+
+Ensure that when a user completes Card 5:
+
+user.onboardingComplete = true;
+saveUser(user);
+
+This must:
+
+persist to database
+
+be available on next login/session
+
+not reset accidentally
+
+6. HANDLE EDGE CASES
+Case A — User never completed onboarding
+
+Email should still take them to dashboard
+
+Dashboard should gracefully handle missing data
+
+Example:
+
+show empty state
+
+prompt to select interests (optional CTA, not forced flow)
+
+Case B — Returning user from email
+
+Always dashboard
+
+Never onboarding loop
+
+7. OPTIONAL (BUT STRONG RECOMMENDATION)
+
+Add a soft recovery CTA on dashboard if no interests exist:
+
+Add your interests to improve your recommendations
+
+Link → Interests tab
+
+Do NOT force onboarding again.
+
+8. TESTING REQUIREMENTS
+
+Validate all scenarios:
+
+Test 1
+
+Complete onboarding
+
+Click email CTA
+✅ Goes directly to dashboard
+
+Test 2
+
+Refresh page after email click
+✅ Still on dashboard
+
+Test 3
+
+Log out → click email
+✅ Still goes to dashboard after login
+
+Test 4
+
+New user (no onboarding) clicks email
+✅ Lands on dashboard (not onboarding)
+
+9. ACCEPTANCE CRITERIA
+
+This fix is complete when:
+
+Email CTA routes directly to dashboard every time
+
+No onboarding screens appear after email click
+
+onboardingComplete flag is properly saved and respected
+
+routing logic prioritizes dashboard over onboarding when applicable
+
+10. END STATE
+
+After this fix:
+
+The experience feels intentional and seamless
+
+Email acts as a true re-entry point, not a restart
+
+Users are never forced through redundant flows
+
+The product behaves like a mature SaaS platform, not a prototype
+
+This is a critical polish step — it directly impacts perceived quality.

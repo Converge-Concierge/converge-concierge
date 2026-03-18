@@ -10,6 +10,9 @@ export default function AttendeeAccessPage() {
 
   useEffect(() => {
     if (!token) { setError("No token provided."); return; }
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    const params = new URLSearchParams(search);
+    const source = params.get("source");
     fetch(`/api/attendee-access/${token}`)
       .then(async (res) => {
         if (!res.ok) {
@@ -18,7 +21,7 @@ export default function AttendeeAccessPage() {
           return;
         }
         localStorage.setItem("attendee_token", token);
-        nav("/attendee");
+        nav(source === "email" ? "/attendee?source=email" : "/attendee");
       })
       .catch(() => setError("Network error. Please try again."));
   }, [token]);

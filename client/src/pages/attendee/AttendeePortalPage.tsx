@@ -851,7 +851,9 @@ export default function AttendeePortalPage() {
   });
 
   // Enable post-onboarding queries during wizard steps 2-4 AND when onboarding is done
-  const isPostOnboarding = !!(meQuery.data?.onboarding.isDone) ||
+  // Also enable when arriving from an email CTA (?source=email) — always treat as post-onboarding
+  const fromEmailEarly = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("source") === "email";
+  const isPostOnboarding = !!(meQuery.data?.onboarding.isDone) || fromEmailEarly ||
     (["sessions", "sponsors", "ready"].includes(onboardingStep ?? ""));
 
   const sessionsQuery = useQuery<RecommendedSession[]>({
@@ -964,7 +966,11 @@ export default function AttendeePortalPage() {
   }
 
   const me = meQuery.data;
-  const showOnboarding: OnboardingStep = onboardingStep !== null ? onboardingStep : (!me.onboarding.isDone ? "welcome" : null);
+  // Secondary safety: if the user arrived via an email CTA link (?source=email),
+  // treat onboarding as done so they always land on the dashboard
+  const fromEmail = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("source") === "email";
+  const onboardingIsDone = me.onboarding.isDone || fromEmail;
+  const showOnboarding: OnboardingStep = onboardingStep !== null ? onboardingStep : (!onboardingIsDone ? "welcome" : null);
 
   const topics = topicsQuery.data ?? [];
   const selections = selectionsQuery.data ?? [];

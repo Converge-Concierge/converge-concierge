@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -44,7 +44,7 @@ export function SessionFormModal({ session, events, sponsors, sessionTypes, defa
   const [sessionDate, setSessionDate] = useState(session?.sessionDate || "");
   const [startTime, setStartTime] = useState(session?.startTime || "");
   const [endTime, setEndTime] = useState(session?.endTime || "");
-  const [timezone, setTimezone] = useState(session?.timezone || "America/New_York");
+  const [timezone, setTimezone] = useState(session?.timezone || "America/Chicago");
   const [locationName, setLocationName] = useState(session?.locationName || "");
   const [locationDetails, setLocationDetails] = useState(session?.locationDetails || "");
   const [sponsorId, setSponsorId] = useState(session?.sponsorId || "");
@@ -84,13 +84,16 @@ export function SessionFormModal({ session, events, sponsors, sessionTypes, defa
       return res.json();
     },
     enabled: isEdit && !!session?.id,
+    gcTime: 0,
   });
 
-  if (isEdit && existingTopicSelections && !topicsPreloaded) {
-    const ids = existingTopicSelections.map(s => s.topicId);
-    if (ids.length > 0) setSelectedTopicIds(ids);
-    setTopicsPreloaded(true);
-  }
+  useEffect(() => {
+    if (isEdit && existingTopicSelections !== undefined && !topicsPreloaded) {
+      setTopicsPreloaded(true);
+      const ids = existingTopicSelections.map(s => s.topicId);
+      if (ids.length > 0) setSelectedTopicIds(ids);
+    }
+  }, [isEdit, existingTopicSelections, topicsPreloaded]);
 
   function toggleTopic(id: string) {
     setSelectedTopicIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -265,7 +268,7 @@ export function SessionFormModal({ session, events, sponsors, sessionTypes, defa
           <div className="border-t pt-4 mt-1">
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="h-4 w-4 text-muted-foreground" />
-              <Label className="text-sm font-semibold">Interest Topics</Label>
+              <Label className="text-sm font-semibold">Agenda Topics</Label>
               {selectedTopicIds.length > 0 && (
                 <Badge variant="secondary" className="text-xs">{selectedTopicIds.length} selected</Badge>
               )}

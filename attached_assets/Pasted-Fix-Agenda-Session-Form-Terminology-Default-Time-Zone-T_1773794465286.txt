@@ -1,0 +1,230 @@
+Fix Agenda Session Form Terminology + Default Time Zone + TLS Topic Save Bug + Normalize Attendee Row Layout Across Events
+
+We need to address four admin issues:
+
+In Admin → Agenda → Edit Session, rename Interest Topics to Agenda Topics for consistency.
+
+In the same session form, make the default timezone Central (America/Chicago).
+
+For TLS2026, selecting Agenda Topics and clicking Save Changes is not persisting.
+
+The Attendees table row layout is still inconsistent between events.
+FRC2026 and All Events must match the row layout used in TLS2026 and USBT2026.
+
+These need to be corrected cleanly and consistently.
+
+1. Rename “Interest Topics” to “Agenda Topics” in Admin → Agenda → Edit Session
+
+In the session edit form, the section currently labeled:
+
+Interest Topics
+
+should be changed to:
+
+Agenda Topics
+Required behavior
+
+Apply this rename in the session create/edit UI so the terminology is consistent with the rest of the admin system.
+
+Also update helper text
+
+If the helper text currently says something like:
+
+Tag this session with relevant topics to help attendees discover it.
+
+that can remain, but any admin-facing label that still says Interest Topics should be updated to Agenda Topics.
+
+Scope
+
+Apply this change anywhere in the admin session setup flow where this exact concept is used.
+
+2. Set the Default Session Time Zone to Central (America/Chicago)
+
+In the session create/edit form, the timezone field should default to:
+
+Central (America/Chicago)
+Required behavior
+
+When creating a new session:
+
+default the timezone dropdown to Central (America/Chicago)
+
+When editing an existing session:
+
+preserve the already saved timezone if one exists
+
+do not overwrite existing saved values just because the new default is Central
+
+Goal
+
+This should reduce data entry friction and align with the event/location context Converge uses most often.
+
+3. Fix TLS2026 Agenda Topic Save Behavior in Admin → Agenda
+
+There is a save bug for TLS2026.
+
+Problem
+
+For TLS2026, when Agenda Topics are selected in the session edit form and the user clicks:
+
+Save Changes
+
+the selected topics do not save.
+
+This must be fixed.
+
+Required behavior
+
+When editing a TLS2026 session and selecting Agenda Topics:
+
+clicking Save Changes must persist those topic selections
+
+reopening the same session should show those topics still selected
+
+recommendation logic should then be able to use those saved mappings
+
+Audit likely causes
+
+Please audit the actual save flow and find the real issue. Likely causes may include:
+
+Possible issue A
+
+The UI selection state is changing visually, but the selected topic ids are not being included in the save payload.
+
+Possible issue B
+
+The save route works for some events but fails for TLS2026 because of event-scoping logic.
+
+Possible issue C
+
+The topic mapping save is only partially wired and the main session save route is not persisting topic selections for TLS2026.
+
+Possible issue D
+
+The TLS2026 Agenda Topics are being loaded correctly, but their ids are not matching the save/update logic.
+
+Possible issue E
+
+The backend save succeeds for the session record but silently fails for the session-topic mapping table.
+
+Find the actual cause and correct it.
+
+Required QA
+
+After the fix, test TLS2026 specifically by:
+
+opening a TLS2026 session
+
+selecting one or more Agenda Topics
+
+clicking Save Changes
+
+reopening the session
+
+verifying those topics remain selected
+
+Do not mark this complete without verifying it persists.
+
+4. Normalize Attendee Data Rows Across Events
+
+This issue has been raised multiple times and still needs to be fixed properly.
+
+Right now the attendee row layout is inconsistent.
+
+Current problem
+
+The attendee rows shown for:
+
+FRC2026
+
+All Events
+
+do not match the row layout used for:
+
+TLS2026
+
+USBT2026
+
+The TLS2026 and USBT2026 row layout is the correct one.
+
+We want all attendee rows to match that layout.
+
+Required behavior
+
+Make the attendee row layout, icon set, spacing, and actions for:
+
+FRC2026
+
+All Events
+
+match the same row component/layout used in:
+
+TLS2026
+
+USBT2026
+
+That includes:
+
+same action icon set
+
+same icon order
+
+same spacing
+
+same alignment
+
+same row height
+
+same disabled/enabled states
+
+same Actions column behavior
+
+Use as the source of truth
+
+Use the TLS2026 / USBT2026 attendee row implementation as the canonical row design.
+
+Do not make TLS2026/USBT2026 match the other ones.
+Make FRC2026 and All Events match TLS2026/USBT2026.
+
+Likely cause
+
+This strongly suggests that different event filters are still rendering different row components or different action-cell logic.
+
+Required action
+
+Audit the Attendees table rendering and determine:
+
+whether FRC2026 uses an older row component
+
+whether All Events uses a different render path
+
+whether conditional logic is selecting different action sets based on event or dataset shape
+
+Then unify them so all views use the same row component and action rendering.
+
+5. Preserve Data, Change Presentation Consistently
+
+This is primarily a UI consistency issue for Attendees.
+
+Do not change the attendee records themselves.
+Just make sure the table rows render consistently across event filters.
+
+6. Acceptance Criteria
+
+This work is complete when:
+
+the Admin → Agenda session form label says Agenda Topics instead of Interest Topics
+
+new sessions default to timezone Central (America/Chicago)
+
+TLS2026 session Agenda Topics persist after clicking Save Changes
+
+reopening a TLS2026 session shows the saved topics correctly
+
+attendee data rows for FRC2026 match the rows used in TLS2026 and USBT2026
+
+attendee data rows for All Events also match the rows used in TLS2026 and USBT2026
+
+7. Success Standard
+
+After this update, the Agenda admin UI should use consistent terminology and a sensible default timezone, TLS2026 session topic mappings should save correctly, and the Attendees table should present the same row layout and action pattern across all event views instead of changing from one event tab to another.

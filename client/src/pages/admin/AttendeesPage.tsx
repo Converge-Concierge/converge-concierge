@@ -53,7 +53,7 @@ export default function AttendeesPage() {
     [attendees, selectedEventId],
   );
   const { data: savedSessionCounts = {} } = useQuery<Record<string, number>>({
-    queryKey: ["/api/admin/attendees/saved-session-counts-batch", selectedEventId, displayedIdsForCounts.length],
+    queryKey: ["/api/admin/attendees/saved-session-counts-batch", selectedEventId, displayedIdsForCounts.join(",")],
     queryFn: async () => {
       if (displayedIdsForCounts.length === 0) return {};
       const res = await apiRequest("POST", "/api/admin/attendees/saved-session-counts-batch", {

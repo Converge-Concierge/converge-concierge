@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useLocation, Link } from "wouter";
-import { Hexagon, LayoutDashboard, CalendarDays, Bookmark, Building2, Calendar, Tag, LogOut } from "lucide-react";
+import { Hexagon, LayoutDashboard, CalendarDays, Bookmark, Calendar, Tag, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -15,7 +15,6 @@ const navItems = [
   { label: "Interests", href: "/attendee/interests", icon: Tag },
   { label: "Agenda", href: "/attendee/agenda", icon: CalendarDays },
   { label: "My Agenda", href: "/attendee/my-agenda", icon: Bookmark },
-  { label: "Sponsors", href: "/attendee/sponsors", icon: Building2 },
   { label: "Meetings", href: "/attendee/meetings", icon: Calendar },
 ];
 

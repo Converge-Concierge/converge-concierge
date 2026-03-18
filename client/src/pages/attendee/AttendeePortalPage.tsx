@@ -3,18 +3,16 @@ import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Star, ChevronRight, CheckCircle2, Hexagon,
-  CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail, Bell, Video,
+  CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail, Bell,
   Lightbulb, Sparkles, MapPin, Clock, AlertCircle, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
-import MeetingSchedulerDialog from "@/components/attendee/MeetingSchedulerDialog";
 import { useAttendeeAuth, type AttendeeMe } from "@/hooks/use-attendee-auth";
 import { useToast } from "@/hooks/use-toast";
 import SessionDetailSheet, { type AgendaSessionDetail } from "@/components/attendee/SessionDetailSheet";
-import { RequestInfoModal } from "@/components/RequestInfoModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -558,18 +556,16 @@ function RelevanceLabel({ labels }: { labels: string[] }) {
 }
 
 function Dashboard({
-  me, topics, selections, sessions, sponsors, savedSessionIds,
+  me, topics, selections, sessions, savedSessionIds,
   onEditInterests, onSaveSession, onUnsaveSession, isSavingSession,
-  onRequestInfo, invitationCount,
-  registrationUrl, websiteUrl, meetingsScheduledCount, accentColor, headers,
+  invitationCount, registrationUrl, websiteUrl, meetingsScheduledCount, accentColor, headers,
 }: {
   me: AttendeeMe; topics: Topic[]; selections: TopicSelection[];
-  sessions: RecommendedSession[]; sponsors: RecommendedSponsor[];
+  sessions: RecommendedSession[];
   savedSessionIds: Set<string>;
   onEditInterests: () => void;
   onSaveSession: (id: string) => void; onUnsaveSession: (id: string) => void;
   isSavingSession: boolean;
-  onRequestInfo: (id: string) => void;
   invitationCount: number;
   registrationUrl: string | null;
   websiteUrl: string | null;
@@ -580,8 +576,6 @@ function Dashboard({
   const topicMap = new Map(topics.map((t) => [t.id, t]));
   const selectedTopics = selections.map((s) => topicMap.get(s.topicId)).filter(Boolean) as Topic[];
   const [detailSession, setDetailSession] = useState<AgendaSessionDetail | null>(null);
-  const [schedulerModal, setSchedulerModal] = useState<{ sponsorId: string; sponsorName: string; mode: "onsite" | "online" } | null>(null);
-  const [requestInfoSponsor, setRequestInfoSponsor] = useState<{ id: string; name: string } | null>(null);
 
   const hasInterests = selections.length > 0;
   const teamUrl = registrationUrl || websiteUrl;
@@ -643,10 +637,9 @@ function Dashboard({
             Welcome back, <span className="font-semibold text-foreground">{me.attendee.firstName || me.attendee.name}</span>.{" "}
             Your personalised event dashboard is ready.
           </p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {[
               { value: savedSessionIds.size, label: "Sessions Saved", testId: "stat-sessions-saved" },
-              { value: sponsors.length, label: "Sponsors Matched", testId: "stat-sponsors-matched" },
               { value: meetingsScheduledCount, label: "Meetings Scheduled", testId: "stat-meetings-scheduled" },
             ].map(({ value, label, testId }) => (
               <div key={label} className="bg-background border border-border/60 rounded-xl p-3 text-center" data-testid={testId}>
@@ -679,7 +672,7 @@ function Dashboard({
       )}
 
       {/* ── Action Cards ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" data-testid="section-action-cards">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="section-action-cards">
 
         {/* Build Your Agenda */}
         <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4">
@@ -707,32 +700,6 @@ function Dashboard({
           </Link>
         </div>
 
-        {/* Meet Relevant Sponsors */}
-        <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center" style={acBg}>
-            <Building2 className="h-5 w-5 text-primary" style={acColor} />
-          </div>
-          <div className="flex-1 space-y-1">
-            <p className="font-semibold text-foreground text-sm">Meet Relevant Sponsors</p>
-            {sponsors.length > 0 ? (
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <span className="font-semibold text-foreground">{sponsors.length}</span> sponsor{sponsors.length !== 1 ? "s" : ""} align with your selected interests.
-              </p>
-            ) : !hasInterests ? (
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <button className="text-primary underline font-medium" onClick={onEditInterests}>Add interests</button> to unlock personalised sponsor recommendations.
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground leading-relaxed">Browse all sponsors and request meetings or information packs.</p>
-            )}
-          </div>
-          <Link href="/attendee/sponsors">
-            <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs font-medium" data-testid="button-view-sponsors">
-              View Sponsors <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          </Link>
-        </div>
-
         {/* Bring a Team */}
         <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4" data-testid="section-bring-a-team">
           <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center" style={acBg}>
@@ -741,7 +708,7 @@ function Dashboard({
           <div className="flex-1 space-y-1">
             <p className="font-semibold text-foreground text-sm">Bring a Team</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Conferences are more valuable when your team attends together. Divide sessions, meet sponsors, and compare insights.
+              Conferences are more valuable when your team attends together. Divide sessions, attend more content, and compare insights.
             </p>
           </div>
           {teamUrl ? (
@@ -754,101 +721,6 @@ function Dashboard({
             <p className="text-xs text-muted-foreground italic">Contact the organiser for registration details.</p>
           )}
         </div>
-      </div>
-
-      {/* ── Recommended Sponsors ──────────────────────────────────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-primary" style={acColor} /> Recommended Sponsors
-          </h2>
-          <Link href="/attendee/sponsors">
-            <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" data-testid="link-view-all-sponsors">
-              All Sponsors <ArrowRight className="h-3 w-3" />
-            </Button>
-          </Link>
-        </div>
-        {sponsors.length === 0 ? (
-          <div className="bg-card border border-border/60 rounded-2xl p-8 text-center space-y-2">
-            <Building2 className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-            {!hasInterests ? (
-              <p className="text-sm text-muted-foreground">
-                <Link href="/attendee/interests"><span className="text-primary underline cursor-pointer">Add interests</span></Link> to see sponsor recommendations.
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">No sponsor recommendations yet.</p>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="sponsors-list">
-            {sponsors.map((sponsor) => {
-              return (
-                <div key={sponsor.id} className="bg-card border border-border/60 rounded-2xl p-4 flex flex-col gap-3" data-testid={`card-sponsor-${sponsor.id}`}>
-                  {/* Header: logo + level */}
-                  <div className="flex items-start justify-between gap-2">
-                    {sponsor.logoUrl
-                      ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-12 w-12 rounded-xl object-contain shrink-0 border border-border/40 bg-white p-1" />
-                      : <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0" style={acBg}><Building2 className="h-6 w-6 text-primary" style={acColor} /></div>
-                    }
-                    {sponsor.level && (
-                      <Badge variant="secondary" className="rounded-full text-[10px] shrink-0 font-semibold">{sponsor.level}</Badge>
-                    )}
-                  </div>
-                  {/* Info */}
-                  <div className="space-y-1 min-w-0">
-                    <p className="font-bold text-sm text-foreground leading-snug">{sponsor.name}</p>
-                    {sponsor.shortDescription && <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{sponsor.shortDescription}</p>}
-                    {sponsor.overlapTopicLabels.length > 0 && (
-                      <div className="flex items-center gap-1 pt-0.5">
-                        <Sparkles className="h-3 w-3 text-primary shrink-0" style={acColor} />
-                        <p className="text-xs text-primary font-medium truncate" style={acColor}>{sponsor.overlapTopicLabels.join(", ")}</p>
-                      </div>
-                    )}
-                    {sponsor.websiteUrl && (
-                      <a href={sponsor.websiteUrl} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-primary hover:underline" style={acColor}
-                        data-testid={`link-view-profile-${sponsor.id}`}>
-                        <ExternalLink className="h-3 w-3" /> View Profile
-                      </a>
-                    )}
-                  </div>
-                  {/* Actions */}
-                  {(sponsor.onsiteMeetingEnabled || sponsor.onlineMeetingEnabled || sponsor.informationRequestEnabled) && (
-                    <div className="space-y-1.5 pt-2 border-t border-border/40">
-                      {sponsor.onsiteMeetingEnabled && (
-                        <button
-                          className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 bg-foreground text-background hover:bg-foreground/90"
-                          onClick={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "onsite" })}
-                          data-testid={`button-onsite-meeting-${sponsor.id}`}
-                        >
-                          <Calendar className="h-3.5 w-3.5" /> Schedule Onsite Meeting
-                        </button>
-                      )}
-                      {sponsor.onlineMeetingEnabled && (
-                        <button
-                          className="w-full py-2 rounded-xl text-xs font-semibold border border-border/60 bg-transparent text-foreground hover:bg-muted/50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
-                          onClick={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "online" })}
-                          data-testid={`button-online-meeting-${sponsor.id}`}
-                        >
-                          <Video className="h-3.5 w-3.5" /> Online Meeting
-                        </button>
-                      )}
-                      {sponsor.informationRequestEnabled && (
-                        <button
-                          className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
-                          onClick={() => setRequestInfoSponsor({ id: sponsor.id, name: sponsor.name })}
-                          data-testid={`button-request-info-${sponsor.id}`}
-                        >
-                          Request Information
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* ── Recommended Sessions ──────────────────────────────────────── */}
@@ -951,38 +823,6 @@ function Dashboard({
         />
       )}
 
-      {/* Meeting scheduler wizard */}
-      {schedulerModal && (
-        <MeetingSchedulerDialog
-          open={!!schedulerModal}
-          onClose={() => setSchedulerModal(null)}
-          sponsorId={schedulerModal.sponsorId}
-          sponsorName={schedulerModal.sponsorName}
-          mode={schedulerModal.mode}
-          me={me}
-          headers={headers}
-          onSuccess={() => setSchedulerModal(null)}
-        />
-      )}
-
-      {/* Request Information modal — matches Card 4 behavior */}
-      {requestInfoSponsor && (
-        <RequestInfoModal
-          open={!!requestInfoSponsor}
-          onClose={() => setRequestInfoSponsor(null)}
-          onSuccess={() => setRequestInfoSponsor(null)}
-          sponsorId={requestInfoSponsor.id}
-          sponsorName={requestInfoSponsor.name}
-          eventId={me.event.id}
-          prefill={{
-            email: me.attendee.email,
-            firstName: me.attendee.firstName,
-            lastName: me.attendee.lastName,
-            company: me.attendee.company,
-            title: me.attendee.title,
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -1232,13 +1072,11 @@ export default function AttendeePortalPage() {
         topics={topics}
         selections={selections}
         sessions={sessions}
-        sponsors={sponsors}
         savedSessionIds={savedSessionIds}
         onEditInterests={() => setOnboardingStep("edit-topics")}
         onSaveSession={(id) => saveSessionMutation.mutate(id)}
         onUnsaveSession={(id) => unsaveSessionMutation.mutate(id)}
         isSavingSession={isSavingSession}
-        onRequestInfo={(id) => requestInfoMutation.mutate(id)}
         invitationCount={invitationCount}
         headers={headers}
         registrationUrl={me.event.registrationUrl}

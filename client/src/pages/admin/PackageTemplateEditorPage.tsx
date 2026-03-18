@@ -29,6 +29,9 @@ import {
 import { HelpContentPreview } from "@/components/admin/StructuredDeliverableEditors";
 
 type TemplateDetail = PackageTemplate & { items: DeliverableTemplateItem[] };
+type EventOption = { id: string; name: string; slug: string };
+
+const SPONSORSHIP_LEVELS = ["Platinum", "Gold", "Silver", "Bronze"];
 
 type ItemForm = {
   deliverableName: string;
@@ -101,6 +104,10 @@ export default function PackageTemplateEditorPage() {
   const [editingHeader, setEditingHeader] = useState(false);
   const [headerName, setHeaderName] = useState("");
   const [headerDesc, setHeaderDesc] = useState("");
+  const [headerLevel, setHeaderLevel] = useState("Platinum");
+  const [headerYear, setHeaderYear] = useState("");
+  const [headerFamily, setHeaderFamily] = useState("");
+  const [headerEventId, setHeaderEventId] = useState<string | null>(null);
   const [showItemDialog, setShowItemDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<DeliverableTemplateItem | null>(null);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -117,10 +124,16 @@ export default function PackageTemplateEditorPage() {
     enabled: !!id,
   });
 
+  const { data: events = [] } = useQuery<EventOption[]>({ queryKey: ["/api/events"] });
+
   useEffect(() => {
     if (template) {
       setHeaderName(template.packageName);
       setHeaderDesc(template.description ?? "");
+      setHeaderLevel(template.sponsorshipLevel ?? "Platinum");
+      setHeaderYear(template.year ?? "");
+      setHeaderFamily(template.eventFamily ?? "");
+      setHeaderEventId(template.eventId ?? null);
     }
   }, [template]);
 
@@ -288,6 +301,35 @@ export default function PackageTemplateEditorPage() {
                   <Label htmlFor="edit-name">Package Name</Label>
                   <Input id="edit-name" value={headerName} onChange={(e) => setHeaderName(e.target.value)} className="text-lg font-bold" data-testid="input-header-name" />
                 </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label>Sponsorship Level</Label>
+                    <Select value={headerLevel} onValueChange={setHeaderLevel}>
+                      <SelectTrigger data-testid="select-header-level"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SPONSORSHIP_LEVELS.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Event Family</Label>
+                    <Input value={headerFamily} onChange={(e) => setHeaderFamily(e.target.value)} placeholder="e.g. FRC" data-testid="input-header-family" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Year</Label>
+                    <Input value={headerYear} onChange={(e) => setHeaderYear(e.target.value)} placeholder="e.g. 2026" data-testid="input-header-year" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label>Assign to Event <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Select value={headerEventId ?? "none"} onValueChange={(v) => setHeaderEventId(v === "none" ? null : v)}>
+                    <SelectTrigger data-testid="select-header-event"><SelectValue placeholder="No specific event" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No specific event</SelectItem>
+                      {events.map(e => <SelectItem key={e.id} value={e.id}>{e.name} ({e.slug})</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-1">
                   <Label htmlFor="edit-desc">Description</Label>
                   <Textarea id="edit-desc" value={headerDesc} onChange={(e) => setHeaderDesc(e.target.value)} rows={2} data-testid="input-header-desc" />
@@ -302,6 +344,14 @@ export default function PackageTemplateEditorPage() {
                     {template.sponsorshipLevel}
                   </span>
                   <span className="text-xs text-muted-foreground">{[template.eventFamily, template.year].filter(Boolean).join(" ")}</span>
+                  {template.eventId && (() => {
+                    const assignedEvent = events.find(e => e.id === template.eventId);
+                    return assignedEvent ? (
+                      <span className="text-xs bg-accent/10 text-accent border border-accent/20 px-2 py-0.5 rounded-full font-medium">
+                        {assignedEvent.name}
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
                 {template.description && <p className="text-sm text-muted-foreground">{template.description}</p>}
                 <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
@@ -320,7 +370,14 @@ export default function PackageTemplateEditorPage() {
             {editingHeader ? (
               <>
                 <Button variant="outline" size="sm" onClick={() => setEditingHeader(false)}>Cancel</Button>
-                <Button size="sm" onClick={() => updateTemplate.mutate({ packageName: headerName, description: headerDesc || null })} disabled={!headerName.trim() || updateTemplate.isPending} data-testid="button-save-header">
+                <Button size="sm" onClick={() => updateTemplate.mutate({
+                  packageName: headerName,
+                  description: headerDesc || null,
+                  sponsorshipLevel: headerLevel,
+                  eventFamily: headerFamily.trim() || null,
+                  year: headerYear.trim() || null,
+                  eventId: headerEventId || null,
+                })} disabled={!headerName.trim() || updateTemplate.isPending} data-testid="button-save-header">
                   <Save className="h-3.5 w-3.5 mr-1" /> Save
                 </Button>
               </>

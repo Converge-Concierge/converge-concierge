@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { useLocation, Link } from "wouter";
 import { Hexagon, LayoutDashboard, CalendarDays, Bookmark, Calendar, Tag, LogOut, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 
 interface Props {
   children: ReactNode;
@@ -9,6 +10,8 @@ interface Props {
   attendeeName?: string;
   accentColor?: string | null;
 }
+
+interface AppBranding { appName: string; appLogoUrl: string; }
 
 const navItems = [
   { label: "Home", href: "/attendee", icon: LayoutDashboard },
@@ -21,6 +24,12 @@ const navItems = [
 
 export default function AttendeeShell({ children, onLogout, attendeeName, accentColor }: Props) {
   const [location] = useLocation();
+  const { data: branding } = useQuery<AppBranding>({
+    queryKey: ["/api/branding-public"],
+    staleTime: 5 * 60 * 1000,
+  });
+  const appName = branding?.appName || "Converge Concierge";
+  const logoUrl = branding?.appLogoUrl;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -28,13 +37,22 @@ export default function AttendeeShell({ children, onLogout, attendeeName, accent
       <header className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-border/60">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div
-              className="flex h-7 w-7 items-center justify-center rounded-lg shadow-md text-white"
-              style={accentColor ? { backgroundColor: accentColor, boxShadow: `0 4px 6px -1px ${accentColor}33` } : undefined}
-            >
-              <Hexagon className="h-4 w-4" />
-            </div>
-            <span className="font-display text-base font-bold text-foreground tracking-tight">Converge Concierge</span>
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={appName}
+                className="h-7 max-w-[140px] object-contain"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              <div
+                className="flex h-7 w-7 items-center justify-center rounded-lg shadow-md text-white"
+                style={accentColor ? { backgroundColor: accentColor, boxShadow: `0 4px 6px -1px ${accentColor}33` } : undefined}
+              >
+                <Hexagon className="h-4 w-4" />
+              </div>
+            )}
+            <span className="font-display text-base font-bold text-foreground tracking-tight">{appName}</span>
           </div>
           <div className="flex items-center gap-2">
             {attendeeName && (

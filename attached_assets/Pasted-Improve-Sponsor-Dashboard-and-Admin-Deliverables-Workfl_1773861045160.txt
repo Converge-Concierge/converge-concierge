@@ -1,0 +1,311 @@
+Improve Sponsor Dashboard and Admin → Deliverables Workflow
+Expose speaking/session details more clearly, add VIP attendee selection, allow Converge to manage sponsor reps, organize deliverables by event tabs, and expand speaker data capture
+
+We need to make a set of functional improvements to both the Sponsor Dashboard and Admin → Sponsor Management → Deliverables.
+
+These changes should make sponsor deliverables easier to manage, reduce friction for Converge admins, and improve the usefulness of the sponsor-facing workflow.
+
+1. Sponsor Dashboard — Speaking Engagement Section
+A. Display the Session Title in Speaking Engagement
+Problem
+
+In the Sponsor Dashboard, the Speaking Engagement section currently shows the speaker name, but it does not clearly show the session title tied to that speaking deliverable.
+
+That is incomplete and makes the section less useful.
+
+Required behavior
+
+For each speaking engagement entry, display:
+
+speaker name
+
+speaker title
+
+session title
+
+any other already-supported session context if available
+
+The session title should be clearly visible so the sponsor immediately knows which session the speaker is tied to.
+
+B. No Section Should Need to Be Expanded
+Problem
+
+Currently, some sponsor dashboard sections require expansion/collapse to see the actual content.
+
+That creates unnecessary friction.
+
+Required behavior
+
+All sponsor dashboard sections should display their relevant content by default.
+
+Do not require sponsors to click open/expand just to see their data.
+
+This applies especially to sections like:
+
+Speaking & Content
+
+Meetings & Introductions
+
+other active deliverable sections with meaningful data inside
+
+If collapse controls remain for UX reasons, they should default to expanded/open.
+
+Preferred outcome:
+
+no manual expansion needed
+
+sponsors see all relevant content immediately
+
+2. Admin → Sponsor Management → Deliverables
+
+We need several improvements in the Deliverables admin workflow.
+
+2A. VIP Registrations — Allow Selection From Event Attendees
+Problem
+
+The VIP Registrations section currently tracks allocations, but Converge should be able to tie those VIP seats directly to registered event attendees.
+
+Example:
+If two sponsor representatives register for the event, Converge should be able to select those two attendees and count them against the sponsor’s VIP registration allocation.
+
+Required behavior
+
+In the VIP Registrations deliverable section, allow Converge admin to select from the existing event attendee list.
+
+The admin should be able to:
+
+search/select attendee(s) already registered for the event
+
+assign them against the sponsor’s VIP registration allocation
+
+decrement the remaining VIP seat count accordingly
+
+Preferred workflow
+
+Within VIP Registrations:
+
+show total seats
+
+show remaining seats
+
+show submitted/assigned attendees
+
+add attendee from event attendee list
+
+remove attendee if needed
+
+Important
+
+This should be event-specific and tied to the correct event.
+
+Do not let attendee assignments cross events.
+
+2B. Company Profile — Allow Converge to Enter Representatives on Behalf of the Sponsor
+Problem
+
+Converge should be able to manage sponsor representatives directly in the Company Profile area, rather than relying only on the sponsor to do it.
+
+Required behavior
+
+In the Company Profile section/deliverable area, allow Converge admin to enter sponsor representatives on behalf of the sponsor.
+
+This should support:
+
+adding representative
+
+editing representative
+
+removing representative if needed
+
+Main contact rule
+
+The first representative should be the main contact that was entered when the sponsor was originally created.
+
+That representative should already appear in the list by default.
+
+In other words:
+
+sponsor main contact from sponsor creation should populate as representative #1
+
+additional representatives can then be added after that
+
+Do not make Converge re-enter the main contact manually if it already exists in sponsor setup.
+
+2C. Organize Deliverables by Event Tabs
+Problem
+
+The Deliverables area should be easier to navigate across events.
+
+Right now it needs event-based organization similar to other modules.
+
+Required behavior
+
+Add event tabs to Deliverables similar to the pattern already used in:
+
+Attendees
+
+Agenda
+
+Sponsors
+
+other event-filtered admin tables
+
+Example tabs:
+
+FRC2026
+
+TLS2026
+
+USBT2026
+
+CUGI2027
+
+All Events
+
+Goal
+
+This should allow admins to quickly filter deliverables by event context without relying only on dropdowns/filters.
+
+Use the same tab style/pattern already established elsewhere in the admin UI for consistency.
+
+2D. Speaking & Content — Allow Editing After Speaker Is Entered
+Problem
+
+Once a speaker is entered in the Speaking & Content section, the admin currently only has the ability to delete the entry.
+
+That is not enough.
+
+Required behavior
+
+After a speaker entry is created, the admin must be able to:
+
+edit speaker details
+
+edit session details associated with that speaker engagement
+
+save those edits
+
+Do not limit the workflow to delete-only.
+
+This should apply to:
+
+speaker name
+
+speaker title
+
+session title
+
+related speaking deliverable fields
+
+headshot/bio fields described below
+
+2E. Add Headshot Photo and Speaker Biography Fields
+
+When entering a speaker, we need two additional fields:
+
+Headshot Photo — file upload
+
+Speaker Biography — text input
+
+Required behavior
+
+Add these two fields to the speaker entry flow.
+
+Headshot Photo
+
+file upload
+
+standard image format support
+
+associate the image with the speaker record
+
+Speaker Biography
+
+multiline text input
+
+saved with the speaker record
+
+2F. Make Missing Headshot/Bio Become Sponsor Deliverables When Not Entered by Converge
+Problem
+
+If Converge creates a speaker record but does not complete Headshot Photo and/or Speaker Biography, those missing items should become sponsor deliverables.
+
+Required behavior
+
+When Converge creates a speaker:
+
+if headshot is provided by admin, mark headshot requirement as complete
+
+if biography is provided by admin, mark bio requirement as complete
+
+if either is missing, create the corresponding sponsor deliverable(s)
+
+Example:
+
+Speaker created with no headshot and no bio
+→ create two sponsor-facing deliverables:
+
+Headshot Photo
+
+Speaker Biography
+
+Speaker created with bio entered but no headshot
+→ create only:
+
+Headshot Photo
+
+This should make the deliverable system smarter and prevent missing speaker assets from getting lost.
+
+Important
+
+These deliverables should remain tied to:
+
+the correct sponsor
+
+the correct event
+
+the correct speaking engagement/speaker if practical
+
+3. Keep Data Visible and Editable
+
+Across both Sponsor Dashboard and Admin Deliverables, the general direction should be:
+
+less hidden data
+
+fewer expansion-only interactions
+
+more direct editing
+
+stronger event-specific organization
+
+The workflow should feel operational and efficient, not buried in collapsible containers.
+
+4. Acceptance Criteria
+
+This work is complete when:
+
+Sponsor Dashboard
+
+Speaking Engagement entries show the associated session title
+
+sponsor-facing sections are visible by default and do not require manual expansion to view content
+
+Admin → Deliverables
+
+VIP Registrations can assign existing event attendees against sponsor allocations
+
+Company Profile allows Converge to manage sponsor representatives directly
+
+the sponsor’s original main contact appears as the first representative by default
+
+Deliverables are organized by event tabs similar to Attendees/Agenda
+
+Speaking & Content entries can be edited after creation, not just deleted
+
+speaker entry supports Headshot Photo upload and Speaker Biography text
+
+missing headshot/bio fields automatically generate sponsor deliverables when Converge leaves them blank
+
+5. Success Standard
+
+After this update, sponsor deliverables should be significantly easier to manage. Sponsors should immediately see the content tied to their speaking engagements, Converge should be able to manage VIP registrations and representatives more directly, deliverables should be organized by event in a familiar way, and speaker asset collection should be properly tracked through deliverables whenever Converge does not complete those fields upfront.

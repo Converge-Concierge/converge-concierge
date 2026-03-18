@@ -146,6 +146,7 @@ export const sponsors = pgTable("sponsors", {
   contactEmail: text("contact_email"),
   contactPhone: text("contact_phone"),
   attributes: jsonb("attributes").$type<string[]>().default([]),
+  repsJson: text("reps_json"),
 });
 
 export const insertSponsorSchema = createInsertSchema(sponsors).extend({
@@ -1158,6 +1159,7 @@ export const agreementDeliverableRegistrants = pgTable("agreement_deliverable_re
   lastName: varchar("last_name"),
   title: varchar("title"),
   email: varchar("email"),
+  attendeeId: varchar("attendee_id"),
   conciergeRole: varchar("concierge_role"),
   registrationStatus: varchar("registration_status").notNull().default("Unknown"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -1176,6 +1178,7 @@ export const agreementDeliverableSpeakers = pgTable("agreement_deliverable_speak
   speakerBio: text("speaker_bio"),
   sessionType: varchar("session_type"),
   sessionTitle: varchar("session_title"),
+  headshotFileAssetId: varchar("headshot_file_asset_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

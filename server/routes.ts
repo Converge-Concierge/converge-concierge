@@ -5689,7 +5689,52 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         sessionType: sessionType?.trim() ?? null,
         sessionTitle: sessionTitle?.trim() ?? null,
       });
+
+      // T007: Auto-create deliverables for missing headshot/bio
+      const autoCreate: Array<{ name: string; desc: string }> = [];
+      if (!speakerBio?.trim()) autoCreate.push({ name: "Speaker Biography", desc: `Speaker bio needed for ${speakerName.trim()}` });
+      // Headshot is never provided on creation, so always queue it
+      autoCreate.push({ name: "Speaker Headshot", desc: `Headshot needed for ${speakerName.trim()}` });
+      for (const item of autoCreate) {
+        const existing = await storage.listAgreementDeliverables({ sponsorId: deliverable.sponsorId, eventId: deliverable.eventId });
+        const alreadyExists = existing.some(d => d.deliverableName === item.name && d.category === "Speakers & Sessions");
+        if (!alreadyExists) {
+          await storage.createAgreementDeliverable({
+            sponsorId: deliverable.sponsorId,
+            eventId: deliverable.eventId,
+            sponsorshipLevel: deliverable.sponsorshipLevel,
+            category: "Speakers & Sessions",
+            deliverableName: item.name,
+            deliverableDescription: item.desc,
+            ownerType: "Sponsor",
+            sponsorEditable: true,
+            sponsorVisible: true,
+            fulfillmentType: item.name.includes("Headshot") ? "file_upload" : "status_only",
+            reminderEligible: true,
+            status: "Needed",
+            dueTiming: "before_event",
+            isCustom: true,
+            displayOrder: 99,
+          });
+        }
+      }
+
       res.status(201).json(speaker);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.patch("/api/agreement/deliverables/:id/speakers/:sid", requireAuth, async (req, res) => {
+    try {
+      const { speakerName, speakerTitle, speakerBio, sessionType, sessionTitle, headshotFileAssetId } = req.body;
+      const speaker = await storage.updateDeliverableSpeaker(req.params.sid, {
+        ...(speakerName !== undefined && { speakerName: speakerName.trim() }),
+        ...(speakerTitle !== undefined && { speakerTitle: speakerTitle?.trim() ?? null }),
+        ...(speakerBio !== undefined && { speakerBio: speakerBio?.trim() ?? null }),
+        ...(sessionType !== undefined && { sessionType: sessionType?.trim() ?? null }),
+        ...(sessionTitle !== undefined && { sessionTitle: sessionTitle?.trim() ?? null }),
+        ...(headshotFileAssetId !== undefined && { headshotFileAssetId: headshotFileAssetId ?? null }),
+      });
+      res.json(speaker);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
@@ -5697,6 +5742,61 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       await storage.deleteDeliverableSpeaker(req.params.sid);
       res.json({ ok: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Admin Registrant CRUD (VIP Registrations) ───────────────────────────
+
+  app.get("/api/agreement/deliverables/:id/registrants", requireAuth, async (req, res) => {
+    try {
+      const registrants = await storage.listDeliverableRegistrants(req.params.id);
+      res.json(registrants);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/agreement/deliverables/:id/registrants", requireAuth, async (req, res) => {
+    try {
+      const { name, firstName, lastName, title, email, attendeeId, conciergeRole } = req.body;
+      const registrant = await storage.createDeliverableRegistrant({
+        agreementDeliverableId: req.params.id,
+        name: name || `${firstName ?? ""} ${lastName ?? ""}`.trim() || "Unknown",
+        firstName: firstName ?? null,
+        lastName: lastName ?? null,
+        title: title ?? null,
+        email: email ?? null,
+        attendeeId: attendeeId ?? null,
+        conciergeRole: conciergeRole ?? null,
+        registrationStatus: "Registered",
+      });
+      res.status(201).json(registrant);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/agreement/deliverables/:id/registrants/:rid", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteDeliverableRegistrant(req.params.rid);
+      res.json({ ok: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // GET eligible attendees for VIP registration selection
+  app.get("/api/agreement/deliverables/:id/eligible-attendees", requireAuth, async (req, res) => {
+    try {
+      const deliverable = await storage.getAgreementDeliverable(req.params.id);
+      if (!deliverable) return res.status(404).json({ message: "Deliverable not found" });
+      const allAttendees = await storage.getAttendees();
+      const eventAttendees = allAttendees.filter(
+        (a) => a.assignedEvent === deliverable.eventId && (a.archiveState ?? "active") === "active"
+      );
+      res.json(eventAttendees.map(a => ({
+        id: a.id,
+        name: a.name,
+        firstName: a.firstName,
+        lastName: a.lastName,
+        email: a.email,
+        company: a.company,
+        title: a.title,
+      })));
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 

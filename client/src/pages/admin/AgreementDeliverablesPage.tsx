@@ -266,6 +266,40 @@ export default function AgreementDeliverablesPage() {
 
         {/* ── Sponsor Agreements ── */}
         <TabsContent value="sponsor-agreements" className="mt-4 space-y-4">
+          {/* Event tab strip */}
+          {events.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                onClick={() => setFilterEvent("all")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                  filterEvent === "all"
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"
+                )}
+                data-testid="tab-event-all"
+              >
+                All Events
+              </button>
+              {events.map((ev) => (
+                <button
+                  key={ev.id}
+                  onClick={() => setFilterEvent(ev.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                    filterEvent === ev.id
+                      ? "bg-foreground text-background border-foreground"
+                      : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"
+                  )}
+                  style={filterEvent === ev.id && ev.accentColor ? { backgroundColor: ev.accentColor, borderColor: ev.accentColor, color: "#fff" } : undefined}
+                  data-testid={`tab-event-${ev.id}`}
+                >
+                  {ev.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -277,15 +311,6 @@ export default function AgreementDeliverablesPage() {
                 data-testid="input-search-agreements"
               />
             </div>
-            <Select value={filterEvent} onValueChange={setFilterEvent}>
-              <SelectTrigger className="w-44" data-testid="select-filter-event">
-                <SelectValue placeholder="All Events" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Events</SelectItem>
-                {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
             <Select value={filterLevel} onValueChange={setFilterLevel}>
               <SelectTrigger className="w-36" data-testid="select-filter-level-agr">
                 <SelectValue placeholder="All Levels" />

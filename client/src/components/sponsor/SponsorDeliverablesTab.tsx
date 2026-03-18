@@ -35,6 +35,7 @@ interface Speaker {
   speakerTitle: string | null;
   speakerBio: string | null;
   sessionType: string | null;
+  sessionTitle: string | null;
 }
 
 interface SocialEntry {
@@ -1332,6 +1333,11 @@ function SpeakerEditor({
               <div className="flex-1 min-w-0">
                 <p className="font-medium">{s.speakerName}</p>
                 {s.speakerTitle && <p className="text-xs text-muted-foreground">{s.speakerTitle}</p>}
+                {s.sessionTitle && (
+                  <p className="text-xs text-primary/80 font-medium mt-0.5">
+                    {s.sessionType && <span className="text-muted-foreground font-normal">{s.sessionType} · </span>}{s.sessionTitle}
+                  </p>
+                )}
                 {s.speakerBio && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{s.speakerBio}</p>}
               </div>
               {canEdit && (

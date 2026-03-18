@@ -78,6 +78,30 @@ export default function AttendeeDiscoveryTab({ token, eventAccent }: { token: st
     },
   });
 
+  // All hooks must be declared before any conditional returns
+  const uniqueCategories = useMemo(() => {
+    const cats = new Set<string>();
+    (data?.attendees ?? []).forEach(a => { if (a.attendeeCategory) cats.add(a.attendeeCategory); });
+    return Array.from(cats).sort();
+  }, [data?.attendees]);
+
+  const remaining = (data?.invitationLimit ?? 0) - (data?.invitationsUsed ?? 0);
+
+  const filtered = useMemo(() => {
+    let list = data?.attendees ?? [];
+    if (categoryFilter !== "all") list = list.filter(a => a.attendeeCategory === categoryFilter);
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      list = list.filter(a =>
+        a.name.toLowerCase().includes(term) ||
+        a.company.toLowerCase().includes(term) ||
+        a.title.toLowerCase().includes(term) ||
+        a.interests.some(i => i.toLowerCase().includes(term))
+      );
+    }
+    return list;
+  }, [data?.attendees, categoryFilter, searchTerm]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -95,28 +119,6 @@ export default function AttendeeDiscoveryTab({ token, eventAccent }: { token: st
           <p className="text-muted-foreground">Attendee discovery has not been enabled for this event yet.</p>
         </CardContent>
       </Card>
-    );
-  }
-
-  const remaining = data.invitationLimit - data.invitationsUsed;
-
-  const uniqueCategories = useMemo(() => {
-    const cats = new Set<string>();
-    data.attendees.forEach(a => { if (a.attendeeCategory) cats.add(a.attendeeCategory); });
-    return Array.from(cats).sort();
-  }, [data.attendees]);
-
-  let filtered = data.attendees;
-  if (categoryFilter !== "all") {
-    filtered = filtered.filter(a => a.attendeeCategory === categoryFilter);
-  }
-  if (searchTerm.trim()) {
-    const term = searchTerm.toLowerCase();
-    filtered = filtered.filter(a =>
-      a.name.toLowerCase().includes(term) ||
-      a.company.toLowerCase().includes(term) ||
-      a.title.toLowerCase().includes(term) ||
-      a.interests.some(i => i.toLowerCase().includes(term))
     );
   }
 

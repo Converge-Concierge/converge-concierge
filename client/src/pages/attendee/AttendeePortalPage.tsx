@@ -675,24 +675,11 @@ function Dashboard({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" data-testid="section-action-cards">
 
         {/* Build Your Agenda */}
-        <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4">
+        <div className="bg-card border border-border/60 rounded-2xl p-4 flex flex-col gap-3">
           <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center" style={acBg}>
             <CalendarDays className="h-5 w-5 text-primary" style={acColor} />
           </div>
-          <div className="flex-1 space-y-1">
-            <p className="font-semibold text-foreground text-sm">Build Your Agenda</p>
-            {sessions.length > 0 ? (
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <span className="font-semibold text-foreground">{sessions.length}</span> session{sessions.length !== 1 ? "s" : ""} recommended based on your interests.
-              </p>
-            ) : !hasInterests ? (
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <button className="text-primary underline font-medium" onClick={onEditInterests}>Select your interests</button> to unlock personalised session picks.
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground leading-relaxed">Browse the full agenda and save sessions to build your schedule.</p>
-            )}
-          </div>
+          <p className="font-semibold text-foreground text-sm">Build Your Agenda</p>
           <Link href="/attendee/agenda">
             <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs font-medium" data-testid="button-build-agenda">
               Browse Sessions <ArrowRight className="h-3.5 w-3.5" />
@@ -701,20 +688,11 @@ function Dashboard({
         </div>
 
         {/* Discover Sponsors */}
-        <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4">
+        <div className="bg-card border border-border/60 rounded-2xl p-4 flex flex-col gap-3">
           <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center" style={acBg}>
             <Building2 className="h-5 w-5 text-primary" style={acColor} />
           </div>
-          <div className="flex-1 space-y-1">
-            <p className="font-semibold text-foreground text-sm">Meet Relevant Sponsors</p>
-            {!hasInterests ? (
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <button className="text-primary underline font-medium" style={acColor} onClick={onEditInterests}>Add interests</button> to unlock personalised sponsor matches.
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground leading-relaxed">Discover sponsors that align with your interests, schedule meetings, and request information.</p>
-            )}
-          </div>
+          <p className="font-semibold text-foreground text-sm">Meet Relevant Sponsors</p>
           <Link href="/attendee/sponsors">
             <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs font-medium" data-testid="button-discover-sponsors">
               View Sponsors <ArrowRight className="h-3.5 w-3.5" />
@@ -723,16 +701,11 @@ function Dashboard({
         </div>
 
         {/* Bring a Team */}
-        <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4" data-testid="section-bring-a-team">
+        <div className="bg-card border border-border/60 rounded-2xl p-4 flex flex-col gap-3" data-testid="section-bring-a-team">
           <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center" style={acBg}>
             <Users className="h-5 w-5 text-primary" style={acColor} />
           </div>
-          <div className="flex-1 space-y-1">
-            <p className="font-semibold text-foreground text-sm">Bring a Team</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Conferences are more valuable when your team attends together. Divide sessions, attend more content, and compare insights.
-            </p>
-          </div>
+          <p className="font-semibold text-foreground text-sm">Bring a Team</p>
           {teamUrl ? (
             <a href={teamUrl} target="_blank" rel="noopener noreferrer" data-testid="link-bring-a-team">
               <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs font-medium" data-testid="button-register-team-member">
@@ -740,7 +713,9 @@ function Dashboard({
               </Button>
             </a>
           ) : (
-            <p className="text-xs text-muted-foreground italic">Contact the organiser for registration details.</p>
+            <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs font-medium" disabled data-testid="button-register-team-member">
+              Register a Colleague <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
           )}
         </div>
       </div>

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Archive, Trash2, Building2, Eye, RotateCcw, Gem, Copy, Users, CalendarDays } from "lucide-react";
+import { Edit, Archive, Trash2, Building2, Eye, RotateCcw, Gem, Copy, Users, CalendarDays, ExternalLink } from "lucide-react";
 import { Sponsor, Event, EventSponsorLink } from "@shared/schema";
 import { SortHead, useSortState, sortData } from "@/hooks/use-sort";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,17 @@ function getBestLevel(sponsor: Sponsor): string {
 function getLevelForEvent(sponsor: Sponsor, eventId: string): string {
   const ae = (sponsor.assignedEvents ?? []).find((ae) => ae.eventId === eventId && (ae.archiveState ?? "active") === "active");
   return ae?.sponsorshipLevel ?? "";
+}
+
+function getProfileSlug(sponsor: Sponsor, selectedEventId: string, events: Event[]): string | null {
+  if (selectedEventId !== "all") {
+    const ev = events.find((e) => e.id === selectedEventId);
+    if (ev) return ev.slug;
+  }
+  const firstActive = (sponsor.assignedEvents ?? []).find((ae) => (ae.archiveState ?? "active") === "active");
+  if (!firstActive) return null;
+  const ev = events.find((e) => e.id === firstActive.eventId);
+  return ev?.slug ?? null;
 }
 
 interface SponsorsTableProps {
@@ -212,6 +223,23 @@ export function SponsorsTable({ sponsors, events, tab, selectedEventId, isAdmin,
                   <div className="flex justify-end items-center gap-1">
                     {tab === "active" ? (
                       <>
+                        {(() => {
+                          const slug = getProfileSlug(sponsor, selectedEventId, events);
+                          return slug ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" asChild data-testid={`btn-view-profile-${sponsor.id}`}>
+                                    <a href={`/event/${slug}/sponsor/${sponsor.id}`} target="_blank" rel="noopener noreferrer">
+                                      <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>View Profile</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : null;
+                        })()}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -257,6 +285,23 @@ export function SponsorsTable({ sponsors, events, tab, selectedEventId, isAdmin,
                       </>
                     ) : (
                       <>
+                        {(() => {
+                          const slug = getProfileSlug(sponsor, selectedEventId, events);
+                          return slug ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" asChild data-testid={`btn-view-profile-${sponsor.id}`}>
+                                    <a href={`/event/${slug}/sponsor/${sponsor.id}`} target="_blank" rel="noopener noreferrer">
+                                      <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>View Profile</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : null;
+                        })()}
                         <Button variant="ghost" size="icon" title="View sponsor details" onClick={() => onView(sponsor)} data-testid={`view-sponsor-${sponsor.id}`}>
                           <Eye className="h-4 w-4" />
                         </Button>

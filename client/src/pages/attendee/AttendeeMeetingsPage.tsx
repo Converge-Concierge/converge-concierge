@@ -227,7 +227,7 @@ export default function AttendeeMeetingsPage() {
   const totalActive = invitations.length + confirmed.length + pending.length;
 
   return (
-    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName}>
+    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={me?.event.buttonColor || me?.event.accentColor || null}>
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">

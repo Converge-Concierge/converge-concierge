@@ -152,7 +152,7 @@ export default function AttendeeSponsorsPage() {
 
   function buildScheduleUrl(sponsorId: string, mode: "onsite" | "online") {
     const slug = me?.event.slug ?? "";
-    const base = `/event/${slug}?sponsor=${sponsorId}&mode=${mode}`;
+    const base = `/event/${slug}/welcome?sponsor=${sponsorId}&mode=${mode}`;
     return me?.attendee.email ? `${base}&prefillEmail=${encodeURIComponent(me.attendee.email)}` : base;
   }
 
@@ -161,7 +161,7 @@ export default function AttendeeSponsorsPage() {
   }
 
   return (
-    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName}>
+    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={me?.event.buttonColor || me?.event.accentColor || null}>
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-8">
         {/* Page header */}
         <div>

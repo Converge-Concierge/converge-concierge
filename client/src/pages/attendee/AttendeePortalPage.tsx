@@ -584,7 +584,7 @@ function Dashboard({
   const [requestInfoSponsor, setRequestInfoSponsor] = useState<{ id: string; name: string } | null>(null);
 
   function buildScheduleUrl(sponsorId: string, mode: "onsite" | "online") {
-    const base = `/event/${me.event.slug}?sponsor=${sponsorId}&mode=${mode}`;
+    const base = `/event/${me.event.slug}/welcome?sponsor=${sponsorId}&mode=${mode}`;
     return me.attendee.email ? `${base}&prefillEmail=${encodeURIComponent(me.attendee.email)}` : base;
   }
 
@@ -1228,8 +1228,9 @@ export default function AttendeePortalPage() {
 
   // ── Dashboard ──────────────────────────────────────────────────────────────
 
+  const ac = me.event.buttonColor || me.event.accentColor || null;
   return (
-    <AttendeeShell onLogout={logout} attendeeName={me.attendee.firstName || me.attendee.name}>
+    <AttendeeShell onLogout={logout} attendeeName={me.attendee.firstName || me.attendee.name} accentColor={ac}>
       <Dashboard
         me={me}
         topics={topics}

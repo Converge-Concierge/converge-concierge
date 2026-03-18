@@ -73,7 +73,7 @@ export default function AttendeeInterestsPage() {
   }
 
   return (
-    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName}>
+    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={me?.event.buttonColor || me?.event.accentColor || null}>
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         <div className="mb-2">
           <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">

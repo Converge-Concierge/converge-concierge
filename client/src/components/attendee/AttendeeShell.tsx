@@ -49,19 +49,21 @@ export default function AttendeeShell({ children, onLogout, attendeeName }: Prop
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
             {navItems.map(({ label, href, icon: Icon }) => {
-              const active = location === href;
+              const active = href === "/attendee"
+                ? location === href
+                : location.startsWith(href);
               return (
                 <Link key={href} href={href}>
                   <button
                     data-testid={`nav-${label.toLowerCase().replace(/\s+/g, "-")}`}
                     className={[
-                      "flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                      "flex items-center gap-1.5 px-4 py-3 text-sm border-b-2 transition-colors whitespace-nowrap",
                       active
-                        ? "border-primary text-primary"
-                        : "border-transparent text-muted-foreground hover:text-foreground",
+                        ? "border-primary text-primary font-semibold"
+                        : "border-transparent text-muted-foreground font-medium hover:text-foreground hover:border-border/60",
                     ].join(" ")}
                   >
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <Icon className={`h-3.5 w-3.5 shrink-0 ${active ? "text-primary" : ""}`} />
                     {label}
                   </button>
                 </Link>

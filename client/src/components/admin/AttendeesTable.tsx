@@ -48,33 +48,33 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
 
   return (
     <div className="rounded-xl border border-border/60 bg-card overflow-x-auto shadow-sm">
-      <Table className="min-w-[1000px]">
+      <Table className="min-w-[1000px] table-fixed">
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <SortHead sortKey="lastName" sort={sort} onSort={toggle}>Last Name</SortHead>
-            <SortHead sortKey="firstName" sort={sort} onSort={toggle}>First Name</SortHead>
-            <SortHead sortKey="company" sort={sort} onSort={toggle}>Company</SortHead>
-            <SortHead sortKey="title" sort={sort} onSort={toggle}>Title</SortHead>
-            <SortHead sortKey="category" sort={sort} onSort={toggle}>Category</SortHead>
-            <SortHead sortKey="email" sort={sort} onSort={toggle}>Email</SortHead>
-            <SortHead sortKey="event" sort={sort} onSort={toggle}>Assigned Event</SortHead>
-            <SortHead sortKey="added" sort={sort} onSort={toggle}>Added</SortHead>
-            <TableHead className="text-right w-[200px] min-w-[200px]">Actions</TableHead>
+            <SortHead sortKey="lastName" sort={sort} onSort={toggle} className="w-[110px]">Last Name</SortHead>
+            <SortHead sortKey="firstName" sort={sort} onSort={toggle} className="w-[100px]">First Name</SortHead>
+            <SortHead sortKey="company" sort={sort} onSort={toggle} className="w-[130px]">Company</SortHead>
+            <SortHead sortKey="title" sort={sort} onSort={toggle} className="w-[130px]">Title</SortHead>
+            <SortHead sortKey="category" sort={sort} onSort={toggle} className="w-[120px]">Category</SortHead>
+            <SortHead sortKey="email" sort={sort} onSort={toggle} className="w-[190px]">Email</SortHead>
+            <SortHead sortKey="event" sort={sort} onSort={toggle} className="w-[110px]">Assigned Event</SortHead>
+            <SortHead sortKey="added" sort={sort} onSort={toggle} className="w-[100px]">Added</SortHead>
+            <TableHead className="text-right w-[210px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {sorted.map((attendee) => (
             <TableRow key={attendee.id} data-testid={`row-attendee-${attendee.id}`} className={cn(tab === "archived" ? "opacity-70" : "")}>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{attendee.lastName || attendee.name?.split(" ").slice(1).join(" ") || "—"}</span>
+              <TableCell className="max-w-[110px]">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-medium truncate">{attendee.lastName || attendee.name?.split(" ").slice(1).join(" ") || "—"}</span>
                   {attendee.linkedinUrl && (
                     <a
                       href={attendee.linkedinUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-blue-500 hover:text-blue-700 transition-colors"
+                      className="text-blue-500 hover:text-blue-700 transition-colors shrink-0"
                       title="LinkedIn Profile"
                       data-testid={`link-linkedin-${attendee.id}`}
                     >
@@ -83,9 +83,9 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
                   )}
                 </div>
               </TableCell>
-              <TableCell className="font-medium">{attendee.firstName || attendee.name?.split(" ")[0] || "—"}</TableCell>
-              <TableCell>{attendee.company}</TableCell>
-              <TableCell>{attendee.title}</TableCell>
+              <TableCell className="font-medium max-w-[100px] truncate">{attendee.firstName || attendee.name?.split(" ")[0] || "—"}</TableCell>
+              <TableCell className="max-w-[130px]"><div className="truncate" title={attendee.company}>{attendee.company}</div></TableCell>
+              <TableCell className="max-w-[130px]"><div className="truncate" title={attendee.title ?? ""}>{attendee.title}</div></TableCell>
               <TableCell>
                 {attendee.attendeeCategory ? (
                   <Badge variant="outline" className={cn("text-[10px] font-medium", categoryBadgeClass(attendee.attendeeCategory))} data-testid={`badge-category-${attendee.id}`}>
@@ -95,7 +95,7 @@ export function AttendeesTable({ attendees, events, tab, isAdmin, onEdit, onView
                   <span className="text-muted-foreground text-xs italic">Unmapped</span>
                 )}
               </TableCell>
-              <TableCell className="text-muted-foreground text-sm">{attendee.email}</TableCell>
+              <TableCell className="max-w-[190px]"><div className="truncate text-muted-foreground text-sm" title={attendee.email}>{attendee.email}</div></TableCell>
               <TableCell>
                 {getEvent(attendee.assignedEvent) ? (
                   <Badge variant="outline" className="text-xs font-mono">{getEvent(attendee.assignedEvent)!.slug}</Badge>

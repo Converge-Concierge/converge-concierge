@@ -235,7 +235,7 @@ export default function AttendeeSponsorsPage() {
           )}
 
           {!recommendedQuery.isLoading && recommended.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="recommended-sponsors-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="recommended-sponsors-grid">
               {recommended.map((sponsor) => (
                 <SponsorCard
                   key={sponsor.id}
@@ -273,7 +273,7 @@ export default function AttendeeSponsorsPage() {
           )}
 
           {!sponsorsQuery.isLoading && sponsors.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="sponsors-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="sponsors-grid">
               {sponsors.map((sponsor) => (
                 <SponsorCard
                   key={sponsor.id}

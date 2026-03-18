@@ -876,7 +876,7 @@ function Dashboard({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="home-recommended-sponsors-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="home-recommended-sponsors-grid">
               {recommendedSponsors.map((sponsor) => (
                 <HomeSponsorCard
                   key={sponsor.id}

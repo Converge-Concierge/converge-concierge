@@ -1,7 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Search, Sparkles, Calendar, Video, ExternalLink } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Building2, Sparkles, Calendar, Video, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
 import SponsorDetailSheet, { type SponsorDetail } from "@/components/attendee/SponsorDetailSheet";
@@ -135,8 +134,6 @@ export default function AttendeeSponsorsPage() {
   const { token, headers, meQuery, logout } = useAttendeeAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [search, setSearch] = useState("");
-  const [topicFilter, setTopicFilter] = useState<string | null>(null);
   const [detailSponsor, setDetailSponsor] = useState<SponsorDetail | null>(null);
   const [actingFor, setActingFor] = useState<string | null>(null);
 
@@ -190,24 +187,6 @@ export default function AttendeeSponsorsPage() {
   const recommended = recommendedQuery.data ?? [];
   const interactions = interactionsQuery.data ?? { meetings: {}, infoRequests: {} };
 
-  const allTopicLabels = useMemo(() => {
-    const seen = new Set<string>();
-    const labels: string[] = [];
-    for (const s of sponsors) {
-      for (const t of s.topicLabels) {
-        if (!seen.has(t.label)) { seen.add(t.label); labels.push(t.label); }
-      }
-    }
-    return labels.sort();
-  }, [sponsors]);
-
-  const filtered = useMemo(() => {
-    let list = sponsors;
-    if (search) list = list.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()) || (s.shortDescription?.toLowerCase().includes(search.toLowerCase())));
-    if (topicFilter) list = list.filter((s) => s.topicLabels.some((t) => t.label === topicFilter));
-    return list;
-  }, [sponsors, search, topicFilter]);
-
   if (!token || meQuery.isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div>;
   }
@@ -249,59 +228,21 @@ export default function AttendeeSponsorsPage() {
         <div>
           <h2 className="text-sm font-semibold text-foreground mb-4">All Sponsors</h2>
 
-          <div className="flex flex-col sm:flex-row gap-3 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder="Search sponsors…"
-                className="pl-9 h-9"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                data-testid="input-sponsor-search"
-              />
-            </div>
-          </div>
-
-          {allTopicLabels.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-5" data-testid="topic-filter-chips">
-              <button
-                onClick={() => setTopicFilter(null)}
-                className={`text-xs px-3 py-1 rounded-full border transition-colors ${!topicFilter ? "bg-primary text-primary-foreground border-primary" : "border-border/60 text-muted-foreground hover:border-primary/40"}`}
-                data-testid="filter-chip-all"
-              >
-                All
-              </button>
-              {allTopicLabels.map((label) => (
-                <button
-                  key={label}
-                  onClick={() => setTopicFilter(topicFilter === label ? null : label)}
-                  className={`text-xs px-3 py-1 rounded-full border transition-colors ${topicFilter === label ? "bg-primary text-primary-foreground border-primary" : "border-border/60 text-muted-foreground hover:border-primary/40"}`}
-                  data-testid={`filter-chip-${label.replace(/\s+/g, "-").toLowerCase()}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-
           {sponsorsQuery.isLoading && (
             <div className="flex items-center justify-center py-20">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           )}
 
-          {!sponsorsQuery.isLoading && filtered.length === 0 && (
+          {!sponsorsQuery.isLoading && sponsors.length === 0 && (
             <div className="text-center py-20 bg-card border border-border/60 rounded-2xl">
               <Building2 className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
-              {sponsors.length === 0
-                ? <p className="text-muted-foreground">Sponsors will appear here once event sponsors are available.</p>
-                : <p className="text-muted-foreground">No sponsors match your search.</p>
-              }
+              <p className="text-muted-foreground">Sponsors will appear here once event sponsors are available.</p>
             </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="sponsors-grid">
-            {filtered.map((sponsor) => (
+            {sponsors.map((sponsor) => (
               <SponsorCard
                 key={sponsor.id}
                 sponsor={sponsor}

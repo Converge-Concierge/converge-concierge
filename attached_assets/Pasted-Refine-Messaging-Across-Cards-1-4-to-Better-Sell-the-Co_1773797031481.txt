@@ -1,0 +1,154 @@
+Refine Messaging Across Cards 1–4 to Better “Sell” the Concierge Experience
+
+These are pure UX copy improvements. No structural changes, just better positioning and language to reinforce value.
+
+1. Card 1 – Remove or Simplify “What Happens Next”
+Problem
+
+The “What Happens Next” box is:
+
+redundant
+
+generic
+
+not persuasive
+
+It reads like documentation, not a guided experience.
+
+Required Change
+Option A (Recommended)
+
+Remove the “What Happens Next” box entirely
+
+This screen should focus on:
+
+selecting interests
+
+why it matters (already improved earlier)
+
+No need to explain the full process upfront.
+
+Option B (If you want to keep it)
+
+Rewrite it to be tighter and more benefit-driven:
+
+What this unlocks:
+
+• Personalized session recommendations  
+• Relevant sponsor connections  
+• A smarter event plan tailored to you  
+
+But again, removal is preferred for cleaner UX.
+
+2. Card 2 – Update Summary Metrics to Be Benefit-Driven
+Problem
+
+Current labels:
+
+“6 Sessions Available”
+
+“2 Sponsors Matched”
+
+These are neutral and passive.
+
+They don’t communicate value or urgency.
+
+Required Change
+
+Update the metric labels:
+
+Replace:
+6 Sessions Available
+With:
+6 Sessions You Shouldn’t Miss
+Replace:
+2 Sponsors Matched
+With:
+2 Sponsors That Match Your Interests
+Implementation Notes
+
+Keep numbers dynamic
+
+Only change the label text
+
+Maintain existing styling
+
+3. Card 3 – Rename Section Title
+Problem
+
+“Recommended Sessions” is generic and overused.
+
+Required Change
+Replace:
+Recommended Sessions
+With:
+Sessions You Don’t Want to Miss
+Supporting Copy (Optional Improvement)
+
+If there is subtext under the title, update to:
+
+Based on your interests, these sessions stand out as the most relevant for you.
+4. Card 4 – Improve Section Title (Sponsors)
+Problem
+
+“Sponsors Matching Your Interests” is functional, but not compelling.
+
+Required Change
+Replace:
+Sponsors Matching Your Interests
+With:
+Meet Sponsors That Align With Your Interests
+Optional Supporting Copy (Recommended)
+
+Add a short line under the header:
+
+Connect with solution providers that are directly relevant to your priorities.
+5. Keep Tone Consistent Across All Cards
+
+Ensure all updated copy follows the same tone:
+
+outcome-focused
+
+benefit-driven
+
+executive-level language
+
+avoids generic terms like “available” or “matched”
+
+You are not describing data — you are guiding decisions.
+
+6. Acceptance Criteria
+
+This update is complete when:
+
+Card 1 no longer includes the generic “What Happens Next” box (or it is rewritten to be concise and benefit-driven)
+
+Card 2 metrics read:
+
+“X Sessions You Shouldn’t Miss”
+
+“X Sponsors That Match Your Interests”
+
+Card 3 header reads:
+
+“Sessions You Don’t Want to Miss”
+
+Card 4 header reads:
+
+“Meet Sponsors That Align With Your Interests”
+
+All changes are text-only and do not break layout or styling
+
+7. Expected Outcome
+
+After these changes:
+
+the flow feels more like a guided, high-value experience
+
+each screen reinforces why the user should care
+
+language aligns with executive-level positioning
+
+the Concierge feels less like a tool and more like a decision assistant
+
+This is a subtle change, but it significantly improves perceived value.

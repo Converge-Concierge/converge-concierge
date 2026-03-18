@@ -293,18 +293,6 @@ function TopicsCard({ topics, selected, onChange, onNext, loading, accentColor }
         </div>
       )}
 
-      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
-        <p className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2">What happens next</p>
-        <ol className="space-y-1.5">
-          {["We'll recommend sessions and sponsors based on your interests", "You save sessions to your personal agenda", "You choose which sponsors you'd like to meet", "We send your personalised event plan to your email"].map((s, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-blue-800">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold mt-0.5">{i + 1}</span>
-              {s}
-            </li>
-          ))}
-        </ol>
-      </div>
-
       <Button
         onClick={onNext}
         disabled={loading}
@@ -377,7 +365,7 @@ function EmailCard({ profileId, allSessions, sponsors, selectedTopicIds, onNext,
             {matchedSessionCount}
           </p>
           <p className="text-xs font-semibold text-muted-foreground mt-1 uppercase tracking-wider">
-            Session{matchedSessionCount !== 1 ? "s" : ""} available
+            Session{matchedSessionCount !== 1 ? "s" : ""} You Shouldn't Miss
           </p>
         </div>
         <div className="rounded-xl border-2 border-border/60 bg-muted/20 p-4 text-center">
@@ -385,7 +373,7 @@ function EmailCard({ profileId, allSessions, sponsors, selectedTopicIds, onNext,
             {matchedSponsorCount}
           </p>
           <p className="text-xs font-semibold text-muted-foreground mt-1 uppercase tracking-wider">
-            Sponsor{matchedSponsorCount !== 1 ? "s" : ""} matched
+            Sponsor{matchedSponsorCount !== 1 ? "s" : ""} That Match Your Interests
           </p>
         </div>
       </div>
@@ -484,11 +472,11 @@ function SessionsCard({ sessions, selectedTopicIds, allTopics, savedIds, onToggl
       <div className="flex items-start justify-between mb-2">
         <div>
           <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-1">
-            {hasTopics ? "Your Recommended Sessions" : "Sessions"}
+            {hasTopics ? "Sessions You Don't Want to Miss" : "Sessions"}
           </h2>
           <p className="text-muted-foreground text-sm">
             {hasTopics
-              ? "Based on your interests, we recommend these sessions. All of our sessions are great — but you shouldn't miss these."
+              ? "Based on your interests, these sessions stand out as the most relevant for you."
               : "Bookmark sessions to add them to your personalised event plan."}
           </p>
         </div>
@@ -660,8 +648,11 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
         <div className="flex items-end justify-between mb-2">
           <div>
             <h2 className="text-xl font-display font-semibold text-foreground">
-              {attendeeTopicSet.size > 0 ? "Sponsors Matching Your Interests" : "Sponsors Available for Meetings"}
+              {attendeeTopicSet.size > 0 ? "Meet Sponsors That Align With Your Interests" : "Sponsors Available for Meetings"}
             </h2>
+            {attendeeTopicSet.size > 0 && (
+              <p className="text-sm text-muted-foreground mt-1">Connect with solution providers that are directly relevant to your priorities.</p>
+            )}
           </div>
           {sorted.length > 0 && (
             <span className="text-xs text-muted-foreground shrink-0 ml-3">

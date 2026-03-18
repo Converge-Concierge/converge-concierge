@@ -1726,6 +1726,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         websiteUrl: sponsor.websiteUrl ?? null,
         linkedinUrl: sponsor.linkedinUrl ?? null,
         solutionsSummary: sponsor.solutionsSummary ?? null,
+        contactName: sponsor.contactName ?? null,
+        contactEmail: sponsor.contactEmail ?? null,
+        repsJson: sponsor.repsJson ?? null,
       },
       event: {
         id: event.id, name: event.name, slug: event.slug, location: event.location,

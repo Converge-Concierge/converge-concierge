@@ -4,11 +4,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Star, ChevronRight, CheckCircle2, Hexagon,
   CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail, Bell,
-  Lightbulb, Sparkles, MapPin, Clock, AlertCircle, X, Video,
+  Lightbulb, Sparkles, MapPin, Clock, AlertCircle, X, Video, Download, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
 import { useAttendeeAuth, type AttendeeMe } from "@/hooks/use-attendee-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +51,13 @@ function formatTimeRange(s: string | null, e: string | null) {
   if (!s) return "";
   const fmt = (t: string) => { const [h, m] = t.split(":").map(Number); return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`; };
   return e ? `${fmt(s)} – ${fmt(e)}` : fmt(s);
+}
+function buildGoogleCalendarUrl(title: string, date: string, start: string, end: string, location?: string | null, description?: string | null) {
+  const fmtDt = (d: string, t: string) => d.replace(/-/g, "") + "T" + t.replace(/:/g, "") + "00";
+  const params = new URLSearchParams({ action: "TEMPLATE", text: title, dates: `${fmtDt(date, start)}/${fmtDt(date, end)}` });
+  if (location) params.set("location", location);
+  if (description) params.set("details", description.substring(0, 500));
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 // ── Shared wizard chrome ───────────────────────────────────────────────────────
@@ -641,7 +651,7 @@ function HomeSponsorCard({
           )}
           {sponsor.informationRequestEnabled && (
             <button
-              className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center"
+              className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center border border-border/60"
               onClick={onRequestInfo}
               data-testid={`button-home-info-${sponsor.id}`}
             >
@@ -961,17 +971,61 @@ function Dashboard({
                       )}
                       <RelevanceLabel labels={session.overlapTopicLabels} />
                     </div>
-                    <Button
-                      variant={saved ? "secondary" : "outline"}
-                      size="sm"
-                      className="h-8 px-3 text-xs gap-1.5 shrink-0 font-medium"
-                      data-testid={`button-save-session-${session.id}`}
-                      disabled={isSavingSession}
-                      onClick={() => saved ? onUnsaveSession(session.id) : onSaveSession(session.id)}
-                    >
-                      <Bookmark className={`h-3.5 w-3.5 ${saved ? "fill-current" : ""}`} />
-                      {saved ? "Saved" : "Save"}
-                    </Button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {session.sessionDate && session.startTime && session.endTime && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8 gap-1 text-xs px-2.5" data-testid={`button-home-calendar-${session.id}`}>
+                              <CalendarDays className="h-3.5 w-3.5" />
+                              <ChevronDown className="h-3 w-3 opacity-60" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-52">
+                            <DropdownMenuItem asChild>
+                              <a
+                                href={`/api/agenda-sessions/${session.id}/ics`}
+                                download
+                                className="flex items-center gap-2 cursor-pointer"
+                                data-testid={`link-home-ics-${session.id}`}
+                              >
+                                <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                                Download .ics
+                              </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <a
+                                href={buildGoogleCalendarUrl(
+                                  session.title,
+                                  session.sessionDate,
+                                  session.startTime,
+                                  session.endTime,
+                                  session.locationName,
+                                  session.description,
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 cursor-pointer"
+                                data-testid={`link-home-gcal-${session.id}`}
+                              >
+                                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                                Add to Google Calendar
+                              </a>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                      <Button
+                        variant={saved ? "secondary" : "outline"}
+                        size="sm"
+                        className="h-8 px-3 text-xs gap-1.5 shrink-0 font-medium"
+                        data-testid={`button-save-session-${session.id}`}
+                        disabled={isSavingSession}
+                        onClick={() => saved ? onUnsaveSession(session.id) : onSaveSession(session.id)}
+                      >
+                        <Bookmark className={`h-3.5 w-3.5 ${saved ? "fill-current" : ""}`} />
+                        {saved ? "Saved" : "Save"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );

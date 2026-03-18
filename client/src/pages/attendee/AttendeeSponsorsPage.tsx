@@ -127,7 +127,7 @@ function SponsorCard({
           )}
           {sponsor.informationRequestEnabled && (
             <button
-              className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center"
+              className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center border border-border/60"
               onClick={onRequestInfo}
               data-testid={`button-request-info-${sponsor.id}`}
             >

@@ -672,7 +672,7 @@ function Dashboard({
       )}
 
       {/* ── Action Cards ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="section-action-cards">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" data-testid="section-action-cards">
 
         {/* Build Your Agenda */}
         <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4">
@@ -696,6 +696,28 @@ function Dashboard({
           <Link href="/attendee/agenda">
             <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs font-medium" data-testid="button-build-agenda">
               Browse Sessions <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Discover Sponsors */}
+        <div className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-4">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center" style={acBg}>
+            <Building2 className="h-5 w-5 text-primary" style={acColor} />
+          </div>
+          <div className="flex-1 space-y-1">
+            <p className="font-semibold text-foreground text-sm">Meet Relevant Sponsors</p>
+            {!hasInterests ? (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <button className="text-primary underline font-medium" style={acColor} onClick={onEditInterests}>Add interests</button> to unlock personalised sponsor matches.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground leading-relaxed">Discover sponsors that align with your interests, schedule meetings, and request information.</p>
+            )}
+          </div>
+          <Link href="/attendee/sponsors">
+            <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs font-medium" data-testid="button-discover-sponsors">
+              View Sponsors <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </Link>
         </div>

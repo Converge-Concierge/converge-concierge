@@ -1,0 +1,312 @@
+Add a Dedicated Sponsors Tab to the Attendee Dashboard
+Make sponsor discovery and meeting scheduling a primary attendee function using the same card logic as onboarding Card 4
+
+One of the main functions of this app is to help sponsors get meetings.
+
+Right now the attendee dashboard does not adequately support that. It has:
+
+no dedicated sponsor destination
+
+no strong sponsor discovery surface
+
+no obvious place to schedule meetings or request information after onboarding
+
+We need to fix that.
+
+The attendee experience should include a dedicated Sponsors tab that becomes a primary place for:
+
+discovering recommended sponsors
+
+viewing all sponsors
+
+scheduling meetings
+
+requesting information where allowed
+
+This sponsor experience should use the same sponsor card design and logic as Card 4 of the attendee onboarding flow.
+
+1. Primary Goal
+
+Add a dedicated Sponsors tab to the attendee dashboard/navigation and make it a core attendee destination.
+
+This tab should contain two sections:
+
+Recommended Sponsors
+Sponsors correlated to the attendee’s selected interests
+
+All Sponsors
+A full listing of all event sponsors, even if they do not directly match the attendee’s interests
+
+This tab should prominently support the app’s main sponsor-facing goal:
+
+Get meetings for sponsors
+2. Add / Restore the Sponsors Tab in Attendee Navigation
+
+The attendee dashboard/navigation should include a visible:
+
+Sponsors
+
+tab.
+
+Required behavior
+
+The Sponsors tab should:
+
+be present in the top attendee nav
+
+feel equal in importance to:
+
+Home
+
+Interests
+
+Agenda
+
+My Agenda
+
+Meetings
+
+This should not be buried or secondary.
+
+Sponsors are a core part of the attendee experience.
+
+3. Sponsors Tab Structure
+
+Inside the Sponsors tab, create two clearly separated sections.
+
+Section 1
+Recommended Sponsors
+
+These should be based on the attendee’s selected interests.
+
+Section 2
+All Sponsors
+
+These should show the full event sponsor list.
+
+This gives the attendee:
+
+a curated list first
+
+full browsing second
+
+4. Recommended Sponsors Logic
+
+The Recommended Sponsors section must be driven by the attendee’s interest selections.
+
+Required behavior
+
+Use the existing sponsor recommendation logic already tied to:
+
+attendee selected interests
+
+sponsor correlated agenda topics
+
+event-specific sponsor configuration
+
+A sponsor should appear in Recommended Sponsors when:
+
+attendee interests overlap with sponsor correlated agenda topics
+
+Do not use hard-coded sponsor lists.
+
+5. All Sponsors Section
+
+Below Recommended Sponsors, show:
+
+All Sponsors
+
+This is a full listing of all event sponsors.
+
+Purpose
+
+This allows attendees to still browse:
+
+sponsors that may not have matched directly
+
+sponsors they already know
+
+broader sponsor options across the event
+
+This should not replace Recommended Sponsors. It should come after it.
+
+6. Sponsor Cards Must Match Card 4 Exactly
+
+This is critical.
+
+The sponsor cards and sponsor interaction functionality in the attendee Sponsors tab must exactly replicate the behavior and logic used on Card 4 of the attendee onboarding process.
+
+Required behavior
+
+Use the same:
+
+card layout
+
+button layout
+
+sponsor badge treatment
+
+sponsor logo placement
+
+profile link
+
+topic relevance display
+
+interaction logic
+
+sponsor permission logic
+
+Do not build a second, simplified sponsor card system for the dashboard.
+
+Card 4 is the source-of-truth experience.
+
+7. Reuse the Same Sponsor Capability Logic as Card 4
+
+The same sponsor-level settings and permissions established in sponsor setup must apply in the Sponsors tab.
+
+That includes whether a sponsor allows:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+The attendee Sponsors tab must respect the same sponsor configuration used on Card 4 and the event sponsor experience.
+
+8. No Generic Request-Only Flow for Meetings
+
+As previously established, the main sponsor interaction model should be:
+
+schedule onsite meeting where supported
+
+schedule online meeting where supported
+
+request information where supported
+
+Do not introduce a generic, mismatched “Request Meeting” flow here unless that is already the actual fallback used on Card 4.
+
+The attendee Sponsors tab must behave the same way as Card 4.
+
+9. Promote Sponsor Discovery More Prominently on the Dashboard Home Page
+
+Because getting meetings for sponsors is a major goal of the app, the attendee dashboard Home page should also give sponsor discovery more prominence.
+
+Required behavior
+
+On Home:
+
+ensure there is a strong visual path into the Sponsors tab
+
+include sponsor-related CTA language that makes sponsor discovery feel primary, not secondary
+
+Examples:
+
+Meet Relevant Sponsors
+
+Discover Sponsors That Match Your Interests
+
+Schedule Sponsor Meetings
+
+This should feel more prominent than it currently does.
+
+10. Make Sponsor Interaction a First-Class Attendee Function
+
+The attendee dashboard should make it clear that the attendee can:
+
+discover relevant sponsors
+
+schedule meetings
+
+request information
+
+revisit sponsors later
+
+This should not feel like a one-time onboarding step only.
+
+The Sponsors tab is the persistent sponsor workspace.
+
+11. Use the Same Topic-Relevance Messaging as Card 4
+
+Where available, sponsor cards in the Sponsors tab should also show why a sponsor is relevant.
+
+Example:
+
+Relevant to your interests:
+Regulatory Change, Continuous Monitoring
+
+Use the same relevance display approach as Card 4.
+
+12. Preserve Sponsor Profile Access
+
+Sponsor cards in the Sponsors tab should include the same View Profile / sponsor detail access as Card 4.
+
+Do not reduce the card’s usefulness compared to onboarding.
+
+13. Handle Empty States Gracefully
+
+If the attendee has no matching sponsors based on interests:
+
+Required behavior
+
+Recommended Sponsors should show a graceful message such as:
+
+We don’t have sponsor matches for your current interests yet. Browse all sponsors below.
+
+Then still show the full All Sponsors section.
+
+Do not leave the page blank.
+
+14. Keep Interests Connected to Sponsor Recommendations
+
+If the attendee changes interests in the Interests tab, the Recommended Sponsors section must update accordingly.
+
+Required behavior
+
+Interest updates should flow through to:
+
+Recommended Sponsors in Sponsors tab
+
+any sponsor counts on the dashboard
+
+any sponsor-related summary values
+
+This should be dynamic and consistent.
+
+15. Optional Improvement to Home Page Summary Metrics
+
+If the Home page still includes sponsor metrics, make sure they reflect:
+
+number of recommended sponsors
+
+not just a generic placeholder
+
+This is optional but recommended for consistency.
+
+16. Acceptance Criteria
+
+This work is complete when:
+
+the attendee navigation includes a visible Sponsors tab
+
+the Sponsors tab has two sections:
+
+Recommended Sponsors
+
+All Sponsors
+
+Recommended Sponsors are based on attendee interests and sponsor correlated agenda topics
+
+All Sponsors shows the full event sponsor list
+
+sponsor cards and functionality in the Sponsors tab exactly match Card 4 of onboarding
+
+sponsor card buttons respect sponsor-level meeting/info settings
+
+sponsor meeting functionality is prominently available to attendees
+
+sponsor discovery is treated as a major function of the dashboard experience
+
+17. Success Standard
+
+After this update, the attendee experience should make sponsor discovery and meeting scheduling a first-class function, not a hidden or secondary one. The Sponsors tab should become the central place for attendees to find relevant sponsors and book meetings, using the same trusted interaction model already established in onboarding Card 4.

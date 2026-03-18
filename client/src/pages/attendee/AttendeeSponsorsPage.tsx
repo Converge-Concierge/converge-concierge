@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Sparkles, Calendar, Video, ExternalLink } from "lucide-react";
+import { Building2, Sparkles, Calendar, Video, ExternalLink, ArrowRight } from "lucide-react";
+import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
 import MeetingSchedulerDialog from "@/components/attendee/MeetingSchedulerDialog";
 import SponsorDetailSheet, { type SponsorDetail } from "@/components/attendee/SponsorDetailSheet";
@@ -22,7 +24,7 @@ interface RecommendedSponsor {
   informationRequestEnabled: boolean;
 }
 
-// ── Shared sponsor card ───────────────────────────────────────────────────────
+// ── Sponsor Card (mirrors Card 4 of the onboarding wizard) ────────────────────
 
 function SponsorCard({
   sponsor,
@@ -30,23 +32,31 @@ function SponsorCard({
   onScheduleOnsite,
   onScheduleOnline,
   onRequestInfo,
-  showViewProfile = true,
+  accentColor,
 }: {
   sponsor: SponsorDetail | RecommendedSponsor;
   onView?: () => void;
   onScheduleOnsite: () => void;
   onScheduleOnline: () => void;
   onRequestInfo: () => void;
-  showViewProfile?: boolean;
+  accentColor?: string | null;
 }) {
+  const ac = accentColor ?? null;
+  const acColor = ac ? { color: ac } : undefined;
+  const acBg = ac ? { backgroundColor: `${ac}18` } : undefined;
   const hasActions = sponsor.onsiteMeetingEnabled || sponsor.onlineMeetingEnabled || sponsor.informationRequestEnabled;
+
   return (
     <div className="bg-card border border-border/60 rounded-2xl p-4 flex flex-col gap-3" data-testid={`card-sponsor-${sponsor.id}`}>
       {/* Logo + level badge */}
       <div className="flex items-start justify-between gap-2">
         {sponsor.logoUrl
           ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-12 w-12 rounded-xl object-contain shrink-0 border border-border/40 bg-white p-1" />
-          : <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><Building2 className="h-6 w-6 text-primary" /></div>
+          : (
+            <div className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 bg-primary/10" style={acBg}>
+              <Building2 className="h-6 w-6 text-primary" style={acColor} />
+            </div>
+          )
         }
         {sponsor.level && (
           <Badge variant="secondary" className="rounded-full text-[10px] shrink-0 font-semibold px-2.5">
@@ -55,41 +65,46 @@ function SponsorCard({
         )}
       </div>
 
-      {/* Name, description, relevance, view profile */}
+      {/* Name, description, relevance, profile link */}
       <div className="space-y-1 min-w-0">
-        <p className="font-bold text-sm text-foreground leading-snug" data-testid={`text-sponsor-name-${sponsor.id}`}>{sponsor.name}</p>
+        <p className="font-bold text-sm text-foreground leading-snug" data-testid={`text-sponsor-name-${sponsor.id}`}>
+          {sponsor.name}
+        </p>
         {sponsor.shortDescription && (
           <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{sponsor.shortDescription}</p>
         )}
         {sponsor.overlapTopicLabels.length > 0 && (
-          <div className="flex items-center gap-1 pt-0.5">
-            <Sparkles className="h-3 w-3 text-primary shrink-0" />
-            <p className="text-xs text-primary font-medium truncate">{sponsor.overlapTopicLabels.join(", ")}</p>
+          <div className="flex items-start gap-1 pt-0.5">
+            <Sparkles className="h-3 w-3 text-primary shrink-0 mt-0.5" style={acColor} />
+            <p className="text-xs text-primary font-medium leading-snug" style={acColor}>
+              Relevant to your interests: {sponsor.overlapTopicLabels.join(", ")}
+            </p>
           </div>
         )}
-        {showViewProfile && sponsor.websiteUrl && (
+        {sponsor.websiteUrl ? (
           <a
             href={sponsor.websiteUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1 text-xs text-primary hover:underline"
+            style={acColor}
             data-testid={`link-view-profile-${sponsor.id}`}
           >
             <ExternalLink className="h-3 w-3" /> View Profile
           </a>
-        )}
-        {showViewProfile && !sponsor.websiteUrl && onView && (
+        ) : onView ? (
           <button
             onClick={onView}
             className="flex items-center gap-1 text-xs text-primary hover:underline"
+            style={acColor}
             data-testid={`button-view-sponsor-${sponsor.id}`}
           >
             <ExternalLink className="h-3 w-3" /> View Profile
           </button>
-        )}
+        ) : null}
       </div>
 
-      {/* Action buttons */}
+      {/* Action buttons — same order/style as onboarding Card 4 */}
       {hasActions && (
         <div className="space-y-1.5 pt-2 border-t border-border/40">
           {sponsor.onsiteMeetingEnabled && (
@@ -149,74 +164,133 @@ export default function AttendeeSponsorsPage() {
   const recommended = recommendedQuery.data ?? [];
   const me = meQuery.data;
   const ac = me?.event.buttonColor || me?.event.accentColor || null;
+  const acColor = ac ? { color: ac } : undefined;
+  const acBg = ac ? { backgroundColor: `${ac}18` } : undefined;
+
+  const hasInterests = recommended !== undefined;
 
   if (!token || meQuery.isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+      </div>
+    );
   }
+
+  const openScheduler = (id: string, name: string, mode: "onsite" | "online") =>
+    setSchedulerModal({ sponsorId: id, sponsorName: name, mode });
+  const openInfo = (id: string, name: string) =>
+    setRequestInfoSponsor({ id, name });
 
   return (
     <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={ac}>
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-8">
+
         {/* Page header */}
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" /> Sponsors
+            <Building2 className="h-6 w-6" style={acColor ?? { color: "hsl(var(--primary))" }} />
+            Sponsors
           </h1>
           {me && <p className="text-sm text-muted-foreground mt-1">{me.event.name}</p>}
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Discover sponsors, schedule meetings, and request information.
+          </p>
         </div>
 
-        {/* ── Recommended Sponsors ──────────────────────────────────────── */}
-        {recommended.length > 0 && (
-          <div>
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
-              <Sparkles className="h-4 w-4 text-primary" /> Recommended for You
+        {/* ── Recommended Sponsors ───────────────────────────────────────── */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Sparkles className="h-4 w-4" style={acColor ?? { color: "hsl(var(--primary))" }} />
+              Recommended for You
             </h2>
+            <Link href="/attendee/interests">
+              <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" data-testid="link-edit-interests">
+                Edit Interests <ArrowRight className="h-3 w-3" />
+              </Button>
+            </Link>
+          </div>
+
+          {recommendedQuery.isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            </div>
+          )}
+
+          {!recommendedQuery.isLoading && recommended.length === 0 && (
+            <div className="bg-card border border-border/60 rounded-2xl p-8 text-center space-y-2">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto" style={acBg}>
+                <Sparkles className="h-6 w-6 text-primary" style={acColor} />
+              </div>
+              <p className="text-sm font-medium text-foreground">No matches for your current interests yet</p>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-xs mx-auto">
+                We don't have sponsor matches for your current interests yet. Browse all sponsors below, or{" "}
+                <Link href="/attendee/interests">
+                  <span className="text-primary underline cursor-pointer" style={acColor}>update your interests</span>
+                </Link>{" "}
+                to improve recommendations.
+              </p>
+            </div>
+          )}
+
+          {!recommendedQuery.isLoading && recommended.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="recommended-sponsors-grid">
               {recommended.map((sponsor) => (
                 <SponsorCard
                   key={sponsor.id}
                   sponsor={sponsor}
-                  onScheduleOnsite={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "onsite" })}
-                  onScheduleOnline={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "online" })}
-                  onRequestInfo={() => setRequestInfoSponsor({ id: sponsor.id, name: sponsor.name })}
+                  accentColor={ac}
+                  onScheduleOnsite={() => openScheduler(sponsor.id, sponsor.name, "onsite")}
+                  onScheduleOnline={() => openScheduler(sponsor.id, sponsor.name, "online")}
+                  onRequestInfo={() => openInfo(sponsor.id, sponsor.name)}
                 />
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* ── All Sponsors ──────────────────────────────────────────────── */}
+        {/* ── All Sponsors ───────────────────────────────────────────────── */}
         <div>
-          <h2 className="text-sm font-semibold text-foreground mb-4">All Sponsors</h2>
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+            <Building2 className="h-4 w-4" style={acColor ?? { color: "hsl(var(--primary))" }} />
+            All Sponsors
+          </h2>
 
           {sponsorsQuery.isLoading && (
-            <div className="flex items-center justify-center py-20">
+            <div className="flex items-center justify-center py-16">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           )}
 
           {!sponsorsQuery.isLoading && sponsors.length === 0 && (
-            <div className="text-center py-20 bg-card border border-border/60 rounded-2xl">
-              <Building2 className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
-              <p className="text-muted-foreground">Sponsors will appear here once event sponsors are available.</p>
+            <div className="bg-card border border-border/60 rounded-2xl p-8 text-center space-y-2">
+              <Building2 className="h-10 w-10 text-muted-foreground/30 mx-auto" />
+              <p className="text-sm text-muted-foreground">
+                Sponsors will appear here once event sponsors are confirmed.
+              </p>
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="sponsors-grid">
-            {sponsors.map((sponsor) => (
-              <SponsorCard
-                key={sponsor.id}
-                sponsor={sponsor}
-                onView={() => setDetailSponsor(sponsor)}
-                onScheduleOnsite={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "onsite" })}
-                onScheduleOnline={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "online" })}
-                onRequestInfo={() => setRequestInfoSponsor({ id: sponsor.id, name: sponsor.name })}
-              />
-            ))}
-          </div>
+          {!sponsorsQuery.isLoading && sponsors.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="sponsors-grid">
+              {sponsors.map((sponsor) => (
+                <SponsorCard
+                  key={sponsor.id}
+                  sponsor={sponsor}
+                  accentColor={ac}
+                  onView={() => setDetailSponsor(sponsor)}
+                  onScheduleOnsite={() => openScheduler(sponsor.id, sponsor.name, "onsite")}
+                  onScheduleOnline={() => openScheduler(sponsor.id, sponsor.name, "online")}
+                  onRequestInfo={() => openInfo(sponsor.id, sponsor.name)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Sponsor detail sheet */}
       {detailSponsor && (
         <SponsorDetailSheet
           sponsor={detailSponsor}

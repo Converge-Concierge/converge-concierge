@@ -33,8 +33,12 @@ function getLevelForEvent(sponsor: Sponsor, eventId: string): string {
 
 function getProfileSlug(sponsor: Sponsor, selectedEventId: string, events: Event[]): string | null {
   if (selectedEventId !== "all") {
+    const hasActive = (sponsor.assignedEvents ?? []).some(
+      (ae) => ae.eventId === selectedEventId && (ae.archiveState ?? "active") === "active"
+    );
+    if (!hasActive) return null;
     const ev = events.find((e) => e.id === selectedEventId);
-    if (ev) return ev.slug;
+    return ev?.slug ?? null;
   }
   const firstActive = (sponsor.assignedEvents ?? []).find((ae) => (ae.archiveState ?? "active") === "active");
   if (!firstActive) return null;

@@ -3797,6 +3797,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ── Sponsor Dashboard: Agreement Deliverables (Phase 2) ───────────────────
 
+  // Shared helper: reconcile file_upload deliverable status based on actual files/logo on record
+  const AWAITING_STATUSES_FILE = ["Not Started", "Needed", "Awaiting Sponsor Input"];
+  async function reconcileFileUploadStatus(d: { id: string; fulfillmentType: string | null; deliverableName: string; status: string }, sponsorLogoUrl?: string | null): Promise<string> {
+    if (d.fulfillmentType !== "file_upload" || !AWAITING_STATUSES_FILE.includes(d.status)) return d.status;
+    const isLogo = d.deliverableName.toLowerCase().includes("logo");
+    const hasLogo = isLogo && !!sponsorLogoUrl;
+    const files = await storage.listFileAssets({ deliverableId: d.id, status: "active" });
+    if (hasLogo || files.length > 0) {
+      await storage.updateAgreementDeliverable(d.id, { status: "Received" });
+      return "Received";
+    }
+    return d.status;
+  }
+
   // GET /api/sponsor-dashboard/agreement-deliverables — list sponsor-visible deliverables with child records
   app.get("/api/sponsor-dashboard/agreement-deliverables", async (req, res) => {
     const token = req.headers["x-sponsor-token"] as string ?? req.query.token as string;
@@ -3809,26 +3823,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const visible = all.filter((d) => d.sponsorVisible);
 
     const sponsor = await storage.getSponsor(tokenRecord.sponsorId);
-    const AWAITING_STATUSES = ["Not Started", "Needed", "Awaiting Sponsor Input"];
 
     // Attach child records for each deliverable in parallel
     const withChildren = await Promise.all(visible.map(async (d) => {
       const { internalNote: _drop, ...safe } = d as typeof d & { internalNote: unknown };
       const registrants = await storage.listDeliverableRegistrants(d.id);
       const speakers = await storage.listDeliverableSpeakers(d.id);
-
-      // Auto-promote file_upload deliverables whose status is stale/awaiting but already have a file on record
-      let status = safe.status;
-      if (d.fulfillmentType === "file_upload" && AWAITING_STATUSES.includes(status)) {
-        const isLogoDeliverable = d.deliverableName.toLowerCase().includes("logo");
-        const hasLogoUrl = isLogoDeliverable && !!sponsor?.logoUrl;
-        const files = await storage.listFileAssets({ deliverableId: d.id, status: "active" });
-        if (hasLogoUrl || files.length > 0) {
-          await storage.updateAgreementDeliverable(d.id, { status: "Received" });
-          status = "Received";
-        }
-      }
-
+      const status = await reconcileFileUploadStatus(safe, sponsor?.logoUrl);
       return { ...safe, status, registrants, speakers };
     }));
 
@@ -5462,13 +5463,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const { sponsorId, eventId } = req.query;
       if (!sponsorId || !eventId) return res.status(400).json({ message: "sponsorId and eventId required" });
-      const deliverables = await storage.listAgreementDeliverables({ sponsorId: String(sponsorId), eventId: String(eventId) });
+      const [deliverables, sponsor] = await Promise.all([
+        storage.listAgreementDeliverables({ sponsorId: String(sponsorId), eventId: String(eventId) }),
+        storage.getSponsor(String(sponsorId)),
+      ]);
       const enriched = await Promise.all(deliverables.map(async (d) => {
-        const registrants = await storage.listDeliverableRegistrants(d.id);
-        const speakers = await storage.listDeliverableSpeakers(d.id);
-        const socialEntries = await storage.listDeliverableSocialEntries(d.id);
+        const [registrants, speakers, socialEntries, reconciledStatus] = await Promise.all([
+          storage.listDeliverableRegistrants(d.id),
+          storage.listDeliverableSpeakers(d.id),
+          storage.listDeliverableSocialEntries(d.id),
+          reconcileFileUploadStatus(d, sponsor?.logoUrl),
+        ]);
         return {
           ...d,
+          status: reconciledStatus,
           registrantCount: registrants.length,
           speakerCount: speakers.length,
           socialEntryCount: socialEntries.length,

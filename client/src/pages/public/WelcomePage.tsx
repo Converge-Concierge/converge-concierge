@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "wouter";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -594,7 +594,7 @@ function SessionsCard({ sessions, selectedTopicIds, allTopics, savedIds, onToggl
 
 // ── Card 4: Sponsors ──────────────────────────────────────────────────────────
 
-function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, selectedTopicIds, meetingRequests, infoRequestedIds, onSchedule, onInfoRequested, onNext, onBack, loading, accentColor }: {
+function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, selectedTopicIds, meetingRequests, infoRequestedIds, onSchedule, onInfoRequested, onNext, onBack, loading, accentColor, highlightSponsorId, highlightMode }: {
   eventId: string;
   eventSlug: string;
   attendeeEmail: string;
@@ -609,6 +609,8 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
   onBack: () => void;
   loading: boolean;
   accentColor?: string | null;
+  highlightSponsorId?: string | null;
+  highlightMode?: "onsite" | "online" | null;
 }) {
   const [requestInfoSponsor, setRequestInfoSponsor] = useState<SponsorWithTopics | null>(null);
   const [schedulingModal, setSchedulingModal] = useState<{ sponsor: SponsorWithTopics; mode: "onsite" | "online" } | null>(null);
@@ -623,6 +625,11 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
   const infoRequestedSet = new Set(infoRequestedIds);
 
   const sorted = [...sponsors].sort((a, b) => {
+    // Pin the deep-linked sponsor to the top
+    if (highlightSponsorId) {
+      if (a.id === highlightSponsorId) return -1;
+      if (b.id === highlightSponsorId) return 1;
+    }
     const la = LEVEL_ORDER[getSponsorEventLevel(a, eventId)] ?? 0;
     const lb = LEVEL_ORDER[getSponsorEventLevel(b, eventId)] ?? 0;
     const ra = (a.topicIds ?? []).filter((t) => attendeeTopicSet.has(t)).length;
@@ -645,6 +652,24 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
   return (
     <>
       <div>
+        {/* Deep-link confirmation banner */}
+        {highlightSponsorId && highlightMode && (() => {
+          const hs = sponsors.find((s) => s.id === highlightSponsorId);
+          return hs ? (
+            <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 mb-4">
+              <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-green-900">
+                  {highlightMode === "onsite" ? "Onsite meeting" : "Online meeting"} request recorded
+                </p>
+                <p className="text-xs text-green-700 mt-0.5">
+                  Your request to meet with <span className="font-medium">{hs.name}</span> has been noted. Click <span className="font-medium">Complete My Setup</span> to confirm.
+                </p>
+              </div>
+            </div>
+          ) : null;
+        })()}
+
         <div className="flex items-end justify-between mb-2">
           <div>
             <h2 className="text-xl font-display font-semibold text-foreground">
@@ -728,30 +753,40 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
 
                   {/* Action buttons — always visible, with ✓ status indicators */}
                   <div className="px-3 pb-3 space-y-1.5">
-                    {onsiteEnabled && (
-                      <button
-                        data-testid={`button-sponsor-onsite-${s.id}`}
-                        onClick={() => openScheduling(s, "onsite")}
-                        className={cn(
-                          "w-full py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-[0.98] flex items-center justify-center px-3",
-                          levelAccent[level] || "bg-primary hover:bg-primary/90 text-white",
-                        )}
-                      >
-                        Schedule Onsite Meeting
-                      </button>
-                    )}
-                    {onlineEnabled && (
-                      <button
-                        data-testid={`button-sponsor-online-${s.id}`}
-                        onClick={() => openScheduling(s, "online")}
-                        className={cn(
-                          "w-full py-1 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5 px-3",
-                          levelAccentSecondary[level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
-                        )}
-                      >
-                        <Video className="h-3 w-3" /> Online Meeting
-                      </button>
-                    )}
+                    {onsiteEnabled && (() => {
+                      const isScheduled = wasOnsiteScheduled(s.id);
+                      return (
+                        <button
+                          data-testid={`button-sponsor-onsite-${s.id}`}
+                          onClick={() => !isScheduled && openScheduling(s, "onsite")}
+                          className={cn(
+                            "w-full py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5 px-3",
+                            isScheduled
+                              ? "bg-green-600 text-white cursor-default"
+                              : levelAccent[level] || "bg-primary hover:bg-primary/90 text-white",
+                          )}
+                        >
+                          {isScheduled ? <><CheckCircle2 className="h-3.5 w-3.5" /> Onsite Meeting Requested</> : "Schedule Onsite Meeting"}
+                        </button>
+                      );
+                    })()}
+                    {onlineEnabled && (() => {
+                      const isScheduled = wasOnlineScheduled(s.id);
+                      return (
+                        <button
+                          data-testid={`button-sponsor-online-${s.id}`}
+                          onClick={() => !isScheduled && openScheduling(s, "online")}
+                          className={cn(
+                            "w-full py-1 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5 px-3",
+                            isScheduled
+                              ? "border-green-300 bg-green-50 text-green-700 cursor-default"
+                              : levelAccentSecondary[level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
+                          )}
+                        >
+                          {isScheduled ? <><CheckCircle2 className="h-3 w-3" /> Online Meeting Requested</> : <><Video className="h-3 w-3" /> Online Meeting</>}
+                        </button>
+                      );
+                    })()}
                     {infoEnabled && (
                       <button
                         onClick={() => setRequestInfoSponsor(s)}
@@ -917,6 +952,16 @@ export default function WelcomePage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [initialising, setInitialising] = useState(true);
 
+  const urlParams = useMemo(() => {
+    const p = new URLSearchParams(window.location.search);
+    const sponsorId = p.get("sponsor");
+    const mode = p.get("mode");
+    if (sponsorId && (mode === "onsite" || mode === "online")) {
+      return { sponsorId, mode: mode as "onsite" | "online" };
+    }
+    return null;
+  }, []);
+
   const { data: event } = useQuery<PublicEvent>({
     queryKey: ["/api/public/welcome", slug, "event"],
     queryFn: async () => {
@@ -983,6 +1028,19 @@ export default function WelcomePage() {
     if (!slug || !profileId) return;
     saveToStorage(slug, { profileId, step, topicIds, sessionIds, meetingRequests, email, matchedToken });
   }, [slug, profileId, step, topicIds, sessionIds, meetingRequests, email, matchedToken]);
+
+  // When opened via direct scheduling deep-link (e.g. from the attendee dashboard),
+  // jump straight to the sponsors card and pre-record the meeting request.
+  useEffect(() => {
+    if (initialising || !urlParams) return;
+    setStep("sponsors");
+    setMeetingRequests((prev) => {
+      const exists = prev.some(
+        (r) => r.sponsorId === urlParams.sponsorId && r.requestType === urlParams.mode
+      );
+      return exists ? prev : [...prev, { sponsorId: urlParams.sponsorId, requestType: urlParams.mode }];
+    });
+  }, [initialising]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleTopicsNext() {
     if (!profileId) return;
@@ -1140,6 +1198,8 @@ export default function WelcomePage() {
             onBack={() => setStep("sessions")}
             loading={actionLoading}
             accentColor={accentColor}
+            highlightSponsorId={urlParams?.sponsorId ?? null}
+            highlightMode={urlParams?.mode ?? null}
           />
         )}
 

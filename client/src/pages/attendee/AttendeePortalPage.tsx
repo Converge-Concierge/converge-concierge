@@ -8,10 +8,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
 import { useAttendeeAuth, type AttendeeMe } from "@/hooks/use-attendee-auth";
 import { useToast } from "@/hooks/use-toast";
 import SessionDetailSheet, { type AgendaSessionDetail } from "@/components/attendee/SessionDetailSheet";
+import { RequestInfoModal } from "@/components/RequestInfoModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -578,6 +580,13 @@ function Dashboard({
   const topicMap = new Map(topics.map((t) => [t.id, t]));
   const selectedTopics = selections.map((s) => topicMap.get(s.topicId)).filter(Boolean) as Topic[];
   const [detailSession, setDetailSession] = useState<AgendaSessionDetail | null>(null);
+  const [schedulingModal, setSchedulingModal] = useState<{ sponsorId: string; mode: "onsite" | "online" } | null>(null);
+  const [requestInfoSponsor, setRequestInfoSponsor] = useState<{ id: string; name: string } | null>(null);
+
+  function buildScheduleUrl(sponsorId: string, mode: "onsite" | "online") {
+    const base = `/event/${me.event.slug}?sponsor=${sponsorId}&mode=${mode}`;
+    return me.attendee.email ? `${base}&prefillEmail=${encodeURIComponent(me.attendee.email)}` : base;
+  }
 
   const hasInterests = selections.length > 0;
   const teamUrl = registrationUrl || websiteUrl;
@@ -810,38 +819,37 @@ function Dashboard({
                     )}
                   </div>
                   {/* Actions */}
-                  <div className="space-y-1.5 pt-2 border-t border-border/40">
-                    {sponsor.onsiteMeetingEnabled && (
-                      <button
-                        className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 bg-foreground text-background hover:bg-foreground/90"
-                        disabled={acting}
-                        onClick={() => onRequestMeeting(sponsor.id)}
-                        data-testid={`button-onsite-meeting-${sponsor.id}`}
-                      >
-                        <Calendar className="h-3.5 w-3.5" /> Schedule Onsite Meeting
-                      </button>
-                    )}
-                    {sponsor.onlineMeetingEnabled && (
-                      <button
-                        className="w-full py-2 rounded-xl text-xs font-semibold border border-border/60 bg-transparent text-foreground hover:bg-muted/50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
-                        disabled={acting}
-                        onClick={() => onRequestMeeting(sponsor.id)}
-                        data-testid={`button-online-meeting-${sponsor.id}`}
-                      >
-                        <Video className="h-3.5 w-3.5" /> Online Meeting
-                      </button>
-                    )}
-                    {sponsor.informationRequestEnabled && (
-                      <button
-                        className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
-                        disabled={acting}
-                        onClick={() => onRequestInfo(sponsor.id)}
-                        data-testid={`button-request-info-${sponsor.id}`}
-                      >
-                        Request Information
-                      </button>
-                    )}
-                  </div>
+                  {(sponsor.onsiteMeetingEnabled || sponsor.onlineMeetingEnabled || sponsor.informationRequestEnabled) && (
+                    <div className="space-y-1.5 pt-2 border-t border-border/40">
+                      {sponsor.onsiteMeetingEnabled && (
+                        <button
+                          className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 bg-foreground text-background hover:bg-foreground/90"
+                          onClick={() => setSchedulingModal({ sponsorId: sponsor.id, mode: "onsite" })}
+                          data-testid={`button-onsite-meeting-${sponsor.id}`}
+                        >
+                          <Calendar className="h-3.5 w-3.5" /> Schedule Onsite Meeting
+                        </button>
+                      )}
+                      {sponsor.onlineMeetingEnabled && (
+                        <button
+                          className="w-full py-2 rounded-xl text-xs font-semibold border border-border/60 bg-transparent text-foreground hover:bg-muted/50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                          onClick={() => setSchedulingModal({ sponsorId: sponsor.id, mode: "online" })}
+                          data-testid={`button-online-meeting-${sponsor.id}`}
+                        >
+                          <Video className="h-3.5 w-3.5" /> Online Meeting
+                        </button>
+                      )}
+                      {sponsor.informationRequestEnabled && (
+                        <button
+                          className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                          onClick={() => setRequestInfoSponsor({ id: sponsor.id, name: sponsor.name })}
+                          data-testid={`button-request-info-${sponsor.id}`}
+                        >
+                          Request Information
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -946,6 +954,38 @@ function Dashboard({
           onSave={() => onSaveSession(detailSession.id)}
           onUnsave={() => onUnsaveSession(detailSession.id)}
           isSaving={isSavingSession}
+        />
+      )}
+
+      {/* Scheduling iframe dialog — matches Card 4 behavior */}
+      <Dialog open={!!schedulingModal} onOpenChange={(o) => !o && setSchedulingModal(null)}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden h-[80vh]">
+          {schedulingModal && (
+            <iframe
+              src={buildScheduleUrl(schedulingModal.sponsorId, schedulingModal.mode)}
+              className="w-full h-full border-0"
+              title={schedulingModal.mode === "onsite" ? "Schedule Onsite Meeting" : "Schedule Online Meeting"}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Request Information modal — matches Card 4 behavior */}
+      {requestInfoSponsor && (
+        <RequestInfoModal
+          open={!!requestInfoSponsor}
+          onClose={() => setRequestInfoSponsor(null)}
+          onSuccess={() => setRequestInfoSponsor(null)}
+          sponsorId={requestInfoSponsor.id}
+          sponsorName={requestInfoSponsor.name}
+          eventId={me.event.id}
+          prefill={{
+            email: me.attendee.email,
+            firstName: me.attendee.firstName,
+            lastName: me.attendee.lastName,
+            company: me.attendee.company,
+            title: me.attendee.title,
+          }}
         />
       )}
     </div>

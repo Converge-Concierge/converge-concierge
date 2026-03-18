@@ -1,0 +1,273 @@
+Make Attendee Dashboard Sponsor Cards Match Card 4 of the Attendee Post-Registration Flow
+Use the same sponsor-card functionality, button logic, and sponsor permissions/configuration on the attendee dashboard as on Card 4
+
+The sponsor cards shown on the attendee dashboard are currently incorrect.
+
+They are not matching the functionality already used on Card 4 of the attendee post-registration flow.
+
+Examples of the current problems:
+
+missing Online Meeting option where it should exist
+
+missing Onsite Meeting option where it should exist
+
+incorrect button combinations
+
+sponsor actions do not appear to reflect the sponsor setup permissions/configuration
+
+dashboard sponsor cards feel like a different, reduced version of the sponsor-card system
+
+This needs to be corrected so the attendee dashboard uses the same sponsor-card logic and behavior as Card 4.
+
+1. Primary Goal
+
+Update the sponsor cards shown on the attendee dashboard so they match the sponsor cards used on:
+
+Card 4 of the attendee post-registration flow
+
+That means they must:
+
+use the same sponsor configuration/permissions logic
+
+show the same action buttons
+
+show the same button combinations per sponsor
+
+reflect the same sponsor setup rules
+
+behave consistently from the attendee’s perspective
+
+2. Source of Truth
+
+The source of truth for sponsor-card functionality should be the same logic used by:
+
+Card 4 of the attendee post-registration flow
+
+Use that implementation as the reference.
+
+Do not maintain a separate reduced dashboard-only sponsor card logic if that is causing divergence.
+
+3. Correct the Button Logic on Dashboard Sponsor Cards
+
+The attendee dashboard sponsor cards must respect the sponsor’s configured permissions/capabilities.
+
+Required behavior
+
+Dashboard sponsor cards should show actions based on sponsor setup, just like Card 4.
+
+Examples:
+
+If sponsor supports onsite meetings only
+
+Show:
+
+Schedule Onsite Meeting
+If sponsor supports online meetings only
+
+Show:
+
+Online Meeting
+If sponsor supports both
+
+Show:
+
+Schedule Onsite Meeting
+Online Meeting
+If sponsor supports only information requests
+
+Show:
+
+Request Information
+
+Do not omit valid options on the dashboard.
+
+4. Match Sponsor Setup Permissions / Configuration
+
+The dashboard sponsor cards must correlate directly to the sponsor setup configuration.
+
+That means they must read the same sponsor/event-specific settings already being used elsewhere, such as:
+
+onsite meeting enabled/available
+
+online meeting enabled/available
+
+request information enabled/available
+
+any event-specific sponsor meeting management settings
+
+If Card 4 is already using the correct logic, the dashboard should reuse that same logic.
+
+5. Remove Incorrect Simplification on Dashboard Cards
+
+Right now the attendee dashboard sponsor cards appear to be using a simplified version of sponsor actions.
+
+This is incorrect.
+
+Required correction
+
+Do not show a dashboard-specific stripped-down sponsor interaction model if the attendee is supposed to be able to take the same actions from the dashboard as from Card 4.
+
+The attendee dashboard should be able to drive:
+
+onsite meeting scheduling
+
+online meeting scheduling
+
+information requests
+
+where allowed by sponsor setup.
+
+6. Match Card 4 Button Layout / Behavior
+
+The attendee dashboard sponsor cards should match Card 4 not only in logic, but also as closely as practical in:
+
+action order
+
+button presence
+
+button wording
+
+disabled/enabled behavior
+
+state handling after interaction
+
+If the dashboard card must be slightly more compact, that is fine, but it must still present the same functional options.
+
+7. Use the Same Interaction Flow
+
+When a user clicks a sponsor action from the attendee dashboard, it should trigger the same behavior as Card 4.
+
+That includes:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+Use the same:
+
+popup/modal behavior
+
+request/scheduling logic
+
+state persistence
+
+attendee identity handling
+
+Do not route dashboard sponsor cards into a different or degraded workflow.
+
+8. Preserve Stable Button Labels
+
+We have already discussed removing clutter like “Requested” inside the meeting buttons.
+
+That should still apply here.
+
+Required behavior
+
+Dashboard sponsor cards should use stable action labels such as:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+Do not add confusing inline status changes that hide or replace other valid options.
+
+If action confirmation is needed, use:
+
+subtle external status indicators
+
+a toast
+
+or a small secondary status line outside the main button labels
+
+The buttons themselves should remain stable.
+
+9. Keep Topic Correlation / Relevance Text
+
+If the dashboard sponsor cards already show correlated topic text like:
+
+Compliance Strategy, Continuous Monitoring
+
+that is useful and should remain.
+
+However, the functional buttons must still reflect the real sponsor capabilities.
+
+Both are needed:
+
+why this sponsor is relevant
+
+what actions the attendee can take
+
+10. Audit Why Dashboard Cards Are Diverging
+
+Please specifically audit why the attendee dashboard sponsor cards are currently different from Card 4.
+
+Possible issues may include:
+
+Possible issue A
+
+Dashboard uses a separate sponsor card component with reduced functionality.
+
+Possible issue B
+
+Dashboard uses an older sponsor card component that predates Card 4 changes.
+
+Possible issue C
+
+Dashboard recommendation endpoint returns sponsor data without the necessary permissions/capability fields.
+
+Possible issue D
+
+Dashboard card is not event-scoped properly and therefore misses sponsor event-specific meeting configuration.
+
+Possible issue E
+
+Dashboard sponsor action rendering is based on generic sponsor data, while Card 4 uses event assignment / meeting management data.
+
+Find the actual cause and correct it.
+
+11. Event-Specific Sponsor Behavior Must Be Preserved
+
+Because sponsor meeting settings can vary by event, make sure the dashboard sponsor cards are using the current event context.
+
+Required behavior
+
+For the active attendee event:
+
+load the sponsor’s event-specific capabilities
+
+render actions accordingly
+
+Do not use global sponsor defaults if Card 4 correctly uses event-specific settings.
+
+12. Reuse Card 4 Sponsor Card Component if Practical
+
+If Card 4 already has the correct sponsor card behavior, strongly prefer reusing that same sponsor card component or shared logic on the attendee dashboard.
+
+This will reduce drift and make future maintenance easier.
+
+The goal is not just to make them look similar.
+The goal is to make them functionally consistent.
+
+13. Acceptance Criteria
+
+This correction is complete when:
+
+attendee dashboard sponsor cards show the same button combinations as Card 4 for the same sponsors
+
+onsite/online/info actions on dashboard cards reflect sponsor setup permissions correctly
+
+dashboard sponsor cards no longer omit valid actions
+
+dashboard sponsor card behavior is consistent with Card 4 of the attendee post-registration flow
+
+topic relevance text still displays where available
+
+interaction behavior remains stable and attendee-friendly
+
+14. Success Standard
+
+After this update, an attendee should be able to look at a sponsor on the dashboard and see the same functional options they would see on Card 4 of the post-registration flow. The dashboard should no longer feel like a reduced or inconsistent sponsor interaction layer.

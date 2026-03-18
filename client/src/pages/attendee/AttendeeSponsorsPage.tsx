@@ -1,16 +1,12 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Building2, Sparkles, Calendar, Video, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
 import SponsorDetailSheet, { type SponsorDetail } from "@/components/attendee/SponsorDetailSheet";
+import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { useAttendeeAuth } from "@/hooks/use-attendee-auth";
-import { useToast } from "@/hooks/use-toast";
-
-interface InteractionMap {
-  meetings: Record<string, { status: string; meetingId: string }>;
-  infoRequests: Record<string, { status: string; requestId: string }>;
-}
 
 interface RecommendedSponsor {
   id: string;
@@ -26,17 +22,21 @@ interface RecommendedSponsor {
   informationRequestEnabled: boolean;
 }
 
-// ── Shared sponsor card (used for both all-sponsors and recommended) ───────────
+// ── Shared sponsor card ───────────────────────────────────────────────────────
 
 function SponsorCard({
-  sponsor, onView, onRequestMeeting, onRequestInfo, isActing,
+  sponsor,
+  onView,
+  onScheduleOnsite,
+  onScheduleOnline,
+  onRequestInfo,
   showViewProfile = true,
 }: {
   sponsor: SponsorDetail | RecommendedSponsor;
   onView?: () => void;
-  onRequestMeeting: () => void;
+  onScheduleOnsite: () => void;
+  onScheduleOnline: () => void;
   onRequestInfo: () => void;
-  isActing: boolean;
   showViewProfile?: boolean;
 }) {
   const hasActions = sponsor.onsiteMeetingEnabled || sponsor.onlineMeetingEnabled || sponsor.informationRequestEnabled;
@@ -89,14 +89,13 @@ function SponsorCard({
         )}
       </div>
 
-      {/* Action buttons */}
+      {/* Action buttons — same logic as Card 4 */}
       {hasActions && (
         <div className="space-y-1.5 pt-2 border-t border-border/40">
           {sponsor.onsiteMeetingEnabled && (
             <button
-              className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50"
-              disabled={isActing}
-              onClick={onRequestMeeting}
+              className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 bg-foreground text-background hover:bg-foreground/90"
+              onClick={onScheduleOnsite}
               data-testid={`button-onsite-meeting-${sponsor.id}`}
             >
               <Calendar className="h-3.5 w-3.5" /> Schedule Onsite Meeting
@@ -104,9 +103,8 @@ function SponsorCard({
           )}
           {sponsor.onlineMeetingEnabled && (
             <button
-              className="w-full py-2 rounded-xl text-xs font-semibold border border-border/60 bg-transparent text-foreground hover:bg-muted/50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
-              disabled={isActing}
-              onClick={onRequestMeeting}
+              className="w-full py-2 rounded-xl text-xs font-semibold border border-border/60 bg-transparent text-foreground hover:bg-muted/50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+              onClick={onScheduleOnline}
               data-testid={`button-online-meeting-${sponsor.id}`}
             >
               <Video className="h-3.5 w-3.5" /> Online Meeting
@@ -114,8 +112,7 @@ function SponsorCard({
           )}
           {sponsor.informationRequestEnabled && (
             <button
-              className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center disabled:opacity-50"
-              disabled={isActing}
+              className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center"
               onClick={onRequestInfo}
               data-testid={`button-request-info-${sponsor.id}`}
             >
@@ -132,10 +129,9 @@ function SponsorCard({
 
 export default function AttendeeSponsorsPage() {
   const { token, headers, meQuery, logout } = useAttendeeAuth();
-  const qc = useQueryClient();
-  const { toast } = useToast();
   const [detailSponsor, setDetailSponsor] = useState<SponsorDetail | null>(null);
-  const [actingFor, setActingFor] = useState<string | null>(null);
+  const [schedulingModal, setSchedulingModal] = useState<{ sponsorId: string; mode: "onsite" | "online" } | null>(null);
+  const [requestInfoSponsor, setRequestInfoSponsor] = useState<{ id: string; name: string } | null>(null);
 
   const sponsorsQuery = useQuery<SponsorDetail[]>({
     queryKey: ["/api/attendee-portal/sponsors"],
@@ -149,49 +145,20 @@ export default function AttendeeSponsorsPage() {
     enabled: !!token,
   });
 
-  const interactionsQuery = useQuery<InteractionMap>({
-    queryKey: ["/api/attendee-portal/sponsor-interactions"],
-    queryFn: () => fetch("/api/attendee-portal/sponsor-interactions", { headers }).then((r) => r.json()),
-    enabled: !!token,
-  });
-
-  const requestMeetingMutation = useMutation({
-    mutationFn: (sponsorId: string) =>
-      fetch("/api/attendee-portal/request-meeting", {
-        method: "POST", headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ sponsorId }),
-      }).then((r) => r.json()),
-    onMutate: (sponsorId) => setActingFor(sponsorId),
-    onSettled: () => setActingFor(null),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] });
-      toast({ title: "Meeting request sent", description: "We'll connect you with this sponsor." });
-    },
-  });
-
-  const requestInfoMutation = useMutation({
-    mutationFn: (sponsorId: string) =>
-      fetch("/api/attendee-portal/request-info", {
-        method: "POST", headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ sponsorId }),
-      }).then((r) => r.json()),
-    onMutate: (sponsorId) => setActingFor(sponsorId),
-    onSettled: () => setActingFor(null),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/attendee-portal/sponsor-interactions"] });
-      toast({ title: "Information requested", description: "This sponsor will be in touch with more details." });
-    },
-  });
-
   const sponsors = sponsorsQuery.data ?? [];
   const recommended = recommendedQuery.data ?? [];
-  const interactions = interactionsQuery.data ?? { meetings: {}, infoRequests: {} };
+
+  const me = meQuery.data;
+
+  function buildScheduleUrl(sponsorId: string, mode: "onsite" | "online") {
+    const slug = me?.event.slug ?? "";
+    const base = `/event/${slug}?sponsor=${sponsorId}&mode=${mode}`;
+    return me?.attendee.email ? `${base}&prefillEmail=${encodeURIComponent(me.attendee.email)}` : base;
+  }
 
   if (!token || meQuery.isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div>;
   }
-
-  const me = meQuery.data;
 
   return (
     <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName}>
@@ -215,9 +182,9 @@ export default function AttendeeSponsorsPage() {
                 <SponsorCard
                   key={sponsor.id}
                   sponsor={sponsor}
-                  onRequestMeeting={() => requestMeetingMutation.mutate(sponsor.id)}
-                  onRequestInfo={() => requestInfoMutation.mutate(sponsor.id)}
-                  isActing={actingFor === sponsor.id}
+                  onScheduleOnsite={() => setSchedulingModal({ sponsorId: sponsor.id, mode: "onsite" })}
+                  onScheduleOnline={() => setSchedulingModal({ sponsorId: sponsor.id, mode: "online" })}
+                  onRequestInfo={() => setRequestInfoSponsor({ id: sponsor.id, name: sponsor.name })}
                 />
               ))}
             </div>
@@ -247,9 +214,9 @@ export default function AttendeeSponsorsPage() {
                 key={sponsor.id}
                 sponsor={sponsor}
                 onView={() => setDetailSponsor(sponsor)}
-                onRequestMeeting={() => requestMeetingMutation.mutate(sponsor.id)}
-                onRequestInfo={() => requestInfoMutation.mutate(sponsor.id)}
-                isActing={actingFor === sponsor.id}
+                onScheduleOnsite={() => setSchedulingModal({ sponsorId: sponsor.id, mode: "onsite" })}
+                onScheduleOnline={() => setSchedulingModal({ sponsorId: sponsor.id, mode: "online" })}
+                onRequestInfo={() => setRequestInfoSponsor({ id: sponsor.id, name: sponsor.name })}
               />
             ))}
           </div>
@@ -259,12 +226,41 @@ export default function AttendeeSponsorsPage() {
       {detailSponsor && (
         <SponsorDetailSheet
           sponsor={detailSponsor}
-          interaction={{
-            meetingStatus: interactions.meetings[detailSponsor.id]?.status,
-            infoStatus: interactions.infoRequests[detailSponsor.id]?.status,
-          }}
+          interaction={{}}
           onClose={() => setDetailSponsor(null)}
           onInteractionChange={() => {}}
+        />
+      )}
+
+      {/* Scheduling iframe dialog — same as Card 4 */}
+      <Dialog open={!!schedulingModal} onOpenChange={(o) => !o && setSchedulingModal(null)}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden h-[80vh]">
+          {schedulingModal && (
+            <iframe
+              src={buildScheduleUrl(schedulingModal.sponsorId, schedulingModal.mode)}
+              className="w-full h-full border-0"
+              title={schedulingModal.mode === "onsite" ? "Schedule Onsite Meeting" : "Schedule Online Meeting"}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Request Information modal — same as Card 4 */}
+      {requestInfoSponsor && (
+        <RequestInfoModal
+          open={!!requestInfoSponsor}
+          onClose={() => setRequestInfoSponsor(null)}
+          onSuccess={() => setRequestInfoSponsor(null)}
+          sponsorId={requestInfoSponsor.id}
+          sponsorName={requestInfoSponsor.name}
+          eventId={me?.event.id}
+          prefill={{
+            email: me?.attendee.email,
+            firstName: me?.attendee.firstName,
+            lastName: me?.attendee.lastName,
+            company: me?.attendee.company,
+            title: me?.attendee.title,
+          }}
         />
       )}
     </AttendeeShell>

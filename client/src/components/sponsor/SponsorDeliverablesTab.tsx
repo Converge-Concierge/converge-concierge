@@ -1865,9 +1865,12 @@ interface Props {
   token: string;
   canEdit: boolean;
   sponsorLogoUrl?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  repsJson?: string | null;
 }
 
-export default function SponsorDeliverablesTab({ token, canEdit, sponsorLogoUrl }: Props) {
+export default function SponsorDeliverablesTab({ token, canEdit, sponsorLogoUrl, contactName, contactEmail, repsJson }: Props) {
   const queryKey = ["/api/sponsor-dashboard/agreement-deliverables", token];
 
   const { data: deliverables = [], isLoading } = useQuery<SponsorDeliverable[]>({
@@ -1914,6 +1917,12 @@ export default function SponsorDeliverablesTab({ token, canEdit, sponsorLogoUrl 
     acc[cat] = visibleDeliverables.filter((d) => d.category === cat);
     return acc;
   }, {} as Record<string, SponsorDeliverable[]>);
+
+  const parsedOwners: { id: string; name: string; title: string; email: string }[] = (() => {
+    try { return repsJson ? JSON.parse(repsJson) : []; } catch { return []; }
+  })();
+  const hasPrimaryOwner = !!(contactName || contactEmail);
+  const hasDashboardOwners = hasPrimaryOwner || parsedOwners.length > 0;
 
   return (
     <div className="space-y-8" data-testid="deliverables-tab">
@@ -1985,8 +1994,9 @@ export default function SponsorDeliverablesTab({ token, canEdit, sponsorLogoUrl 
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">All Deliverables</h2>
         {DELIVERABLE_CATEGORIES.map((cat) => {
           const items = byCat[cat];
-          if (!items || items.length === 0) return null;
-          const catComplete = items.filter(d => ["Delivered", "Approved", "Available After Event"].includes(d.status)).length;
+          const showOwners = cat === "Company Profile" && hasDashboardOwners;
+          if ((!items || items.length === 0) && !showOwners) return null;
+          const catComplete = (items ?? []).filter(d => ["Delivered", "Approved", "Available After Event"].includes(d.status)).length;
           return (
             <div key={cat} className="space-y-2" data-testid={`category-section-${cat}`}>
               <div className="flex items-center gap-2.5 px-1 pb-2 border-b border-border/60">
@@ -1994,7 +2004,7 @@ export default function SponsorDeliverablesTab({ token, canEdit, sponsorLogoUrl 
                 <h3 className="text-sm font-semibold text-foreground">
                   {cat}
                   <span className="ml-1.5 font-normal text-muted-foreground text-xs">
-                    ({items.length} Deliverable{items.length !== 1 ? "s" : ""})
+                    ({(items?.length ?? 0)} Deliverable{(items?.length ?? 0) !== 1 ? "s" : ""})
                   </span>
                 </h3>
                 {catComplete > 0 && (
@@ -2003,7 +2013,49 @@ export default function SponsorDeliverablesTab({ token, canEdit, sponsorLogoUrl 
                   </span>
                 )}
               </div>
-              {items.map((d) => (
+
+              {/* Dashboard Owners — first item in Company Profile */}
+              {showOwners && (
+                <div className="rounded-xl border border-border bg-card overflow-hidden" data-testid="section-dashboard-owners">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-sm font-semibold text-foreground">Dashboard Owners</span>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-border/40">
+                    {hasPrimaryOwner && (
+                      <div className="flex items-center gap-3 px-4 py-3" data-testid="owner-row-primary">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <Users className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {contactName && <span className="text-sm font-medium text-foreground">{contactName}</span>}
+                            <span className="text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5 font-medium shrink-0">Primary</span>
+                          </div>
+                          {contactEmail && <p className="text-xs text-muted-foreground truncate">{contactEmail}</p>}
+                        </div>
+                      </div>
+                    )}
+                    {parsedOwners.map((o) => (
+                      <div key={o.id} className="flex items-center gap-3 px-4 py-3" data-testid={`owner-row-${o.id}`}>
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">{o.name}</p>
+                          {(o.title || o.email) && (
+                            <p className="text-xs text-muted-foreground truncate">{[o.title, o.email].filter(Boolean).join(" · ")}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(items ?? []).map((d) => (
                 <DeliverableRow key={d.id} deliverable={d} token={token} canEdit={canEdit} sponsorLogoUrl={sponsorLogoUrl} />
               ))}
             </div>

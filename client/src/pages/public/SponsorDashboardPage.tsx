@@ -2,8 +2,10 @@ import { useEffect, useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { AppLogoMark } from "@/components/AppLogoMark";
+import { useAppBranding } from "@/hooks/use-app-branding";
 import {
-  Hexagon, ShieldX, Calendar, MapPin, Building2, Users,
+  ShieldX, Calendar, MapPin, Building2, Users,
   CheckCircle2, Clock, Handshake, Linkedin, LogOut,
   Bell, BellOff, Download, ExternalLink, Video, Mail,
   UserCheck, AlertCircle, ChevronDown, ChevronUp, FileDown,
@@ -300,10 +302,8 @@ export default function SponsorDashboardPage() {
       <div className="min-h-screen bg-background flex flex-col">
         <header className="w-full max-w-7xl mx-auto px-6 h-20 flex items-center">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-              <Hexagon className="h-5 w-5" />
-            </div>
-            <span className="font-display text-xl font-bold text-foreground tracking-tight">Converge Concierge</span>
+            <AppLogoMark containerClassName="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20" iconClassName="h-5 w-5" imgClassName="h-7 max-w-[130px] object-contain" />
+            <span className="font-display text-xl font-bold text-foreground tracking-tight">{branding?.appName || "Converge Concierge"}</span>
           </div>
         </header>
         <main className="flex-1 flex items-center justify-center px-6">
@@ -368,10 +368,8 @@ export default function SponsorDashboardPage() {
       {/* Header */}
       <header className="relative z-10 w-full max-w-7xl mx-auto px-6 h-20 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            <Hexagon className="h-5 w-5" />
-          </div>
-          <span className="font-display text-xl font-bold text-foreground tracking-tight hidden sm:inline">Converge Concierge</span>
+          <AppLogoMark containerClassName="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20" iconClassName="h-5 w-5" imgClassName="h-7 max-w-[130px] object-contain" />
+          <span className="font-display text-xl font-bold text-foreground tracking-tight hidden sm:inline">{branding?.appName || "Converge Concierge"}</span>
         </div>
         <div className="flex items-center gap-3">
           {unreadCount > 0 && (

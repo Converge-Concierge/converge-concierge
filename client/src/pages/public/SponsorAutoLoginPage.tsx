@@ -1,10 +1,13 @@
 import { useEffect } from "react";
 import { useParams, useLocation } from "wouter";
-import { Hexagon, ShieldX } from "lucide-react";
+import { ShieldX } from "lucide-react";
+import { AppLogoMark } from "@/components/AppLogoMark";
+import { useAppBranding } from "@/hooks/use-app-branding";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 export default function SponsorAutoLoginPage() {
+  const { appName } = useAppBranding();
   const { token } = useParams<{ token: string }>();
   const [, nav] = useLocation();
   const [error, setError] = useState("");
@@ -30,10 +33,8 @@ export default function SponsorAutoLoginPage() {
       <div className="min-h-screen bg-background flex flex-col">
         <header className="w-full max-w-7xl mx-auto px-6 h-20 flex items-center">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-              <Hexagon className="h-5 w-5" />
-            </div>
-            <span className="font-display text-xl font-bold text-foreground tracking-tight">Converge Concierge</span>
+            <AppLogoMark containerClassName="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20" iconClassName="h-5 w-5" imgClassName="h-7 max-w-[130px] object-contain" />
+            <span className="font-display text-xl font-bold text-foreground tracking-tight">{appName}</span>
           </div>
         </header>
         <main className="flex-1 flex items-center justify-center px-6">

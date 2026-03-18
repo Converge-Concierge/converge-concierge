@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Hexagon, Lock, KeyRound, CheckCircle2, AlertCircle, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Lock, KeyRound, CheckCircle2, AlertCircle, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { AppLogoMark } from "@/components/AppLogoMark";
+import { useAppBranding } from "@/hooks/use-app-branding";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +32,7 @@ function PasswordStrengthBar({ password }: { password: string }) {
 }
 
 export default function AdminResetPasswordPage() {
+  const { appName } = useAppBranding();
   const [, nav] = useLocation();
   const [token, setToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -103,10 +106,8 @@ export default function AdminResetPasswordPage() {
         <div className="flex justify-center mb-8">
           <Link href="/login">
             <div className="flex items-center gap-3 cursor-pointer">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-                <Hexagon className="h-6 w-6" />
-              </div>
-              <span className="font-display text-xl font-bold text-foreground tracking-tight">Converge Concierge</span>
+              <AppLogoMark containerClassName="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20" iconClassName="h-6 w-6" imgClassName="h-9 max-w-[160px] object-contain" />
+              <span className="font-display text-xl font-bold text-foreground tracking-tight">{appName}</span>
             </div>
           </Link>
         </div>

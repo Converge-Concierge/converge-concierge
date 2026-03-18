@@ -3,7 +3,9 @@ import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Event, Sponsor } from "@shared/schema";
-import { Hexagon, Calendar, MapPin, ArrowLeft, CheckCircle, AlertCircle, Building2, Clock } from "lucide-react";
+import { Calendar, MapPin, ArrowLeft, CheckCircle, AlertCircle, Building2, Clock } from "lucide-react";
+import { AppLogoMark } from "@/components/AppLogoMark";
+import { useAppBranding } from "@/hooks/use-app-branding";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +25,7 @@ interface AttendeeForm {
 }
 
 export default function BookingPage() {
+  const { appName } = useAppBranding();
   const { slug, sponsorId } = useParams<{ slug: string; sponsorId: string }>();
   const [, setLocation] = useLocation();
 
@@ -198,10 +201,8 @@ export default function BookingPage() {
         <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-accent/10 blur-[100px] pointer-events-none" />
         <header className="relative z-10 w-full max-w-7xl mx-auto px-6 h-24 flex items-center">
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-              <Hexagon className="h-6 w-6" />
-            </div>
-            <span className="font-display text-2xl font-bold text-foreground tracking-tight">Converge Concierge</span>
+            <AppLogoMark containerClassName="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20" iconClassName="h-6 w-6" imgClassName="h-8 max-w-[150px] object-contain" />
+            <span className="font-display text-2xl font-bold text-foreground tracking-tight">{appName}</span>
           </Link>
         </header>
         <main className="flex-1 flex items-center justify-center px-6 relative z-10">
@@ -249,10 +250,8 @@ export default function BookingPage() {
 
       <header className="relative z-10 w-full max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            <Hexagon className="h-6 w-6" />
-          </div>
-          <span className="font-display text-2xl font-bold text-foreground tracking-tight">Converge Concierge</span>
+          <AppLogoMark containerClassName="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20" iconClassName="h-6 w-6" imgClassName="h-8 max-w-[150px] object-contain" />
+          <span className="font-display text-2xl font-bold text-foreground tracking-tight">{appName}</span>
         </Link>
         <Button variant="outline" onClick={() => setLocation(`/event/${slug}`)} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Back to Sponsors

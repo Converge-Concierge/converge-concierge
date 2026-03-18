@@ -1,9 +1,12 @@
 import { Link } from "wouter";
-import { Hexagon, HelpCircle, Mail, ArrowLeft, LogIn } from "lucide-react";
+import { HelpCircle, Mail, ArrowLeft, LogIn } from "lucide-react";
+import { AppLogoMark } from "@/components/AppLogoMark";
+import { useAppBranding } from "@/hooks/use-app-branding";
 import { Button } from "@/components/ui/button";
 import PublicFooter from "@/components/PublicFooter";
 
 export default function HelpCenterPage() {
+  const { appName } = useAppBranding();
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
       <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-accent/10 blur-[100px] pointer-events-none" />
@@ -11,11 +14,9 @@ export default function HelpCenterPage() {
 
       <header className="relative z-10 w-full max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            <Hexagon className="h-5 w-5" />
-          </div>
+          <AppLogoMark containerClassName="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20" iconClassName="h-5 w-5" imgClassName="h-7 max-w-[130px] object-contain" />
           <span className="font-display text-xl font-bold text-foreground tracking-tight hidden sm:block">
-            Converge Concierge
+            {appName}
           </span>
         </Link>
         <Link href="/">

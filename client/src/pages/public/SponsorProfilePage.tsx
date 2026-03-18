@@ -4,9 +4,11 @@ import PublicFooter from "@/components/PublicFooter";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
-  Hexagon, Building2, ArrowLeft, Globe, Linkedin, Calendar, Video,
+  Building2, ArrowLeft, Globe, Linkedin, Calendar, Video,
   FileText, ChevronRight, Tag, Gem, Mail,
 } from "lucide-react";
+import { AppLogoMark } from "@/components/AppLogoMark";
+import { useAppBranding } from "@/hooks/use-app-branding";
 import { Button } from "@/components/ui/button";
 import { Event, Sponsor } from "@shared/schema";
 import { cn } from "@/lib/utils";
@@ -20,6 +22,7 @@ const levelBadge: Record<string, string> = {
 };
 
 export default function SponsorProfilePage() {
+  const { appName } = useAppBranding();
   const { slug, sponsorId } = useParams<{ slug: string; sponsorId: string }>();
   const [, nav] = useLocation();
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
@@ -52,9 +55,7 @@ export default function SponsorProfilePage() {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <header className="w-full max-w-6xl mx-auto px-6 h-18 flex items-center">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            <Hexagon className="h-5 w-5" />
-          </div>
+          <AppLogoMark containerClassName="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20" iconClassName="h-5 w-5" imgClassName="h-7 max-w-[130px] object-contain" />
         </header>
         <main className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
           <Building2 className="h-12 w-12 text-muted-foreground/30" />
@@ -78,10 +79,8 @@ export default function SponsorProfilePage() {
       {/* Header */}
       <header className="relative z-10 w-full max-w-6xl mx-auto px-6 h-18 flex items-center justify-between py-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            <Hexagon className="h-5 w-5" />
-          </div>
-          <span className="font-display text-lg font-bold text-foreground tracking-tight">Converge Concierge</span>
+          <AppLogoMark containerClassName="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20" iconClassName="h-5 w-5" imgClassName="h-7 max-w-[130px] object-contain" />
+          <span className="font-display text-lg font-bold text-foreground tracking-tight">{appName}</span>
         </div>
         <Button
           variant="ghost"

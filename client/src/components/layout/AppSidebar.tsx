@@ -7,7 +7,6 @@ import {
   Handshake,
   BarChart3,
   Settings,
-  Hexagon,
   LogOut,
   UserCog,
   ArrowLeftRight,
@@ -35,6 +34,8 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation as useWouterLocation } from "wouter";
+import { AppLogoMark } from "@/components/AppLogoMark";
+import { useAppBranding } from "@/hooks/use-app-branding";
 
 const managementItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
@@ -89,6 +90,7 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
   const [location] = useLocation();
   const { logout } = useAuth();
   const [, nav] = useWouterLocation();
+  const { appName } = useAppBranding();
 
   async function handleLogout() {
     await logout();
@@ -104,11 +106,9 @@ export function AppSidebar({ isAdmin }: AppSidebarProps) {
     <Sidebar className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="p-4">
         <Link href="/" className="flex items-center gap-3 px-2 py-1 transition-opacity hover:opacity-80">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-            <Hexagon className="h-5 w-5" />
-          </div>
-          <span className="font-display text-lg font-bold tracking-tight text-sidebar-foreground">
-            Concierge
+          <AppLogoMark containerClassName="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" iconClassName="h-5 w-5" imgClassName="h-6 max-w-[120px] object-contain" />
+          <span className="font-display text-lg font-bold tracking-tight text-sidebar-foreground truncate">
+            {appName}
           </span>
         </Link>
       </SidebarHeader>

@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { motion } from "framer-motion";
-import { Hexagon, Lock, KeyRound, CheckCircle2, AlertCircle } from "lucide-react";
+import { Lock, KeyRound, CheckCircle2, AlertCircle } from "lucide-react";
+import { AppLogoMark } from "@/components/AppLogoMark";
+import { useAppBranding } from "@/hooks/use-app-branding";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function ResetPasswordPage() {
+  const { appName } = useAppBranding();
   const [location, setLocation] = useLocation();
   const [token, setToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -59,8 +62,8 @@ export default function ResetPasswordPage() {
       >
         <div className="flex justify-center mb-8">
           <Link href="/" className="flex items-center gap-2 text-foreground hover:text-accent transition-colors">
-            <Hexagon className="h-8 w-8" />
-            <span className="text-xl font-display font-bold">Converge Concierge</span>
+            <AppLogoMark containerClassName="" iconClassName="h-8 w-8" imgClassName="h-8 max-w-[160px] object-contain" />
+            <span className="text-xl font-display font-bold">{appName}</span>
           </Link>
         </div>
 

@@ -1,5 +1,7 @@
 import { Link } from "wouter";
-import { Hexagon, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { AppLogoMark } from "@/components/AppLogoMark";
+import { useAppBranding } from "@/hooks/use-app-branding";
 import PublicFooter from "@/components/PublicFooter";
 
 function Section({ number, title, children }: { number?: string; title: string; children: React.ReactNode }) {
@@ -22,16 +24,15 @@ function Bullets({ items }: { items: string[] }) {
 }
 
 export default function TermsPage() {
+  const { appName } = useAppBranding();
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="w-full border-b border-border/50 bg-white/60 sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md">
-              <Hexagon className="h-5 w-5" />
-            </div>
+            <AppLogoMark containerClassName="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md" iconClassName="h-5 w-5" imgClassName="h-7 max-w-[130px] object-contain" />
             <span className="font-display text-lg font-bold text-foreground tracking-tight hidden sm:block">
-              Converge Concierge
+              {appName}
             </span>
           </Link>
           <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-back-home">

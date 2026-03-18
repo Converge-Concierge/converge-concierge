@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Star, ChevronRight, CheckCircle2, Hexagon,
   CalendarDays, Users, Bookmark, ExternalLink, ArrowRight, Building2, Calendar, Mail, Bell,
-  Lightbulb, Sparkles, MapPin, Clock, AlertCircle, X,
+  Lightbulb, Sparkles, MapPin, Clock, AlertCircle, X, Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,8 @@ import AttendeeShell from "@/components/attendee/AttendeeShell";
 import { useAttendeeAuth, type AttendeeMe } from "@/hooks/use-attendee-auth";
 import { useToast } from "@/hooks/use-toast";
 import SessionDetailSheet, { type AgendaSessionDetail } from "@/components/attendee/SessionDetailSheet";
+import MeetingSchedulerDialog from "@/components/attendee/MeetingSchedulerDialog";
+import { RequestInfoModal } from "@/components/RequestInfoModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -555,6 +557,105 @@ function RelevanceLabel({ labels }: { labels: string[] }) {
   );
 }
 
+// ── Sponsor Card (home dashboard variant) ─────────────────────────────────────
+
+function HomeSponsorCard({
+  sponsor,
+  accentColor,
+  onScheduleOnsite,
+  onScheduleOnline,
+  onRequestInfo,
+}: {
+  sponsor: RecommendedSponsor;
+  accentColor: string | null;
+  onScheduleOnsite: () => void;
+  onScheduleOnline: () => void;
+  onRequestInfo: () => void;
+}) {
+  const ac = accentColor;
+  const acColor = ac ? { color: ac } : undefined;
+  const acBg = ac ? { backgroundColor: `${ac}18` } : undefined;
+  const hasActions = sponsor.onsiteMeetingEnabled || sponsor.onlineMeetingEnabled || sponsor.informationRequestEnabled;
+
+  return (
+    <div className="bg-card border border-border/60 rounded-2xl p-4 flex flex-col gap-3" data-testid={`card-home-sponsor-${sponsor.id}`}>
+      <div className="flex items-start justify-between gap-2">
+        {sponsor.logoUrl
+          ? <img src={sponsor.logoUrl} alt={sponsor.name} className="h-12 w-12 rounded-xl object-contain shrink-0 border border-border/40 bg-white p-1" />
+          : (
+            <div className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 bg-primary/10" style={acBg}>
+              <Building2 className="h-6 w-6 text-primary" style={acColor} />
+            </div>
+          )
+        }
+        {sponsor.level && (
+          <Badge variant="secondary" className="rounded-full text-[10px] shrink-0 font-semibold px-2.5">
+            {sponsor.level}
+          </Badge>
+        )}
+      </div>
+      <div className="space-y-1 min-w-0">
+        <p className="font-bold text-sm text-foreground leading-snug">{sponsor.name}</p>
+        {sponsor.shortDescription && (
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{sponsor.shortDescription}</p>
+        )}
+        {sponsor.overlapTopicLabels.length > 0 && (
+          <div className="flex items-start gap-1 pt-0.5">
+            <Sparkles className="h-3 w-3 text-primary shrink-0 mt-0.5" style={acColor} />
+            <p className="text-xs text-primary font-medium leading-snug" style={acColor}>
+              Relevant to your interests: {sponsor.overlapTopicLabels.join(", ")}
+            </p>
+          </div>
+        )}
+        {sponsor.websiteUrl && (
+          <a
+            href={sponsor.websiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-primary hover:underline"
+            style={acColor}
+          >
+            <ExternalLink className="h-3 w-3" /> View Profile
+          </a>
+        )}
+      </div>
+      {hasActions && (
+        <div className="space-y-1.5 pt-2 border-t border-border/40">
+          {sponsor.onsiteMeetingEnabled && (
+            <button
+              className="w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 bg-foreground text-background hover:bg-foreground/90"
+              onClick={onScheduleOnsite}
+              data-testid={`button-home-onsite-${sponsor.id}`}
+            >
+              <Calendar className="h-3.5 w-3.5" /> Schedule Onsite Meeting
+            </button>
+          )}
+          {sponsor.onlineMeetingEnabled && (
+            <button
+              className="w-full py-2 rounded-xl text-xs font-semibold border border-border/60 bg-transparent text-foreground hover:bg-muted/50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+              onClick={onScheduleOnline}
+              data-testid={`button-home-online-${sponsor.id}`}
+            >
+              <Video className="h-3.5 w-3.5" /> Online Meeting
+            </button>
+          )}
+          {sponsor.informationRequestEnabled && (
+            <button
+              className="w-full py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-[0.98] flex items-center justify-center"
+              onClick={onRequestInfo}
+              data-testid={`button-home-info-${sponsor.id}`}
+            >
+              Request Information
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────────
+
 function Dashboard({
   me, topics, selections, sessions, savedSessionIds,
   onEditInterests, onSaveSession, onUnsaveSession, isSavingSession,
@@ -576,6 +677,15 @@ function Dashboard({
   const topicMap = new Map(topics.map((t) => [t.id, t]));
   const selectedTopics = selections.map((s) => topicMap.get(s.topicId)).filter(Boolean) as Topic[];
   const [detailSession, setDetailSession] = useState<AgendaSessionDetail | null>(null);
+  const [schedulerModal, setSchedulerModal] = useState<{ sponsorId: string; sponsorName: string; mode: "onsite" | "online" } | null>(null);
+  const [requestInfoSponsor, setRequestInfoSponsor] = useState<{ id: string; name: string } | null>(null);
+
+  const recommendedSponsorsQuery = useQuery<RecommendedSponsor[]>({
+    queryKey: ["/api/attendee-portal/recommended-sponsors"],
+    queryFn: () => fetch("/api/attendee-portal/recommended-sponsors", { headers }).then((r) => r.json()),
+    enabled: true,
+  });
+  const recommendedSponsors = recommendedSponsorsQuery.data ?? [];
 
   const hasInterests = selections.length > 0;
   const teamUrl = registrationUrl || websiteUrl;
@@ -720,6 +830,40 @@ function Dashboard({
         </div>
       </div>
 
+      {/* ── Recommended Sponsors ──────────────────────────────────────── */}
+      {(recommendedSponsorsQuery.isLoading || recommendedSponsors.length > 0) && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" style={acColor} /> Recommended for You
+            </h2>
+            <Link href="/attendee/sponsors">
+              <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" data-testid="link-view-all-sponsors">
+                All Sponsors <ArrowRight className="h-3 w-3" />
+              </Button>
+            </Link>
+          </div>
+          {recommendedSponsorsQuery.isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="home-recommended-sponsors-grid">
+              {recommendedSponsors.map((sponsor) => (
+                <HomeSponsorCard
+                  key={sponsor.id}
+                  sponsor={sponsor}
+                  accentColor={ac}
+                  onScheduleOnsite={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "onsite" })}
+                  onScheduleOnline={() => setSchedulerModal({ sponsorId: sponsor.id, sponsorName: sponsor.name, mode: "online" })}
+                  onRequestInfo={() => setRequestInfoSponsor({ id: sponsor.id, name: sponsor.name })}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Recommended Sessions ──────────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -817,6 +961,39 @@ function Dashboard({
           onSave={() => onSaveSession(detailSession.id)}
           onUnsave={() => onUnsaveSession(detailSession.id)}
           isSaving={isSavingSession}
+        />
+      )}
+
+      {/* Meeting scheduler */}
+      {schedulerModal && (
+        <MeetingSchedulerDialog
+          open={!!schedulerModal}
+          onClose={() => setSchedulerModal(null)}
+          sponsorId={schedulerModal.sponsorId}
+          sponsorName={schedulerModal.sponsorName}
+          mode={schedulerModal.mode}
+          me={me}
+          headers={headers}
+          onSuccess={() => setSchedulerModal(null)}
+        />
+      )}
+
+      {/* Request information */}
+      {requestInfoSponsor && (
+        <RequestInfoModal
+          open={!!requestInfoSponsor}
+          onClose={() => setRequestInfoSponsor(null)}
+          onSuccess={() => setRequestInfoSponsor(null)}
+          sponsorId={requestInfoSponsor.id}
+          sponsorName={requestInfoSponsor.name}
+          eventId={me.event.id}
+          prefill={{
+            email: me.attendee.email,
+            firstName: me.attendee.firstName,
+            lastName: me.attendee.lastName,
+            company: me.attendee.company,
+            title: me.attendee.title,
+          }}
         />
       )}
 

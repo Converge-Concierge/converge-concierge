@@ -7338,9 +7338,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           websiteUrl: sponsor.websiteUrl ?? null,
           overlapScore: overlap,
           overlapTopicLabels: overlapping.map((t) => topicLabelMap.get(t.topicId) ?? "").filter(Boolean),
-          onsiteMeetingEnabled: eventLink?.onsiteMeetingEnabled ?? false,
-          onlineMeetingEnabled: eventLink?.onlineMeetingEnabled ?? false,
-          informationRequestEnabled: eventLink?.informationRequestEnabled ?? false,
+          onsiteMeetingEnabled: eventLink?.onsiteMeetingEnabled ?? true,
+          onlineMeetingEnabled: eventLink?.onlineMeetingEnabled ?? (sponsor.allowOnlineMeetings ?? false),
+          informationRequestEnabled: eventLink?.informationRequestEnabled ?? true,
         };
       });
 
@@ -7515,9 +7515,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           overlapTopicLabels: overlapTopics.map((t) => topicLabelMap.get(t.topicId) ?? "").filter(Boolean),
           topicIds: sponsorTopics.map((t) => t.topicId),
           topicLabels: sponsorTopics.map((t) => ({ id: t.topicId, label: topicLabelMap.get(t.topicId) ?? "" })),
-          onsiteMeetingEnabled: eventLink?.onsiteMeetingEnabled ?? false,
-          onlineMeetingEnabled: eventLink?.onlineMeetingEnabled ?? false,
-          informationRequestEnabled: eventLink?.informationRequestEnabled ?? false,
+          onsiteMeetingEnabled: eventLink?.onsiteMeetingEnabled ?? true,
+          onlineMeetingEnabled: eventLink?.onlineMeetingEnabled ?? (sponsor.allowOnlineMeetings ?? false),
+          informationRequestEnabled: eventLink?.informationRequestEnabled ?? true,
         };
       })
     );

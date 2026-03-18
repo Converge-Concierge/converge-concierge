@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Sparkles, Calendar, Video, ExternalLink, ArrowRight } from "lucide-react";
+import { Building2, Sparkles, Calendar, Video, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AttendeeShell from "@/components/attendee/AttendeeShell";
 import MeetingSchedulerDialog from "@/components/attendee/MeetingSchedulerDialog";
-import SponsorDetailSheet, { type SponsorDetail } from "@/components/attendee/SponsorDetailSheet";
+import SponsorDetailSheet, { type SponsorDetail, SponsorLevelBadge } from "@/components/attendee/SponsorDetailSheet";
 import { RequestInfoModal } from "@/components/RequestInfoModal";
 import { useAttendeeAuth } from "@/hooks/use-attendee-auth";
 
@@ -58,11 +57,7 @@ function SponsorCard({
             </div>
           )
         }
-        {sponsor.level && (
-          <Badge variant="secondary" className="rounded-full text-[10px] shrink-0 font-semibold px-2.5">
-            {sponsor.level}
-          </Badge>
-        )}
+        <SponsorLevelBadge level={sponsor.level ?? null} />
       </div>
 
       {/* Name, description, relevance, profile link */}
@@ -81,27 +76,16 @@ function SponsorCard({
             </p>
           </div>
         )}
-        {sponsor.websiteUrl ? (
-          <a
-            href={sponsor.websiteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-primary hover:underline"
-            style={acColor}
-            data-testid={`link-view-profile-${sponsor.id}`}
-          >
-            <ExternalLink className="h-3 w-3" /> View Profile
-          </a>
-        ) : onView ? (
+        {onView && (
           <button
             onClick={onView}
-            className="flex items-center gap-1 text-xs text-primary hover:underline"
+            className="flex items-center gap-1 text-xs text-primary hover:underline font-medium"
             style={acColor}
             data-testid={`button-view-sponsor-${sponsor.id}`}
           >
-            <ExternalLink className="h-3 w-3" /> View Profile
+            View Profile
           </button>
-        ) : null}
+        )}
       </div>
 
       {/* Action buttons — same order/style as onboarding Card 4 */}
@@ -168,6 +152,30 @@ export default function AttendeeSponsorsPage() {
   const acBg = ac ? { backgroundColor: `${ac}18` } : undefined;
 
   const hasInterests = recommended !== undefined;
+
+  const openDetailForRecommended = (rec: RecommendedSponsor) => {
+    const full = sponsors.find((s) => s.id === rec.id);
+    if (full) {
+      setDetailSponsor(full);
+    } else {
+      setDetailSponsor({
+        id: rec.id,
+        name: rec.name,
+        logoUrl: rec.logoUrl,
+        level: rec.level,
+        shortDescription: rec.shortDescription ?? null,
+        websiteUrl: rec.websiteUrl ?? null,
+        linkedinUrl: null,
+        solutionsSummary: null,
+        overlapScore: rec.overlapScore,
+        overlapTopicLabels: rec.overlapTopicLabels,
+        topicLabels: [],
+        onsiteMeetingEnabled: rec.onsiteMeetingEnabled,
+        onlineMeetingEnabled: rec.onlineMeetingEnabled,
+        informationRequestEnabled: rec.informationRequestEnabled,
+      });
+    }
+  };
 
   if (!token || meQuery.isLoading) {
     return (
@@ -241,6 +249,7 @@ export default function AttendeeSponsorsPage() {
                   key={sponsor.id}
                   sponsor={sponsor}
                   accentColor={ac}
+                  onView={() => openDetailForRecommended(sponsor)}
                   onScheduleOnsite={() => openScheduler(sponsor.id, sponsor.name, "onsite")}
                   onScheduleOnline={() => openScheduler(sponsor.id, sponsor.name, "online")}
                   onRequestInfo={() => openInfo(sponsor.id, sponsor.name)}

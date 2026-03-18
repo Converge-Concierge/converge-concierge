@@ -1,0 +1,190 @@
+Fix Sponsor Level Display and View Profile Behavior on the Attendee Dashboard
+Make attendee sponsor cards use the same sponsorship level and badge styling as Admin → Sponsors, and open the sponsor Concierge profile in an on-page popup/modal instead of linking to the sponsor website
+
+We need to correct two issues on the attendee-facing Sponsors experience.
+
+1. Fix Sponsor Level / Badge Mismatch Between Admin and Attendee Dashboard
+Problem
+
+The sponsorship level shown on the attendee dashboard does not match what is configured in:
+
+Admin → Sponsors
+
+Example:
+
+Admin shows one level
+
+attendee dashboard shows a different level
+
+This is incorrect.
+
+In addition, the sponsor badge graphic/styling on the attendee dashboard does not match the badge style used elsewhere in the system.
+
+Required Behavior
+
+The attendee dashboard must use the same sponsorship level configured in Admin → Sponsors.
+
+That means:
+
+if Admin says Platinum, attendee UI must show Platinum
+
+if Admin says Bronze, attendee UI must show Bronze
+
+do not derive or guess a different level
+
+do not use stale or legacy data
+
+Source of Truth
+
+Use the sponsorship level stored in the sponsor/admin data model as the single source of truth.
+
+Do not use:
+
+old event assignment fallback if it conflicts
+
+hard-coded badge mappings
+
+cached/derived values that drift from Admin
+
+Audit the attendee sponsor card query/serializer and make sure it is pulling the correct sponsor level from the same data source used by Admin → Sponsors.
+
+Badge Styling Must Also Match
+
+The sponsorship level badge on the attendee dashboard should visually match the correct badge treatment used elsewhere in the system.
+
+Use the same:
+
+badge text
+
+badge color treatment
+
+border/background treatment
+
+visual style
+
+as the proper sponsor level badge standard.
+
+The attendee-facing sponsor cards should not use a different or downgraded badge style.
+
+2. Fix “View Profile” on the Attendee Dashboard
+Problem
+
+On the attendee dashboard / sponsor cards, the View Profile button currently links to the sponsor’s external website.
+
+That is not the desired behavior.
+
+We want View Profile to open the sponsor’s Concierge profile inside the app experience.
+
+Also, it should open as a popup/modal/sheet on the page, not in a new tab or new window.
+
+Required Behavior
+
+When the attendee clicks:
+
+View Profile
+
+the app should open the sponsor’s Concierge profile in an on-page popup/modal/sheet.
+
+It should not:
+
+open the sponsor website
+
+open a new browser tab
+
+open a new browser window
+
+Sponsor Profile Popup Content
+
+The popup/modal should display the sponsor’s Concierge profile information, using the existing sponsor profile data already maintained in Concierge.
+
+Include the fields currently intended for attendee consumption, such as:
+
+sponsor logo
+
+sponsor name
+
+sponsorship level badge
+
+company description / short description
+
+correlated/relevant agenda topics where appropriate
+
+any sponsor profile content already used elsewhere in Concierge
+
+action buttons using the same sponsor interaction logic already established
+
+This should feel like viewing the sponsor inside Concierge, not leaving the product.
+
+Interaction Buttons Inside the Popup
+
+Inside the popup/modal, keep the same allowed sponsor interaction buttons based on sponsor permissions/settings, such as:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+Use the same sponsor card / sponsor permission logic already established on the attendee sponsor surfaces.
+
+Do not create a separate logic path here.
+
+3. Reuse Existing Sponsor Profile Modal/Sheet if One Exists
+
+If the app already has an attendee sponsor detail modal/sheet/profile view implemented elsewhere, reuse that same component rather than building another parallel version.
+
+The goal is:
+
+one sponsor profile interaction model
+
+consistent behavior everywhere
+
+4. Keep External Website as a Secondary Field Only
+
+If the sponsor has a website, it can still be shown inside the profile popup as an optional external link.
+
+But the primary action called:
+
+View Profile
+
+must open the Concierge profile modal, not the external site.
+
+5. Apply This Across Attendee Sponsor Surfaces
+
+Make sure this corrected behavior applies consistently anywhere attendee-facing sponsor cards appear, including:
+
+Sponsors tab
+
+recommended sponsors section
+
+any dashboard sponsor section
+
+onboarding Card 4 if the same View Profile control appears there
+
+The attendee should always get the same behavior:
+
+correct sponsor level
+
+correct badge
+
+profile popup inside Concierge
+
+6. Acceptance Criteria
+
+This update is complete when:
+
+sponsor level shown on the attendee dashboard matches the sponsorship level configured in Admin → Sponsors
+
+attendee sponsor badges use the correct badge style/treatment
+
+View Profile no longer opens the sponsor website directly
+
+clicking View Profile opens the sponsor’s Concierge profile in an on-page popup/modal/sheet
+
+the popup uses the same sponsor data and interaction logic as the rest of the attendee sponsor experience
+
+no new browser tab/window is opened for View Profile
+
+7. Success Standard
+
+After this update, the attendee sponsor experience should feel consistent and trustworthy. Sponsor levels and badges should accurately reflect Admin configuration, and View Profile should keep the attendee inside Concierge by opening a polished sponsor profile popup rather than sending them out to an external website.

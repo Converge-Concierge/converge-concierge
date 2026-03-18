@@ -1,9 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, ExternalLink, Linkedin, Building2, Calendar, Mail, Sparkles } from "lucide-react";
+import { X, ExternalLink, Linkedin, Building2, Calendar, Mail, Sparkles, Gem } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAttendeeAuth } from "@/hooks/use-attendee-auth";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -32,11 +33,21 @@ interface SponsorDetailSheetProps {
 }
 
 const LEVEL_COLORS: Record<string, string> = {
-  Platinum: "bg-purple-100 text-purple-700 border-purple-200",
-  Gold: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  Silver: "bg-slate-100 text-slate-600 border-slate-200",
-  Bronze: "bg-orange-100 text-orange-700 border-orange-200",
+  Platinum: "bg-slate-800 text-white border-slate-700",
+  Gold:     "bg-amber-100 text-amber-900 border-amber-300",
+  Silver:   "bg-gray-100 text-gray-600 border-gray-300",
+  Bronze:   "bg-orange-100 text-orange-700 border-orange-300",
 };
+
+export function SponsorLevelBadge({ level }: { level: string | null }) {
+  if (!level) return null;
+  return (
+    <span className={cn("inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold w-fit", LEVEL_COLORS[level] ?? "bg-muted text-muted-foreground border-border")}>
+      {level === "Platinum" && <Gem className="h-3 w-3 mr-0.5" />}
+      {level}
+    </span>
+  );
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -91,9 +102,7 @@ export default function SponsorDetailSheet({ sponsor, onClose, onInteractionChan
               <div>
                 <h2 className="font-display font-bold text-lg leading-tight text-foreground" data-testid="text-sponsor-detail-name">{sponsor.name}</h2>
                 {sponsor.level && (
-                  <span className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${LEVEL_COLORS[sponsor.level] ?? "bg-muted text-muted-foreground border-border"}`}>
-                    {sponsor.level} Sponsor
-                  </span>
+                  <div className="mt-1"><SponsorLevelBadge level={sponsor.level} /></div>
                 )}
               </div>
               <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted transition-colors shrink-0" data-testid="button-close-sponsor-sheet">

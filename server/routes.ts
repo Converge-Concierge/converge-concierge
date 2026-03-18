@@ -7336,7 +7336,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return {
           id: sponsor.id,
           name: sponsor.name,
-          level: sponsor.level ?? null,
+          level: eventLink?.sponsorshipLevel ?? sponsor.level ?? null,
           category: sponsor.category ?? null,
           logoUrl: sponsor.logoUrl ?? null,
           shortDescription: sponsor.shortDescription ?? null,
@@ -7511,7 +7511,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           id: sponsor.id,
           name: sponsor.name,
           logoUrl: sponsor.logoUrl ?? null,
-          level: sponsor.level ?? null,
+          level: eventLink?.sponsorshipLevel ?? sponsor.level ?? null,
           shortDescription: sponsor.shortDescription ?? null,
           websiteUrl: sponsor.websiteUrl ?? null,
           linkedinUrl: sponsor.linkedinUrl ?? null,

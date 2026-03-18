@@ -3808,12 +3808,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const all = await storage.listAgreementDeliverables({ sponsorId: tokenRecord.sponsorId, eventId: tokenRecord.eventId });
     const visible = all.filter((d) => d.sponsorVisible);
 
+    const sponsor = await storage.getSponsor(tokenRecord.sponsorId);
+    const AWAITING_STATUSES = ["Not Started", "Needed", "Awaiting Sponsor Input"];
+
     // Attach child records for each deliverable in parallel
     const withChildren = await Promise.all(visible.map(async (d) => {
       const { internalNote: _drop, ...safe } = d as typeof d & { internalNote: unknown };
       const registrants = await storage.listDeliverableRegistrants(d.id);
       const speakers = await storage.listDeliverableSpeakers(d.id);
-      return { ...safe, registrants, speakers };
+
+      // Auto-promote file_upload deliverables whose status is stale/awaiting but already have a file on record
+      let status = safe.status;
+      if (d.fulfillmentType === "file_upload" && AWAITING_STATUSES.includes(status)) {
+        const isLogoDeliverable = d.deliverableName.toLowerCase().includes("logo");
+        const hasLogoUrl = isLogoDeliverable && !!sponsor?.logoUrl;
+        const files = await storage.listFileAssets({ deliverableId: d.id, status: "active" });
+        if (hasLogoUrl || files.length > 0) {
+          await storage.updateAgreementDeliverable(d.id, { status: "Received" });
+          status = "Received";
+        }
+      }
+
+      return { ...safe, status, registrants, speakers };
     }));
 
     res.json(withChildren);

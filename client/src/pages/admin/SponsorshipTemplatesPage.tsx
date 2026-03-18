@@ -52,6 +52,9 @@ export default function SponsorshipTemplatesPage() {
   const [newTemplateYear, setNewTemplateYear] = useState("2026");
   const [newTemplateFamily, setNewTemplateFamily] = useState("FRC");
   const [dupName, setDupName] = useState("");
+  const [dupFamily, setDupFamily] = useState("");
+  const [dupYear, setDupYear] = useState("");
+  const [dupLevel, setDupLevel] = useState("");
 
   const { data: templates = [], isLoading: tplLoading } = useQuery<TemplateWithCount[]>({
     queryKey: ["/api/agreement/package-templates"],
@@ -82,8 +85,8 @@ export default function SponsorshipTemplatesPage() {
   });
 
   const duplicateTemplate = useMutation({
-    mutationFn: ({ id, newName }: { id: string; newName: string }) =>
-      apiRequest("POST", `/api/agreement/package-templates/${id}/duplicate`, { newName }),
+    mutationFn: ({ id, newName, eventFamily, year, sponsorshipLevel }: { id: string; newName: string; eventFamily?: string; year?: string; sponsorshipLevel?: string }) =>
+      apiRequest("POST", `/api/agreement/package-templates/${id}/duplicate`, { newName, eventFamily, year, sponsorshipLevel }),
     onSuccess: async (res) => {
       const tpl = await res.json();
       queryClient.invalidateQueries({ queryKey: ["/api/agreement/package-templates"] });
@@ -121,10 +124,8 @@ export default function SponsorshipTemplatesPage() {
   const activeTemplates = filteredTemplates.filter((t) => !t.isArchived);
   const archivedTemplates = filteredTemplates.filter((t) => t.isArchived);
 
-  // Only show events that have at least one matching template
-  const eventsWithTemplates = events.filter((ev) =>
-    templates.some((t) => templateMatchesEvent(t, ev)),
-  );
+  // Show all active events as tabs
+  const activeEvents = events;
 
   return (
     <div className="space-y-6">
@@ -183,10 +184,10 @@ export default function SponsorshipTemplatesPage() {
       </div>
 
       {/* Event tabs */}
-      {eventsWithTemplates.length > 0 && (
+      {activeEvents.length > 0 && (
         <div className="overflow-x-auto pb-1">
           <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
-            {eventsWithTemplates.map((event) => {
+            {activeEvents.map((event) => {
               const isActive = selectedEventId === event.id;
               return (
                 <button
@@ -323,7 +324,7 @@ export default function SponsorshipTemplatesPage() {
                       </Button>
                       <Button
                         variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1"
-                        onClick={() => { setDupName(`${t.packageName} (Copy)`); setShowDuplicateDialog(t); }}
+                        onClick={() => { setDupName(`${t.packageName} (Copy)`); setDupFamily(t.eventFamily ?? ""); setDupYear(t.year ?? ""); setDupLevel(t.sponsorshipLevel); setShowDuplicateDialog(t); }}
                         data-testid={`button-duplicate-${t.id}`}
                       >
                         <Copy className="h-3 w-3" /> Duplicate
@@ -445,7 +446,7 @@ export default function SponsorshipTemplatesPage() {
               Duplicating "{showDuplicateDialog?.packageName}" including all deliverable items.
             </p>
             <div className="space-y-1.5">
-              <Label htmlFor="dup-name">New Name</Label>
+              <Label htmlFor="dup-name">New Template Name</Label>
               <Input
                 id="dup-name"
                 value={dupName}
@@ -453,11 +454,52 @@ export default function SponsorshipTemplatesPage() {
                 data-testid="input-dup-name"
               />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Sponsorship Level</Label>
+                <Select value={dupLevel} onValueChange={setDupLevel}>
+                  <SelectTrigger data-testid="select-dup-level">
+                    <SelectValue placeholder="Level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["Platinum", "Gold", "Silver", "Bronze"].map((l) => (
+                      <SelectItem key={l} value={l}>{l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dup-year">Year</Label>
+                <Input
+                  id="dup-year"
+                  placeholder="2026"
+                  value={dupYear}
+                  onChange={(e) => setDupYear(e.target.value)}
+                  data-testid="input-dup-year"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="dup-family">Event Family</Label>
+              <Input
+                id="dup-family"
+                placeholder="e.g. FRC, USBT, TLS"
+                value={dupFamily}
+                onChange={(e) => setDupFamily(e.target.value)}
+                data-testid="input-dup-family"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDuplicateDialog(null)}>Cancel</Button>
             <Button
-              onClick={() => showDuplicateDialog && duplicateTemplate.mutate({ id: showDuplicateDialog.id, newName: dupName })}
+              onClick={() => showDuplicateDialog && duplicateTemplate.mutate({
+                id: showDuplicateDialog.id,
+                newName: dupName,
+                eventFamily: dupFamily || undefined,
+                year: dupYear || undefined,
+                sponsorshipLevel: dupLevel || undefined,
+              })}
               disabled={!dupName.trim() || duplicateTemplate.isPending}
               data-testid="button-submit-duplicate"
             >

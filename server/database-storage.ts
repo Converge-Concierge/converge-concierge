@@ -1649,17 +1649,17 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async duplicatePackageTemplate(id: string, newName: string): Promise<PackageTemplate> {
+  async duplicatePackageTemplate(id: string, newName: string, overrides?: { eventFamily?: string; year?: string; sponsorshipLevel?: string }): Promise<PackageTemplate> {
     const original = await this.getPackageTemplate(id);
     if (!original) throw new Error("Package template not found");
     const items = await this.listDeliverableTemplateItems(id);
     const [newTemplate] = await db.insert(agreementPackageTemplates).values({
       id: randomUUID(),
       packageName: newName,
-      sponsorshipLevel: original.sponsorshipLevel,
+      sponsorshipLevel: overrides?.sponsorshipLevel ?? original.sponsorshipLevel,
       eventId: original.eventId,
-      eventFamily: original.eventFamily,
-      year: original.year,
+      eventFamily: overrides?.eventFamily ?? original.eventFamily,
+      year: overrides?.year ?? original.year,
       description: original.description,
       isActive: true,
       isArchived: false,

@@ -268,35 +268,37 @@ export default function AgreementDeliverablesPage() {
         <TabsContent value="sponsor-agreements" className="mt-4 space-y-4">
           {/* Event tab strip */}
           {events.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap">
-              <button
-                onClick={() => setFilterEvent("all")}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
-                  filterEvent === "all"
-                    ? "bg-foreground text-background border-foreground"
-                    : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"
-                )}
-                data-testid="tab-event-all"
-              >
-                All Events
-              </button>
-              {events.map((ev) => (
+            <div className="overflow-x-auto pb-1">
+              <div className="flex items-center gap-2 min-w-max p-1 bg-muted/50 border border-border/40 rounded-xl w-fit">
+                {events.map((ev) => {
+                  const isActive = filterEvent === ev.id;
+                  return (
+                    <button
+                      key={ev.id}
+                      onClick={() => setFilterEvent(ev.id)}
+                      className={cn(
+                        "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                        isActive ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                      )}
+                      style={isActive ? { backgroundColor: ev.accentColor ?? "#0D9488", color: "#ffffff" } : undefined}
+                      data-testid={`tab-event-${ev.id}`}
+                    >
+                      {ev.slug ?? ev.name}
+                    </button>
+                  );
+                })}
                 <button
-                  key={ev.id}
-                  onClick={() => setFilterEvent(ev.id)}
+                  onClick={() => setFilterEvent("all")}
                   className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
-                    filterEvent === ev.id
-                      ? "bg-foreground text-background border-foreground"
-                      : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"
+                    "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                    filterEvent === "all" ? "shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
                   )}
-                  style={filterEvent === ev.id && ev.accentColor ? { backgroundColor: ev.accentColor, borderColor: ev.accentColor, color: "#fff" } : undefined}
-                  data-testid={`tab-event-${ev.id}`}
+                  style={filterEvent === "all" ? { backgroundColor: "#0D9488", color: "#ffffff" } : undefined}
+                  data-testid="tab-event-all"
                 >
-                  {ev.name}
+                  All Events
                 </button>
-              ))}
+              </div>
             </div>
           )}
 

@@ -5378,9 +5378,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.post("/api/agreement/package-templates/:id/duplicate", requireAuth, async (req, res) => {
     try {
-      const { newName } = req.body;
+      const { newName, eventFamily, year, sponsorshipLevel } = req.body;
       if (!newName) return res.status(400).json({ message: "newName is required" });
-      const template = await storage.duplicatePackageTemplate(req.params.id, newName);
+      const overrides: { eventFamily?: string; year?: string; sponsorshipLevel?: string } = {};
+      if (eventFamily) overrides.eventFamily = eventFamily;
+      if (year) overrides.year = year;
+      if (sponsorshipLevel) overrides.sponsorshipLevel = sponsorshipLevel;
+      const template = await storage.duplicatePackageTemplate(req.params.id, newName, overrides);
       res.status(201).json(template);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });

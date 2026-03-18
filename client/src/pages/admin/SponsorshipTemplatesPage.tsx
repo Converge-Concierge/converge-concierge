@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import type { PackageTemplate } from "@shared/schema";
 
 type TemplateWithCount = PackageTemplate & { deliverableCount: number };
-type Event = { id: string; name: string; slug: string; accentColor?: string | null };
+type Event = { id: string; name: string; slug: string; accentColor?: string | null; primaryColor?: string | null; startDate?: string | null; endDate?: string | null; archiveState?: string | null };
 
 const LEVEL_COLORS: Record<string, string> = {
   Platinum: "bg-slate-100 text-slate-700 border-slate-300",
@@ -43,6 +43,7 @@ export default function SponsorshipTemplatesPage() {
   const { toast } = useToast();
 
   const [selectedEventId, setSelectedEventId] = useState("all");
+  const hasAutoSelected = useRef(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState<TemplateWithCount | null>(null);
   const [searchTemplates, setSearchTemplates] = useState("");
@@ -61,6 +62,27 @@ export default function SponsorshipTemplatesPage() {
   });
 
   const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
+
+  // Sort events: upcoming first (soonest start), then past (most-recent end first)
+  const sortedEvents = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const active = events.filter(e => (e.archiveState ?? "active") === "active");
+    const upcoming = active
+      .filter(e => e.endDate && new Date(e.endDate) >= today)
+      .sort((a, b) => new Date(a.startDate ?? 0).getTime() - new Date(b.startDate ?? 0).getTime());
+    const completed = active
+      .filter(e => !e.endDate || new Date(e.endDate) < today)
+      .sort((a, b) => new Date(b.endDate ?? 0).getTime() - new Date(a.endDate ?? 0).getTime());
+    return [...upcoming, ...completed];
+  }, [events]);
+
+  // Auto-select soonest event once data loads
+  useEffect(() => {
+    if (hasAutoSelected.current || sortedEvents.length === 0) return;
+    hasAutoSelected.current = true;
+    setSelectedEventId(sortedEvents[0].id);
+  }, [sortedEvents]);
 
   const createTemplate = useMutation({
     mutationFn: (data: object) => apiRequest("POST", "/api/agreement/package-templates", data),
@@ -124,8 +146,8 @@ export default function SponsorshipTemplatesPage() {
   const activeTemplates = filteredTemplates.filter((t) => !t.isArchived);
   const archivedTemplates = filteredTemplates.filter((t) => t.isArchived);
 
-  // Show all active events as tabs
-  const activeEvents = events;
+  // All sorted events shown as tabs
+  const activeEvents = sortedEvents;
 
   return (
     <div className="space-y-6">

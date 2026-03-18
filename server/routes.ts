@@ -5684,9 +5684,57 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ── Admin Speaker CRUD (cookie-auth) ─────────────────────────────────────
 
+  // Shared helper: ensure bio/headshot deliverables exist for a speaker
+  async function ensureSpeakerDeliverables(
+    deliverable: { sponsorId: string; eventId: string; sponsorshipLevel: string },
+    speakerName: string,
+    speakerBio: string | null | undefined,
+    headshotFileAssetId?: string | null,
+  ) {
+    const needsBio = !speakerBio?.trim();
+    const needsHeadshot = !headshotFileAssetId;
+    const items: Array<{ name: string; fulfillmentType: string }> = [];
+    if (needsBio) items.push({ name: "Speaker Biography", fulfillmentType: "status_only" });
+    if (needsHeadshot) items.push({ name: "Speaker Headshot", fulfillmentType: "file_upload" });
+    if (!items.length) return;
+
+    const existing = await storage.listAgreementDeliverables({ sponsorId: deliverable.sponsorId, eventId: deliverable.eventId });
+    for (const item of items) {
+      const alreadyExists = existing.some(
+        (d) => d.deliverableName === item.name && d.category === "Speakers & Sessions",
+      );
+      if (!alreadyExists) {
+        await storage.createAgreementDeliverable({
+          sponsorId: deliverable.sponsorId,
+          eventId: deliverable.eventId,
+          sponsorshipLevel: deliverable.sponsorshipLevel,
+          category: "Speakers & Sessions",
+          deliverableName: item.name,
+          deliverableDescription: `${item.name.replace("Speaker ", "")} needed for ${speakerName.trim()}`,
+          ownerType: "Sponsor",
+          sponsorEditable: true,
+          sponsorVisible: true,
+          fulfillmentType: item.fulfillmentType,
+          reminderEligible: true,
+          status: "Needed",
+          dueTiming: "before_event",
+          isCustom: true,
+          displayOrder: 99,
+        });
+      }
+    }
+  }
+
   app.get("/api/agreement/deliverables/:id/speakers", requireAuth, async (req, res) => {
     try {
+      const deliverable = await storage.getAgreementDeliverable(req.params.id);
       const speakers = await storage.listDeliverableSpeakers(req.params.id);
+      // Retroactively ensure bio/headshot deliverables exist for any speaker missing them
+      if (deliverable) {
+        for (const s of speakers) {
+          await ensureSpeakerDeliverables(deliverable, s.speakerName, s.speakerBio, s.headshotFileAssetId);
+        }
+      }
       res.json(speakers);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -5706,35 +5754,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         sessionTitle: sessionTitle?.trim() ?? null,
       });
 
-      // T007: Auto-create deliverables for missing headshot/bio
-      const autoCreate: Array<{ name: string; desc: string }> = [];
-      if (!speakerBio?.trim()) autoCreate.push({ name: "Speaker Biography", desc: `Speaker bio needed for ${speakerName.trim()}` });
-      // Headshot is never provided on creation, so always queue it
-      autoCreate.push({ name: "Speaker Headshot", desc: `Headshot needed for ${speakerName.trim()}` });
-      for (const item of autoCreate) {
-        const existing = await storage.listAgreementDeliverables({ sponsorId: deliverable.sponsorId, eventId: deliverable.eventId });
-        const alreadyExists = existing.some(d => d.deliverableName === item.name && d.category === "Speakers & Sessions");
-        if (!alreadyExists) {
-          await storage.createAgreementDeliverable({
-            sponsorId: deliverable.sponsorId,
-            eventId: deliverable.eventId,
-            sponsorshipLevel: deliverable.sponsorshipLevel,
-            category: "Speakers & Sessions",
-            deliverableName: item.name,
-            deliverableDescription: item.desc,
-            ownerType: "Sponsor",
-            sponsorEditable: true,
-            sponsorVisible: true,
-            fulfillmentType: item.name.includes("Headshot") ? "file_upload" : "status_only",
-            reminderEligible: true,
-            status: "Needed",
-            dueTiming: "before_event",
-            isCustom: true,
-            displayOrder: 99,
-          });
-        }
-      }
-
+      await ensureSpeakerDeliverables(deliverable, speakerName, speakerBio, null);
       res.status(201).json(speaker);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -5750,6 +5770,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         ...(sessionTitle !== undefined && { sessionTitle: sessionTitle?.trim() ?? null }),
         ...(headshotFileAssetId !== undefined && { headshotFileAssetId: headshotFileAssetId ?? null }),
       });
+      // If bio or headshot still missing after edit, ensure deliverables exist
+      const deliverable = await storage.getAgreementDeliverable(req.params.id);
+      if (deliverable) {
+        await ensureSpeakerDeliverables(deliverable, speaker.speakerName, speaker.speakerBio, speaker.headshotFileAssetId);
+      }
       res.json(speaker);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });

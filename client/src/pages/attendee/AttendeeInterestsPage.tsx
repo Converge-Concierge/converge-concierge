@@ -7,7 +7,7 @@ import AttendeeShell from "@/components/attendee/AttendeeShell";
 import { useAttendeeAuth } from "@/hooks/use-attendee-auth";
 import { useToast } from "@/hooks/use-toast";
 
-interface Topic { id: string; label: string; topicKey: string }
+interface Topic { id: string; topicLabel: string; topicKey: string }
 interface TopicSelection { topicId: string }
 
 export default function AttendeeInterestsPage() {
@@ -60,7 +60,7 @@ export default function AttendeeInterestsPage() {
     });
 
   const topics = topicsQuery.data ?? [];
-  const topicMap = new Map(topics.map((t) => [t.id, t]));
+  const topicMap = new Map(topics.map((t: Topic) => [t.id, t]));
   const selectedList = [...selected].map((id) => topicMap.get(id)).filter(Boolean) as Topic[];
   const me = meQuery.data;
 
@@ -107,7 +107,7 @@ export default function AttendeeInterestsPage() {
                   }`}
                   data-testid={`button-interest-${t.id}`}
                 >
-                  {t.label}
+                  {t.topicLabel}
                 </button>
               ))}
             </div>
@@ -122,7 +122,7 @@ export default function AttendeeInterestsPage() {
               <div className="flex flex-wrap gap-1.5" data-testid="interests-selected-list">
                 {selectedList.map((t) => (
                   <Badge key={t.id} variant="secondary" className="rounded-full text-xs" data-testid={`badge-interest-${t.id}`}>
-                    {t.label}
+                    {t.topicLabel}
                   </Badge>
                 ))}
               </div>

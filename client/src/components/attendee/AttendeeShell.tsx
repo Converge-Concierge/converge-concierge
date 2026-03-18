@@ -11,11 +11,11 @@ interface Props {
 
 const navItems = [
   { label: "Home", href: "/attendee", icon: LayoutDashboard },
+  { label: "Interests", href: "/attendee/interests", icon: Tag },
   { label: "Agenda", href: "/attendee/agenda", icon: CalendarDays },
   { label: "My Agenda", href: "/attendee/my-agenda", icon: Bookmark },
   { label: "Sponsors", href: "/attendee/sponsors", icon: Building2 },
   { label: "Meetings", href: "/attendee/meetings", icon: Calendar },
-  { label: "Interests", href: "/attendee/interests", icon: Tag },
 ];
 
 export default function AttendeeShell({ children, onLogout, attendeeName }: Props) {

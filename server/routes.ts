@@ -7193,7 +7193,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const validation = await validateAttendeeToken(token);
     if (!validation.ok) return res.status(validation.status).json({ message: validation.message });
     const { tokenRecord } = validation;
-    const topics = await storage.getEventInterestTopics(tokenRecord.eventId, { status: "Approved", isActive: true });
+    const topics = await storage.getEventInterestTopics(tokenRecord.eventId, { status: "APPROVED", isActive: true });
     return res.json(topics);
   });
 

@@ -180,20 +180,25 @@ export default function SponsorProfilePage() {
           {/* CTA block — second position, right below the name card */}
           {slug && (
             <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6">
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-start gap-5 mb-5">
                 {event?.logoUrl && (
-                  <img
-                    src={event.logoUrl}
-                    alt={event.name}
-                    className="h-10 w-10 rounded-lg object-contain shrink-0 border border-border/40 bg-white p-1"
-                    data-testid="img-event-logo-cta"
-                  />
+                  <div className="h-20 w-20 rounded-2xl border border-border/40 bg-white flex items-center justify-center shrink-0 p-2 shadow-sm">
+                    <img
+                      src={event.logoUrl}
+                      alt={event.name}
+                      className="h-full w-full object-contain"
+                      data-testid="img-event-logo-cta"
+                    />
+                  </div>
                 )}
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground leading-snug">
-                    Meeting with {sponsor.name}{event ? ` at ${event.name}` : ""}
+                <div className="flex-1 min-w-0 pt-1">
+                  <h2 className="text-lg font-display font-bold text-foreground leading-snug">
+                    Meet {sponsor.name}
                   </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">Schedule a 30-minute 1-on-1 meeting at the event, or request an online call.</p>
+                  {event && (
+                    <p className="text-sm font-medium text-accent mt-0.5 leading-snug">{event.name}</p>
+                  )}
+                  <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Schedule a 30-minute 1-on-1 meeting at the event, or request an online call.</p>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">

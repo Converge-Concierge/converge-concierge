@@ -1,0 +1,255 @@
+Refine Card 1 Messaging, Remove “Requested” From Sponsor Buttons, and Fix Card 5 → Dashboard Routing
+Make the attendee flow feel like a natural extension of registration, remove misleading sponsor button states, and send users directly to the dashboard after completion
+
+We need to make three important corrections to the attendee flow.
+
+These are UX and routing issues that are making the flow feel confusing and less polished than it should.
+
+1. Improve Card 1 So It Feels Like a Natural Extension of Registration
+Problem
+
+The first card currently looks clean, but it feels too matter-of-fact and does not do enough to explain why the attendee should select topics.
+
+It should feel like a continuation of registration and a helpful setup step, not just a generic form.
+
+Primary Goal
+
+Make Card 1 feel like:
+
+Registration confirmed
+Next step: let’s make the best use of your time at the conference
+
+The screen should sell the value of topic selection.
+
+Required Messaging Update
+
+Keep the existing clean layout and formatting, but revise the copy to better frame the process.
+
+Current intent
+
+The screen is asking:
+
+What topics interest you?
+
+Required improvement
+
+Introduce stronger “Next Steps” guidance and attendee value framing.
+
+Recommended Copy Direction
+
+Use language along these lines:
+
+Small supporting label
+Next Steps
+Main headline
+Let’s make the best use of your time at the conference.
+Supporting copy
+Select the topics that are most relevant to you so Concierge can recommend the sessions, sponsors, and meeting opportunities that best match your interests.
+
+You may refine wording slightly for fit and style, but the screen should clearly communicate:
+
+why topic selection matters
+
+what the attendee gets from it
+
+that this is part of preparing for the event
+
+Keep the Existing Formatting
+
+Do not redesign the page completely.
+
+The current formatting is directionally good.
+
+This is a messaging and framing improvement:
+
+stronger copy
+
+clearer “next steps” tone
+
+more value-oriented guidance
+
+2. Remove “Requested” Status From Sponsor Meeting Buttons on Card 4
+Problem
+
+On the Sponsors card, the meeting buttons are still showing:
+
+Requested
+
+inside the button state.
+
+This is not needed and is confusing, especially if the attendee did not actually complete the full scheduling process.
+
+It implies a completed state too early.
+
+Required Behavior
+
+Remove the inline “Requested” status from the sponsor meeting buttons entirely.
+
+This applies to:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+The buttons should remain clean and stable.
+
+Correct Button Behavior
+
+Buttons should always display their action labels only, such as:
+
+Schedule Onsite Meeting
+
+Online Meeting
+
+Request Information
+
+Do not append:
+
+Requested
+
+Reopen
+
+other inline status text inside the button
+
+If Feedback Is Needed
+
+If you still want to confirm that the attendee clicked something:
+
+use a subtle toast
+
+or a message outside the button
+
+Do not change the button label itself.
+
+3. Fix Card 5 → Dashboard Routing So It Goes Directly to the Dashboard
+Problem
+
+When the attendee finishes the 5-card flow and clicks:
+
+See Your Dashboard
+
+they are incorrectly sent into another onboarding-like process.
+
+Current behavior appears to be:
+
+Card 5
+
+Click See Your Dashboard
+
+Goes to Welcome / Get Started
+
+Then Select Your Interests
+
+Then Recommended Sessions
+
+Then Recommended Sponsors
+
+Then Dashboard Ready
+
+Then actual dashboard
+
+That entire sequence is wrong and unnecessary.
+
+Required Behavior
+
+Once the attendee has already completed the 5-card process, clicking:
+
+See Your Dashboard
+
+must go directly to the attendee dashboard.
+
+No additional welcome flow.
+No extra Get Started screen.
+No second topic selection screen.
+No second recommendation sequence.
+
+Correct Routing Rule
+
+If attendee has completed the 5-card flow:
+
+See Your Dashboard should route directly to the dashboard page
+
+It should not send them through onboarding again.
+
+Remove All Intermediate Screens After Card 5
+
+The following screens should no longer appear after Card 5:
+
+Get Started
+
+Select Your Interests
+
+Recommended Sessions
+
+Recommended Sponsors
+
+Dashboard Ready
+
+Those screens are redundant once the attendee already completed the main flow.
+
+Remove that post-completion sequence from the Card 5 → Dashboard path.
+
+Required Routing Logic
+
+Audit the route/state logic triggered by the Card 5 CTA.
+
+Likely cause is one of:
+
+onboarding completion is not being set correctly before redirect
+
+dashboard route is still checking an incomplete flag incorrectly
+
+Card 5 button points to the wrong route
+
+a fallback onboarding route is being triggered even after completion
+
+Find the actual cause and correct it.
+
+Expected Final Behavior
+Correct flow
+
+attendee completes Card 1–5
+
+attendee clicks See Your Dashboard
+
+attendee lands directly on their dashboard
+
+That is the only acceptable behavior.
+
+4. Fix the Empty / Broken Interest Screen in the Duplicate Flow
+
+As part of the routing fix, also address the broken duplicate onboarding screen where:
+
+interest topics do not populate
+
+the user is incorrectly re-routed through another setup flow
+
+This screen should not appear at all after Card 5, but if the underlying route still exists, verify it is not broken.
+
+5. Preserve Dashboard Access From Email Links
+
+The same rule should apply when an attendee clicks a See Your Dashboard CTA from email.
+
+If the attendee has already completed onboarding, that link should also go directly to the dashboard, not restart the setup process.
+
+6. Acceptance Criteria
+
+This work is complete when:
+
+Card 1 copy is updated so the screen feels like a natural next step after registration
+
+Card 1 clearly communicates the value of topic selection
+
+sponsor meeting buttons on Card 4 no longer show Requested
+
+Card 5 → See Your Dashboard goes directly to the dashboard
+
+no extra onboarding/welcome/recommendation screens appear after Card 5
+
+post-completion routing is clean and direct
+
+dashboard email links also respect completed state and go directly to the dashboard
+
+7. Success Standard
+
+After this update, the attendee flow should feel much more polished and intuitive. Card 1 should clearly explain why topic selection matters, sponsor meeting buttons should stay clean and not imply false completion states, and once the attendee finishes the 5-card setup, See Your Dashboard should take them straight to their dashboard with no redundant screens in between.

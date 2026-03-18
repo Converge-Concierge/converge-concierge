@@ -259,11 +259,12 @@ function TopicsCard({ topics, selected, onChange, onNext, loading, accentColor }
   return (
     <div className="bg-white border border-border/60 rounded-2xl shadow-sm p-6 sm:p-8">
       <div className="mb-6">
-        <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-1">
-          What topics interest you?
+        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: accentColor || undefined }}>Next Steps</p>
+        <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-2">
+          Let's make the best use of your time at the conference.
         </h2>
         <p className="text-muted-foreground text-sm">
-          Select all that apply — we'll use these to recommend sessions and sponsors tailored to you.
+          Select the topics that are most relevant to you so Concierge can recommend the sessions, sponsors, and meeting opportunities that best match your interests.
         </p>
       </div>
 
@@ -741,16 +742,11 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
                         data-testid={`button-sponsor-onsite-${s.id}`}
                         onClick={() => openScheduling(s, "onsite")}
                         className={cn(
-                          "w-full py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-[0.98] flex items-center justify-between px-3",
+                          "w-full py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-[0.98] flex items-center justify-center px-3",
                           levelAccent[level] || "bg-primary hover:bg-primary/90 text-white",
                         )}
                       >
-                        <span>Schedule Onsite Meeting</span>
-                        {wasOnsiteScheduled(s.id) && (
-                          <span className="flex items-center gap-0.5 opacity-90 text-[10px] font-bold ml-2 shrink-0">
-                            <CheckCircle2 className="h-3 w-3" /> Requested
-                          </span>
-                        )}
+                        Schedule Onsite Meeting
                       </button>
                     )}
                     {onlineEnabled && (
@@ -758,30 +754,20 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
                         data-testid={`button-sponsor-online-${s.id}`}
                         onClick={() => openScheduling(s, "online")}
                         className={cn(
-                          "w-full py-1 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-between px-3",
+                          "w-full py-1 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-1.5 px-3",
                           levelAccentSecondary[level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
                         )}
                       >
-                        <span className="flex items-center gap-1.5"><Video className="h-3 w-3" /> Online Meeting</span>
-                        {wasOnlineScheduled(s.id) && (
-                          <span className="flex items-center gap-0.5 text-[10px] font-bold ml-2 shrink-0">
-                            <CheckCircle2 className="h-3 w-3" /> Requested
-                          </span>
-                        )}
+                        <Video className="h-3 w-3" /> Online Meeting
                       </button>
                     )}
                     {infoEnabled && (
                       <button
                         onClick={() => setRequestInfoSponsor(s)}
                         data-testid={`button-sponsor-info-${s.id}`}
-                        className="w-full py-1 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground bg-transparent hover:bg-muted/50 transition-all duration-150 active:scale-[0.98] flex items-center justify-between px-3"
+                        className="w-full py-1 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground bg-transparent hover:bg-muted/50 transition-all duration-150 active:scale-[0.98] flex items-center justify-center px-3"
                       >
-                        <span>Request Information</span>
-                        {infoRequestedSet.has(s.id) && (
-                          <span className="flex items-center gap-0.5 text-[10px] font-bold text-green-600 ml-2 shrink-0">
-                            <CheckCircle2 className="h-3 w-3" /> Sent
-                          </span>
-                        )}
+                        Request Information
                       </button>
                     )}
                   </div>
@@ -1055,6 +1041,15 @@ export default function WelcomePage() {
         )
       );
       await apiPost(`/api/public/pending/${profileId}/complete`);
+      // If the attendee was matched to a token, mark their portal onboarding complete so
+      // clicking "See Your Dashboard" goes directly to the dashboard without re-running the wizard.
+      if (matchedToken) {
+        await fetch("/api/attendee-portal/skip-onboarding", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-attendee-token": matchedToken },
+          body: "{}",
+        }).catch(() => {});
+      }
     } catch (e) { console.error("[welcome] complete error", e); }
     finally { setActionLoading(false); setStep("complete"); }
   }

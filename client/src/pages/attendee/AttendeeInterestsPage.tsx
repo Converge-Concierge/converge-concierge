@@ -64,20 +64,26 @@ export default function AttendeeInterestsPage() {
   const selectedList = [...selected].map((id) => topicMap.get(id)).filter(Boolean) as Topic[];
   const me = meQuery.data;
 
+  const ac = me?.event.buttonColor || me?.event.accentColor || null;
+  const acColor = ac ? { color: ac } : undefined;
+  const acBg = ac ? { backgroundColor: `${ac}18` } : undefined;
+  const acSelected = ac ? { backgroundColor: ac, borderColor: ac, color: "#fff" } : undefined;
+  const acSaveBtn = ac ? { backgroundColor: ac, borderColor: ac } : undefined;
+
   if (!token || meQuery.isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: ac ?? "hsl(var(--primary))" }} />
       </div>
     );
   }
 
   return (
-    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={me?.event.buttonColor || me?.event.accentColor || null}>
+    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={ac}>
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <div className="mb-2">
           <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
-            <Tag className="h-6 w-6 text-primary" /> Your Interests
+            <Tag className="h-6 w-6 text-primary" style={acColor} /> Your Interests
           </h1>
           {me && <p className="text-sm text-muted-foreground mt-1">{me.event.name}</p>}
           <p className="text-sm text-muted-foreground mt-2">
@@ -88,7 +94,7 @@ export default function AttendeeInterestsPage() {
         <div className="bg-card border border-border/60 rounded-2xl p-6">
           {topicsQuery.isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: ac ?? "hsl(var(--primary))" }} />
             </div>
           ) : topics.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
@@ -96,27 +102,34 @@ export default function AttendeeInterestsPage() {
             </p>
           ) : (
             <div className="flex flex-wrap gap-2.5" data-testid="interests-topics-list">
-              {topics.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => toggle(t.id)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                    selected.has(t.id)
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "bg-background border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
-                  }`}
-                  data-testid={`button-interest-${t.id}`}
-                >
-                  {t.topicLabel}
-                </button>
-              ))}
+              {topics.map((t) => {
+                const isSelected = selected.has(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => toggle(t.id)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                      isSelected
+                        ? "shadow-sm"
+                        : "bg-background border-border text-foreground"
+                    }`}
+                    style={isSelected
+                      ? (acSelected ?? { backgroundColor: "hsl(var(--primary))", borderColor: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" })
+                      : undefined
+                    }
+                    data-testid={`button-interest-${t.id}`}
+                  >
+                    {t.topicLabel}
+                  </button>
+                );
+              })}
             </div>
           )}
 
           {selectedList.length > 0 && (
             <div className="mt-5 pt-5 border-t border-border/50">
               <p className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary" style={acColor} />
                 {selectedList.length} topic{selectedList.length !== 1 ? "s" : ""} selected
               </p>
               <div className="flex flex-wrap gap-1.5" data-testid="interests-selected-list">
@@ -135,6 +148,7 @@ export default function AttendeeInterestsPage() {
           size="lg"
           onClick={() => saveTopicsMutation.mutate([...selected])}
           disabled={saveTopicsMutation.isPending}
+          style={acSaveBtn}
           data-testid="button-save-interests"
         >
           {saveTopicsMutation.isPending ? "Saving…" : "Save My Interests"}

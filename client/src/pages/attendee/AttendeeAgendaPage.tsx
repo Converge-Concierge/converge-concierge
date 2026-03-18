@@ -35,11 +35,13 @@ function formatTimeRange(s: string, e: string) {
 
 // ── Session Card ──────────────────────────────────────────────────────────────
 
-function SessionCard({ session, saved, onSave, onUnsave, onView, isSaving, isRecommended }: {
+function SessionCard({ session, saved, onSave, onUnsave, onView, isSaving, isRecommended, accentColor }: {
   session: AgendaSession; saved: boolean;
   onSave: () => void; onUnsave: () => void; onView: () => void;
-  isSaving: boolean; isRecommended?: boolean;
+  isSaving: boolean; isRecommended?: boolean; accentColor?: string | null;
 }) {
+  const ac = accentColor ?? null;
+  const acColor = ac ? { color: ac } : undefined;
   const location = [session.locationName, session.locationDetails].filter(Boolean).join(" — ");
   const hasSpeakers = (session.speakers ?? []).length > 0;
 
@@ -51,7 +53,13 @@ function SessionCard({ session, saved, onSave, onUnsave, onView, isSaving, isRec
             <Badge variant="outline" className="text-xs rounded-full shrink-0">{session.sessionTypeLabel}</Badge>
             {session.isFeatured && <Badge className="text-xs rounded-full bg-amber-500/10 text-amber-700 border-amber-200 dark:text-amber-400">Featured</Badge>}
             {isRecommended && (
-              <Badge className="text-xs rounded-full bg-primary/10 text-primary border-primary/20 flex items-center gap-1 shrink-0">
+              <Badge
+                className="text-xs rounded-full flex items-center gap-1 shrink-0 border"
+                style={ac
+                  ? { backgroundColor: `${ac}18`, color: ac, borderColor: `${ac}33` }
+                  : { backgroundColor: "hsl(var(--primary) / 0.1)", color: "hsl(var(--primary))", borderColor: "hsl(var(--primary) / 0.2)" }
+                }
+              >
                 <Sparkles className="h-2.5 w-2.5" /> Recommended
               </Badge>
             )}
@@ -168,19 +176,21 @@ export default function AttendeeAgendaPage() {
 
   const isSaving = saveSessionMutation.isPending || unsaveSessionMutation.isPending;
 
+  const me = meQuery.data;
+  const ac = me?.event.buttonColor || me?.event.accentColor || null;
+  const acColor = ac ? { color: ac } : undefined;
+
   if (!token || meQuery.isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: ac ?? "hsl(var(--primary))" }} /></div>;
   }
 
-  const me = meQuery.data;
-
   return (
-    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={me?.event.buttonColor || me?.event.accentColor || null}>
+    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={ac}>
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Page header */}
         <div className="mb-6">
           <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
-            <CalendarDays className="h-6 w-6 text-primary" /> Agenda
+            <CalendarDays className="h-6 w-6 text-primary" style={acColor} /> Agenda
           </h1>
           {me && <p className="text-sm text-muted-foreground mt-1">{me.event.name}</p>}
         </div>
@@ -222,7 +232,7 @@ export default function AttendeeAgendaPage() {
         {/* Loading */}
         {agendaQuery.isLoading && (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: ac ?? "hsl(var(--primary))" }} />
           </div>
         )}
 
@@ -260,6 +270,7 @@ export default function AttendeeAgendaPage() {
                     onView={() => setDetailSession(session)}
                     isSaving={isSaving}
                     isRecommended={recommendedIds.has(session.id)}
+                    accentColor={ac}
                   />
                 ))}
               </div>

@@ -73,7 +73,7 @@ function hasOverlap(session: SavedSession, meetings: AttendeeMeeting[]): boolean
 // ── My Agenda Tab ─────────────────────────────────────────────────────────────
 
 function MyAgendaTab({
-  sessions, savedQuery, unsaveSession, isRemoving, onViewSession, onAddToCalendar, onDownloadAll,
+  sessions, savedQuery, unsaveSession, isRemoving, onViewSession, onAddToCalendar, onDownloadAll, accentColor,
 }: {
   sessions: SavedSession[];
   savedQuery: { isLoading: boolean };
@@ -82,7 +82,9 @@ function MyAgendaTab({
   onViewSession: (s: SavedSession) => void;
   onAddToCalendar: (id: string) => void;
   onDownloadAll: () => void;
+  accentColor?: string | null;
 }) {
+  const ac = accentColor ?? null;
   const grouped = useMemo(() => {
     const map = new Map<string, SavedSession[]>();
     for (const s of sessions) {
@@ -92,7 +94,7 @@ function MyAgendaTab({
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [sessions]);
 
-  if (savedQuery.isLoading) return <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  if (savedQuery.isLoading) return <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: ac ?? "hsl(var(--primary))" }} /></div>;
 
   if (sessions.length === 0) {
     return (
@@ -158,7 +160,9 @@ function MyAgendaTab({
 
 // ── My Schedule Tab (combined view) ──────────────────────────────────────────
 
-function MyScheduleTab({ sessions, meetings, isLoading }: { sessions: SavedSession[]; meetings: AttendeeMeeting[]; isLoading: boolean }) {
+function MyScheduleTab({ sessions, meetings, isLoading, accentColor }: { sessions: SavedSession[]; meetings: AttendeeMeeting[]; isLoading: boolean; accentColor?: string | null }) {
+  const ac = accentColor ?? null;
+  const acColor = ac ? { color: ac } : undefined;
   const confirmedMeetings = meetings.filter((m) => m.status === "Confirmed");
 
   const items = useMemo<PlanItem[]>(() => {
@@ -183,7 +187,7 @@ function MyScheduleTab({ sessions, meetings, isLoading }: { sessions: SavedSessi
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [items]);
 
-  if (isLoading) return <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  if (isLoading) return <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: ac ?? "hsl(var(--primary))" }} /></div>;
 
   if (items.length === 0) {
     return (
@@ -211,7 +215,7 @@ function MyScheduleTab({ sessions, meetings, isLoading }: { sessions: SavedSessi
                 return (
                   <div key={`s-${s.id}`} className="bg-card border border-border/60 rounded-xl px-4 py-3 flex items-start gap-3" data-testid={`plan-session-${s.id}`}>
                     <div className="w-14 shrink-0 pt-0.5">
-                      <p className="text-xs font-semibold text-primary tabular-nums">{formatSingleTime(s.startTime)}</p>
+                      <p className="text-xs font-semibold tabular-nums" style={acColor ?? { color: "hsl(var(--primary))" }}>{formatSingleTime(s.startTime)}</p>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm text-foreground leading-snug">{s.title}</p>
@@ -295,19 +299,21 @@ export default function AttendeeMyAgendaPage() {
   const meetings = meetingsQuery.data ?? [];
   const isRemoving = unsaveSessionMutation.isPending;
 
+  const me = meQuery.data;
+  const ac = me?.event.buttonColor || me?.event.accentColor || null;
+  const acColor = ac ? { color: ac } : undefined;
+
   if (!token || meQuery.isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: ac ?? "hsl(var(--primary))" }} /></div>;
   }
 
-  const me = meQuery.data;
-
   return (
-    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={me?.event.buttonColor || me?.event.accentColor || null}>
+    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={ac}>
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Page header */}
         <div className="mb-6">
           <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
-            <Bookmark className="h-6 w-6 text-primary" /> My Agenda
+            <Bookmark className="h-6 w-6 text-primary" style={acColor} /> My Agenda
           </h1>
           {sessions.length > 0 && (
             <p className="text-sm text-muted-foreground mt-1">{sessions.length} session{sessions.length !== 1 ? "s" : ""} saved</p>
@@ -342,6 +348,7 @@ export default function AttendeeMyAgendaPage() {
             onViewSession={setDetailSession}
             onAddToCalendar={handleAddToCalendar}
             onDownloadAll={handleDownloadAll}
+            accentColor={ac}
           />
         )}
 
@@ -350,6 +357,7 @@ export default function AttendeeMyAgendaPage() {
             sessions={sessions}
             meetings={meetings}
             isLoading={savedQuery.isLoading || meetingsQuery.isLoading}
+            accentColor={ac}
           />
         )}
       </div>

@@ -42,21 +42,22 @@ function formatTime(t: string) {
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
 }
 
-function SponsorLogo({ url, name, size = 10 }: { url: string | null; name: string; size?: number }) {
+function SponsorLogo({ url, name, size = 10, accentColor }: { url: string | null; name: string; size?: number; accentColor?: string | null }) {
+  const ac = accentColor ?? null;
   const cls = `h-${size} w-${size} rounded-lg shrink-0`;
   return url
     ? <img src={url} alt={name} className={`${cls} object-contain border border-border/40 bg-white p-1`} />
-    : <div className={`${cls} bg-primary/10 flex items-center justify-center`}><Building2 className="h-4 w-4 text-primary" /></div>;
+    : <div className={`${cls} flex items-center justify-center`} style={{ backgroundColor: ac ? `${ac}18` : "hsl(var(--primary) / 0.1)" }}><Building2 className="h-4 w-4" style={{ color: ac ?? "hsl(var(--primary))" }} /></div>;
 }
 
 // ── Confirmed Meeting Card ────────────────────────────────────────────────────
 
-function ConfirmedCard({ meeting, onCalendar }: { meeting: AttendeeMeeting; onCalendar: (m: AttendeeMeeting) => void }) {
+function ConfirmedCard({ meeting, onCalendar, accentColor }: { meeting: AttendeeMeeting; onCalendar: (m: AttendeeMeeting) => void; accentColor?: string | null }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="bg-card border border-green-200/60 rounded-xl p-4" data-testid={`card-meeting-confirmed-${meeting.id}`}>
       <div className="flex items-start gap-3">
-        <SponsorLogo url={meeting.sponsorLogoUrl} name={meeting.sponsorName} />
+        <SponsorLogo url={meeting.sponsorLogoUrl} name={meeting.sponsorName} accentColor={accentColor} />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -99,21 +100,30 @@ function ConfirmedCard({ meeting, onCalendar }: { meeting: AttendeeMeeting; onCa
 // ── Invitation Card ───────────────────────────────────────────────────────────
 
 function InvitationCard({
-  meeting, onAccept, onDecline, isActing,
+  meeting, onAccept, onDecline, isActing, accentColor,
 }: {
   meeting: AttendeeMeeting;
   onAccept: (id: string) => void;
   onDecline: (id: string) => void;
   isActing: boolean;
+  accentColor?: string | null;
 }) {
+  const ac = accentColor ?? null;
   return (
-    <div className="bg-card border border-primary/30 rounded-xl p-4" data-testid={`card-meeting-invitation-${meeting.id}`}>
+    <div
+      className="bg-card rounded-xl p-4 border"
+      style={{ borderColor: ac ? `${ac}4d` : "hsl(var(--primary) / 0.3)" }}
+      data-testid={`card-meeting-invitation-${meeting.id}`}
+    >
       <div className="flex items-start gap-3">
-        <SponsorLogo url={meeting.sponsorLogoUrl} name={meeting.sponsorName} />
+        <SponsorLogo url={meeting.sponsorLogoUrl} name={meeting.sponsorName} accentColor={accentColor} />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
             <p className="font-semibold text-sm text-foreground" data-testid={`text-invitation-sponsor-${meeting.id}`}>{meeting.sponsorName}</p>
-            <Badge className="text-[10px] bg-primary/10 text-primary border-primary/30 rounded-full shrink-0">Invitation</Badge>
+            <Badge
+              className="text-[10px] rounded-full shrink-0 border"
+              style={{ backgroundColor: ac ? `${ac}18` : "hsl(var(--primary) / 0.1)", color: ac ?? "hsl(var(--primary))", borderColor: ac ? `${ac}4d` : "hsl(var(--primary) / 0.3)" }}
+            >Invitation</Badge>
           </div>
           <p className="text-xs text-muted-foreground mb-1">Awaiting Your Response</p>
           {meeting.date && meeting.date !== "TBD" && (
@@ -145,11 +155,11 @@ function InvitationCard({
 
 // ── Pending Request Card ──────────────────────────────────────────────────────
 
-function PendingCard({ meeting }: { meeting: AttendeeMeeting }) {
+function PendingCard({ meeting, accentColor }: { meeting: AttendeeMeeting; accentColor?: string | null }) {
   return (
     <div className="bg-card border border-border/60 rounded-xl p-4" data-testid={`card-meeting-pending-${meeting.id}`}>
       <div className="flex items-center gap-3">
-        <SponsorLogo url={meeting.sponsorLogoUrl} name={meeting.sponsorName} />
+        <SponsorLogo url={meeting.sponsorLogoUrl} name={meeting.sponsorName} accentColor={accentColor} />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -210,11 +220,14 @@ export default function AttendeeMeetingsPage() {
     window.open(`/api/attendee-portal/meetings/${meeting.id}/ics?token=${t}`, "_blank");
   }
 
+  const me = meQuery.data;
+  const ac = me?.event.buttonColor || me?.event.accentColor || null;
+  const acColor = ac ? { color: ac } : undefined;
+
   if (!token || meQuery.isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: ac ?? "hsl(var(--primary))" }} /></div>;
   }
 
-  const me = meQuery.data;
   const all = meetingsQuery.data ?? [];
 
   // Categorise
@@ -227,12 +240,12 @@ export default function AttendeeMeetingsPage() {
   const totalActive = invitations.length + confirmed.length + pending.length;
 
   return (
-    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={me?.event.buttonColor || me?.event.accentColor || null}>
+    <AttendeeShell onLogout={logout} attendeeName={me?.attendee.firstName} accentColor={ac}>
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-2">
-            <Calendar className="h-6 w-6 text-primary" /> My Meetings
+            <Calendar className="h-6 w-6 text-primary" style={acColor} /> My Meetings
           </h1>
           {totalActive > 0 && (
             <p className="text-sm text-muted-foreground mt-1" data-testid="text-meetings-count">{totalActive} active meeting{totalActive !== 1 ? "s" : ""}</p>
@@ -242,7 +255,7 @@ export default function AttendeeMeetingsPage() {
         {/* Loading */}
         {meetingsQuery.isLoading && (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: ac ?? "hsl(var(--primary))" }} />
           </div>
         )}
 
@@ -262,7 +275,7 @@ export default function AttendeeMeetingsPage() {
         {invitations.length > 0 && (
           <div className="mb-8" data-testid="section-invitations">
             <SectionHeader
-              icon={<Send className="h-4 w-4 text-primary" />}
+              icon={<Send className="h-4 w-4" style={acColor ?? { color: "hsl(var(--primary))" }} />}
               label="Meeting Invitations"
               count={invitations.length}
             />
@@ -274,6 +287,7 @@ export default function AttendeeMeetingsPage() {
                   onAccept={(id) => acceptMutation.mutate(id)}
                   onDecline={(id) => declineMutation.mutate(id)}
                   isActing={isActing}
+                  accentColor={ac}
                 />
               ))}
             </div>
@@ -290,7 +304,7 @@ export default function AttendeeMeetingsPage() {
             />
             <div className="space-y-3">
               {confirmed.map((m) => (
-                <ConfirmedCard key={m.id} meeting={m} onCalendar={handleCalendar} />
+                <ConfirmedCard key={m.id} meeting={m} onCalendar={handleCalendar} accentColor={ac} />
               ))}
             </div>
           </div>
@@ -306,7 +320,7 @@ export default function AttendeeMeetingsPage() {
             />
             <div className="space-y-3">
               {pending.map((m) => (
-                <PendingCard key={m.id} meeting={m} />
+                <PendingCard key={m.id} meeting={m} accentColor={ac} />
               ))}
             </div>
           </div>

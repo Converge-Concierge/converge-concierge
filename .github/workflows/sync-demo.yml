@@ -1,0 +1,43 @@
+name: Sync demo from main
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-demo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout full repo history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch branches
+        run: |
+          git fetch origin main
+          git fetch origin demo || true
+
+      - name: Create or update demo branch
+        run: |
+          if git ls-remote --exit-code --heads origin demo; then
+            git checkout demo
+            git merge origin/main --no-edit
+          else
+            git checkout -b demo origin/main
+          fi
+
+      - name: Push demo branch
+        run: |
+          git push origin demo

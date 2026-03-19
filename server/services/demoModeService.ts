@@ -26,6 +26,31 @@ export function isDemoEmailAllowed(email: string): boolean {
   return DEMO_EMAIL_ALLOWLIST.some((d) => domain === d);
 }
 
+export async function runDemoSeedIfNeeded(): Promise<void> {
+  if (!isDemoMode()) return;
+  try {
+    const { db } = await import("../db");
+    const { events } = await import("@shared/schema");
+    const { like } = await import("drizzle-orm");
+    const existing = await db.select().from(events).where(like(events.slug, "DEMO%"));
+    if (existing.length > 0) {
+      console.log("[DEMO SEED] Demo data already present — skipping auto-seed.");
+      return;
+    }
+    console.log("[DEMO SEED] No demo events found — running seed script as subprocess...");
+    const { execSync } = await import("child_process");
+    const scriptPath = new URL("../../scripts/seedDemoEnvironment.ts", import.meta.url).pathname;
+    execSync(`npx tsx ${scriptPath}`, {
+      stdio: "inherit",
+      timeout: 120_000,
+      env: { ...process.env },
+    });
+    console.log("[DEMO SEED] Seed subprocess complete.");
+  } catch (err: any) {
+    console.error("[DEMO SEED] Auto-seed failed:", err.message);
+  }
+}
+
 export function logDemoStartup(): void {
   const env = getAppEnv();
   if (env === "demo") {

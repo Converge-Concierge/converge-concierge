@@ -11,7 +11,7 @@ import multer from "multer";
 import path from "path";
 import { randomBytes, createHash } from "crypto";
 import { objectStorageClient } from "./replit_integrations/object_storage/objectStorage";
-import { generateUploadUrl, generateDownloadUrl, buildObjectKeyFlat } from "./services/fileStorageService";
+import { generateUploadUrl, generateDownloadUrl, buildObjectKeyFlat, uploadToR2, getObjectStream, putObject } from "./services/fileStorageService";
 import { runFullBackup, runEventBackup, runSponsorEventBackup, listBackupJobs, getBackupJob, getBackupObjectKey, streamR2Object } from "./backup-service";
 import { validateBackup, getBackupDetail } from "./services/restoreValidationService";
 import { dryRunRestore } from "./services/restoreImportService";
@@ -29,17 +29,6 @@ const upload = multer({
   },
 });
 
-async function uploadToObjectStorage(buffer: Buffer, mimetype: string, originalname: string): Promise<string> {
-  const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-  if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID is not set");
-  const ext = path.extname(originalname) || ".png";
-  const key = `${Date.now()}-${randomBytes(8).toString("hex")}${ext}`;
-  const objectName = `public/uploads/${key}`;
-  const bucket = objectStorageClient.bucket(bucketId);
-  const file = bucket.file(objectName);
-  await file.save(buffer, { contentType: mimetype, resumable: false });
-  return `/uploads/${key}`;
-}
 
 async function seedData() {
   const events = await storage.getEvents();
@@ -224,29 +213,31 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (err) return res.status(400).json({ message: err.message });
       if (!req.file) return res.status(400).json({ message: "No file provided" });
       try {
-        const url = await uploadToObjectStorage(req.file.buffer, req.file.mimetype, req.file.originalname);
+        const appEnv = getAppEnv();
+        const objectKey = `${appEnv === "demo" ? "demo/" : ""}uploads/${Date.now()}-${randomBytes(8).toString("hex")}${path.extname(req.file.originalname) || ".png"}`;
+        console.log(`[UPLOAD] APP_ENV=${appEnv} | uploading to R2 key: ${objectKey} | size: ${req.file.buffer.byteLength} | type: ${req.file.mimetype}`);
+        await putObject(objectKey, req.file.buffer, req.file.mimetype);
+        const url = `/uploads/${encodeURIComponent(objectKey)}`;
         res.json({ url });
       } catch (uploadErr: any) {
-        console.error("Object storage upload failed:", uploadErr);
-        res.status(500).json({ message: "File upload failed" });
+        console.error("[UPLOAD] R2 upload failed:", uploadErr.message);
+        res.status(500).json({ message: `File upload failed: ${uploadErr.message}` });
       }
     });
   });
 
-  app.get("/uploads/:key", async (req, res) => {
+  app.get("/uploads/*path", async (req, res) => {
     try {
-      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-      if (!bucketId) return res.status(500).json({ message: "Storage not configured" });
-      const file = objectStorageClient.bucket(bucketId).file(`public/uploads/${req.params.key}`);
-      const [exists] = await file.exists();
-      if (!exists) return res.status(404).json({ message: "Not found" });
-      const [metadata] = await file.getMetadata();
-      res.set("Content-Type", (metadata.contentType as string) || "application/octet-stream");
-      res.set("Cache-Control", "public, max-age=31536000");
-      file.createReadStream().pipe(res);
+      const paramPath = (req.params as any).path || (req.params as any)[0] || "";
+      const objectKey = decodeURIComponent(Array.isArray(paramPath) ? paramPath.join("/") : paramPath);
+      if (!objectKey) return res.status(400).json({ message: "Missing object key" });
+      const { body, contentType } = await getObjectStream(objectKey);
+      res.set("Content-Type", contentType);
+      res.set("Cache-Control", "public, max-age=86400");
+      body.pipe(res);
     } catch (e: any) {
-      console.error("Upload serve error:", e);
-      res.status(500).json({ message: "Failed to serve file" });
+      console.error("[UPLOAD SERVE] Failed to serve from R2:", e.message);
+      res.status(404).json({ message: "File not found" });
     }
   });
 
@@ -1862,6 +1853,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/app-env", (_req, res) => {
     res.json({ env: getAppEnv(), isDemoMode: isDemoMode() });
+  });
+
+  app.get("/api/admin/upload-health", requireAuth, async (_req, res) => {
+    const checks: Record<string, string | boolean | null> = {
+      r2Endpoint: process.env.R2_ENDPOINT ? "set" : "MISSING",
+      r2AccessKey: process.env.R2_ACCESS_KEY_ID ? "set" : "MISSING",
+      r2SecretKey: process.env.R2_SECRET_ACCESS_KEY ? "set" : "MISSING",
+      r2BucketName: process.env.R2_BUCKET_NAME || "MISSING",
+      appEnv: getAppEnv(),
+      isDemoMode: isDemoMode(),
+    };
+    let r2Writable = false;
+    let r2WriteError: string | null = null;
+    try {
+      const testKey = `${isDemoMode() ? "demo/" : ""}uploads/.health-${Date.now()}.txt`;
+      await putObject(testKey, Buffer.from("health-check"), "text/plain");
+      r2Writable = true;
+    } catch (e: any) {
+      r2WriteError = e.message;
+    }
+    res.json({ ...checks, r2Writable, r2WriteError });
   });
 
   app.get("/api/branding", requireAuth, async (_req, res) => {

@@ -766,7 +766,7 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
                               : levelAccent[level] || "bg-primary hover:bg-primary/90 text-white",
                           )}
                         >
-                          {isScheduled ? <><CheckCircle2 className="h-3.5 w-3.5" /> Onsite Meeting Requested</> : "Schedule Onsite Meeting"}
+                          {isScheduled ? <><CheckCircle2 className="h-3.5 w-3.5" /> Onsite Meeting Scheduled</> : "Schedule Onsite Meeting"}
                         </button>
                       );
                     })()}
@@ -783,7 +783,7 @@ function SponsorsCard({ eventId, eventSlug, attendeeEmail, sponsors, allTopics, 
                               : levelAccentSecondary[level] || "border-border text-muted-foreground bg-muted/50 hover:bg-muted",
                           )}
                         >
-                          {isScheduled ? <><CheckCircle2 className="h-3 w-3" /> Online Meeting Requested</> : <><Video className="h-3 w-3" /> Online Meeting</>}
+                          {isScheduled ? <><CheckCircle2 className="h-3 w-3" /> Online Meeting Scheduled</> : <><Video className="h-3 w-3" /> Online Meeting</>}
                         </button>
                       );
                     })()}

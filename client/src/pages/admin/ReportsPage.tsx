@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer,
+  Legend, ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -254,6 +254,29 @@ export default function ReportsPage() {
       avgMeetings,
     };
   }, [filteredMeetings, attendees]);
+
+  // ── Pie chart data (Meeting Status Distribution) ────────────────────────
+
+  const pieData = useMemo(() => {
+    return Object.entries(statusCounts)
+      .filter(([, count]) => count > 0)
+      .map(([status, count]) => ({ name: status, value: count, fill: STATUS_COLORS[status] ?? "#94a3b8" }));
+  }, [statusCounts]);
+
+  // ── Engagement Funnel data ────────────────────────────────────────────────
+
+  const funnelData = useMemo(() => {
+    const totalSponsors = sponsors.length;
+    const sponsorsWithMeetings = new Set(filteredMeetings.map((m) => m.sponsorId)).size;
+    const totalMeetings = filteredMeetings.length;
+    const completedMeetings = statusCounts.Completed ?? 0;
+    return [
+      { stage: "Total Sponsors", value: totalSponsors, fill: "#6366f1" },
+      { stage: "With Meetings", value: sponsorsWithMeetings, fill: "#3b82f6" },
+      { stage: "Meetings Held", value: totalMeetings, fill: "#06b6d4" },
+      { stage: "Completed", value: completedMeetings, fill: "#22c55e" },
+    ];
+  }, [sponsors, filteredMeetings, statusCounts]);
 
   // ── Meetings by Event bar ──────────────────────────────────────────────────
 
@@ -606,7 +629,7 @@ export default function ReportsPage() {
                 {perEvent.map(({ event, count }) => {
                   const max = Math.max(...perEvent.map((x) => x.count), 1);
                   return (
-                    <div key={event.id}>
+                    <div key={event.id} data-testid={`bar-event-${event.id}`}>
                       <div className="flex items-center justify-between mb-1">
                         <div>
                           <span className="text-xs font-mono font-bold text-foreground">{event.slug}</span>
@@ -622,6 +645,58 @@ export default function ReportsPage() {
                 })}
               </div>
             )}
+          </div>
+
+          {/* Meeting Status Distribution — Pie chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6" data-testid="meeting-status-pie">
+              <h2 className="text-sm font-semibold text-foreground mb-5 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-accent" /> Meeting Status Distribution
+              </h2>
+              {pieData.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">No meeting data yet.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                      nameKey="name"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number, name: string) => [value, name]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            {/* Engagement Funnel — horizontal bar chart */}
+            <div className="bg-card rounded-2xl border border-border/60 shadow-sm p-6" data-testid="engagement-funnel-chart">
+              <h2 className="text-sm font-semibold text-foreground mb-5 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-accent" /> Engagement Funnel
+              </h2>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={funnelData} layout="vertical" margin={{ top: 4, right: 32, left: 8, bottom: 4 }} barCategoryGap="30%">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" opacity={0.5} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="stage" width={110} tick={{ fontSize: 11, fill: "hsl(var(--foreground))" }} tickLine={false} axisLine={false} />
+                  <Tooltip formatter={(value: number) => [value]} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {funnelData.map((entry, index) => (
+                      <Cell key={`funnel-cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       )}

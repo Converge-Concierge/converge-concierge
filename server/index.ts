@@ -11,7 +11,7 @@ import { startReminderJob } from "./reminder-service";
 import { startBackupScheduler } from "./backup-service";
 import { storage } from "./storage";
 import { createServer } from "http";
-import { logDemoStartup } from "./services/demoModeService";
+import { logDemoStartup, runDemoSeedIfNeeded } from "./services/demoModeService";
 
 const PgSession = connectPg(session);
 
@@ -96,6 +96,7 @@ app.use((req, res, next) => {
 
 (async () => {
   logDemoStartup();
+  runDemoSeedIfNeeded().catch(err => console.error("[STARTUP] Demo seed check failed:", err));
   await registerRoutes(httpServer, app);
 
   seedEmailTemplates(storage).catch(err => console.error("[STARTUP] Email template seeding failed:", err));

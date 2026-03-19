@@ -94,3 +94,33 @@ export async function putObject(objectKey: string, body: Buffer | string, conten
     throw new Error(`R2 upload failed: ${response.status} ${response.statusText}${text ? ` — ${text.slice(0, 200)}` : ""}`);
   }
 }
+
+export async function uploadToR2(buffer: Buffer, mimetype: string, originalname: string): Promise<string> {
+  const isDemoMode = process.env.APP_ENV?.toLowerCase() === "demo";
+  const prefix = isDemoMode ? "demo/" : "";
+  const ext = originalname.includes(".") ? originalname.slice(originalname.lastIndexOf(".")) : ".bin";
+  const key = `${prefix}uploads/${Date.now()}-${randomUUID().slice(0, 8)}${ext}`;
+  await putObject(key, buffer, mimetype);
+  return `/uploads/${encodeURIComponent(key)}`;
+}
+
+export async function getObjectStream(objectKey: string): Promise<{ body: NodeJS.ReadableStream; contentType: string }> {
+  const client = getS3Client();
+  const bucket = getBucketName();
+  const command = new GetObjectCommand({ Bucket: bucket, Key: objectKey });
+  const response = await client.send(command);
+  if (!response.Body) throw new Error("Empty response body from R2");
+  const { Readable } = await import("stream");
+  const body = response.Body as NodeJS.ReadableStream;
+  const contentType = response.ContentType || "application/octet-stream";
+  return { body, contentType };
+}
+
+export function buildUploadObjectKey(originalFileName: string): { objectKey: string; storedFileName: string; fileId: string } {
+  const isDemoMode = process.env.APP_ENV?.toLowerCase() === "demo";
+  const prefix = isDemoMode ? "demo/" : "";
+  const fileId = randomUUID();
+  const storedFileName = sanitizeFilename(originalFileName);
+  const objectKey = `${prefix}file-assets/${fileId}/${storedFileName}`;
+  return { objectKey, storedFileName, fileId };
+}
